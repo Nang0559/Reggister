@@ -1,0 +1,311 @@
+﻿using FVN_REGISTER.Contract.Dtos;
+using FVN_REGISTER.Contract.Interfaces.Leaves;
+using FVN_REGISTER.Contract.Maps;
+using FVN_REGISTER.Contract.Models;
+using FVN_REGISTER.Contract.Util;
+using FVN_REGISTER.Contract.Utils;
+using FVN_REGISTER.Contract.ViewModels;
+using FVN_REGISTER.Core.Configurations;
+using FVN_REGISTER.Core.Logging;
+using FVN_REGISTER.Core.Services;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+
+
+namespace FVN_REGISTER.API.Services.Leaves
+{
+    public class LeaveService : BaseService<LeaveService>, ILeaveService
+    {
+        private readonly FVNWEBAPPContext _db;
+        private readonly ILeaveNotificationService _notification;
+        private readonly ILeaveValidator _validator;
+
+        public LeaveService(
+            FVNWEBAPPContext db,
+            ILeaveNotificationService notification,
+            ILeaveValidator validator,
+            ILogger<LeaveService> logger,
+            IOptionsMonitor<AuthDebugOptions> options)
+            : base(logger, options)
+        {
+            _db = db;
+            _notification = notification;
+            _validator = validator;
+        }
+
+        // ================= DÀNH CHO NHÂN VIÊN =================
+
+        public async Task<ServiceResult> CreateLeaveAsync(CreateLeaveRequestModel model, CurrentUser user, CancellationToken ct = default)
+        {
+            try
+            {
+                Logger.LogDebugIf(Debug, "[LEAVE] Create start: {User}", user.UserName);
+
+                // 1. Ánh xạ thủ công sang UserSessionDto nếu Validator chưa nâng cấp
+                var session = new UserSessionDto
+                {
+                    UserId = user.UserId,
+                    UserName = user.UserName,
+                    EmployeeCode = user.EmployeeCode,
+                    FullName = user.FullName,
+                    Email = user.Email,
+                    PermissionCode = user.Permission, // Lưu ý mapping Permission sang PermissionCode
+                    DeptCode = user.DeptCode,
+                    CVCode = user.CvCode,
+                    LevelApprove = user.LevelApprove,
+                    IsAdmin = user.IsAdmin()
+                };
+
+                // 2. Gọi validator với object session vừa tạo
+                var valResult = await _validator.ValidateAsync(model, session, ct);
+
+                if (!valResult.IsSuccess)
+                {
+                    Logger.LogWarnIf(Debug, "[LEAVE] Validation failed: {User}", user.UserName);
+                    return valResult;
+                }
+
+                // --- Giữ nguyên logic Database bên dưới, sử dụng 'user' (CurrentUser) ---
+                await using var tx = await _db.Database.BeginTransactionAsync(ct);
+
+                var newLeave = new F03leaveDay
+                {
+                    EmployeeCode = user.EmployeeCode,
+                    WorkYear = model.WorkYear,
+                    StartDate = model.StartDate,
+                    EndDate = model.EndDate,
+                    TotalDay = (decimal)model.TotalDay,
+                    LeaveReason = model.LeaveReason,
+                    RequestStatus = LeaveStatus.Pending,
+                    IsActive = true,
+                    CreatedAt = DateTime.Now,
+                    CreatedBy = user.UserId
+                };
+
+                _db.F03leaveDays.Add(newLeave);
+                await _db.SaveChangesAsync(ct);
+
+                var details = model.Details.Select(d => new F03leaveDayDetail
+                {
+                    LeaveDaysId = newLeave.Id,
+                    LeaveDate = DateOnly.FromDateTime(d.LeaveDate),
+                    LeaveTypeCode = d.LeaveTypeCode,
+                    LeaveTypeName = d.LeaveTypeName,
+                    IsHalfDay = d.IsHalfDay,
+                    HalfDayOption = d.HalfDayOption,
+                    DayValue = (decimal)d.DayValue,
+                    TinhPhep = d.TinhPhep == 1,
+                    CreatedAt = DateTime.Now
+                });
+
+                _db.F03leaveDayDetails.AddRange(details);
+                await _db.SaveChangesAsync(ct);
+
+                await tx.CommitAsync(ct);
+                Logger.LogInfoIf(Debug, "[LEAVE] Created: {User}", user.UserName);
+
+                _ = Task.Run(async () =>
+                {
+                    try
+                    {
+                        await _notification.SendApprovalRequestAsync(newLeave.Level1ApproveEmail, "Approver", newLeave, user.FullName, ct);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.LogError(ex, "[LEAVE] Notification failed");
+                    }
+                }, ct);
+
+                return ServiceResult.Ok("Đã gửi đơn nghỉ thành công.");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "[LEAVE] Create error");
+                return ServiceResult.Fail("Lỗi hệ thống khi tạo đơn nghỉ.");
+            }
+        }
+
+        public async Task<ServiceResult> CancelAsync(int leaveId, string reason, CurrentUser user, CancellationToken ct = default)
+        {
+            try
+            {
+                var leave = await _db.F03leaveDays.FirstOrDefaultAsync(x => x.Id == leaveId, ct);
+                if (leave == null) return ServiceResult.Fail("Không tìm thấy đơn.");
+
+                bool isOwner = leave.EmployeeCode == user.EmployeeCode;
+                bool isAdmin = user.IsAdmin() || user.IsSuperAdmin();
+
+                if (!isOwner && !isAdmin) return ServiceResult.Fail("Không có quyền hủy đơn này.");
+                if (LeaveStatusHelper.IsApproved(leave.RequestStatus) && !isAdmin) return ServiceResult.Fail("Đơn đã duyệt không thể hủy.");
+
+                leave.IsActive = false;
+                leave.Level1Comment = $"Cancel by {(isOwner ? "User" : "Admin")}: {reason}";
+                await _db.SaveChangesAsync(ct);
+
+                return ServiceResult.Ok("Đã hủy đơn thành công.");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "[LEAVE] Cancel ERROR");
+                return ServiceResult.Fail("Lỗi hệ thống khi hủy đơn.");
+            }
+        }
+
+        // ================= DÀNH CHO QUẢN LÝ =================
+
+        public async Task<ServiceResult> ApproveAsync(List<int> leaveIds, int level, CurrentUser user, string comment, CancellationToken ct = default)
+            => await ProcessBatchActionAsync(leaveIds, level, user, comment, isApprove: true, ct);
+
+        public async Task<ServiceResult> RejectAsync(List<int> leaveIds, int level, CurrentUser user, string comment, CancellationToken ct = default)
+            => await ProcessBatchActionAsync(leaveIds, level, user, comment, isApprove: false, ct);
+
+        private async Task<ServiceResult> ProcessBatchActionAsync(List<int> ids, int level, CurrentUser user, string comment, bool isApprove, CancellationToken ct)
+        {
+            if (ids == null || ids.Count == 0) return ServiceResult.Fail("Không có đơn nào được chọn.");
+            try
+            {
+                await using var tx = await _db.Database.BeginTransactionAsync(ct);
+                var leaves = await _db.F03leaveDays.Where(x => ids.Contains(x.Id)).ToListAsync(ct);
+
+                bool isAdmin = user.IsAdmin() || user.IsSuperAdmin();
+
+                int success = 0;
+                var now = DateTime.Now;
+
+                foreach (var leave in leaves)
+                {
+                    if (LeaveStatusHelper.IsApproved(leave.RequestStatus) || LeaveStatusHelper.IsRejected(leave.RequestStatus)) continue;
+
+                    string approverCode = level switch { 1 => leave.Level1ApproveCode, 2 => leave.Level2ApproveCode, 3 => leave.Level3ApproveCode, _ => "" } ?? "";
+                    if (!isAdmin && user.EmployeeCode != approverCode) continue;
+
+                    if (isApprove)
+                    {
+                        ApplyApproveData(leave, level, user, comment, isAdmin, now);
+                        UpdateOverallStatus(leave);
+                    }
+                    else
+                    {
+                        ApplyRejectData(leave, level, user, comment, isAdmin, now);
+                        leave.RequestStatus = LeaveStatus.Rejected;
+                    }
+                    success++;
+                }
+
+                await _db.SaveChangesAsync(ct);
+                await tx.CommitAsync(ct);
+                return success > 0 ? ServiceResult.Ok($"Đã xử lý {success}/{leaves.Count} đơn.") : ServiceResult.Fail("Không có đơn nào đủ điều kiện.");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "[LEAVE] Batch ERROR");
+                return ServiceResult.Fail("Lỗi hệ thống khi xử lý đơn.");
+            }
+        }
+
+        // ================= QUERIES (Khớp với LeaveBalanceViewModel mới) =================
+
+        public async Task<ServiceResult<LeaveBalanceViewModel>> GetLeaveBalanceAsync(string employeeCode, int year, CancellationToken ct = default)
+        {
+            var phep = await _db.VF03phepTons.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.EmployeeCode == employeeCode && x.WorkYear == year, ct);
+
+            // Khớp hoàn toàn với các thuộc tính decimal của LeaveBalanceViewModel
+            var data = new LeaveBalanceViewModel
+            {
+                EmployeeCode = employeeCode,
+                EmployeeName = phep?.EmployeeName ?? "",
+                WorkYear = year,
+                TotalEntitledLeave = phep?.TongPhep ?? 0,
+                UsedLeave = phep?.SoNgayNghiPhep ?? 0,
+                RemainingLeave = phep?.PhepTon ?? 0,
+                UnpaidLeave = 0, // Cập nhật logic nếu có cột này trong DB
+                SickLeave = 0    // Cập nhật logic nếu có cột này trong DB
+            };
+
+            return ServiceResult<LeaveBalanceViewModel>.Ok(data);
+        }
+
+        public async Task<ServiceResult<LeaveDaysViewModel>> GetDetailsAsync(int leaveId, CancellationToken ct = default)
+        {
+            var details = await _db.VF03leaveDayDetails.AsNoTracking().Where(x => x.LeaveId == leaveId).ToListAsync(ct);
+            if (details.Count == 0) return ServiceResult<LeaveDaysViewModel>.Fail("Không tìm thấy chi tiết đơn.");
+
+            return ServiceResult<LeaveDaysViewModel>.Ok(LeaveMapper.ToViewModel(details));
+        }
+
+        // Tương tự cho Dashboard
+        public async Task<ServiceResult<LeaveBalanceDto>> GetPersonalBalanceAsync(string employeeCode, int year, CancellationToken ct = default)
+        {
+            // 1. Lấy thông tin phép tổng quát từ View
+            var phep = await _db.VF03phepTons.AsNoTracking()
+                .FirstOrDefaultAsync(x => x.EmployeeCode == employeeCode && x.WorkYear == year, ct);
+
+            // 2. Tính số ngày đang chờ duyệt (Pending) từ bảng đơn nghỉ
+            // Chỉ lấy những đơn Active và có trạng thái là Pending
+            var pendingDays = await _db.F03leaveDays.AsNoTracking()
+                .Where(x => x.EmployeeCode == employeeCode
+                         && x.WorkYear == year
+                         && x.IsActive == true
+                         && x.RequestStatus == LeaveStatus.Pending)
+                .SumAsync(x => x.TotalDay, ct);
+
+            var data = new LeaveBalanceDto
+            {
+                Entitled = phep?.TongPhep ?? 0,
+                Used = phep?.SoNgayNghiPhep ?? 0,
+                Remaining = phep?.PhepTon ?? 0,
+                Pending = pendingDays, // Gán giá trị vừa tính được
+                Year = year
+            };
+
+            return ServiceResult<LeaveBalanceDto>.Ok(data);
+        }
+
+        public async Task<ServiceResult<List<RecentLeaveRequestDto>>> GetRecentRequestsAsync(string employeeCode, int limit, CancellationToken ct = default)
+        {
+            var list = await _db.F03leaveDays.AsNoTracking()
+                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true)
+                .OrderByDescending(x => x.CreatedAt)
+                .Take(limit)
+                .Select(x => new RecentLeaveRequestDto
+                {
+                    RequestId = x.Id,
+                    FromDate = x.StartDate,
+                    ToDate = x.EndDate,
+                    Status = x.RequestStatus ?? LeaveStatus.Pending,
+                    ApproverName = x.Level1ApproveName
+                }).ToListAsync(ct);
+
+            return ServiceResult<List<RecentLeaveRequestDto>>.Ok(list);
+        }
+
+        // ================= HELPERS (Private) =================
+
+        private static void ApplyApproveData(F03leaveDay leave, int level, CurrentUser user, string comment, bool isAdmin, DateTime now)
+        {
+            string finalComment = (isAdmin && user.EmployeeCode != GetApproverCode(leave, level)) ? $"[Admin {user.FullName} duyệt thay]" : comment;
+            if (level == 1) { leave.Level1IsApprove = true; leave.Level1ApproveTime = now; leave.Level1Comment = finalComment; }
+            else if (level == 2) { leave.Level2IsApprove = true; leave.Level2ApproveTime = now; leave.Level2Comment = finalComment; }
+            else if (level == 3) { leave.Level3IsApprove = true; leave.Level3ApproveTime = now; leave.Level3Comment = finalComment; }
+        }
+
+        private static void ApplyRejectData(F03leaveDay leave, int level, CurrentUser user, string comment, bool isAdmin, DateTime now)
+        {
+            string finalComment = isAdmin ? $"[Admin {user.FullName} Reject]: {comment}" : comment;
+            if (level == 1) { leave.Level1IsApprove = false; leave.Level1Comment = finalComment; leave.Level1ApproveTime = now; }
+            else if (level == 2) { leave.Level2IsApprove = false; leave.Level2Comment = finalComment; leave.Level2ApproveTime = now; }
+            else if (level == 3) { leave.Level3IsApprove = false; leave.Level3Comment = finalComment; leave.Level3ApproveTime = now; }
+        }
+
+        private static string? GetApproverCode(F03leaveDay leave, int level) => level switch { 1 => leave.Level1ApproveCode, 2 => leave.Level2ApproveCode, 3 => leave.Level3ApproveCode, _ => "" };
+
+        private static void UpdateOverallStatus(F03leaveDay leave)
+        {
+            if (!string.IsNullOrEmpty(leave.Level3ApproveEmail) && leave.Level3IsApprove == true) { leave.RequestStatus = LeaveStatus.Approved; return; }
+            if (leave.Level2IsApprove == true) { leave.RequestStatus = string.IsNullOrEmpty(leave.Level3ApproveEmail) ? LeaveStatus.Approved : LeaveStatus.ApprovedLv2; return; }
+            if (leave.Level1IsApprove == true) { leave.RequestStatus = (string.IsNullOrEmpty(leave.Level2ApproveEmail) && string.IsNullOrEmpty(leave.Level3ApproveEmail)) ? LeaveStatus.Approved : LeaveStatus.ApprovedLv1; return; }
+            leave.RequestStatus = LeaveStatus.Pending;
+        }
+    }
+}

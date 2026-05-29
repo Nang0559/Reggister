@@ -1,0 +1,58 @@
+﻿@using FVN_REGISTER.Shared.Pages
+@using Microsoft.AspNetCore.Components.Authorization
+
+<CascadingAuthenticationState>
+    @* Các provider của MudBlazor đặt ở đây để dùng được toàn app *@
+    @* ĐẶT DUY NHẤT TẠI ĐÂY *@
+    <MudThemeProvider Theme="_currentTheme" />
+    @* <MudPopoverProvider /> *@
+    <MudDialogProvider FullWidth="true" MaxWidth="MaxWidth.ExtraSmall" />
+    <MudSnackbarProvider />
+
+    <Router AppAssembly="@typeof(Layout.MainLayout).Assembly">
+        <Found Context="routeData">
+            @* Dùng AuthorizeRouteView để quản lý đăng nhập *@
+            <AuthorizeRouteView RouteData="@routeData" DefaultLayout="@typeof(Layout.MainLayout)">
+                <NotAuthorized>
+                    @if (!context.User.Identity?.IsAuthenticated ?? true)
+                    {
+                        @* Tự tạo component này hoặc redirect thủ công *@
+                        <RedirectToLogin /> 
+                    }
+                    else
+                    {
+                        <MudAlert Severity="Severity.Error">Bạn không có quyền truy cập.</MudAlert>
+                    }
+                </NotAuthorized>
+            </AuthorizeRouteView>
+            <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+        </Found>
+        <NotFound>
+            <PageTitle>Not found</PageTitle>
+            <LayoutView Layout="@typeof(Layout.MainLayout)">
+                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mt-4">
+                    Không tìm thấy trang này (404 Not Found)!
+                </MudAlert>
+            </LayoutView>
+        </NotFound>
+    </Router>
+</CascadingAuthenticationState>
+@code {
+    private MudTheme _currentTheme = new MudTheme()
+    {
+        PaletteLight = new PaletteLight()
+        {
+            Primary = "#1E88E5",
+            Secondary = "#FF8F00",
+            AppbarBackground = "#1E88E5",
+            Background = "#F5F5F7"
+        },
+        Typography = new Typography()
+        {
+            Default = new DefaultTypography()
+            {
+                FontFamily = new[] { "Roboto", "Helvetica", "Arial", "sans-serif" }
+            }
+        }
+    };
+}

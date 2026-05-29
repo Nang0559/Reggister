@@ -1,0 +1,12 @@
+## Thư mục build của .NET
+[Bb]in/
+[Oo]bj/
+
+## Thư mục cấu hình của IDE
+.vs/
+.vscode/
+
+## Các file user tự động sinh ra
+*.user
+*.userosscache
+*.sln.docstates

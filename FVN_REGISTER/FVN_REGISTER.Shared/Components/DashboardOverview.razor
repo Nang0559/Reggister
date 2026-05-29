@@ -1,0 +1,62 @@
+﻿@using FVN_REGISTER.Contract.ViewModels
+
+@if (Data == null)
+{
+    <MudStack AlignItems="AlignItems.Center" Class="pa-10">
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        <MudText Typo="Typo.body2">Đang nạp thông số hệ thống FCC...</MudText>
+    </MudStack>
+}
+else
+{
+    <MudGrid>
+        @if (Data.Widgets != null && Data.Widgets.Any())
+        {
+            @* RENDERING ĐỘNG TỪ DANH SÁCH WIDGET *@
+            @foreach (var widget in Data.Widgets)
+            {
+                <MudItem xs="6" sm="3">
+                    <MudPaper Class="@($"pa-4 mud-theme-{widget.Color.ToLower()}")"
+                              Elevation="4"
+                              Style="height:110px; border-radius: 12px; cursor: pointer;"
+                              @onclick="@(() => OnWidgetClick(widget.Link))">
+
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <MudStack Spacing="0">
+                                <MudText Typo="Typo.subtitle2" Style="opacity: 0.8">@widget.Title</MudText>
+                                <MudText Typo="Typo.h4"><b>@widget.Value</b></MudText>
+                            </MudStack>
+                            <MudIcon Icon="@widget.Icon" Size="Size.Large" Style="opacity: 0.5" />
+                        </MudStack>
+
+                    </MudPaper>
+                </MudItem>
+            }
+        }
+        else
+        {
+            @* DỰ PHÒNG: Nếu Widgets trống thì hiện các Card cơ bản dựa trên DTO lẻ *@
+            <MudItem xs="6" sm="3">
+                <MudPaper Class="pa-4 mud-theme-primary" Elevation="4" Style="height:110px; border-radius: 12px;">
+                    <MudText Typo="Typo.subtitle2">Phép Tồn</MudText>
+                    <MudText Typo="Typo.h4"><b>@(Data.PersonalBalance?.Remaining.ToString("N1") ?? "0")</b></MudText>
+                </MudPaper>
+            </MudItem>
+
+            @* Thêm các Card khác tương tự nếu cần... *@
+        }
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public DashboardViewModel? Data { get; set; }
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    private void OnWidgetClick(string? link)
+    {
+        if (!string.IsNullOrEmpty(link))
+        {
+            Navigation.NavigateTo(link);
+        }
+    }
+}

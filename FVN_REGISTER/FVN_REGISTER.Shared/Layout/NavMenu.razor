@@ -1,0 +1,42 @@
+﻿@using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Utils
+@using MudBlazor
+@inject ICurrentUserClientService CurrentUser
+
+<MudNavMenu>
+    <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="ml-4 my-3">DASHBOARD</MudText>
+    <MudNavLink href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Trang chủ</MudNavLink>
+
+    @* ===== PHÊ DUYỆT (Dành cho Approver) ===== *@
+    @if (UserRoleHelper.IsApprover(CurrentUser.PermissionCode))
+    {
+        <MudNavGroup Title="Phê duyệt" Icon="@Icons.Material.Filled.CheckCircle" Expanded="false">
+            <MudNavLink href="/approve/list" Icon="@Icons.Material.Filled.List">Danh sách chờ duyệt</MudNavLink>
+        </MudNavGroup>
+    }
+
+    @* ===== ĐĂNG KÝ (Dành cho Nhân viên) ===== *@
+    <MudNavGroup Title="Đăng ký" Icon="@Icons.Material.Filled.EditNote" Expanded="true">
+        <MudNavLink href="/leave/create" Icon="@Icons.Material.Filled.Add">Tạo đơn mới</MudNavLink>
+        <MudNavLink href="/leave/history" Icon="@Icons.Material.Filled.History">Lịch sử nghỉ phép</MudNavLink>
+    </MudNavGroup>
+
+    @* ===== QUẢN TRỊ (Dành cho Admin) ===== *@
+    @if (UserRoleHelper.IsAdmin(CurrentUser.PermissionCode))
+    {
+        <MudNavGroup Title="Dữ liệu" Icon="@Icons.Material.Filled.Storage" Expanded="false">
+            <MudNavLink href="/admin/departments" Icon="@Icons.Material.Filled.Business">Bộ phận</MudNavLink>
+            <MudNavLink href="/admin/employees" Icon="@Icons.Material.Filled.People">Nhân viên</MudNavLink>
+            <MudNavLink href="/admin/approvers" Icon="@Icons.Material.Filled.VerifiedUser">Approver</MudNavLink>
+            <MudNavLink href="/admin/leave-types" Icon="@Icons.Material.Filled.Category">Hình thức nghỉ</MudNavLink>
+        </MudNavGroup>
+    }
+
+    @* ===== HỆ THỐNG (Dành cho SuperAdmin) ===== *@
+    @if (UserRoleHelper.IsSuperAdmin(CurrentUser.PermissionCode))
+    {
+        <MudNavGroup Title="Hệ thống" Icon="@Icons.Material.Filled.Settings" Expanded="false">
+            <MudNavLink href="/admin/managers" Icon="@Icons.Material.Filled.AdminPanelSettings">Quản trị viên</MudNavLink>
+        </MudNavGroup>
+    }
+</MudNavMenu>

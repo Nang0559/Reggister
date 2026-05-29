@@ -1,0 +1,96 @@
+﻿@page "/"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Shared.Components
+@using FVN_REGISTER.Shared.Services.Dashboards
+@using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Utils.Helpers
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Authorization
+@using FVN_REGISTER.Core.Logging
+@inherits AppComponentBase
+@implements IDisposable
+
+@inject IDashboardClientService DashboardService
+@inject ICurrentUserClientService CurrentUserService
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+@if (_isLoading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-7" />
+}
+else if (_model != null)
+{
+    <MudText Typo="Typo.h5" Class="mb-4">
+        Chào mừng, @(CurrentUserService.User?.FullName ?? "Cán bộ FCC")!
+    </MudText>
+
+    <DashboardOverview Data="_model" />
+}
+else
+{
+    <MudAlert Severity="Severity.Info">Không có dữ liệu hiển thị hoặc phiên làm việc hết hạn.</MudAlert>
+}
+
+@code {
+    private DashboardViewModel? _model;
+    private bool _isLoading = true;
+    private CancellationTokenSource _cts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            _isLoading = true;
+
+            // Sử dụng Logger và Debug từ AppBase
+            Logger.LogInfoIf(Debug, "[{Component}] Bắt đầu tải dữ liệu Dashboard...", ComponentName);
+
+            // 1. Kiểm tra User đã sẵn sàng chưa
+            if (!CurrentUserService.IsLoggedIn)
+            {
+                Logger.LogDebugIf(Debug, "[{Component}] User chưa init, đang chạy InitializeAsync", ComponentName);
+                await CurrentUserService.InitializeAsync();
+            }
+
+            // 2. Nếu vẫn không có User (lỗi Token/API) -> Dừng
+            if (!CurrentUserService.IsLoggedIn)
+            {
+                Logger.LogWarnIf(Debug, "[{Component}] Không thể xác thực User sau khi init", ComponentName);
+                _isLoading = false;
+                return;
+            }
+
+            // 3. Gọi API Dashboard
+            var result = await DashboardService.GetDashboardDataAsync(_cts.Token);
+
+            if (result.IsSuccess)
+            {
+                _model = result.Data;
+                Logger.LogInfoIf(Debug, "[{Component}] Tải dữ liệu thành công", ComponentName);
+            }
+            else if (!result.IsUnauthorized)
+            {
+                Logger.LogWarnIf(Debug, "[{Component}] Lỗi API: {Msg}", ComponentName, result.Message);
+                Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            // Tận dụng Logger hệ thống thay vì Console
+            Logger.LogError(ex, "[{Component}] Lỗi nghiêm trọng tại trang Home", ComponentName);
+            Snackbar.Add($"Hệ thống gặp sự cố: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}
