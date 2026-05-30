@@ -1,0 +1,364 @@
+﻿@* File: LeaveAddDialog.razor *@
+@using FVN_REGISTER.Contract.Models
+@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Shared.Services.Leaves
+@inject ILeaveCreateClientService LeaveService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.EditCalendar" Class="mr-2" />
+            Đăng ký nghỉ phép
+        </MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudForm @ref="_form" @bind-IsValid="_formValid">
+
+            @* Hàng 1: Năm, Từ ngày, Đến ngày *@
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="4">
+                    <MudSelect T="int" @bind-Value="_request.WorkYear" Label="Năm làm việc"
+                               Variant="Variant.Outlined" Margin="Margin.Dense" Required="true">
+                        @foreach (var y in Model.WorkYears)
+                        {
+                            <MudSelectItem Value="@(y.WorkYear ?? DateTime.Now.Year)">@y.WorkYear</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="4">
+                    @* Từ ngày: Tách @bind-Date ra để không bị trùng DateChanged *@
+                    <MudDatePicker Date="_startDate" Label="Từ ngày *"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense"
+                                   DateChanged="(DateTime? d) => OnStartDateChanged(d)"
+                                   IsDateDisabledFunc="IsHolidayOrWeekend" />
+                </MudItem>
+
+                <MudItem xs="12" sm="4">
+                    @* Đến ngày: Tách @bind-Date ra để không bị trùng DateChanged *@
+                    <MudDatePicker Date="_endDate" Label="Đến ngày *"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense"
+                                   DateChanged="(DateTime? d) => OnEndDateChanged(d)"
+                                   IsDateDisabledFunc="IsHolidayOrWeekend" />
+                </MudItem>
+            </MudGrid>
+
+            @* Bảng chi tiết từng ngày *@
+            @if (_details.Any())
+            {
+                <MudPaper Class="mt-3" Elevation="0" Outlined="true">
+                    <MudSimpleTable Dense="true" Striped="true" Style="max-height: 280px; overflow-y: auto;">
+                        <thead>
+                            <tr>
+                                <th>Ngày nghỉ</th>
+                                <th>Loại phép</th>
+                                <th style="width:90px">Nghỉ nửa ngày</th>
+                                <th style="width:80px">Tính phép</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var (d, i) in _details.Select((x, i) => (x, i)))
+                            {
+                                <tr>
+                                    <td>
+                                        <MudText Typo="Typo.body2">
+                                            @DateTime.Parse(d.LeaveDate.ToString("yyyy-MM-dd")).ToString("dd/MM/yyyy (ddd)")
+                                        </MudText>
+                                    </td>
+                                    <td>
+                                        <MudSelect T="string" Value="d.LeaveTypeCode"
+                                                   Dense="true" Margin="Margin.Dense"
+                                                   Variant="Variant.Text"
+                                                   ValueChanged="(string val) => OnLeaveTypeChanged(d, val)">
+                                            @foreach (var lt in Model.LeaveTypes)
+                                            {
+                                                <MudSelectItem Value="@lt.LeaveTypeCode">@lt.LeaveTypeName</MudSelectItem>
+                                            }
+                                        </MudSelect>
+                                    </td>
+                                    <td>
+                                        <MudCheckBox @bind-Value="d.IsHalfDay"
+                                                     Size="Size.Small"
+                                                     CheckedChanged="_ => OnHalfDayChanged(d)" />
+                                    </td>
+                                    <td>
+                                        @{
+                                            var lt = Model.LeaveTypes.FirstOrDefault(x => x.LeaveTypeCode == d.LeaveTypeCode);
+                                            bool tinhPhep = lt?.TinhPhep == true;
+                                        }
+                                        @if (tinhPhep)
+                                        {
+                                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Text="Có" />
+                                        }
+                                        else
+                                        {
+                                            <MudChip T="string" Color="Color.Default" Size="Size.Small" Text="Không" />
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </MudSimpleTable>
+                </MudPaper>
+            }
+
+            @* Tổng ngày *@
+            <MudGrid Spacing="2" Class="mt-2">
+                <MudItem xs="6">
+                    <MudTextField Value="@_totalDay" Label="Tổng số ngày"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  ReadOnly="true" Adornment="Adornment.End" AdornmentText="ngày" />
+                </MudItem>
+                <MudItem xs="6">
+                    <MudTextField Value="@_totalLeaveDay" Label="Ngày tính phép"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense"
+                                  ReadOnly="true" Adornment="Adornment.End" AdornmentText="ngày"
+                                  AdornmentColor="Color.Warning" />
+                </MudItem>
+            </MudGrid>
+
+            @* Lý do *@
+            <MudTextField @bind-Value="_request.LeaveReason" Label="Lý do nghỉ *"
+                          Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Class="mt-2" Required="true" RequiredError="Vui lòng nhập lý do" />
+
+            @* Người duyệt *@
+            <MudGrid Spacing="2" Class="mt-2">
+                @if (Model.LVA1.Any())
+                {
+                    <MudItem xs="12" sm="4">
+                        <MudSelect T="string" @bind-Value="_request.Level1ApproveEmail"
+                                   Label="@($"1. {Model.LVA1.First().LevelName}")"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelectItem T="string" Value="@string.Empty">-- Chọn --</MudSelectItem>
+                            @foreach (var a in Model.LVA1)
+                            {
+                                <MudSelectItem T="string" Value="@a.ApproveLevelEmail">
+                                    @a.ApproveLevelName (@(string.IsNullOrEmpty(a.DeptCode) ? "ALL" : a.DeptCode))
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                }
+
+                @if (Model.LVA2.Any())
+                {
+                    <MudItem xs="12" sm="4">
+                        <MudSelect T="string" @bind-Value="_request.Level2ApproveEmail"
+                                   Label="@($"2. {Model.LVA2.First().LevelName}")"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelectItem T="string" Value="@string.Empty">-- Chọn --</MudSelectItem>
+                            @foreach (var a in Model.LVA2)
+                            {
+                                <MudSelectItem T="string" Value="@a.ApproveLevelEmail">
+                                    @a.ApproveLevelName (@(string.IsNullOrEmpty(a.DeptCode) ? "ALL" : a.DeptCode))
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                }
+
+                @if (Model.LVA3.Any())
+                {
+                    <MudItem xs="12" sm="4">
+                        <MudSelect T="string" @bind-Value="_request.Level3ApproveEmail"
+                                   Label="@($"3. {Model.LVA3.First().LevelName}")"
+                                   Variant="Variant.Outlined" Margin="Margin.Dense">
+                            <MudSelectItem T="string" Value="@string.Empty">-- Chọn --</MudSelectItem>
+                            @foreach (var a in Model.LVA3)
+                            {
+                                <MudSelectItem T="string" Value="@a.ApproveLevelEmail">
+                                    @a.ApproveLevelName (@(string.IsNullOrEmpty(a.DeptCode) ? "ALL" : a.DeptCode))
+                                </MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+                }
+            </MudGrid>
+
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Đóng</MudButton>
+        <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled"
+                   Disabled="@_isSaving">
+            @if (_isSaving)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
+                <span>Đang lưu...</span>
+            }
+            else
+            {
+                <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Small" Class="mr-1" />
+                <span>Gửi đơn</span>
+            }
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public CombinedHolidaysViewModel Model { get; set; } = default!;
+    [Parameter] public string? DefaultDate { get; set; }
+    [Parameter] public int SelectedYear { get; set; } = DateTime.Now.Year;
+    [Parameter] public EventCallback OnSaved { get; set; }
+
+    private MudForm _form = default!;
+    private bool _formValid;
+    private bool _isSaving;
+
+    private DateTime? _startDate;
+    private DateTime? _endDate;
+    private List<CreateLeaveDetailModel> _details = new();
+    private decimal _totalDay;
+    private decimal _totalLeaveDay;
+
+    private CreateLeaveRequestModel _request = new();
+
+    protected override void OnInitialized()
+    {
+        _request.WorkYear = SelectedYear;
+
+        if (!string.IsNullOrEmpty(DefaultDate) && DateTime.TryParse(DefaultDate, out var d))
+        {
+            _startDate = d;
+            _endDate = d;
+        }
+
+        // Default loại phép đầu tiên
+        var defaultType = Model.LeaveTypes.FirstOrDefault(x => x.LeaveTypeCode == "0021")
+                          ?? Model.LeaveTypes.FirstOrDefault();
+
+        if (_startDate.HasValue)
+            BuildDetails(defaultType?.LeaveTypeCode ?? "");
+    }
+
+    private void OnStartDateChanged(DateTime? newDate)
+    {
+        _startDate = newDate; // Gán thủ công giá trị mới vào biến
+        TriggerBuildDetails();
+    }
+
+    private void OnEndDateChanged(DateTime? newDate)
+    {
+        _endDate = newDate; // Gán thủ công giá trị mới vào biến
+        TriggerBuildDetails();
+    }
+    private void TriggerBuildDetails()
+    {
+        var defaultType = Model.LeaveTypes.FirstOrDefault(x => x.LeaveTypeCode == "0021")
+                          ?? Model.LeaveTypes.FirstOrDefault();
+        BuildDetails(defaultType?.LeaveTypeCode ?? "");
+    }
+    private void BuildDetails(string defaultLeaveTypeCode)
+    {
+        _details.Clear();
+        if (!_startDate.HasValue || !_endDate.HasValue) return;
+        if (_startDate > _endDate) return;
+
+        var holidays = Model.HolidaysNotCountLeave.ToHashSet();
+
+        for (var d = _startDate.Value.Date; d <= _endDate.Value.Date; d = d.AddDays(1))
+        {
+            // Bỏ qua cuối tuần
+            if (d.DayOfWeek == DayOfWeek.Saturday || d.DayOfWeek == DayOfWeek.Sunday)
+                continue;
+
+            // Bỏ qua ngày nghỉ công ty
+            if (Model.CompanyHolidays.Any(x => x.Start == d.ToString("yyyy-MM-dd")))
+                continue;
+
+            var lt = Model.LeaveTypes.FirstOrDefault(x => x.LeaveTypeCode == defaultLeaveTypeCode);
+
+            _details.Add(new CreateLeaveDetailModel
+            {
+                LeaveDate = d,
+                LeaveTypeCode = defaultLeaveTypeCode,
+                LeaveTypeName = lt?.LeaveTypeName ?? "",
+                IsHalfDay = false,
+                HalfDayOption = null,
+                DayValue = 1m,
+                TinhPhep = lt?.TinhPhep == true ? 1 : 0
+            });
+        }
+
+        RecalcTotals();
+    }
+    private void OnLeaveTypeChanged(CreateLeaveDetailModel detail, string newValue)
+    {
+        detail.LeaveTypeCode = newValue; // Cập nhật loại phép mới cho dòng hiện tại
+
+        // Cập nhật lại cả Name tương ứng để tránh lệch data
+        var lt = Model.LeaveTypes.FirstOrDefault(x => x.LeaveTypeCode == newValue);
+        detail.LeaveTypeName = lt?.LeaveTypeName ?? "";
+
+        RecalcTotals(); // Tính toán lại tổng số ngày phép
+    }
+    private void OnHalfDayChanged(CreateLeaveDetailModel detail)
+    {
+        detail.DayValue = detail.IsHalfDay ? 0.5m : 1m;
+        detail.HalfDayOption = detail.IsHalfDay ? "Morning" : null;
+        RecalcTotals();
+    }
+
+    private void RecalcTotals()
+    {
+        _totalDay = _details.Sum(x => x.DayValue);
+
+        _totalLeaveDay = _details
+            .Where(x =>
+            {
+                var lt = Model.LeaveTypes.FirstOrDefault(t => t.LeaveTypeCode == x.LeaveTypeCode);
+                return lt?.TinhPhep == true;
+            })
+            .Sum(x => x.DayValue);
+
+        StateHasChanged();
+    }
+
+    private bool IsHolidayOrWeekend(DateTime date)
+    {
+        if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
+            return true;
+        return Model.CompanyHolidays.Any(x => x.Start == date.ToString("yyyy-MM-dd"));
+    }
+
+    private async Task Submit()
+    {
+        await _form.Validate();
+        if (!_formValid) return;
+        if (!_details.Any())
+        {
+            Snackbar.Add("Vui lòng chọn ít nhất một ngày nghỉ", Severity.Warning);
+            return;
+        }
+
+        _isSaving = true;
+
+        // Map details
+        _request.StartDate = _startDate!.Value;
+        _request.EndDate = _endDate!.Value;
+        _request.Details = _details;
+        _request.TotalDay = _totalDay;
+        _request.TotalLeaveDay = _totalLeaveDay;
+
+        var result = await LeaveService.CreateLeaveAsync(_request);
+
+        if (result.IsSuccess)
+        {
+            await OnSaved.InvokeAsync();
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add(result.Message ?? "Gửi đơn thất bại", Severity.Error);
+        }
+
+        _isSaving = false;
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

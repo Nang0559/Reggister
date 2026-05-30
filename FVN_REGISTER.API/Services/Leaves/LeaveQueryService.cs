@@ -17,42 +17,32 @@ namespace FVN_REGISTER.API.Services.Leaves
             _db = db;
         }
 
-        // ================= COMBINED DATA =================
+        // ================= COMBINED DATA (FIXED THREAD SAFETY) =================
         public async Task<CombinedHolidaysViewModel> GetCombinedDataAsync(
             string empCode,
             string depart,
             string cvCode,
-            int? year,
+            int year,
             CancellationToken ct = default)
         {
-            var userLevelTask = GetUserLevelAsync(empCode, ct);
-            var leaveTypesTask = GetLeaveTypesAsync(ct);
-            var phepTonTask = GetPhepTonAsync(empCode, ct);
-            var workYearsTask = GetWorkYearsAsync(ct);
-            var holidaysTask = GetCompanyHolidaysAsync(ct);
-            var holidaysNotCountTask = GetHolidayNotCountAsync(ct);
-            var leaveDaysTask = GetLeaveDaysAsync(empCode, year, ct);
-
-            await Task.WhenAll(
-                userLevelTask,
-                leaveTypesTask,
-                phepTonTask,
-                workYearsTask,
-                holidaysTask,
-                holidaysNotCountTask,
-                leaveDaysTask);
-
-            var userLevel = await userLevelTask;
+            // Thay vì chạy song song gây crash DbContext, ta gọi tuần tự an toàn
+            var userLevel = await GetUserLevelAsync(empCode, ct);
+            var leaveTypes = await GetLeaveTypesAsync(ct);
+            var phepTon = await GetPhepTonAsync(empCode, ct);
+            var workYears = await GetWorkYearsAsync(ct);
+            var companyHolidays = await GetCompanyHolidaysAsync(year, ct);
+            var holidaysNotCountLeave = await GetHolidayNotCountAsync(ct);
+            var leaveDays = await GetLeaveDaysAsync(empCode, year, ct);
 
             var model = new CombinedHolidaysViewModel
             {
                 UserLevel = userLevel,
-                LeaveDays = await leaveDaysTask,
-                LeaveTypes = await leaveTypesTask,
-                PhepTon = await phepTonTask,
-                WorkYears = await workYearsTask,
-                CompanyHolidays = await holidaysTask,
-                HolidaysNotCountLeave = await holidaysNotCountTask,
+                LeaveDays = leaveDays,
+                LeaveTypes = leaveTypes,
+                PhepTon = phepTon,
+                WorkYears = workYears,
+                CompanyHolidays = companyHolidays,
+                HolidaysNotCountLeave = holidaysNotCountLeave,
                 LeaveForm = new CreateLeaveRequestModel
                 {
                     EmployeeCode = empCode,
@@ -69,13 +59,12 @@ namespace FVN_REGISTER.API.Services.Leaves
 
         // ================= PENDING SUMMARY (OPTIMIZED) =================
         public async Task<List<PendingApprovalGroup>> GetPendingSummaryAsync(
-    string employeeCode,
-    CancellationToken ct = default)
+            string employeeCode,
+            CancellationToken ct = default)
         {
             var email = await ResolveApproverEmailAsync(employeeCode, ct);
             if (string.IsNullOrEmpty(email)) return new();
 
-            // 1. Thực hiện Query đếm trực tiếp trên Database (Performance ++ )
             var query = _db.VF03leaveDays
                 .AsNoTracking()
                 .Where(x => x.IsActive == true &&
@@ -83,25 +72,17 @@ namespace FVN_REGISTER.API.Services.Leaves
                             x.RequestStatus != LeaveStatus.Rejected &&
                             x.RequestStatus != LeaveStatus.Cancel);
 
-            // 2. Định nghĩa các điều kiện chờ duyệt (Logic trung tâm)
-            var isL1Pending = query.Where(x => x.Level1ApproveEmail == email && x.Level1IsApprove != true);
-            var isL2Pending = query.Where(x => x.Level2ApproveEmail == email && x.Level1IsApprove == true && x.Level2IsApprove != true);
-            var isL3Pending = query.Where(x => x.Level3ApproveEmail == email && x.Level2IsApprove == true && x.Level3IsApprove != true);
+            // Gọi tuần tự để tránh lỗi đa luồng kết nối DB
+            var countL1 = await query.CountAsync(x => x.Level1ApproveEmail == email && x.Level1IsApprove != true, ct);
+            var countL2 = await query.CountAsync(x => x.Level2ApproveEmail == email && x.Level1IsApprove == true && x.Level2IsApprove != true, ct);
+            var countL3 = await query.CountAsync(x => x.Level3ApproveEmail == email && x.Level2IsApprove == true && x.Level3IsApprove != true, ct);
 
-            // 3. Chạy song song các lệnh Count để tối ưu thời gian phản hồi
-            var countL1Task = isL1Pending.CountAsync(ct);
-            var countL2Task = isL2Pending.CountAsync(ct);
-            var countL3Task = isL3Pending.CountAsync(ct);
-
-            await Task.WhenAll(countL1Task, countL2Task, countL3Task);
-
-            // 4. Trả về kết quả (Chỉ trả về các Level có đơn để UI hiển thị gọn hơn)
             var result = new List<PendingApprovalGroup>
-    {
-        new() { ApproverLevel = 1, Count = await countL1Task },
-        new() { ApproverLevel = 2, Count = await countL2Task },
-        new() { ApproverLevel = 3, Count = await countL3Task }
-    };
+        {
+            new() { ApproverLevel = 1, Count = countL1 },
+            new() { ApproverLevel = 2, Count = countL2 },
+            new() { ApproverLevel = 3, Count = countL3 }
+        };
 
             return result.Where(x => x.Count > 0).ToList();
         }
@@ -151,32 +132,21 @@ namespace FVN_REGISTER.API.Services.Leaves
         }
 
         // ================= SUPPORT =================
-        private async Task<List<VF03leaveDay>> GetPendingBaseQueryAsync(
-     string email,
-     CancellationToken ct)
+        private async Task<List<VF03leaveDay>> GetPendingBaseQueryAsync(string email, CancellationToken ct)
         {
             if (string.IsNullOrEmpty(email)) return new();
 
             return await _db.VF03leaveDays
                 .AsNoTracking()
-                .Where(x =>
-                    x.IsActive == true &&
-                    // Loại bỏ các đơn đã kết thúc bằng hằng số cho chính xác
-                    x.RequestStatus != LeaveStatus.Approved &&
-                    x.RequestStatus != LeaveStatus.Rejected &&
-                    x.RequestStatus != LeaveStatus.Cancel &&
-                    (
-                        x.Level1ApproveEmail == email ||
-                        x.Level2ApproveEmail == email ||
-                        x.Level3ApproveEmail == email
-                    ))
+                .Where(x => x.IsActive == true &&
+                            x.RequestStatus != LeaveStatus.Approved &&
+                            x.RequestStatus != LeaveStatus.Rejected &&
+                            x.RequestStatus != LeaveStatus.Cancel &&
+                            (x.Level1ApproveEmail == email || x.Level2ApproveEmail == email || x.Level3ApproveEmail == email))
                 .ToListAsync(ct);
         }
 
-        private async Task<List<VF03leaveDaysApprover>> GetApproverLevelAsync(
-            int level,
-            string deptCode,
-            CancellationToken ct)
+        private async Task<List<VF03leaveDaysApprover>> GetApproverLevelAsync(int level, string deptCode, CancellationToken ct)
         {
             var baseQuery = _db.VF03leaveDaysApprovers
                 .AsNoTracking()
@@ -210,7 +180,7 @@ namespace FVN_REGISTER.API.Services.Leaves
         private async Task<List<F03leaveType>> GetLeaveTypesAsync(CancellationToken ct)
             => await _db.F03leaveTypes
                 .AsNoTracking()
-                .Where(x => x.IsActive==true)
+                .Where(x => x.IsActive == true)
                 .ToListAsync(ct);
 
         private async Task<List<F03workYear>> GetWorkYearsAsync(CancellationToken ct)
@@ -225,11 +195,11 @@ namespace FVN_REGISTER.API.Services.Leaves
                 .Select(x => x.ApproveLevelEmail)
                 .FirstOrDefaultAsync(ct) ?? "";
 
-        private async Task<List<HolidayViewModel>> GetCompanyHolidaysAsync(CancellationToken ct)
+        private async Task<List<HolidayViewModel>> GetCompanyHolidaysAsync(int year, CancellationToken ct)
         {
             var data = await _db.CompanyHolidays
                 .AsNoTracking()
-                .Where(x => x.HolidayDate != null)
+                .Where(x => x.HolidayDate != null && x.HolidayDate.Value.Year == year)
                 .ToListAsync(ct);
 
             return data.Select(x => new HolidayViewModel
@@ -248,19 +218,20 @@ namespace FVN_REGISTER.API.Services.Leaves
             }).ToList();
         }
 
+        // FIXED: Sửa lỗi dùng .ToString() trong biểu thức Linq to SQL
         private async Task<List<string>> GetHolidayNotCountAsync(CancellationToken ct)
         {
-            return await _db.CompanyHolidays
+            var dates = await _db.CompanyHolidays
                 .AsNoTracking()
                 .Where(x => x.TinhPhep == 0 && x.HolidayDate != null)
-                .Select(x => x.HolidayDate!.Value.ToString("yyyy-MM-dd"))
+                .Select(x => x.HolidayDate) // Chỉ lấy Date thô từ SQL lên
                 .ToListAsync(ct);
+
+            // Đưa lên RAM rồi mới đổi định dạng chuỗi chu đáo
+            return dates.Select(d => d!.Value.ToString("yyyy-MM-dd")).ToList();
         }
 
-        private async Task<List<HolidayViewModel>> GetLeaveDaysAsync(
-            string empCode,
-            int? year,
-            CancellationToken ct)
+        private async Task<List<HolidayViewModel>> GetLeaveDaysAsync(string empCode, int? year, CancellationToken ct)
         {
             var query = _db.VF03leaveDays
                 .AsNoTracking()
@@ -270,63 +241,34 @@ namespace FVN_REGISTER.API.Services.Leaves
                 query = query.Where(x => x.StartDate.HasValue && x.StartDate.Value.Year == year.Value);
 
             var data = await query.ToListAsync(ct);
-
             return data.Select(MapHoliday).ToList();
         }
-        // 1. Lấy dữ liệu cho các thẻ Widget ở Dashboard
-        public async Task<List<WidgetCounterDto>> GetDashboardWidgetsAsync(
-    string employeeCode,
-    string deptCode,
-    CancellationToken ct = default)
+
+        public async Task<List<WidgetCounterDto>> GetDashboardWidgetsAsync(string employeeCode, string deptCode, CancellationToken ct = default)
         {
             var email = await ResolveApproverEmailAsync(employeeCode, ct);
             var today = DateTime.Today;
 
-            // 1. Lấy dữ liệu thô từ DB
             var pendingCount = await _db.VF03leaveDays.CountAsync(x =>
                 x.IsActive == true &&
-                (
-                    (x.Level1ApproveEmail == email && x.Level1IsApprove != true) ||
-                    (x.Level2ApproveEmail == email && x.Level1IsApprove == true && x.Level2IsApprove != true) ||
-                    (x.Level3ApproveEmail == email && x.Level2IsApprove == true && x.Level3IsApprove != true)
-                ), ct);
+                ((x.Level1ApproveEmail == email && x.Level1IsApprove != true) ||
+                 (x.Level2ApproveEmail == email && x.Level1IsApprove == true && x.Level2IsApprove != true) ||
+                 (x.Level3ApproveEmail == email && x.Level2IsApprove == true && x.Level3IsApprove != true)), ct);
 
             var absentToday = await _db.VF03leaveDays.CountAsync(x =>
                 x.DeptCode == deptCode &&
                 x.RequestStatus == LeaveStatus.Approved &&
                 x.StartDate <= today && x.EndDate >= today, ct);
 
-            // 2. Map sang List DTO khớp với UI MudBlazor
             return new List<WidgetCounterDto>
-    {
-        new() {
-            Title = "Đơn chờ duyệt",
-            Value = pendingCount.ToString(),
-            Icon = "Icons.Material.Filled.HourglassEmpty",
-            Color = "warning",
-            Link = "/leave/approvals"
-        },
-        new() {
-            Title = "Vắng mặt hôm nay",
-            Value = absentToday.ToString(),
-            Icon = "Icons.Material.Filled.People",
-            Color = "info",
-            Link = "/leave/department-status"
-        },
-        new() {
-            Title = "Cảnh báo",
-            Value = absentToday > 10 ? "Cao" : "Bình thường",
-            Icon = "Icons.Material.Filled.Warning",
-            Color = absentToday > 10 ? "error" : "success"
-        }
-    };
+        {
+            new() { Title = "Đơn chờ duyệt", Value = pendingCount.ToString(), Icon = "Icons.Material.Filled.HourglassEmpty", Color = "warning", Link = "/leave/approvals" },
+            new() { Title = "Vắng mặt hôm nay", Value = absentToday.ToString(), Icon = "Icons.Material.Filled.People", Color = "info", Link = "/leave/department-status" },
+            new() { Title = "Cảnh báo", Value = absentToday > 10 ? "Cao" : "Bình thường", Icon = "Icons.Material.Filled.Warning", Color = absentToday > 10 ? "error" : "success" }
+        };
         }
 
-        // 2. Lấy danh sách đơn gần đây (Dùng RecentLeaveRequestDto - Rất nhẹ)
-        public async Task<List<RecentLeaveRequestDto>> GetRecentHistoryAsync(
-            string employeeCode,
-            int limit = 5,
-            CancellationToken ct = default)
+        public async Task<List<RecentLeaveRequestDto>> GetRecentHistoryAsync(string employeeCode, int limit = 5, CancellationToken ct = default)
         {
             return await _db.F03leaveDays
                 .AsNoTracking()
@@ -336,8 +278,7 @@ namespace FVN_REGISTER.API.Services.Leaves
                 .Select(x => new RecentLeaveRequestDto
                 {
                     RequestId = x.Id,
-                    // Dùng DateOnly hoặc DateTime tùy vào DTO bạn định nghĩa
-                    FromDate = x.StartDate ,
+                    FromDate = x.StartDate,
                     ToDate = x.EndDate,
                     Status = x.RequestStatus ?? LeaveStatus.Pending,
                     ApproverName = x.Level1ApproveName ?? "N/A"
@@ -345,11 +286,7 @@ namespace FVN_REGISTER.API.Services.Leaves
                 .ToListAsync(ct);
         }
 
-        // 3. Lấy số dư phép nhanh (Dùng LeaveBalanceDto)
-        public async Task<LeaveBalanceDto> GetSimpleBalanceAsync(
-            string employeeCode,
-            int year,
-            CancellationToken ct = default)
+        public async Task<LeaveBalanceDto> GetSimpleBalanceAsync(string employeeCode, int year, CancellationToken ct = default)
         {
             var phep = await _db.VF03phepTons
                 .AsNoTracking()
@@ -363,17 +300,11 @@ namespace FVN_REGISTER.API.Services.Leaves
                 Year = year
             };
         }
-        private async Task<List<VF03leaveDaysApprover>> BuildApproverAsync(
-            int level,
-            string deptCode,
-            string cvCode,
-            CancellationToken ct)
+
+        private async Task<List<VF03leaveDaysApprover>> BuildApproverAsync(int level, string deptCode, string cvCode, CancellationToken ct)
         {
             if (level <= 0 || level > 4) return new();
-
-            if (cvCode != "0003" && level < 3)
-                level = Math.Max(level, 3);
-
+            if (cvCode != "0003" && level < 3) level = Math.Max(level, 3);
             return await GetApproverLevelAsync(level, deptCode, ct);
         }
 

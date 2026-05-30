@@ -1,11 +1,12 @@
 ﻿using AutoMapper;
 using FVN_REGISTER.Contract.Interfaces.Leaves;
+using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Contract.Interfaces.Users;
 using FVN_REGISTER.Contract.Util;
 using FVN_REGISTER.Contract.ViewModels;
 using FVN_REGISTER.Core.Configurations;
+using FVN_REGISTER.Core.Logging;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -19,6 +20,7 @@ namespace FVN_REGISTER.API.Controllers
         private readonly ILeaveService _leaveService;
 
         public LeaveDaysController(
+          
             ILeaveService leaveService,
             ICurrentUserService currentUser,
             IUserLogService userLog,
@@ -27,13 +29,33 @@ namespace FVN_REGISTER.API.Controllers
             IOptionsMonitor<AuthDebugOptions> options)
             : base(currentUser, userLog, mapper, logger, options)
         {
+            
             _leaveService = leaveService;
         }
-
+        
         // ==========================================
         // DÀNH CHO NHÂN VIÊN (Client JS / Calendar)
         // ==========================================
+        [HttpPost("create")]
+        public async Task<IActionResult> Create([FromBody] CreateLeaveRequestModel model, CancellationToken ct)
+        {
+            if (UserInfo == null)
+                return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
 
+            await LogActionAsync($"Đăng ký nghỉ: {model.StartDate:dd/MM} - {model.EndDate:dd/MM}");
+
+            var result = await _leaveService.CreateLeaveAsync(model, UserInfo, ct);
+            return HandleResult(result);
+        }
+        [HttpPost("{id:int}/cancel")]
+        public async Task<IActionResult> Cancel(int id, [FromBody] CancelBody body, CancellationToken ct)
+        {
+            if (UserInfo == null)
+                return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
+
+            var result = await _leaveService.CancelAsync(id, body.Reason, UserInfo, ct);
+            return HandleResult(result);
+        }
         [HttpPost("Add")]
         [ValidateAntiForgeryToken]
         public async Task<ActionResult> Add([FromForm] LeaveFormWrapper request)
@@ -86,6 +108,7 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(result);
         }
     }
+    public record CancelBody(string Reason);
     public class LeaveFormWrapper
     {
         // Tên thuộc tính này phải khớp với prefix "LeaveForm" trong name của input HTML

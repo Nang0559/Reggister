@@ -1,6 +1,7 @@
 ﻿using FVN_REGISTER.Services;
 using FVN_REGISTER.Shared.Handlers;
 using FVN_REGISTER.Shared.Services.Dashboards;
+using FVN_REGISTER.Shared.Services.Leaves;
 using FVN_REGISTER.Shared.Services.Users;
 using FVN_REGISTER.Shared.Utils;
 using Microsoft.AspNetCore.Components.Authorization;
@@ -69,7 +70,7 @@ namespace FVN_REGISTER
             // 4. BUSINESS SERVICES
             builder.Services.AddScoped<ICurrentUserClientService, CurrentUserClientService>();
             builder.Services.AddScoped<IDashboardClientService, DashboardClientService>();
-
+            builder.Services.AddScoped<ILeaveCreateClientService, LeaveCreateClientService>();
             return builder.Build();
 
             // Hàm hỗ trợ bypass SSL cho Debug

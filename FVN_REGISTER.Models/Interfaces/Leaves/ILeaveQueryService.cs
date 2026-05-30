@@ -8,7 +8,7 @@ namespace FVN_REGISTER.Contract.Interfaces.Leaves
     {
         // ================= NHÓM NGHIỆP VỤ ĐĂNG KÝ (HEAVY DATA) =================
         // Dùng cho trang đăng ký phép, lịch cá nhân
-        Task<CombinedHolidaysViewModel> GetCombinedDataAsync(string empCode, string depart, string cvCode, int? year, CancellationToken ct = default);
+        Task<CombinedHolidaysViewModel> GetCombinedDataAsync(string empCode, string depart, string cvCode, int year, CancellationToken ct = default);
 
         // Dùng khi Manager bấm vào xem chi tiết danh sách đơn để duyệt
         Task<List<PendingApprovalGroup>> GetPendingDetailsAsync(string employeeCode, CancellationToken ct = default);

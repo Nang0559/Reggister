@@ -2,6 +2,7 @@
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Shared.Handlers;
 using FVN_REGISTER.Shared.Services.Dashboards;
+using FVN_REGISTER.Shared.Services.Leaves;
 using FVN_REGISTER.Shared.Services.Users;
 using FVN_REGISTER.Shared.Utils;
 using FVN_REGISTER.Web.Components;
@@ -67,7 +68,7 @@ builder.Services.AddHttpClient<IHttpClientWithAuth, AuthorizedHttpClient>(client
 // --- 6. BUSINESS ---
 builder.Services.AddScoped<ICurrentUserClientService, CurrentUserClientService>();
 builder.Services.AddScoped<IDashboardClientService, DashboardClientService>();
-
+builder.Services.AddScoped<ILeaveCreateClientService, LeaveCreateClientService>();
 builder.Services.AddServerSideBlazor()
     .AddCircuitOptions(options => { options.DetailedErrors = true; });
 

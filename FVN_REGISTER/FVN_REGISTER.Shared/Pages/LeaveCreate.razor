@@ -1,0 +1,143 @@
+﻿@page "/leave/create"
+@attribute [Authorize]
+@namespace FVN_REGISTER.Shared.Pages
+@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Contract.Models
+@using FVN_REGISTER.Shared.Services.Leaves
+@using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Utils.Helpers
+@using FVN_REGISTER.Core.Logging
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@implements IAsyncDisposable
+
+@inject ILeaveCreateClientService LeaveService
+@inject ICurrentUserClientService CurrentUserService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject NavigationManager Nav
+
+<PageTitle>Đăng ký nghỉ phép</PageTitle>
+
+@if (_isLoading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+}
+else if (_model == null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">
+        Không thể tải dữ liệu. Vui lòng thử lại.
+    </MudAlert>
+}
+else
+{
+    <MudGrid Spacing="2">
+
+        <MudItem xs="12" lg="5">
+
+            @{
+                var phepYear = _model.PhepTon.Where(x => x.WorkYear == _selectedYear).ToList();
+            }
+            @if (phepYear.Any())
+            {
+                @foreach (var p in phepYear)
+                {
+                    <MudPaper Class="pa-3 mb-2" Elevation="1">
+                        <MudText Typo="Typo.subtitle2" Class="mb-2">
+                            <MudIcon Icon="@Icons.Material.Filled.BeachAccess" Size="Size.Small" Class="mr-1" />
+                            Phép năm @_selectedYear
+                        </MudText>
+                        <MudGrid Spacing="1">
+                            <MudItem xs="4">
+                                <div class="text-center">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Tổng phép</MudText>
+                                    <MudText Typo="Typo.h6">@p.TongPhep</MudText>
+                                </div>
+                            </MudItem>
+                            <MudItem xs="4">
+                                <div class="text-center">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Đã dùng</MudText>
+                                    <MudText Typo="Typo.h6" Color="Color.Warning">@p.SoNgayNghiPhep</MudText>
+                                </div>
+                            </MudItem>
+                            <MudItem xs="4">
+                                <div class="text-center">
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">Còn lại</MudText>
+                                    <MudText Typo="Typo.h6" Color="Color.Success">@p.PhepTon</MudText>
+                                </div>
+                            </MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                }
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Dense="true" Class="mb-2">
+                    Chưa có dữ liệu phép năm @_selectedYear
+                </MudAlert>
+            }
+
+            <MudPaper Class="pa-2 mb-2 d-flex align-center justify-space-between" Elevation="0">
+                <MudSelect T="int" Value="_selectedYear" ValueChanged="OnYearChanged"
+                           Dense="true" Margin="Margin.Dense"
+                           Label="Năm" Style="max-width: 130px;">
+                    @foreach (var y in _model.WorkYears)
+                    {
+                        <MudSelectItem Value="@(y.WorkYear ?? DateTime.Now.Year)">@y.WorkYear</MudSelectItem>
+                    }
+                </MudSelect>
+
+                <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                           Size="Size.Small"
+                           StartIcon="@Icons.Material.Filled.Add"
+                           OnClick="@(() => OpenAddDialog(null))">
+                    Đăng ký nghỉ
+                </MudButton>
+            </MudPaper>
+
+            <MudPaper Class="pa-3 d-none d-lg-block" Elevation="1"
+                      Style="max-height: 520px; overflow-y: auto;">
+                <LeaveListSection Items="@LeaveDaysFiltered" OnView="OpenDetailDialog" />
+            </MudPaper>
+
+        </MudItem>
+
+        <MudItem xs="12" lg="7">
+            <MudPaper Class="pa-3" Elevation="1" Style="min-height: 500px;">
+                <MudText Typo="Typo.subtitle1" Class="mb-2">
+                    <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" Class="mr-1" />
+                    Lịch nghỉ
+                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="ml-2">
+                        (Nhấn vào ngày để đăng ký)
+                    </MudText>
+                </MudText>
+
+                <MudStack Row="true" Class="mb-2" Spacing="3">
+                    <MudChip T="string" Size="Size.Small" Style="background:#ffc107; color:#212529;">Nghỉ công ty</MudChip>
+                    <MudChip T="string" Size="Size.Small" Style="background:#fd7e14; color:#fff;">Chờ duyệt</MudChip>
+                    <MudChip T="string" Size="Size.Small" Style="background:#28a745; color:#fff;">Đã duyệt</MudChip>
+                    <MudChip T="string" Size="Size.Small" Style="background:#dc3545; color:#fff;">Từ chối</MudChip>
+                </MudStack>
+
+                <div @ref="_calendarRef" id="leave-calendar" style="min-height: 450px;"></div>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" Class="d-lg-none">
+            <MudPaper Class="pa-3" Elevation="1">
+                <LeaveListSection Items="@LeaveDaysFiltered" OnView="OpenDetailDialog" />
+            </MudPaper>
+        </MudItem>
+
+    </MudGrid>
+}
+
+@code {
+    private List<HolidayViewModel> LeaveDaysFiltered => _model?.LeaveDays
+        .Where(x => !string.IsNullOrEmpty(x.Start) &&
+                    DateTime.TryParse(x.Start, out var d) &&
+                    d.Year == _selectedYear)
+        .OrderByDescending(x => x.Start)
+        .ToList() ?? new();
+}

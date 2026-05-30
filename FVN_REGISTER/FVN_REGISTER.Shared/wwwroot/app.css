@@ -27,3 +27,30 @@ h1:focus {
 .darker-border-checkbox.form-check-input {
     border-color: #929292;
 }
+
+.fc-weekend {
+    background-color: rgba(0,0,0,0.04);
+}
+
+.fc-event-custom {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 1px 4px;
+    font-size: 11px;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+.fc-event-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    flex-shrink: 0;
+}
+
+.fc-event-label {
+    overflow: hidden;
+    text-overflow: ellipsis;
+}

@@ -68,5 +68,27 @@ namespace FVN_REGISTER.Core.Logging
             if (enabled && logger.IsEnabled(LogLevel.Warning))
                 logger.LogWarning(message, args);
         }
+        // ===== ERROR =====
+        public static void LogErrorIf(
+            this ILogger logger,
+            bool enabled,
+            Exception exception, // Thêm tham số nhận exception
+            string message,
+            params object[] args)
+        {
+            if (enabled && logger.IsEnabled(LogLevel.Error))
+                logger.LogError(exception, message, args);
+        }
+
+        public static void LogErrorIf<T>(
+            this ILogger<T> logger,
+            bool enabled,
+            Exception exception, // Thêm tham số nhận exception
+            string message,
+            params object[] args)
+        {
+            if (enabled && logger.IsEnabled(LogLevel.Error))
+                logger.LogError(exception, message, args);
+        }
     }
 }
