@@ -172,18 +172,52 @@
             }
         </MudTimeline>
 
-        @* Hủy đơn - chỉ khi Pending *@
+        @* Hủy đơn - chỉ khi Pending/ApprovedLv1 *@
         @if (Item.Status == "Pending" || Item.Status == "ApprovedLv1")
         {
             <MudDivider Class="my-2" />
             <MudExpansionPanels Elevation="0">
-                <MudExpansionPanel Text="Yêu cầu hủy đơn" Icon="@Icons.Material.Filled.Cancel">
-                    <MudTextField @bind-Value="_cancelReason" Label="Lý do hủy *"
-                                  Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                    <MudButton OnClick="ConfirmCancel" Color="Color.Error" Variant="Variant.Outlined"
-                               Class="mt-2" Disabled="@_isCancelling" Size="Size.Small">
-                        @(_isCancelling ? "Đang xử lý..." : "Xác nhận hủy đơn")
-                    </MudButton>
+                <MudExpansionPanel Text="Yêu cầu hủy" Icon="@Icons.Material.Filled.Cancel">
+
+                    <MudTextField @bind-Value="_cancelReason"
+                                  Label="Lý do hủy *"
+                                  Lines="2"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+
+                    <MudGrid Class="mt-2" Spacing="2">
+
+                        @* Hủy ngày này — dùng DetailId *@
+                        @if (DetailId > 0)
+                        {
+                            <MudItem xs="12" sm="6">
+                                <MudButton OnClick="ConfirmCancelDetail"
+                                           Color="Color.Warning"
+                                           Variant="Variant.Outlined"
+                                           FullWidth="true"
+                                           Disabled="@_isCancelling"
+                                           Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.RemoveCircle">
+                                    @(_isCancelling ? "Đang xử lý..." : $"Hủy ngày {Item.Start}")
+                                </MudButton>
+                            </MudItem>
+                        }
+
+                        @* Hủy cả đơn — dùng LeaveId (Inforregister) *@
+                        <MudItem xs="12" sm="@(DetailId > 0 ? 6 : 12)">
+                            <MudButton OnClick="ConfirmCancelLeave"
+                                       Color="Color.Error"
+                                       Variant="Variant.Filled"
+                                       FullWidth="true"
+                                       Disabled="@_isCancelling"
+                                       Size="Size.Small"
+                                       StartIcon="@Icons.Material.Filled.DeleteForever">
+                                @(_isCancelling ? "Đang xử lý..." : "Hủy cả đơn")
+                            </MudButton>
+                        </MudItem>
+
+                    </MudGrid>
+
                 </MudExpansionPanel>
             </MudExpansionPanels>
         }
@@ -198,12 +232,14 @@
 @code {
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
     [Parameter] public HolidayViewModel Item { get; set; } = default!;
+    [Parameter] public int DetailId { get; set; }  // ✅ Thêm mới
     [Parameter] public EventCallback OnCancelled { get; set; }
 
     private string _cancelReason = "";
     private bool _isCancelling;
 
-    private async Task ConfirmCancel()
+    // ✅ Hủy từng ngày dùng DetailId
+    private async Task ConfirmCancelDetail()
     {
         if (string.IsNullOrWhiteSpace(_cancelReason))
         {
@@ -211,7 +247,38 @@
             return;
         }
 
-        if (!int.TryParse(Item.Id, out var leaveId))
+        if (DetailId <= 0)
+        {
+            Snackbar.Add("ID ngày nghỉ không hợp lệ", Severity.Error);
+            return;
+        }
+
+        _isCancelling = true;
+        var result = await LeaveService.CancelDetailAsync(DetailId, _cancelReason);
+
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Đã hủy ngày nghỉ thành công", Severity.Success);
+            await OnCancelled.InvokeAsync();
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else
+        {
+            Snackbar.Add(result.Message ?? "Hủy ngày thất bại", Severity.Error);
+        }
+        _isCancelling = false;
+    }
+
+    // ✅ Hủy cả đơn dùng LeaveId (Item.Inforregister)
+    private async Task ConfirmCancelLeave()
+    {
+        if (string.IsNullOrWhiteSpace(_cancelReason))
+        {
+            Snackbar.Add("Vui lòng nhập lý do hủy", Severity.Warning);
+            return;
+        }
+
+        if (!int.TryParse(Item.Inforregister, out var leaveId))
         {
             Snackbar.Add("ID đơn không hợp lệ", Severity.Error);
             return;
@@ -222,6 +289,7 @@
 
         if (result.IsSuccess)
         {
+            Snackbar.Add("Đã hủy cả đơn thành công", Severity.Success);
             await OnCancelled.InvokeAsync();
             MudDialog.Close(DialogResult.Ok(true));
         }

@@ -289,7 +289,6 @@ namespace FVN_REGISTER.API.Services.Auths
 
         private string GenerateJwtToken(F03user user, VF03employee? emp)
         {
-            // Giữ nguyên logic Sync của bạn vì JWT creation là in-memory, không cần Async/Token
             var jwtSettings = _configuration.GetSection("Jwt");
             var secretKey = jwtSettings["SecretKey"];
 
@@ -298,27 +297,31 @@ namespace FVN_REGISTER.API.Services.Auths
                 Logger.LogError("[JWT] SecretKey missing");
                 throw new Exception("JWT Secret Key is not configured.");
             }
+
             var key = Encoding.UTF8.GetBytes(secretKey);
+
+            // Lấy email từ emp, không dùng user.Email vì F03user không có field này
+            var email = emp?.EmailAddress ?? "";
+
             var claims = new List<Claim>
-        {
-            new Claim(ClaimTypes.NameIdentifier, user.IdUser.ToString()),
-            new Claim(ClaimTypes.Name, user.UserName),
-            new Claim("UserId", user.IdUser.ToString()),
-            new Claim("FullName", emp?.EmployeeName?.Trim() ?? ""),
-            new Claim("Email",        emp?.EmailAddress ?? user.Email ?? ""),
-            new Claim("EmployeeCode", user.EmployeeCode ?? ""),
-            new Claim("DeptCode", user.DeptCode ?? emp?.DeptCode ?? ""),
-            new Claim("CvCode", user.Cvcode ?? emp?.Cvcode ?? ""),
-            new Claim("LevelApprove", user.LevelApprove.ToString())
-        };
+    {
+        new Claim(ClaimTypes.NameIdentifier, user.IdUser.ToString()),
+        new Claim(ClaimTypes.Name, user.UserName),
+        new Claim("UserId", user.IdUser.ToString()),
+        new Claim("FullName", emp?.EmployeeName?.Trim() ?? ""),
+        new Claim("Email", email),                          // ✅ Đã sửa
+        new Claim("EmployeeCode", user.EmployeeCode ?? ""),
+        new Claim("DeptCode", user.DeptCode ?? emp?.DeptCode ?? ""),
+        new Claim("CvCode",  emp?.Cvcode ?? ""),
+        new Claim("LevelApprove", (user.LevelApprove ?? 0).ToString()),
+        new Claim("PermissionCode", user.PermissionCode.ToString()),
+    };
 
             var userRole = (UserRole)user.PermissionCode;
             foreach (UserRole role in Enum.GetValues(typeof(UserRole)))
             {
                 if (role != UserRole.None && userRole.HasFlag(role))
-                {
                     claims.Add(new Claim(ClaimTypes.Role, role.ToString()));
-                }
             }
 
             var tokenDescriptor = new SecurityTokenDescriptor
@@ -327,7 +330,9 @@ namespace FVN_REGISTER.API.Services.Auths
                 NotBefore = DateTime.UtcNow.AddMinutes(-1),
                 IssuedAt = DateTime.UtcNow,
                 Expires = DateTime.UtcNow.AddDays(7),
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256),
+                SigningCredentials = new SigningCredentials(
+                    new SymmetricSecurityKey(key),
+                    SecurityAlgorithms.HmacSha256),
                 Issuer = jwtSettings["Issuer"],
                 Audience = jwtSettings["Audience"]
             };

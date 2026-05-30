@@ -92,11 +92,20 @@ window.leaveCalendar = (function () {
             eventClick: function (info) {
                 info.jsEvent.stopPropagation();
 
-                const eventId = info.event.id;
-                const status = info.event.extendedProps?.status ?? '';
+                const detailId = info.event.id;                                    // DetailId → cancel ngày này
+                const leaveId = info.event.extendedProps?.inforregister ?? '';     // LeaveId → cancel cả đơn
+                const status = info.event.extendedProps?.APstatus
+                    ?? info.event.extendedProps?.status ?? '';
+                const startDate = info.event.startStr;                             // Ngày của detail này
 
                 if (_dotNetRef) {
-                    _dotNetRef.invokeMethodAsync('OnEventClick', String(eventId), String(status))
+                    _dotNetRef.invokeMethodAsync(
+                        'OnEventClick',
+                        String(detailId),   // ← DetailId
+                        String(leaveId),    // ← LeaveId (thêm mới)
+                        String(status),
+                        String(startDate)   // ← Ngày cụ thể (thêm mới)
+                    )
                         .catch(err => console.error('[leaveCalendar] OnEventClick error:', err));
                 }
             },

@@ -88,5 +88,24 @@ namespace FVN_REGISTER.Shared.Services.Leaves
                 return ApiResponse<object>.Fail("Không thể hủy đơn");
             }
         }
+        public async Task<ApiResponse<object>> CancelDetailAsync(
+        int detailId,
+        string reason,
+        CancellationToken ct = default)
+        {
+            try
+            {
+                _logger.LogDebugIf(Debug, "[LEAVE_CLIENT] CancelDetail detailId={Id}", detailId);
+                return await _http.PostAsync<object>(
+                    $"api/leavedays/cancel-detail/{detailId}",
+                    new { reason },
+                    ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[LEAVE_CLIENT] CancelDetail error");
+                return ApiResponse<object>.Fail("Không thể hủy ngày nghỉ");
+            }
+        }
     }
 }

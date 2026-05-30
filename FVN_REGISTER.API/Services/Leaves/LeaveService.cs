@@ -72,6 +72,8 @@ namespace FVN_REGISTER.API.Services.Leaves
                 {
                     EmployeeCode = user.EmployeeCode,
                     WorkYear = model.WorkYear,
+                    RegisterDate = DateTime.Now,        // ✅ Thêm
+                    RegisterId = user.UserId,
                     StartDate = model.StartDate,
                     EndDate = model.EndDate,
                     TotalDay = (decimal)model.TotalDay,
@@ -120,8 +122,10 @@ namespace FVN_REGISTER.API.Services.Leaves
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "[LEAVE] Create error");
-                return ServiceResult.Fail("Lỗi hệ thống khi tạo đơn nghỉ.");
+                Logger.LogError(ex, "[LEAVE] Create error: {Message} | Inner: {Inner}",
+                ex.Message,
+                ex.InnerException?.Message);
+                return ServiceResult.Fail($"Lỗi hệ thống: {ex.Message}");
             }
         }
 
@@ -150,7 +154,61 @@ namespace FVN_REGISTER.API.Services.Leaves
                 return ServiceResult.Fail("Lỗi hệ thống khi hủy đơn.");
             }
         }
+        // LeaveService.cs
+        public async Task<ServiceResult> CancelDetailAsync(
+            int detailId,
+            string reason,
+            CurrentUser user,
+            CancellationToken ct = default)
+        {
+            try
+            {
+                // 1. Lấy detail
+                var detail = await _db.F03leaveDayDetails
+                    .Include(x => x.LeaveDays)
+                    .FirstOrDefaultAsync(x => x.Id == detailId, ct);
 
+                if (detail == null)
+                    return ServiceResult.Fail("Không tìm thấy ngày nghỉ.");
+
+                var leave = detail.LeaveDays;
+                bool isOwner = leave.EmployeeCode == user.EmployeeCode;
+                bool isAdmin = user.IsAdmin() || user.IsSuperAdmin();
+
+                if (!isOwner && !isAdmin)
+                    return ServiceResult.Fail("Không có quyền hủy.");
+
+                if (LeaveStatusHelper.IsApproved(leave.RequestStatus) && !isAdmin)
+                    return ServiceResult.Fail("Đơn đã duyệt không thể hủy.");
+
+                // 2. Xóa detail
+                _db.F03leaveDayDetails.Remove(detail);
+
+                // 3. Cập nhật lại TotalDay của đơn cha
+                leave.TotalDay -= detail.DayValue;
+                if (detail.TinhPhep)
+                    leave.TotalLeaveDay = (leave.TotalLeaveDay ?? 0) - detail.DayValue;
+
+                // 4. Nếu không còn detail nào → hủy luôn cả đơn
+                var remainingDetails = await _db.F03leaveDayDetails
+                    .CountAsync(x => x.LeaveDaysId == leave.Id, ct);
+
+                if (remainingDetails <= 1) // <= 1 vì chưa SaveChanges
+                {
+                    leave.IsActive = false;
+                    leave.RequestStatus = LeaveStatus.Cancel;
+                    leave.Level1Comment = $"Hủy bởi {user.FullName}: {reason}";
+                }
+
+                await _db.SaveChangesAsync(ct);
+                return ServiceResult.Ok("Đã hủy ngày nghỉ thành công.");
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "[LEAVE] CancelDetail ERROR");
+                return ServiceResult.Fail($"Lỗi hệ thống: {ex.Message}");
+            }
+        }
         // ================= DÀNH CHO QUẢN LÝ =================
 
         public async Task<ServiceResult> ApproveAsync(List<int> leaveIds, int level, CurrentUser user, string comment, CancellationToken ct = default)
@@ -159,25 +217,63 @@ namespace FVN_REGISTER.API.Services.Leaves
         public async Task<ServiceResult> RejectAsync(List<int> leaveIds, int level, CurrentUser user, string comment, CancellationToken ct = default)
             => await ProcessBatchActionAsync(leaveIds, level, user, comment, isApprove: false, ct);
 
-        private async Task<ServiceResult> ProcessBatchActionAsync(List<int> ids, int level, CurrentUser user, string comment, bool isApprove, CancellationToken ct)
+        private async Task<ServiceResult> ProcessBatchActionAsync(
+       List<int> ids, int level, CurrentUser user,
+       string comment, bool isApprove, CancellationToken ct)
         {
-            if (ids == null || ids.Count == 0) return ServiceResult.Fail("Không có đơn nào được chọn.");
+            if (ids == null || ids.Count == 0)
+                return ServiceResult.Fail("Không có đơn nào được chọn.");
+
             try
             {
                 await using var tx = await _db.Database.BeginTransactionAsync(ct);
-                var leaves = await _db.F03leaveDays.Where(x => ids.Contains(x.Id)).ToListAsync(ct);
+                var leaves = await _db.F03leaveDays
+                    .Where(x => ids.Contains(x.Id))
+                    .ToListAsync(ct);
 
                 bool isAdmin = user.IsAdmin() || user.IsSuperAdmin();
+
+                // ✅ Lấy email của user hiện tại để so sánh
+                var userEmail = await _db.VF03employees
+                    .Where(x => x.EmployeeCode == user.EmployeeCode)
+                    .Select(x => x.EmailAddress)
+                    .FirstOrDefaultAsync(ct) ?? "";
 
                 int success = 0;
                 var now = DateTime.Now;
 
                 foreach (var leave in leaves)
                 {
-                    if (LeaveStatusHelper.IsApproved(leave.RequestStatus) || LeaveStatusHelper.IsRejected(leave.RequestStatus)) continue;
+                    // Bỏ qua đơn đã xong
+                    if (LeaveStatusHelper.IsApproved(leave.RequestStatus) ||
+                        LeaveStatusHelper.IsRejected(leave.RequestStatus))
+                        continue;
 
-                    string approverCode = level switch { 1 => leave.Level1ApproveCode, 2 => leave.Level2ApproveCode, 3 => leave.Level3ApproveCode, _ => "" } ?? "";
-                    if (!isAdmin && user.EmployeeCode != approverCode) continue;
+                    // ✅ So sánh theo EMAIL thay vì EmployeeCode
+                    string approverEmail = level switch
+                    {
+                        1 => leave.Level1ApproveEmail,
+                        2 => leave.Level2ApproveEmail,
+                        3 => leave.Level3ApproveEmail,
+                        _ => ""
+                    } ?? "";
+
+                    // ✅ Check quyền theo email
+                    if (!isAdmin && !string.Equals(
+                        userEmail, approverEmail,
+                        StringComparison.OrdinalIgnoreCase))
+                        continue;
+
+                    // ✅ Check điều kiện theo cấp
+                    bool canProcess = level switch
+                    {
+                        1 => leave.Level1IsApprove != true,
+                        2 => leave.Level1IsApprove == true && leave.Level2IsApprove != true,
+                        3 => leave.Level2IsApprove == true && leave.Level3IsApprove != true,
+                        _ => false
+                    };
+
+                    if (!canProcess) continue;
 
                     if (isApprove)
                     {
@@ -194,7 +290,10 @@ namespace FVN_REGISTER.API.Services.Leaves
 
                 await _db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
-                return success > 0 ? ServiceResult.Ok($"Đã xử lý {success}/{leaves.Count} đơn.") : ServiceResult.Fail("Không có đơn nào đủ điều kiện.");
+
+                return success > 0
+                    ? ServiceResult.Ok($"Đã xử lý {success}/{leaves.Count} đơn.")
+                    : ServiceResult.Fail("Không có đơn nào đủ điều kiện.");
             }
             catch (Exception ex)
             {

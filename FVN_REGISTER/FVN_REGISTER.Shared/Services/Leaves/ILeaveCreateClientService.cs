@@ -21,5 +21,7 @@ namespace FVN_REGISTER.Shared.Services.Leaves
             int leaveId,
             string reason,
             CancellationToken ct = default);
+        Task<ApiResponse<object>> CancelDetailAsync(
+        int detailId, string reason, CancellationToken ct = default);
     }
 }

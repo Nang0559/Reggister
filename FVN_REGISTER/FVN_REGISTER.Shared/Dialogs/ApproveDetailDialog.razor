@@ -1,0 +1,91 @@
+﻿@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Shared.Services.Leaves
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">Chi tiết đơn — @Item.EmployeeName</MudText>
+    </TitleContent>
+    <DialogContent>
+        <MudSimpleTable Dense="true" Class="mb-3">
+            <tbody>
+                <tr><td><b>Mã NV</b></td><td>@Item.EmployeeCode</td></tr>
+                <tr>
+                    <td><b>Thời gian</b></td>
+                    <td>@Item.StartDate.ToString("dd/MM/yyyy") → @Item.EndDate.ToString("dd/MM/yyyy")</td>
+                </tr>
+                <tr><td><b>Số ngày</b></td><td>@Item.TotalDay ngày</td></tr>
+                <tr><td><b>Lý do</b></td><td>@Item.LeaveReason</td></tr>
+                <tr><td><b>Người duyệt L1</b></td><td>@Item.Level1ApproveName</td></tr>
+                @if (!string.IsNullOrEmpty(Item.Level2ApproveName))
+                {
+                    <tr><td><b>Người duyệt L2</b></td><td>@Item.Level2ApproveName</td></tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+
+        <MudTextField @bind-Value="_comment"
+                      Label="Ý kiến / Lý do từ chối"
+                      Lines="2" Variant="Variant.Outlined"
+                      Margin="Margin.Dense" />
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="@(() => MudDialog.Cancel())" Variant="Variant.Text">Đóng</MudButton>
+        <MudButton Color="Color.Error" Variant="Variant.Outlined"
+                   StartIcon="@Icons.Material.Filled.Cancel"
+                   Disabled="@(string.IsNullOrWhiteSpace(_comment) || _isBusy)"
+                   OnClick="Reject">
+            Từ chối
+        </MudButton>
+        <MudButton Color="Color.Success" Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.CheckCircle"
+                   Disabled="_isBusy"
+                   OnClick="Approve">
+            @(_isBusy ? "Đang xử lý..." : "Phê duyệt")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public LeaveDaysViewModel Item { get; set; } = default!;
+    [Parameter] public int Level { get; set; }
+    [Parameter] public EventCallback OnApproved { get; set; }
+    [Parameter] public EventCallback OnRejected { get; set; }
+
+    [Inject] IApproveClientService ApproveService { get; set; } = default!;
+    [Inject] ISnackbar Snackbar { get; set; } = default!;
+
+    private string _comment = "";
+    private bool _isBusy;
+
+    private async Task Approve()
+    {
+        _isBusy = true;
+        var result = await ApproveService.ApproveAsync(
+            new List<int> { Item.Id }, Level, _comment);
+
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Đã phê duyệt!", Severity.Success);
+            await OnApproved.InvokeAsync();
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else Snackbar.Add(result.Message ?? "Lỗi", Severity.Error);
+        _isBusy = false;
+    }
+
+    private async Task Reject()
+    {
+        _isBusy = true;
+        var result = await ApproveService.RejectAsync(
+            new List<int> { Item.Id }, Level, _comment);
+
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Đã từ chối!", Severity.Info);
+            await OnRejected.InvokeAsync();
+            MudDialog.Close(DialogResult.Ok(true));
+        }
+        else Snackbar.Add(result.Message ?? "Lỗi", Severity.Error);
+        _isBusy = false;
+    }
+}

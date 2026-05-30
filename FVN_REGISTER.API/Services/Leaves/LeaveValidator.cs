@@ -94,9 +94,11 @@ namespace FVN_REGISTER.API.Services.Leaves
                     }
                 }
 
+                // LeaveValidator.cs
                 // ================= 4. APPROVER VALIDATION =================
                 if (user.CVCode == "0003")
                 {
+                    // Công nhân: bắt buộc đủ 3 cấp
                     if (string.IsNullOrWhiteSpace(model.Level1ApproveEmail) ||
                         string.IsNullOrWhiteSpace(model.Level2ApproveEmail) ||
                         string.IsNullOrWhiteSpace(model.Level3ApproveEmail))
@@ -104,9 +106,10 @@ namespace FVN_REGISTER.API.Services.Leaves
                 }
                 else
                 {
-                    if (string.IsNullOrWhiteSpace(model.Level2ApproveEmail) ||
-                        string.IsNullOrWhiteSpace(model.Level3ApproveEmail))
-                        return Fail("Văn phòng phải có Manager và GM.");
+                    // Văn phòng: chỉ cần L1 + L2 (Manager + GM)
+                    if (string.IsNullOrWhiteSpace(model.Level1ApproveEmail) ||
+                        string.IsNullOrWhiteSpace(model.Level2ApproveEmail))
+                        return Fail("Văn phòng phải chọn đủ 2 người duyệt.");
                 }
 
                 // ================= 5. SELF APPROVAL CHECK =================

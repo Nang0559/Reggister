@@ -89,46 +89,69 @@ namespace FVN_REGISTER.API.Services.Leaves
 
         // ================= PENDING DETAILS =================
         public async Task<List<PendingApprovalGroup>> GetPendingDetailsAsync(
-            string employeeCode,
-            CancellationToken ct = default)
+    string employeeCode,
+    CancellationToken ct = default)
         {
+            // ✅ Dùng cùng cách lấy email như Dashboard
             var email = await ResolveApproverEmailAsync(employeeCode, ct);
+
             if (string.IsNullOrEmpty(email)) return new();
 
-            var data = await GetPendingBaseQueryAsync(email, ct);
+            // ✅ Dùng cùng điều kiện như Dashboard
+            var allPending = await _db.VF03leaveDays
+                .AsNoTracking()
+                .Where(x =>
+                    x.IsActive == true &&
+                    //x.RequestStatus != LeaveStatus.Approved &&   // ✅ THÊM
+                    //x.RequestStatus != LeaveStatus.Rejected &&   // ✅ THÊM
+                    //x.RequestStatus != LeaveStatus.Cancel &&     // ✅ THÊM
+                    (
+                        (x.Level1ApproveEmail == email && x.Level1IsApprove != true) ||
+                        (x.Level2ApproveEmail == email && x.Level1IsApprove == true && x.Level2IsApprove != true) ||
+                        (x.Level3ApproveEmail == email && x.Level2IsApprove == true && x.Level3IsApprove != true)
+                    ))
+                .ToListAsync(ct);
 
-            var result = new List<PendingApprovalGroup>
-        {
-            new()
-            {
-                ApproverLevel = 1,
-                Requests = data
-                    .Where(x => x.Level1ApproveEmail == email && x.Level1IsApprove != true)
-                    .Select(MapToViewModel)
-                    .ToList()
-            },
-            new()
-            {
-                ApproverLevel = 2,
-                Requests = data
-                    .Where(x => x.Level2ApproveEmail == email && x.Level1IsApprove == true && x.Level2IsApprove != true)
-                    .Select(MapToViewModel)
-                    .ToList()
-            },
-            new()
-            {
-                ApproverLevel = 3,
-                Requests = data
-                    .Where(x => x.Level3ApproveEmail == email && x.Level2IsApprove == true && x.Level3IsApprove != true)
-                    .Select(MapToViewModel)
-                    .ToList()
-            }
-        };
+            // ✅ Phân nhóm theo cấp duyệt
+            var lv1 = allPending
+                .Where(x => x.Level1ApproveEmail == email && x.Level1IsApprove != true)
+                .Select(MapToViewModel).ToList();
 
-            foreach (var g in result)
-                g.Count = g.Requests.Count;
+            var lv2 = allPending
+                .Where(x => x.Level2ApproveEmail == email && x.Level1IsApprove == true && x.Level2IsApprove != true)
+                .Select(MapToViewModel).ToList();
 
-            return result.Where(x => x.Count > 0).ToList();
+            var lv3 = allPending
+                .Where(x => x.Level3ApproveEmail == email && x.Level2IsApprove == true && x.Level3IsApprove != true)
+                .Select(MapToViewModel).ToList();
+
+            var result = new List<PendingApprovalGroup>();
+
+            if (lv1.Any())
+                result.Add(new PendingApprovalGroup
+                {
+                    ApproverLevel = 1,
+                    Count = lv1.Count,
+                    Requests = lv1
+                });
+
+            if (lv2.Any())
+                result.Add(new PendingApprovalGroup
+                {
+                    ApproverLevel = 2,
+                    Count = lv2.Count,
+                    Requests = lv2
+                });
+
+            if (lv3.Any())
+                result.Add(new PendingApprovalGroup
+                {
+                    ApproverLevel = 3,
+                    Count = lv3.Count,
+                    Requests = lv3
+                });
+
+            return result;
         }
 
         // ================= SUPPORT =================
@@ -189,11 +212,23 @@ namespace FVN_REGISTER.API.Services.Leaves
                 .OrderByDescending(x => x.WorkYear)
                 .ToListAsync(ct);
 
-        private async Task<string> ResolveApproverEmailAsync(string employeeCode, CancellationToken ct)
-            => await _db.F03leaveDaysApprovers
-                .Where(x => x.ApproveLevelCode == employeeCode)
+        private async Task<string> ResolveApproverEmailAsync(
+    string employeeCode, CancellationToken ct)
+        {
+            // Tìm trong bảng approver trước
+            var email = await _db.F03leaveDaysApprovers
+                .Where(x => x.ApproveLevelCode == employeeCode && x.IsActive)
                 .Select(x => x.ApproveLevelEmail)
+                .FirstOrDefaultAsync(ct);
+
+            if (!string.IsNullOrEmpty(email)) return email;
+
+            // ✅ Fallback: lấy email từ bảng employee
+            return await _db.VF03employees
+                .Where(x => x.EmployeeCode == employeeCode)
+                .Select(x => x.EmailAddress)
                 .FirstOrDefaultAsync(ct) ?? "";
+        }
 
         private async Task<List<HolidayViewModel>> GetCompanyHolidaysAsync(int year, CancellationToken ct)
         {
@@ -231,18 +266,48 @@ namespace FVN_REGISTER.API.Services.Leaves
             return dates.Select(d => d!.Value.ToString("yyyy-MM-dd")).ToList();
         }
 
-        private async Task<List<HolidayViewModel>> GetLeaveDaysAsync(string empCode, int? year, CancellationToken ct)
+        private async Task<List<HolidayViewModel>> GetLeaveDaysAsync(
+    string empCode,
+    int? year,
+    CancellationToken ct)
         {
-            var query = _db.VF03leaveDays
+            var query = _db.VF03leaveDayDetails
                 .AsNoTracking()
                 .Where(x => x.EmployeeCode == empCode);
 
             if (year.HasValue)
-                query = query.Where(x => x.StartDate.HasValue && x.StartDate.Value.Year == year.Value);
+                query = query.Where(x => x.WorkYear == year.Value);
 
             var data = await query.ToListAsync(ct);
-            return data.Select(MapHoliday).ToList();
+
+            return data.Select(d => new HolidayViewModel
+            {
+                Id = d.DetailId.ToString(),           // ✅ DetailId — cancel từng ngày
+                Inforregister = d.LeaveId.ToString(), // ✅ LeaveId  — xem/cancel cả đơn
+
+                Title = d.LeaveTypeName ?? "Nghỉ phép",
+                Start = d.LeaveDate.ToString("yyyy-MM-dd"),
+                End = d.LeaveDate.ToString("yyyy-MM-dd"),
+                Status = d.RequestStatus,
+                ExtendedProps = new ExtendedProps
+                {
+                    APstatus = d.RequestStatus ?? "",
+                    TinhPhep = d.TinhPhep ? 1 : 0,
+                    totalDay = d.DayValue,
+                    level1ApprovedBy = d.Level1ApproveName ?? "",
+                    level2ApprovedBy = d.Level2ApproveName ?? "",
+                },
+                ClassNames = new List<string> { GetStatusClass(d.RequestStatus) }
+            }).ToList();
         }
+        private string GetStatusClass(string? status) => status switch
+        {
+            "Approved" => "event-approved",
+            "Rejected" => "event-rejected",
+            "ApprovedLv1" => "event-lv1",
+            "ApprovedLv2" => "event-lv2",
+            _ => "event-pending"
+        };
 
         public async Task<List<WidgetCounterDto>> GetDashboardWidgetsAsync(string employeeCode, string deptCode, CancellationToken ct = default)
         {
@@ -262,7 +327,7 @@ namespace FVN_REGISTER.API.Services.Leaves
 
             return new List<WidgetCounterDto>
         {
-            new() { Title = "Đơn chờ duyệt", Value = pendingCount.ToString(), Icon = "Icons.Material.Filled.HourglassEmpty", Color = "warning", Link = "/leave/approvals" },
+            new() { Title = "Đơn chờ duyệt", Value = pendingCount.ToString(), Icon = "Icons.Material.Filled.HourglassEmpty", Color = "warning", Link = "/approve/list" },
             new() { Title = "Vắng mặt hôm nay", Value = absentToday.ToString(), Icon = "Icons.Material.Filled.People", Color = "info", Link = "/leave/department-status" },
             new() { Title = "Cảnh báo", Value = absentToday > 10 ? "Cao" : "Bình thường", Icon = "Icons.Material.Filled.Warning", Color = absentToday > 10 ? "error" : "success" }
         };
@@ -317,7 +382,11 @@ namespace FVN_REGISTER.API.Services.Leaves
             EndDate = x.EndDate ?? DateTime.Now,
             TotalDay = x.TotalDay ?? 0,
             RequestStatus = x.RequestStatus,
-            DeptCode = x.DeptCode
+            DeptCode = x.DeptCode,
+            LeaveReason = x.LeaveReason ?? "",
+            Level1IsApprove = x.Level1IsApprove ?? false,
+            Level2IsApprove = x.Level2IsApprove ?? false,
+            Level3IsApprove = x.Level3IsApprove ?? false,
         };
 
         private HolidayViewModel MapHoliday(VF03leaveDay x) => new()

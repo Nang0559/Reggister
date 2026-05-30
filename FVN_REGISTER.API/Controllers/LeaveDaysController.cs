@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using FVN_REGISTER.API.Services.Leaves;
 using FVN_REGISTER.Contract.Interfaces.Leaves;
 using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Contract.Interfaces.Users;
@@ -18,10 +19,11 @@ namespace FVN_REGISTER.API.Controllers
     public class LeaveDaysController : BaseApiController
     {
         private readonly ILeaveService _leaveService;
-
+        private readonly ILeaveQueryService _leaveQueryService;
         public LeaveDaysController(
           
             ILeaveService leaveService,
+             ILeaveQueryService leaveQueryService,
             ICurrentUserService currentUser,
             IUserLogService userLog,
             IMapper mapper,
@@ -31,6 +33,7 @@ namespace FVN_REGISTER.API.Controllers
         {
             
             _leaveService = leaveService;
+            _leaveQueryService = leaveQueryService;
         }
         
         // ==========================================
@@ -83,28 +86,65 @@ namespace FVN_REGISTER.API.Controllers
         // ==========================================
         // DÀNH CHO QUẢN LÝ (Approval)
         // ==========================================
+        [HttpGet("pending")]
+        public async Task<IActionResult> GetPending(CancellationToken ct)
+        {
+            if (UserInfo == null)
+                return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+
+            var result = await _leaveQueryService.GetPendingDetailsAsync(
+                UserInfo.EmployeeCode, ct);
+
+            await LogActionAsync("Xem danh sách chờ duyệt");
+            return Ok(ApiResponse<List<PendingApprovalGroup>>.Ok(result));
+        }
 
         [HttpPost("approve")]
-        public async Task<ActionResult> Approve([FromBody] ApproveRequest request)
+        public async Task<ActionResult> Approve(
+    [FromBody] ApproveRequest request,
+    CancellationToken ct)           // ✅ THÊM ct
         {
+            if (UserInfo == null)           // ✅ THÊM null check
+                return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
+
             await LogActionAsync($"Duyệt đơn ID: {string.Join(",", request.Ids)}");
-            var result = await _leaveService.ApproveAsync(request.Ids, request.Level, UserInfo, request.Comment);
+            var result = await _leaveService.ApproveAsync(
+                request.Ids, request.Level, UserInfo, request.Comment ?? "", ct);
             return HandleResult(result);
         }
 
         [HttpPost("reject")]
-        public async Task<ActionResult> Reject([FromBody] ApproveRequest request)
+        public async Task<ActionResult> Reject(
+            [FromBody] ApproveRequest request,
+            CancellationToken ct)           // ✅ THÊM ct
         {
+            if (UserInfo == null)           // ✅ THÊM null check
+                return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
+
             await LogActionAsync($"Từ chối đơn ID: {string.Join(",", request.Ids)}");
-            var result = await _leaveService.RejectAsync(request.Ids, request.Level, UserInfo, request.Comment);
+            var result = await _leaveService.RejectAsync(
+                request.Ids, request.Level, UserInfo, request.Comment ?? "", ct);
             return HandleResult(result);
         }
-
         // Lấy chi tiết đơn để hiển thị trên Modal Timeline
         [HttpGet("details/{id}")]
         public async Task<ActionResult> GetDetails(int id)
         {
             var result = await _leaveService.GetDetailsAsync(id);
+            return HandleResult(result);
+        }
+        [HttpPost("cancel-detail/{detailId}")]
+        public async Task<IActionResult> CancelDetail(
+    int detailId,
+    [FromBody] CancelDetailRequest request,
+    CancellationToken ct)
+        {
+            if (UserInfo == null)
+                return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
+
+            var result = await _leaveService.CancelDetailAsync(
+                detailId, request.Reason, UserInfo, ct);
+
             return HandleResult(result);
         }
     }
@@ -113,5 +153,9 @@ namespace FVN_REGISTER.API.Controllers
     {
         // Tên thuộc tính này phải khớp với prefix "LeaveForm" trong name của input HTML
         public LeaveFormViewModel LeaveForm { get; set; }
+    }
+    public class CancelDetailRequest
+    {
+        public string Reason { get; set; } = "";
     }
 }

@@ -1,0 +1,340 @@
+﻿@page "/approve/list"
+@attribute [Authorize]
+@namespace FVN_REGISTER.Shared.Pages
+@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Shared.Dialogs
+@using FVN_REGISTER.Shared.Services.Leaves
+@using FVN_REGISTER.Shared.Utils.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+
+@inject IApproveClientService ApproveService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Danh sách chờ phê duyệt</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-4">Danh sách chờ phê duyệt</MudText>
+
+@if (_isLoading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+}
+else if (!_groups.Any())
+{
+    <MudAlert Severity="Severity.Info">
+        Không có đơn nào chờ duyệt.
+    </MudAlert>
+}
+else
+{
+    @foreach (var group in _groups)
+    {
+        <MudPaper Class="pa-4 mb-4" Elevation="2">
+
+            @* Header của group *@
+            <MudStack Row="true" AlignItems="AlignItems.Center"
+                      Justify="Justify.SpaceBetween" Class="mb-3">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                    <MudIcon Icon="@Icons.Material.Filled.HourglassEmpty"
+                             Color="Color.Warning" />
+                    <MudText Typo="Typo.subtitle1">
+                        <b>Cấp duyệt @group.ApproverLevel</b>
+                    </MudText>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning">
+                        @group.Count đơn
+                    </MudChip>
+                </MudStack>
+
+                @* Batch actions *@
+                @if (_selectedIds.ContainsKey(group.ApproverLevel) && _selectedIds[group.ApproverLevel].Any())
+                {
+                    <MudStack Row="true" Spacing="1">
+                        <MudButton Size="Size.Small"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Success"
+                                   StartIcon="@Icons.Material.Filled.CheckCircle"
+                                   OnClick="@(() => OpenBatchApproveDialog(group.ApproverLevel))">
+                            Duyệt (@_selectedIds[group.ApproverLevel].Count)
+                        </MudButton>
+                        <MudButton Size="Size.Small"
+                                   Variant="Variant.Outlined"
+                                   Color="Color.Error"
+                                   StartIcon="@Icons.Material.Filled.Cancel"
+                                   OnClick="@(() => OpenBatchRejectDialog(group.ApproverLevel))">
+                            Từ chối (@_selectedIds[group.ApproverLevel].Count)
+                        </MudButton>
+                    </MudStack>
+                }
+            </MudStack>
+
+            @* Bảng danh sách *@
+            <MudTable Items="@group.Requests"
+                      Dense="true" Hover="true" Striped="true"
+                      MultiSelection="true"
+                      @bind-SelectedItems="_selectedSets[group.ApproverLevel]"
+                      SelectOnRowClick="false"
+                      T="LeaveDaysViewModel">
+                <HeaderContent>
+                    <MudTh>Mã NV</MudTh>
+                    <MudTh>Họ tên</MudTh>
+                    <MudTh>Ngày bắt đầu</MudTh>
+                    <MudTh>Ngày kết thúc</MudTh>
+                    <MudTh>Số ngày</MudTh>
+                    <MudTh>Lý do</MudTh>
+                    <MudTh>Trạng thái</MudTh>
+                    <MudTh Style="text-align:center">Thao tác</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    @{
+                        // ✅ Khai báo biến local chung cho TOÀN BỘ HÀNG ngay tại đây
+                        // Nhờ vậy tất cả các thẻ MudTd bên dưới đều đọc được biến này mà không lo mất scope
+                        var (chipColor, chipText, rowCanAct) = GetApproveStatus(context, group.ApproverLevel);
+                    }
+
+                    <MudTd>@context.EmployeeCode</MudTd>
+                    <MudTd>@context.EmployeeName</MudTd>
+                    <MudTd>@context.StartDate.ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd>@context.EndDate.ToString("dd/MM/yyyy")</MudTd>
+                    <MudTd>@context.TotalDay</MudTd>
+                    <MudTd>
+                        <MudTooltip Text="@context.LeaveReason">
+                            <MudText Style="max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+                                @context.LeaveReason
+                            </MudText>
+                        </MudTooltip>
+                    </MudTd>
+                    <MudTd>
+                        <MudStack Spacing="1">
+                            <MudChip T="string" Size="Size.Small"
+                                     Style="@($"background:{chipColor};color:white")">
+                                @chipText
+                            </MudChip>
+                            @if (!rowCanAct)
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Success">
+                                    ✓ Đã được xử lý hoặc chờ cấp dưới
+                                </MudText>
+                            }
+                        </MudStack>
+                    </MudTd>
+                    <MudTd Style="text-align:center">
+                        <MudStack Row="true" Justify="Justify.Center" Spacing="1">
+                            <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                           Size="Size.Small" Color="Color.Primary"
+                                           Title="Xem chi tiết"
+                                           OnClick="@(() => OpenDetailDialog(context, group.ApproverLevel))" />
+
+                            @* ✅ Các nút bấm lúc này nhận biến rowCanAct hoàn toàn mượt mà, không lỗi *@
+                            <MudIconButton Icon="@Icons.Material.Filled.CheckCircle"
+                                           Size="Size.Small" Color="Color.Success"
+                                           Title="@(rowCanAct ? "Duyệt" : "Đã được xử lý")"
+                                           Disabled="@(!rowCanAct)"
+                                           OnClick="@(() => OpenApproveDialog(context.Id, group.ApproverLevel))" />
+
+                            <MudIconButton Icon="@Icons.Material.Filled.Cancel"
+                                           Size="Size.Small" Color="Color.Error"
+                                           Title="@(rowCanAct ? "Từ chối" : "Đã được xử lý")"
+                                           Disabled="@(!rowCanAct)"
+                                           OnClick="@(() => OpenRejectDialog(context.Id, group.ApproverLevel))" />
+                        </MudStack>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudPaper>
+    }
+}
+
+@code {
+    private bool _isLoading = true;
+    private List<PendingApprovalGroup> _groups = new();
+
+    // SỬA: Xóa bỏ biến private bool canAct; tại đây để tránh xung đột dữ liệu hàng.
+
+    private Dictionary<int, HashSet<LeaveDaysViewModel>> _selectedSets = new();
+    private Dictionary<int, List<int>> _selectedIds => _selectedSets
+        .ToDictionary(
+            k => k.Key,
+            v => v.Value.Select(x => x.Id).ToList());
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        _isLoading = true;
+        var result = await ApproveService.GetPendingAsync();
+
+        if (result.IsSuccess && result.Data != null)
+        {
+            _groups = result.Data;
+            _selectedSets = _groups.ToDictionary(
+                g => g.ApproverLevel,
+                _ => new HashSet<LeaveDaysViewModel>());
+        }
+        else
+        {
+            Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
+        }
+        _isLoading = false;
+    }
+
+    private async Task OpenApproveDialog(int leaveId, int level)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Title"] = "Xác nhận phê duyệt",
+            ["Message"] = "Bạn có chắc chắn muốn phê duyệt đơn này?",
+            ["Color"] = Color.Success,
+            ["ShowComment"] = false
+        };
+
+        var dialog = await DialogService.ShowAsync<ApproveConfirmDialog>(
+            "Phê duyệt", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
+
+        var result = await dialog.Result;
+        if (result?.Canceled == true) return;
+
+        var comment = result?.Data as string ?? "";
+        await ExecuteApproveAsync(new List<int> { leaveId }, level, comment);
+    }
+
+    private async Task OpenRejectDialog(int leaveId, int level)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Title"] = "Xác nhận từ chối",
+            ["Message"] = "Vui lòng nhập lý do từ chối:",
+            ["Color"] = Color.Error,
+            ["ShowComment"] = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ApproveConfirmDialog>(
+            "Từ chối", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
+
+        var result = await dialog.Result;
+        if (result?.Canceled == true) return;
+
+        var comment = result?.Data as string ?? "";
+        await ExecuteRejectAsync(new List<int> { leaveId }, level, comment);
+    }
+
+    private async Task OpenBatchApproveDialog(int level)
+    {
+        var ids = _selectedIds[level];
+        var parameters = new DialogParameters
+        {
+            ["Title"] = $"Duyệt {ids.Count} đơn",
+            ["Message"] = $"Xác nhận phê duyệt {ids.Count} đơn đã chọn?",
+            ["Color"] = Color.Success,
+            ["ShowComment"] = false
+        };
+
+        var dialog = await DialogService.ShowAsync<ApproveConfirmDialog>(
+            "Phê duyệt hàng loạt", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
+
+        var result = await dialog.Result;
+        if (result?.Canceled == true) return;
+
+        var comment = result?.Data as string ?? "";
+        await ExecuteApproveAsync(ids, level, comment);
+    }
+
+    private async Task OpenBatchRejectDialog(int level)
+    {
+        var ids = _selectedIds[level];
+        var parameters = new DialogParameters
+        {
+            ["Title"] = $"Từ chối {ids.Count} đơn",
+            ["Message"] = $"Nhập lý do từ chối {ids.Count} đơn đã chọn:",
+            ["Color"] = Color.Error,
+            ["ShowComment"] = true
+        };
+
+        var dialog = await DialogService.ShowAsync<ApproveConfirmDialog>(
+            "Từ chối hàng loạt", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true });
+
+        var result = await dialog.Result;
+        if (result?.Canceled == true) return;
+
+        var comment = result?.Data as string ?? "";
+        await ExecuteRejectAsync(ids, level, comment);
+    }
+
+    private async Task ExecuteApproveAsync(List<int> ids, int level, string comment)
+    {
+        var result = await ApproveService.ApproveAsync(ids, level, comment);
+        if (result.IsSuccess)
+        {
+            Snackbar.Add($"Đã duyệt {ids.Count} đơn thành công!", Severity.Success);
+            await LoadAsync();
+        }
+        else
+        {
+            Snackbar.Add(result.Message ?? "Duyệt thất bại", Severity.Error);
+        }
+    }
+
+    private async Task ExecuteRejectAsync(List<int> ids, int level, string comment)
+    {
+        var result = await ApproveService.RejectAsync(ids, level, comment);
+        if (result.IsSuccess)
+        {
+            Snackbar.Add($"Đã từ chối {ids.Count} đơn!", Severity.Info);
+            await LoadAsync();
+        }
+        else
+        {
+            Snackbar.Add(result.Message ?? "Từ chối thất bại", Severity.Error);
+        }
+    }
+
+    // ✅ Tối ưu hàm check trạng thái: canAct chỉ trả về TRUE khi đúng cấp duyệt hiện tại và cấp dưới đã thông qua.
+    private static (string color, string text, bool canAct) GetApproveStatus(LeaveDaysViewModel item, int level)
+    {
+        if (item.RequestStatus == "Approved")
+            return ("#28a745", "Đã duyệt hoàn tất", false);
+
+        if (item.RequestStatus == "Rejected")
+            return ("#dc3545", "Đã từ chối", false);
+
+        return level switch
+        {
+            1 when item.Level1IsApprove == true => ("#17a2b8", "Cấp 1 đã duyệt", false),
+            1 when item.Level1IsApprove == false => ("#dc3545", "Cấp 1 từ chối", false),
+            1 => ("#fd7e14", "Chờ duyệt cấp 1", true),
+
+            2 when item.Level1IsApprove != true => ("#6c757d", "Chờ cấp 1 duyệt trước", false),
+            2 when item.Level2IsApprove == true => ("#17a2b8", "Cấp 2 đã duyệt", false),
+            2 when item.Level2IsApprove == false => ("#dc3545", "Cấp 2 từ chối", false),
+            2 => ("#fd7e14", "Chờ duyệt cấp 2", true),
+
+            3 when item.Level2IsApprove != true => ("#6c757d", "Chờ cấp 2 duyệt trước", false),
+            3 when item.Level3IsApprove == true => ("#17a2b8", "Cấp 3 đã duyệt", false),
+            3 when item.Level3IsApprove == false => ("#dc3545", "Cấp 3 từ chối", false),
+            3 => ("#fd7e14", "Chờ duyệt cấp 3", true),
+
+            _ => ("#fd7e14", "Chờ xét duyệt", true)
+        };
+    }
+
+    private async Task OpenDetailDialog(LeaveDaysViewModel item, int level)
+    {
+        var parameters = new DialogParameters
+        {
+            ["Item"] = item,
+            ["Level"] = level,
+            ["OnApproved"] = EventCallback.Factory.Create(this, LoadAsync),
+            ["OnRejected"] = EventCallback.Factory.Create(this, LoadAsync)
+        };
+
+        await DialogService.ShowAsync<ApproveDetailDialog>(
+            "Chi tiết đơn nghỉ", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true });
+    }
+}

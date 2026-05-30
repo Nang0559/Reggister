@@ -1,0 +1,34 @@
+﻿@* Dùng chung cho approve và reject *@
+<MudDialog>
+    <DialogContent>
+        <MudText Class="mb-3">@Message</MudText>
+        @if (ShowComment)
+        {
+            <MudTextField @bind-Value="_comment"
+                          Label="Nội dung *" Lines="3"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Hủy</MudButton>
+        <MudButton Color="@Color" Variant="Variant.Filled"
+                   OnClick="Confirm"
+                   Disabled="@(ShowComment && string.IsNullOrWhiteSpace(_comment))">
+            Xác nhận
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public string Title { get; set; } = "";
+    [Parameter] public string Message { get; set; } = "";
+    [Parameter] public Color Color { get; set; } = Color.Primary;
+    [Parameter] public bool ShowComment { get; set; }
+
+    private string _comment = "";
+
+    private void Confirm() => MudDialog.Close(DialogResult.Ok(_comment));
+    private void Cancel() => MudDialog.Cancel();
+}

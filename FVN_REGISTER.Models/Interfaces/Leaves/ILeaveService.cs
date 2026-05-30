@@ -15,6 +15,11 @@ namespace FVN_REGISTER.Contract.Interfaces.Leaves
         Task<ServiceResult> CreateLeaveAsync(CreateLeaveRequestModel model, CurrentUser user, CancellationToken ct = default);
 
         Task<ServiceResult> CancelAsync(int leaveId, string reason, CurrentUser user, CancellationToken ct = default);
+        Task<ServiceResult> CancelDetailAsync(
+        int detailId,
+        string reason,
+        CurrentUser user,
+        CancellationToken ct = default);
 
         Task<ServiceResult> ApproveAsync(List<int> leaveIds, int level, CurrentUser user, string comment, CancellationToken ct = default);
 
