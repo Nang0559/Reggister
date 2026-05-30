@@ -26,5 +26,12 @@ namespace FVN_REGISTER.Contract.Interfaces.Leaves
 
         // (Tùy chọn) Nếu Dashboard cần hiện số lượng đơn chờ duyệt nhanh mà không cần Icon/Color
         Task<List<PendingApprovalGroup>> GetPendingSummaryAsync(string employeeCode, CancellationToken ct = default);
+
+
+        Task<List<LeaveDaysViewModel>> GetHistoryAsync(
+        string employeeCode,
+        int? year,
+        string? status,
+        CancellationToken ct = default);
     }
 }

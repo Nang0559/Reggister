@@ -372,7 +372,56 @@ namespace FVN_REGISTER.API.Services.Leaves
             if (cvCode != "0003" && level < 3) level = Math.Max(level, 3);
             return await GetApproverLevelAsync(level, deptCode, ct);
         }
+        // ================= LEAVE HISTORY =================
+        public async Task<List<LeaveDaysViewModel>> GetHistoryAsync(
+            string employeeCode,
+            int? year,
+            string? status,
+            CancellationToken ct = default)
+        {
+            try
+            {
+                var query = _db.VF03leaveDays
+                    .AsNoTracking()
+                    .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true);
 
+                if (year.HasValue)
+                    query = query.Where(x => x.StartDate.HasValue && x.StartDate.Value.Year == year.Value);
+
+                if (!string.IsNullOrEmpty(status))
+                    query = query.Where(x => x.RequestStatus == status);
+
+                return await query
+                    .OrderByDescending(x => x.RegisterDate)
+                    .Select(x => new LeaveDaysViewModel
+                    {
+                        Id = x.Id ?? 0,
+                        WorkYear = x.WorkYear ?? DateTime.Now.Year,
+                        RegisterDate = x.RegisterDate ?? DateTime.Now,
+                        StartDate = x.StartDate ?? DateTime.Now,
+                        EndDate = x.EndDate ?? DateTime.Now,
+                        TotalDay = x.TotalDay ?? 0,
+                        LeaveTypeName = x.LeaveDay,
+                        LeaveReason = x.LeaveReason,
+                        RequestStatus = x.RequestStatus,
+                        Level1ApproveName = x.Level1ApproveName,
+                        Level1ApproveEmail = x.Level1ApproveEmail,
+                        Level1IsApprove = x.Level1IsApprove ?? false,
+                        Level2ApproveName = x.Level2ApproveName,
+                        Level2ApproveEmail = x.Level2ApproveEmail,
+                        Level2IsApprove = x.Level2IsApprove ?? false,
+                        Level3ApproveName = x.Level3ApproveName,
+                        Level3ApproveEmail = x.Level3ApproveEmail,
+                        Level3IsApprove = x.Level3IsApprove ?? false,
+                    })
+                    .ToListAsync(ct);
+            }
+            catch (Exception)
+            {
+                // Bạn có thể log lỗi ở đây nếu lớp này được bổ sung Logger, ví dụ: _logger.LogError(...)
+                return new List<LeaveDaysViewModel>();
+            }
+        }
         private LeaveDaysViewModel MapToViewModel(VF03leaveDay x) => new()
         {
             Id = x.Id ?? 0,

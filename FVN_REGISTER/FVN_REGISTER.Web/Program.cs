@@ -70,6 +70,7 @@ builder.Services.AddScoped<ICurrentUserClientService, CurrentUserClientService>(
 builder.Services.AddScoped<IDashboardClientService, DashboardClientService>();
 builder.Services.AddScoped<ILeaveCreateClientService, LeaveCreateClientService>();
 builder.Services.AddScoped<IApproveClientService, ApproveClientService>();
+builder.Services.AddScoped<ILeaveHistorysClientService, LeaveHistorysClientService>();
 builder.Services.AddServerSideBlazor()
     .AddCircuitOptions(options => { options.DetailedErrors = true; });
 

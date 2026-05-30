@@ -97,6 +97,7 @@ namespace FVN_REGISTER
             builder.Services.AddScoped<IDashboardClientService, DashboardClientService>();
             builder.Services.AddScoped<ILeaveCreateClientService, LeaveCreateClientService>();
             builder.Services.AddScoped<IApproveClientService, ApproveClientService>();
+            builder.Services.AddScoped<ILeaveHistorysClientService, LeaveHistorysClientService>();
             return builder.Build();
 
             // Hàm hỗ trợ bypass SSL cho Debug

@@ -1,0 +1,32 @@
+﻿@* Đặt tại: FVN_REGISTER/FVN_REGISTER.Shared/Components/ConfirmDialog.razor *@
+@inject MudBlazor.IDialogService DialogService
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3" Class="pa-2">
+            <MudIcon Icon="@Icons.Material.Filled.WarningAmber"
+                     Color="@Color"
+                     Style="font-size:2.5rem;" />
+            <MudText Typo="Typo.body1">@ContentText</MudText>
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Hủy bỏ</MudButton>
+        <MudButton Color="@Color"
+                   Variant="Variant.Filled"
+                   OnClick="Submit">
+            @ButtonText
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public string ContentText { get; set; } = "Bạn có chắc chắn không?";
+    [Parameter] public string ButtonText { get; set; } = "Xác nhận";
+    [Parameter] public Color Color { get; set; } = Color.Primary;
+
+    private void Submit() => MudDialog.Close(DialogResult.Ok(true));
+    private void Cancel() => MudDialog.Cancel();
+}

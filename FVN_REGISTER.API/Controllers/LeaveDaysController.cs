@@ -135,9 +135,9 @@ namespace FVN_REGISTER.API.Controllers
         }
         [HttpPost("cancel-detail/{detailId}")]
         public async Task<IActionResult> CancelDetail(
-    int detailId,
-    [FromBody] CancelDetailRequest request,
-    CancellationToken ct)
+            int detailId,
+            [FromBody] CancelDetailRequest request,
+            CancellationToken ct)
         {
             if (UserInfo == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
@@ -147,7 +147,30 @@ namespace FVN_REGISTER.API.Controllers
 
             return HandleResult(result);
         }
+        // ==========================================
+        // DÀNH CHO HISTORY (Approval)
+        // ==========================================
+        // GET: api/LeaveDays/history?year=2025&status=Pending
+        [HttpGet("history")]
+        public async Task<ActionResult> GetHistory(
+            [FromQuery] int? year,
+            [FromQuery] string? status,
+            CancellationToken ct)
+        {
+            var empCode = UserInfo?.EmployeeCode;
+            if (string.IsNullOrEmpty(empCode))
+                return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
+
+            // Gọi tầng Query Service để lấy dữ liệu thô
+            var data = await _leaveQueryService.GetHistoryAsync(empCode, year, status, ct);
+
+            // Bọc qua ServiceResult để tương thích với phương thức HandleResult của bạn
+            return HandleResult(ServiceResult.Ok(data));
+        }
+
+
     }
+
     public record CancelBody(string Reason);
     public class LeaveFormWrapper
     {
