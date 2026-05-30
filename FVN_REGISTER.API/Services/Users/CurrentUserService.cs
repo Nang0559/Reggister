@@ -67,6 +67,10 @@ namespace FVN_REGISTER.API.Services.Users
                 {
                     UserId = userId,
                     UserName = userName ?? "",
+                    Email = user.FindFirst("Email")?.Value
+                     ?? user.FindFirst("email")?.Value
+                     ?? user.FindFirst(System.Security.Claims.ClaimTypes.Email)?.Value
+                     ?? "",
                     FullName = user.FindFirst("FullName")?.Value ?? "",
                     EmployeeCode = user.FindFirst("EmployeeCode")?.Value ?? "",
                     DeptCode = user.FindFirst("DeptCode")?.Value ?? "",

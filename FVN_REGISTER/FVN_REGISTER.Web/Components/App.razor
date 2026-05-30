@@ -1,7 +1,6 @@
 ﻿@using MudBlazor
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,18 +9,22 @@
     <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
     <link rel="stylesheet" href="_content/FVN_REGISTER.Shared/app.css" />
     <link rel="stylesheet" href="FVN_REGISTER.Web.styles.css" />
+    <!-- ✅ FullCalendar CSS -->
     <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.css" rel="stylesheet" />
     <HeadOutlet @rendermode="new InteractiveServerRenderMode(prerender: false)" />
 </head>
-
 <body>
-  
     <Routes @rendermode="new InteractiveServerRenderMode(prerender: false)" />
-  
-    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
-    <script src="_framework/blazor.web.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
-    <script src="_content/FVN_REGISTER.Shared/js/leaveCalendar.js"></script>
-</body>
 
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+
+    <!-- ✅ FullCalendar JS TRƯỚC blazor.web.js -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
+    <!-- ✅ Locale tiếng Việt -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/locales/vi.global.min.js"></script>
+    <!-- ✅ File JS của bạn TRƯỚC blazor -->
+    <script src="_content/FVN_REGISTER.Shared/js/leaveCalendar.js"></script>
+
+    <script src="_framework/blazor.web.js"></script>
+</body>
 </html>

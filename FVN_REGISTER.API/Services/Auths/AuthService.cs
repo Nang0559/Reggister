@@ -305,6 +305,7 @@ namespace FVN_REGISTER.API.Services.Auths
             new Claim(ClaimTypes.Name, user.UserName),
             new Claim("UserId", user.IdUser.ToString()),
             new Claim("FullName", emp?.EmployeeName?.Trim() ?? ""),
+            new Claim("Email",        emp?.EmailAddress ?? user.Email ?? ""),
             new Claim("EmployeeCode", user.EmployeeCode ?? ""),
             new Claim("DeptCode", user.DeptCode ?? emp?.DeptCode ?? ""),
             new Claim("CvCode", user.Cvcode ?? emp?.Cvcode ?? ""),

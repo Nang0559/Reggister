@@ -30,7 +30,32 @@ namespace FVN_REGISTER
 
 #if DEBUG
             builder.Services.AddBlazorWebViewDeveloperTools();
+            Microsoft.Maui.Handlers.WebViewHandler.Mapper.AppendToMapping("Debugging", (handler, view) =>
+            {
+            #if WINDOWS
+                handler.PlatformView.CoreWebView2.Settings.AreDevToolsEnabled = true;
+            #endif
+            });
             builder.Logging.AddDebug();
+            // ✅ Bắt tất cả lỗi unhandled — xem trong Output window (Debug)
+            AppDomain.CurrentDomain.UnhandledException += (sender, e) =>
+            {
+                var ex = e.ExceptionObject as Exception;
+                System.Diagnostics.Debug.WriteLine("=== [UNHANDLED EXCEPTION] ===");
+                System.Diagnostics.Debug.WriteLine($"Message : {ex?.Message}");
+                System.Diagnostics.Debug.WriteLine($"Type    : {ex?.GetType().FullName}");
+                System.Diagnostics.Debug.WriteLine($"Stack   :\n{ex?.StackTrace}");
+                if (ex?.InnerException != null)
+                    System.Diagnostics.Debug.WriteLine($"Inner   : {ex.InnerException.Message}\n{ex.InnerException.StackTrace}");
+            };
+
+            TaskScheduler.UnobservedTaskException += (sender, e) =>
+            {
+                System.Diagnostics.Debug.WriteLine("=== [TASK EXCEPTION] ===");
+                System.Diagnostics.Debug.WriteLine($"Message : {e.Exception?.Message}");
+                System.Diagnostics.Debug.WriteLine($"Stack   :\n{e.Exception?.StackTrace}");
+                e.SetObserved();
+            };
 #endif
 
             // 1. UI & AUTH CORE

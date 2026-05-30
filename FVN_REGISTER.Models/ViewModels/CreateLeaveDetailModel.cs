@@ -10,7 +10,7 @@ namespace FVN_REGISTER.Contract.ViewModels
         public string LeaveTypeName { get; set; }
         public bool IsHalfDay { get; set; }
 
-        public string HalfDayOption { get; set; } // Morning / Afternoon
+        public string? HalfDayOption { get; set; } // Morning / Afternoon
 
         public decimal DayValue { get; set; } // 1 hoặc 0.5
 
