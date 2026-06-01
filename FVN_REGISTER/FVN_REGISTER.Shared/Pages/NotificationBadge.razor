@@ -1,0 +1,171 @@
+﻿@* FVN_REGISTER.Shared/Components/NotificationBadge.razor *@
+@using Microsoft.AspNetCore.SignalR.Client
+@using FVN_REGISTER.Shared.Services.Users
+@implements IAsyncDisposable
+@inject ICurrentUserClientService CurrentUser
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
+
+<MudBadge Content="@_unreadCount" Overlap="true" Color="Color.Error"
+          Visible="@(_unreadCount > 0)" Max="99">
+    <MudIconButton Icon="@Icons.Material.Filled.Notifications"
+                   Color="Color.Inherit"
+                   OnClick="TogglePanel" />
+</MudBadge>
+
+@if (_showPanel)
+{
+    <MudPaper Elevation="8"
+              Style="position:absolute; top:56px; right:8px; width:340px; z-index:9999; max-height:480px; overflow-y:auto;"
+              Class="pa-0">
+        <MudList T="NotificationItem" Dense="true">
+            <MudListItem>
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <MudText Typo="Typo.subtitle2">Thông báo</MudText>
+                    @if (_unreadCount > 0)
+                    {
+                        <MudButton Size="Size.Small" Variant="Variant.Text"
+                                   OnClick="MarkAllRead">Đọc tất cả</MudButton>
+                    }
+                </MudStack>
+            </MudListItem>
+            <MudDivider />
+
+            @if (_items.Count == 0)
+            {
+                <MudListItem>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Không có thông báo mới</MudText>
+                </MudListItem>
+            }
+            else
+            {
+                @foreach (var item in _items)
+                {
+                    <MudListItem OnClick="@(() => ClickItem(item))"
+                                 Class="@(item.IsRead ? "" : "mud-background-gray")">
+                        <MudStack Spacing="0">
+                            <MudText Typo="Typo.body2" Style="font-weight:500">@item.Title</MudText>
+                            @if (!string.IsNullOrEmpty(item.Body))
+                            {
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@item.Body</MudText>
+                            }
+                            <MudText Typo="Typo.caption" Color="Color.Tertiary">
+                                @item.CreatedAt.ToString("HH:mm dd/MM")
+                            </MudText>
+                        </MudStack>
+                    </MudListItem>
+                    <MudDivider />
+                }
+            }
+        </MudList>
+    </MudPaper>
+}
+
+@code {
+    // Truyền deviceId từ layout (Browser fingerprint hoặc Guid lưu localStorage)
+    [Parameter] public string DeviceId { get; set; } = "web-default";
+
+    private HubConnection? _hub;
+    private int _unreadCount;
+    private bool _showPanel;
+    private List<NotificationItem> _items = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!CurrentUser.IsLoggedIn) return;
+
+        var hubUrl = Nav.BaseUri.TrimEnd('/') +
+                     $"/hubs/notification?deviceId={DeviceId}";
+
+        _hub = new HubConnectionBuilder()
+            .WithUrl(hubUrl, opts =>
+            {
+                // Đính token JWT vào query string (SignalR không hỗ trợ Authorization header trên WebSocket)
+                opts.AccessTokenProvider = () =>
+                    Task.FromResult<string?>(CurrentUser.User?.Token);
+            })
+            .WithAutomaticReconnect()
+            .Build();
+
+        _hub.On<int>("BadgeCount", count =>
+        {
+            _unreadCount = count;
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hub.On<object>("ReceiveNotification", payload =>
+        {
+            // Refresh danh sách
+            InvokeAsync(LoadNotifications);
+            InvokeAsync(StateHasChanged);
+        });
+
+        _hub.On<string>("ForceLogout", message =>
+        {
+            Snackbar.Add(message, Severity.Warning);
+            Nav.NavigateTo("/login", forceLoad: true);
+        });
+
+        await _hub.StartAsync();
+    }
+
+    private async Task LoadNotifications()
+    {
+        if (_hub?.State != HubConnectionState.Connected) return;
+
+        var result = await _hub.InvokeAsync<IEnumerable<NotificationItem>>("GetNotifications");
+        _items = result.ToList();
+        _unreadCount = _items.Count(i => !i.IsRead);
+    }
+
+    private async Task TogglePanel()
+    {
+        _showPanel = !_showPanel;
+        if (_showPanel && _items.Count == 0)
+            await LoadNotifications();
+    }
+
+    private async Task ClickItem(NotificationItem item)
+    {
+        if (!item.IsRead)
+        {
+            await _hub!.InvokeAsync("MarkRead", item.Id);
+
+            // 🌟 SỬA TẠI ĐÂY: Thay thế item trong list bằng bản sao mới đã cập nhật IsRead
+            var index = _items.IndexOf(item);
+            if (index != -1)
+            {
+                _items[index] = item with { IsRead = true };
+            }
+
+            _unreadCount = Math.Max(0, _unreadCount - 1);
+        }
+
+        if (item.ReferenceId.HasValue)
+            Nav.NavigateTo($"/leave/details/{item.ReferenceId}");
+
+        _showPanel = false;
+    }
+
+    private async Task MarkAllRead()
+    {
+        await _hub!.InvokeAsync("MarkAllRead");
+
+        // 🌟 SỬA TẠI ĐÂY: Tạo list mới hoàn toàn bằng từ khóa 'with'
+        _items = _items.Select(i => i with { IsRead = true }).ToList();
+
+        _unreadCount = 0;
+        _showPanel = false;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (_hub != null)
+            await _hub.DisposeAsync();
+    }
+
+    private record NotificationItem(
+        int Id, string Title, string? Body,
+        string NotificationType, int? ReferenceId,
+        DateTime CreatedAt, bool IsRead);
+}

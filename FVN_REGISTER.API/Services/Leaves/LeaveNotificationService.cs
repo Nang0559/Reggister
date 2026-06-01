@@ -1,4 +1,6 @@
-﻿using FVN_REGISTER.Contract.Interfaces.Emails;
+﻿using FVN_REGISTER.Contract.Dtos;
+using FVN_REGISTER.Contract.Interfaces.Auths;
+using FVN_REGISTER.Contract.Interfaces.Emails;
 using FVN_REGISTER.Contract.Interfaces.Leaves;
 using FVN_REGISTER.Contract.Models;
 using FVN_REGISTER.Contract.ViewModels;
@@ -17,16 +19,18 @@ namespace FVN_REGISTER.API.Services.Leaves
     {
         private readonly IEmailService _email;
         private readonly FVNWEBAPPContext _db;
-
+        private readonly INotificationService _notification;
         public LeaveNotificationService(
             IEmailService email,
             FVNWEBAPPContext db,
+            INotificationService notification,
             ILogger<LeaveNotificationService> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(logger, options)
         {
             _email = email;
             _db = db;
+            _notification = notification;
         }
 
         // ================= 1. GỬI YÊU CẦU DUYỆT =================
@@ -51,6 +55,25 @@ namespace FVN_REGISTER.API.Services.Leaves
                 Reason = leave.LeaveReason,
                 Url = $"https://yourdomain/Leave/Details/{leave.Id}"
             });
+            // Lấy UserId của approver để tạo in-app notification
+            var approverUser = await _db.F03users
+                .AsNoTracking()
+                .FirstOrDefaultAsync(u => u.EmployeeCode != null &&
+                    _db.F03employees.Any(e => e.EmployeeCode == u.EmployeeCode
+                                           && e.EmailAddress == approverEmail), ct);
+
+            if (approverUser != null)
+            {
+                await _notification.CreateAsync(new CreateNotificationDto
+                {
+                    UserId = approverUser.IdUser,
+                    EmployeeCode = approverUser.EmployeeCode, // Nếu cần lưu mã nhân viên người nhận
+                    NotificationType = "LEAVE_PENDING",       // Đúng tên trường 'NotificationType'
+                    Title = "Đơn nghỉ phép cần duyệt",
+                    Body = $"{employeeName} xin nghỉ {leave.TotalDay} ngày từ {leave.StartDate:dd/MM}",
+                    RelatedLeaveId = leave.Id                  // Đúng tên trường 'RelatedLeaveId' (kiểu int?)
+                }, ct);
+            }
         }
 
         // ================= 2. THÔNG BÁO KẾT QUẢ =================
@@ -76,6 +99,30 @@ namespace FVN_REGISTER.API.Services.Leaves
                 Status = status,
                 DateNotify = DateTime.Now.ToString("dd/MM/yyyy HH:mm")
             });
+            var targetUser = await _db.F03users
+       .AsNoTracking()
+       .FirstOrDefaultAsync(u => u.EmployeeCode != null &&
+           _db.F03employees.Any(e => e.EmployeeCode == u.EmployeeCode
+                                  && e.EmailAddress == targetEmail), ct);
+
+            if (targetUser != null)
+            {
+                var titleMap = status == "Approved" ? "Đơn nghỉ đã được duyệt" : "Đơn nghỉ bị từ chối";
+
+                await _notification.CreateAsync(new CreateNotificationDto
+                {
+                    UserId = targetUser.IdUser,
+                    EmployeeCode = targetUser.EmployeeCode,
+                    Title = titleMap,
+                    // 🌟 SỬA 'DateNotify' thành DateTime.Now nếu không có biến ngày sẵn dùng
+                    Body = $"Trạng thái: {status} — Vào lúc {DateTime.Now:dd/MM/yyyy HH:mm}",
+                    NotificationType = status == "Approved" ? "LEAVE_APPROVED" : "LEAVE_REJECTED",
+
+                    // 🌟 SỬA 'leave.Id': Thay bằng biến Id đơn nghỉ thực tế trong hàm của bạn (Ví dụ: leaveId, model.Id,...)
+                    // Nếu không có, hãy để là: RelatedLeaveId = null
+                    RelatedLeaveId = null
+                }, ct);
+            }
         }
 
         // ================= 3. AUTO REMINDER =================

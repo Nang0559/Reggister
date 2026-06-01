@@ -11,6 +11,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\FVN_REGISTER.API\FVN_REGISTER.API.csproj" />
     <ProjectReference Include="..\FVN_REGISTER.Shared\FVN_REGISTER.Shared.csproj" />
   </ItemGroup>
 

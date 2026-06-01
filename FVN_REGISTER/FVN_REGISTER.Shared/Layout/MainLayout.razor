@@ -4,6 +4,7 @@
 @using FVN_REGISTER.Core.Logging
 @inherits AppLayoutBase
 @implements IDisposable
+@inject IJSRuntime JS
 
 @inject IAuthClientService _authService
 @inject ISnackbar _snackbar
@@ -20,6 +21,7 @@
     }
     else
     {
+         <NotificationBadge DeviceId="@_deviceId" />
         <MudAppBar Elevation="1" Color="Color.Primary">
             <MudIconButton Icon="@Icons.Material.Filled.Menu"
                            OnClick="DrawerToggle" />
@@ -84,7 +86,7 @@
 @code {
     private bool _drawerOpen = true;
     private bool _isLoading = true;
-
+    private string _deviceId = string.Empty;
     protected override async Task OnInitializedAsync()
     {
         try
@@ -117,7 +119,21 @@
             _isLoading = false;
         }
     }
-
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            // Lấy hoặc tạo deviceId cho trình duyệt này
+            var stored = await JS.InvokeAsync<string?>("localStorage.getItem", "fvn_device_id");
+            if (string.IsNullOrEmpty(stored))
+            {
+                stored = $"web-{Guid.NewGuid():N}";
+                await JS.InvokeVoidAsync("localStorage.setItem", "fvn_device_id", stored);
+            }
+            _deviceId = stored;
+            StateHasChanged();
+        }
+    }
     private async Task HandleLogout()
     {
         Logger.LogInfoIf(Debug, "[{Component}] User requested logout", ComponentName);

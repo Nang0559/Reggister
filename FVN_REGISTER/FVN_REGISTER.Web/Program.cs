@@ -1,4 +1,7 @@
 ﻿using Blazored.LocalStorage;
+using FVN_REGISTER.API.Services.Auths;
+using FVN_REGISTER.API.Services.Notifications;
+using FVN_REGISTER.Contract.Interfaces.Auths;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Shared.Handlers;
 using FVN_REGISTER.Shared.Services.Dashboards;
@@ -71,6 +74,10 @@ builder.Services.AddScoped<IDashboardClientService, DashboardClientService>();
 builder.Services.AddScoped<ILeaveCreateClientService, LeaveCreateClientService>();
 builder.Services.AddScoped<IApproveClientService, ApproveClientService>();
 builder.Services.AddScoped<ILeaveHistorysClientService, LeaveHistorysClientService>();
+
+builder.Services.AddScoped<INotificationClientService, NotificationClientService>();
+builder.Services.AddScoped<ISessionService, SessionService>();
+
 builder.Services.AddServerSideBlazor()
     .AddCircuitOptions(options => { options.DetailedErrors = true; });
 

@@ -1165,35 +1165,60 @@ public partial class FVNWEBAPPContext : DbContext
 
             entity.HasKey(e => e.Id);
 
-            entity.Property(e => e.DeviceId).HasMaxLength(100).IsRequired();
-            entity.Property(e => e.DeviceType).HasMaxLength(20).IsRequired();
-            entity.Property(e => e.DeviceName).HasMaxLength(200);
-            entity.Property(e => e.RefreshToken).HasMaxLength(500).IsRequired();
+            // 1. Cấu hình các cột chuỗi dạng VARCHAR (Không chứa Unicode)
+            entity.Property(e => e.DeviceType)
+                  .HasMaxLength(20)
+                  .HasColumnType("varchar")
+                  .IsRequired(); // NOT NULL
 
-            // Mapping thuộc tính IsRevoked vào cột IsActive trong SQL
-            entity.Property(e => e.IsRevoked)
+            entity.Property(e => e.DeviceId)
+                  .HasMaxLength(200)
+                  .HasColumnType("varchar")
+                  .IsRequired(); // NOT NULL
+
+            entity.Property(e => e.JwtToken)
+                  .HasMaxLength(2000)
+                  .HasColumnType("varchar"); // NULL
+
+            entity.Property(e => e.SignalRConnectionId)
+                  .HasMaxLength(200)
+                  .HasColumnType("varchar"); // NULL
+
+            // 2. Cấu hình các cột chuỗi dạng NVARCHAR (Có chứa Unicode)
+            entity.Property(e => e.DeviceName)
+                  .HasMaxLength(100); // NULL
+
+            // 3. Cấu hình trạng thái hoạt động (Khớp 100% tên IsActive)
+            entity.Property(e => e.IsActive)
                   .HasColumnName("IsActive")
-                  .HasConversion(
-                        v => !v,   // Khi lưu xuống DB: IsActive = !IsRevoked (Code truyền false -> DB lưu 1)
-                        v => !v    // Khi đọc từ DB lên: IsRevoked = !IsActive (DB là 1 -> Code nhận false)
-                  );
+                  .HasColumnType("bit")
+                  .HasDefaultValueSql("((1))")
+                  .IsRequired(); // NOT NULL
 
+            // 4. Cấu hình các cột ngày tháng
             entity.Property(e => e.CreatedAt)
+                  .HasColumnType("datetime")
                   .HasDefaultValueSql("(getdate())")
-                  .HasColumnType("datetime");
+                  .IsRequired(); // NOT NULL
 
             entity.Property(e => e.LastSeenAt)
-                  .HasDefaultValueSql("(getdate())")
-                  .HasColumnType("datetime");
+                  .HasColumnType("datetime"); // NULL
 
-            // Mapping thuộc tính ExpireTime vào cột ExpiredAt trong SQL
-            entity.Property(e => e.ExpireTime)
-                  .HasColumnName("ExpiredAt")
-                  .HasColumnType("datetime")
-                  .IsRequired();
+            entity.Property(e => e.RevokedAt)
+                  .HasColumnType("datetime"); // NULL
 
+            // 5. Cấu hình các INDEX (Đặc biệt là Filtered Index)
+            // Index thông thường phục vụ query tìm session active của một user
+            entity.HasIndex(e => new { e.UserId, e.IsActive }, "IX_UserSession_UserId_IsActive");
+
+            // UNIQUE INDEX có kèm điều kiện WHERE IsActive = 1 dưới SQL (Filtered Index)
+            entity.HasIndex(e => e.DeviceId, "IX_UserSession_DeviceId")
+                  .IsUnique()
+                  .HasFilter("[IsActive] = 1");
+
+            // 6. Cấu hình khóa ngoại trỏ chính xác đến bảng F03Users trường IdUser
             entity.HasOne(d => d.User)
-                  .WithMany()
+                  .WithMany() // Để trống nếu class F03user không cần quản lý danh sách UserSessions
                   .HasForeignKey(d => d.UserId)
                   .OnDelete(DeleteBehavior.ClientSetNull)
                   .HasConstraintName("FK_UserSession_User");
@@ -1201,39 +1226,14 @@ public partial class FVNWEBAPPContext : DbContext
         modelBuilder.Entity<AppNotification>(entity =>
         {
             entity.ToTable("AppNotification");
-
-            entity.HasKey(e => e.Id);
-
-            entity.Property(e => e.Title)
-                  .HasMaxLength(200)
-                  .IsRequired(); // NOT NULL
-
-            entity.Property(e => e.Body)
-                  .HasMaxLength(500)
-                  .IsRequired(); // NOT NULL
-
-            entity.Property(e => e.Type)
-                  .HasMaxLength(50)
-                  .IsRequired(); // NOT NULL
-
-            entity.Property(e => e.IsRead)
-                  .HasDefaultValueSql("((0))");
-
-            entity.Property(e => e.CreatedAt)
-                  .HasDefaultValueSql("(getdate())")
-                  .HasColumnType("datetime");
-
-            entity.Property(e => e.ReadAt)
-                  .HasColumnType("datetime");
-
-            entity.Property(e => e.RefId); // NULL int
-
-            // Cấu hình mối quan hệ khóa ngoại với F03user
-            entity.HasOne(d => d.User)
-                  .WithMany() // Để trống nếu trong class F03user.cs không khai báo Collection cho AppNotification
-                  .HasForeignKey(d => d.UserId)
-                  .OnDelete(DeleteBehavior.ClientSetNull)
-                  .HasConstraintName("FK_AppNotification_User");
+            entity.HasKey(e => e.Id).HasName("PK_AppNotification");
+            entity.HasIndex(e => new { e.UserId, e.IsRead }, "IX_AppNotification_UserId_IsRead");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
+            entity.Property(e => e.EmployeeCode).HasMaxLength(50);
+            entity.Property(e => e.NotificationType).HasMaxLength(50).HasDefaultValue("SYSTEM");
+            entity.Property(e => e.Title).HasMaxLength(200).HasDefaultValue("");
+            entity.Property(e => e.ActionUrl).HasMaxLength(500);
+            entity.Property(e => e.ReadAt).HasColumnType("datetime");
         });
         OnModelCreatingPartial(modelBuilder);
     }

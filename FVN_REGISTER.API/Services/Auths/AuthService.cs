@@ -1,4 +1,5 @@
-﻿using FVN_REGISTER.Contract.Interfaces.Auths;
+﻿using FVN_REGISTER.API.Hubs;
+using FVN_REGISTER.Contract.Interfaces.Auths;
 using FVN_REGISTER.Contract.Models;
 using FVN_REGISTER.Contract.Util;
 using FVN_REGISTER.Contract.Utils;
@@ -6,6 +7,7 @@ using FVN_REGISTER.Contract.ViewModels;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Core.Services;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -15,26 +17,36 @@ using System.Text;
 
 namespace FVN_REGISTER.API.Services.Auths
 {
+    
     public class AuthService : BaseService<AuthService>, IAuthService
     {
         private readonly FVNWEBAPPContext _db;
         private readonly IAuditService _audit;
         private readonly IConfiguration _configuration;
+        private readonly ISessionService _sessionService;
+        private readonly IHubContext<NotificationHub> _hubContext;
+        private readonly IHttpContextAccessor _httpContextAccessor;
 
         public AuthService(
             FVNWEBAPPContext db,
             IAuditService audit,
             IConfiguration configuration,
+            ISessionService sessionService,
+            IHubContext<NotificationHub> hubContext,
+            IHttpContextAccessor httpContextAccessor,
             ILogger<AuthService> logger,
-            IOptionsMonitor<AuthDebugOptions> options
-        ) : base(logger, options)
+            IOptionsMonitor<AuthDebugOptions> options)
+            : base(logger, options)
         {
             _db = db;
             _audit = audit;
             _configuration = configuration;
+            _sessionService = sessionService;
+            _hubContext = hubContext;
+            _httpContextAccessor = httpContextAccessor;
         }
 
-        // 1. ✅ CẬP NHẬT HÀM LOGIN: Nhận thêm param thiết bị và lưu vào bảng UserSession
+        // 1. ✅ CẬP NHẬT HÀM LOGIN CHUẨN THEO BẢNG USER_SESSION MỚI
         public async Task<ServiceResult<UserSessionDto>> Login(
             string username,
             string password,
@@ -78,7 +90,7 @@ namespace FVN_REGISTER.API.Services.Auths
                     return ServiceResult<UserSessionDto>.Fail("Sai tài khoản hoặc mật khẩu");
                 }
 
-                // Success logic
+                // Đăng nhập thành công -> Reset số lần lỗi
                 user.NumLoginFailed = 0;
                 user.LastLogin = DateTime.Now;
                 user.LockoutEndDate = null;
@@ -86,44 +98,32 @@ namespace FVN_REGISTER.API.Services.Auths
                 var emp = await _db.VF03employees
                     .FirstOrDefaultAsync(x => x.EmployeeCode == user.EmployeeCode, ct);
 
-                // Sinh Access Token (thường ngắn hạn, ví dụ: 1 tiếng hoặc 1 ngày tùy config cũ)
+                // Bước A: Sinh mã Access Token (JwtToken) chính
                 string token = GenerateJwtToken(user, emp);
 
-                // Sinh mã Refresh Token ngẫu nhiên (Dùng GUID hoặc chuỗi ngẫu nhiên bảo mật)
-                string refreshToken = Guid.NewGuid().ToString("N");
-                // Cấu hình thời gian hết hạn của Refresh Token (Ví dụ: RememberMe = 30 ngày, ngược lại = 7 ngày)
-                DateTime refreshTokenExpiry = rememberMe ? DateTime.Now.AddDays(30) : DateTime.Now.AddDays(7);
+                // Bước B: Thay vì tự viết logic DB ở đây, hãy gọi SessionService gánh vác 
+                // và truyền chuỗi `token` vào làm JwtToken lưu trữ dưới Database.
+                List<string> kickedConnections = await _sessionService.RegisterSessionAsync(
+                 user.IdUser, deviceType, deviceId, deviceName, token, ct);
 
-                // 🌟 LƯU THÔNG TIN VÀO BẢNG UserSession MỚI SCOFFOLD
-                var userSession = new UserSession
+                // Nếu có thiết bị cũ bị kick và đang giữ kết nối SignalR -> Có thể ngắt kết nối hoặc gửi thông báo (tùy bạn cấu hình sau)
+                if (kickedConnections.Any())
                 {
-                    UserId = user.IdUser,
-                    DeviceId = deviceId,
-                    DeviceType = deviceType,
-                    DeviceName = deviceName,
-                    RefreshToken = refreshToken,
-                    ExpireTime = refreshTokenExpiry,
-                    IsRevoked = false,
-                    CreatedAt = DateTime.Now
-                };
-
-                // Nếu thiết bị này đã từng login trước đó, có thể xóa session cũ đi (Tùy nghiệp vụ)
-                var oldSession = await _db.UserSessions
-                    .FirstOrDefaultAsync(x => x.UserId == user.IdUser && x.DeviceId == deviceId, ct);
-                if (oldSession != null)
-                {
-                    _db.UserSessions.Remove(oldSession);
+                    foreach (var connId in kickedConnections)
+                    {
+                        // Ví dụ: Gọi Hub để ép Client cũ đăng xuất ngay lập tức
+                        await _hubContext.Clients.Client(connId).SendAsync("ForceLogout", "Tài khoản đăng nhập từ thiết bị mới", ct);
+                    }
                 }
 
-                _db.UserSessions.Add(userSession);
-                await _db.SaveChangesAsync(ct);
-                var refreshToken = await _sessionService.CreateSessionAsync(
-                 user.IdUser, deviceId, deviceType, deviceName, rememberMe, ct);
+                // Cập nhật lại JwtToken vừa sinh vào session đó (Nếu SessionService của bạn trả về ID hoặc Token định danh)
+                // Giả định CreateSessionAsync trả về chuỗi Token định danh phiên hoặc chính JwtToken.
+
                 var sessionData = new UserSessionDto
                 {
                     IsLoggedIn = true,
                     Token = token,
-                    RefreshToken = refreshToken, // Trả thêm Refresh Token về cho Client
+                    RefreshToken = token, // 💡 Vì bảng mới dùng chung JwtToken làm khóa nên gán RefreshToken = token luôn
                     UserId = user.IdUser,
                     UserName = user.UserName,
                     FullName = emp?.EmployeeName,
@@ -134,7 +134,7 @@ namespace FVN_REGISTER.API.Services.Auths
                     PermissionCode = user.PermissionCode,
                     LevelApprove = user.LevelApprove,
                     IsAdmin = user.PermissionCode == (int)UserRole.SuperAdmin ||
-                              user.PermissionCode == (int)UserRole.Admin
+                    user.PermissionCode == (int)UserRole.Admin
                 };
 
                 Logger.LogInfoIf(Debug, "[LOGIN] Success: {User}", username);
@@ -252,7 +252,7 @@ namespace FVN_REGISTER.API.Services.Auths
             }
         }
 
-        // 2. ✅ CẬP NHẬT HÀM LOGOUT: Vô hiệu hóa Refresh Token trong bảng UserSession
+        // 2. ✅ CẬP NHẬT HÀM LOGOUT: Gọi thẳng SessionService thu hồi phiên theo cấu trúc mới
         public async Task<ServiceResult> Logout(int userId, string? refreshToken, CancellationToken ct = default)
         {
             try
@@ -261,15 +261,8 @@ namespace FVN_REGISTER.API.Services.Auths
 
                 if (!string.IsNullOrEmpty(refreshToken))
                 {
-                    // Tìm session dựa trên userId và token được gửi lên để thu hồi (revoke)
-                    var session = await _db.UserSessions
-                        .FirstOrDefaultAsync(x => x.UserId == userId && x.RefreshToken == refreshToken, ct);
-
-                    if (session != null)
-                    {
-                        session.IsRevoked = true; // Hoặc dùng lệnh _db.UserSessions.Remove(session); tùy bạn
-                        await _db.SaveChangesAsync(ct);
-                    }
+                    // 🌟 SỬA TẠI ĐÂY: Gọi đúng hàm RevokeAsync đã định nghĩa trong ISessionService
+                    await _sessionService.RevokeAsync(refreshToken, ct);
                 }
 
                 await _audit.LogLogout(userId);
@@ -283,25 +276,24 @@ namespace FVN_REGISTER.API.Services.Auths
             }
         }
 
-        // 3. ✅ VIẾT MỚI HÀM REFRESH TOKEN: Kiểm tra RefreshToken hợp lệ để cấp Access Token mới
+        // 3. ✅ CẬP NHẬT HÀM REFRESH TOKEN THEO CHUYỂN ĐỔI KIỂU MỚI
         public async Task<ServiceResult<string>> RefreshTokenAsync(string refreshToken, CancellationToken ct = default)
         {
             try
             {
-                Logger.LogDebugIf(Debug, "[REFRESH_TOKEN] Attemp with token: {Token}", refreshToken);
+                Logger.LogDebugIf(Debug, "[REFRESH_TOKEN] Attempt with token: {Token}", refreshToken);
 
-                // Tìm session khớp với token, chưa bị thu hồi và chưa hết hạn
-                var session = await _db.UserSessions
-                    .FirstOrDefaultAsync(x => x.RefreshToken == refreshToken && x.IsRevoked == false, ct);
+                // 1. 🌟 SỬA TẠI ĐÂY: Gọi đúng hàm ValidateSessionAsync thay cho ValidateRefreshTokenAsync cũ
+                var userId = await _sessionService.ValidateSessionAsync(refreshToken, ct);
 
-                if (session == null || session.ExpireTime < DateTime.Now)
+                if (!userId.HasValue)
                 {
-                    Logger.LogWarnIf(Debug, "[REFRESH_TOKEN] Token invalid or expired.");
-                    return ServiceResult<string>.Fail("Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.");
+                    Logger.LogWarnIf(Debug, "[REFRESH_TOKEN] Token invalid, inactive or expired.");
+                    return ServiceResult<string>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn.");
                 }
 
-                // Lấy thông tin user để tái tạo lại chuỗi JWT mới
-                var user = await _db.F03users.FirstOrDefaultAsync(x => x.IdUser == session.UserId, ct);
+                // Lấy thông tin người dùng từ UserId để cấp lại JWT mới
+                var user = await _db.F03users.FirstOrDefaultAsync(x => x.IdUser == userId.Value, ct);
                 if (user == null || user.IsActive == false)
                 {
                     return ServiceResult<string>.Fail("Tài khoản không tồn tại hoặc đã bị khóa.");
@@ -309,10 +301,23 @@ namespace FVN_REGISTER.API.Services.Auths
 
                 var emp = await _db.VF03employees.FirstOrDefaultAsync(x => x.EmployeeCode == user.EmployeeCode, ct);
 
-                // Tạo Access Token mới
+                // Tạo chuỗi JwtToken Access mới
                 string newAccessToken = GenerateJwtToken(user, emp);
 
-                Logger.LogInfoIf(Debug, "[REFRESH_TOKEN] Success for UserId: {UserId}", session.UserId);
+                // 2. 🌟 CẬP NHẬT THÊM (KHUYÊN DÙNG): Cập nhật luôn JwtToken mới này vào DB cho session hiện tại
+                var currentSession = await _db.UserSessions
+                    .FirstOrDefaultAsync(x => x.JwtToken == refreshToken && x.IsActive, ct);
+
+                if (currentSession != null)
+                {
+                    currentSession.JwtToken = newAccessToken;
+                    currentSession.LastSeenAt = DateTime.Now;
+                    await _db.SaveChangesAsync(ct);
+                }
+
+                Logger.LogInfoIf(Debug, "[REFRESH_TOKEN] Success for UserId: {UserId}", userId.Value);
+
+                // Trả về chuỗi Token mới cho Client ghi đè lại chuỗi cũ
                 return ServiceResult<string>.Ok(newAccessToken);
             }
             catch (Exception ex)
@@ -380,7 +385,7 @@ namespace FVN_REGISTER.API.Services.Auths
                 Subject = new ClaimsIdentity(claims),
                 NotBefore = DateTime.UtcNow.AddMinutes(-1),
                 IssuedAt = DateTime.UtcNow,
-                Expires = DateTime.UtcNow.AddMinutes(15), // 💡 Khuyên dùng: Rút ngắn thời gian Access Token xuống (ví dụ 15 phút) vì giờ đã có Refresh Token hỗ trợ.
+                Expires = DateTime.UtcNow.AddMinutes(15),
                 SigningCredentials = new SigningCredentials(
                     new SymmetricSecurityKey(key),
                     SecurityAlgorithms.HmacSha256),

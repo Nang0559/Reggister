@@ -2,6 +2,7 @@
 using FVN_REGISTER.API.Services.Auths;
 using FVN_REGISTER.API.Services.Emails;
 using FVN_REGISTER.API.Services.Leaves;
+using FVN_REGISTER.API.Services.Notifications;
 using FVN_REGISTER.API.Services.Statics;
 using FVN_REGISTER.API.Services.Users;
 using FVN_REGISTER.Contract.Interfaces.Auths;
@@ -45,6 +46,7 @@ builder.Services.AddDbContext<FVNWEBAPPContext>(options =>
 
 // 2. [QUAN TRỌNG] Đăng ký HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddSignalR();
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 // đăng ký repository
 builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
@@ -71,6 +73,8 @@ builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IUserLogService, UserLogService>();
+builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<ISessionService, SessionService>();
 
 // 6. Đăng ký Authentication/JWT
 

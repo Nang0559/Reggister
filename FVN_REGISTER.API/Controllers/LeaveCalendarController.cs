@@ -2,11 +2,12 @@
 using FVN_REGISTER.Contract.Interfaces.Leaves;
 using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Contract.Interfaces.Users;
-using FVN_REGISTER.Contract.Util;
 using FVN_REGISTER.Contract.ViewModels;
 using FVN_REGISTER.Core.Configurations;
+using FVN_REGISTER.Core.Logging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Controllers;
@@ -75,7 +76,7 @@ public class LeaveCalendarController : BaseApiController
         }
         catch (Exception ex)
         {
-           // Logger.LogError(ex, "[CALENDAR] GetData error");
+            _logger.LogError(ex, "[CALENDAR] GetData error for EmpCode: {EmpCode}", effectiveEmpCode);
             return BadRequest(ApiResponse<object>.Fail("Không thể tải dữ liệu lịch"));
         }
     }

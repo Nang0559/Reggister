@@ -4,30 +4,38 @@ using System.Text.RegularExpressions;
 
 namespace FVN_REGISTER.API.Hubs
 {
-    
-        [Authorize]
-        public class NotificationHub : Hub
+    [Authorize]
+    public class NotificationHub : Hub
+    {
+        /// <summary>
+        /// Client tự join group theo UserId khi kết nối.
+        /// Group name = "user_{userId}" để push riêng từng người.
+        /// </summary>
+        public override async Task OnConnectedAsync()
         {
-            // Mỗi user join group theo UserId để push riêng
-            public override async Task OnConnectedAsync()
+            var userIdClaim = Context.User?.FindFirst("UserId")?.Value
+                           ?? Context.User?.FindFirst("nameid")?.Value;
+
+            if (!string.IsNullOrEmpty(userIdClaim))
             {
-                var userId = Context.User?.FindFirst("UserId")?.Value;
-                if (!string.IsNullOrEmpty(userId))
-                {
-                    await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userId}");
-                }
-                await base.OnConnectedAsync();
+                await Groups.AddToGroupAsync(Context.ConnectionId, $"user_{userIdClaim}");
             }
 
-            public override async Task OnDisconnectedAsync(Exception? exception)
-            {
-                var userId = Context.User?.FindFirst("UserId")?.Value;
-                if (!string.IsNullOrEmpty(userId))
-                {
-                    await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"user_{userId}");
-                }
-                await base.OnDisconnectedAsync(exception);
-            }
+            await base.OnConnectedAsync();
         }
-    
+
+        public override async Task OnDisconnectedAsync(Exception? exception)
+        {
+            var userIdClaim = Context.User?.FindFirst("UserId")?.Value
+                           ?? Context.User?.FindFirst("nameid")?.Value;
+
+            if (!string.IsNullOrEmpty(userIdClaim))
+            {
+                await Groups.RemoveFromGroupAsync(Context.ConnectionId, $"user_{userIdClaim}");
+            }
+
+            await base.OnDisconnectedAsync(exception);
+        }
+    }
+
 }

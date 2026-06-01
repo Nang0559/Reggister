@@ -1,186 +1,179 @@
 ﻿using FVN_REGISTER.Contract.Interfaces.Auths;
 using FVN_REGISTER.Contract.Models;
-using FVN_REGISTER.Contract.Utils;
+
+using FVN_REGISTER.Core.Configurations;
+using FVN_REGISTER.Core.Services;
 using Microsoft.EntityFrameworkCore;
+using FVN_REGISTER.Core.Logging;
+using Microsoft.Extensions.Options;
+
 
 namespace FVN_REGISTER.API.Services.Auths
 {
-    public class SessionService : ISessionService
+  
+
+    public class SessionService : BaseService<SessionService>, ISessionService
     {
         private readonly FVNWEBAPPContext _db;
-        private readonly ILogger<SessionService> _logger;
+        private const int MaxDevices = 2;  // Giới hạn 2 thiết bị (ví dụ: 1 Web + 1 Mobile)
 
         public SessionService(
             FVNWEBAPPContext db,
-            ILogger<SessionService> logger)
+            ILogger<SessionService> logger,
+            IOptionsMonitor<AuthDebugOptions> options)
+            : base(logger, options)
         {
             _db = db;
-            _logger = logger;
         }
 
-        // ─── CREATE ──────────────────────────────────────────
-        public async Task<string> CreateSessionAsync(
-            int userId,
-            string deviceId,
-            string deviceType,
-            string? deviceName,
-            bool rememberMe,
-            CancellationToken ct = default)
+        // ─── REGISTER SESSION (LOGIN) ──────────────────────────
+        public async Task<List<string>> RegisterSessionAsync(
+            int userId, string deviceType, string deviceId,
+            string? deviceName, string jwtToken, CancellationToken ct = default)
         {
-            // 1. Lấy tất cả session active, sắp xếp cũ nhất trước
-            var activeSessions = await _db.UserSessions
-                .Where(x => x.UserId == userId && x.IsRevoked==false)
-                .OrderBy(x => x.LastSeenAt)
-                .ToListAsync(ct);
+            var kickedConnectionIds = new List<string>();
 
-            // 2. Nếu device này đã có session → update thay vì tạo mới
-            var existing = activeSessions
-                .FirstOrDefault(x => x.DeviceId == deviceId);
+            // 1. Tìm session cùng deviceId (bất kể active hay không) để tái sử dụng, tránh duplicate unique index
+            var existing = await _db.UserSessions
+                .FirstOrDefaultAsync(s => s.UserId == userId && s.DeviceId == deviceId, ct);
 
             if (existing != null)
             {
-                existing.RefreshToken = GenerateRefreshToken();
+                existing.JwtToken = jwtToken;
+                existing.IsActive = true;
                 existing.LastSeenAt = DateTime.Now;
-                existing.ExpireTime = GetExpiry(deviceType, rememberMe);
-                existing.DeviceName = deviceName; // Cập nhật tên thiết bị
+                existing.RevokedAt = null;
+                existing.DeviceName = deviceName;
+                existing.DeviceType = deviceType;
 
                 await _db.SaveChangesAsync(ct);
 
-                _logger.LogInformation(
-                    "[SESSION] Updated DeviceId={DeviceId} UserId={UserId}",
-                    deviceId, userId);
-
-                return existing.RefreshToken;
+                Logger.LogDebugIf(Debug, "[SESSION] Refreshed existing session for User={UserId} Device={Device}", userId, deviceId);
+                return kickedConnectionIds; // Không kick ai vì đây là cập nhật thiết bị hiện tại
             }
 
-            // 3. Kiểm tra giới hạn theo loại device → kick cũ nhất
-            var mobileCount = activeSessions
-                .Count(x => x.DeviceType == DeviceType.Mobile);
-            var webCount = activeSessions
-                .Count(x => x.DeviceType == DeviceType.Web);
+            // 2. Đếm và lấy danh sách session đang active
+            var activeSessions = await _db.UserSessions
+                .Where(s => s.UserId == userId && s.IsActive)
+                .OrderBy(s => s.LastSeenAt)
+                .ToListAsync(ct);
 
-            if (deviceType == DeviceType.Mobile
-                && mobileCount >= SessionPolicy.MaxMobileDevices)
+            // 3. Nếu đã đạt tới giới hạn MaxDevices → tiến hành kick session cũ nhất
+            while (activeSessions.Count >= MaxDevices)
             {
-                var oldest = activeSessions
-                    .First(x => x.DeviceType == DeviceType.Mobile);
+                var oldest = activeSessions.First();
+                oldest.IsActive = false;
+                oldest.RevokedAt = DateTime.Now;
 
-                oldest.IsRevoked = false;
+                if (oldest.SignalRConnectionId != null)
+                {
+                    kickedConnectionIds.Add(oldest.SignalRConnectionId);
+                }
 
-                _logger.LogWarning(
-                    "[SESSION] Kicked Mobile SessionId={Id} UserId={UserId}",
-                    oldest.Id, userId);
-            }
-            else if (deviceType == DeviceType.Web
-                && webCount >= SessionPolicy.MaxWebDevices)
-            {
-                var oldest = activeSessions
-                    .First(x => x.DeviceType == DeviceType.Web);
+                activeSessions.RemoveAt(0);
 
-                oldest.IsRevoked = false;
-
-                _logger.LogWarning(
-                    "[SESSION] Kicked Web SessionId={Id} UserId={UserId}",
-                    oldest.Id, userId);
+                Logger.LogWarnIf(Debug,
+                    "[SESSION] Kicked oldest session User={UserId} Device={Device} ConnectionId={ConnId}",
+                    userId, oldest.DeviceId, oldest.SignalRConnectionId);
             }
 
-            // 4. Tạo session mới
-            var refreshToken = GenerateRefreshToken();
-
-            _db.UserSessions.Add(new UserSession
+            // 4. Tạo phiên làm việc mới
+            var session = new UserSession
             {
                 UserId = userId,
-                DeviceId = deviceId,
                 DeviceType = deviceType,
+                DeviceId = deviceId,
                 DeviceName = deviceName,
-                RefreshToken = refreshToken,
-                IsRevoked = true,
+                JwtToken = jwtToken,
+                IsActive = true,
                 CreatedAt = DateTime.Now,
-                LastSeenAt = DateTime.Now,
-                ExpireTime = GetExpiry(deviceType, rememberMe)
-            });
+                LastSeenAt = DateTime.Now
+            };
 
+            _db.UserSessions.Add(session);
             await _db.SaveChangesAsync(ct);
 
-            _logger.LogInformation(
-                "[SESSION] Created Type={Type} UserId={UserId}",
-                deviceType, userId);
+            Logger.LogInfoIf(Debug,
+                "[SESSION] New session created User={UserId} Device={Device} Type={Type}",
+                userId, deviceId, deviceType);
 
-            return refreshToken;
+            return kickedConnectionIds;
         }
 
-        // ─── VALIDATE ────────────────────────────────────────
-        public async Task<int?> ValidateRefreshTokenAsync(
-            string refreshToken,
-            CancellationToken ct = default)
+        // ─── VALIDATE SESSION (REFRESH TOKEN) ──────────────────
+        // 🌟 THÊM MỚI HÀM NÀY ĐỂ KHỚP VỚI AUTH_SERVICE
+        public async Task<int?> ValidateSessionAsync(string jwtToken, CancellationToken ct = default)
         {
             var session = await _db.UserSessions
-                .FirstOrDefaultAsync(x =>
-                    x.RefreshToken == refreshToken &&
-                    x.IsRevoked == true &&
-                    x.ExpireTime > DateTime.Now, ct);
+                .FirstOrDefaultAsync(s => s.JwtToken == jwtToken && s.IsActive, ct);
 
-            if (session == null)
-            {
-                _logger.LogWarning(
-                    "[SESSION] Invalid/Expired RefreshToken");
-                return null;
-            }
+            if (session == null) return null;
 
-            // Cập nhật LastSeen
+            // Cập nhật mốc thời gian hoạt động cuối cùng của session
             session.LastSeenAt = DateTime.Now;
             await _db.SaveChangesAsync(ct);
 
             return session.UserId;
         }
 
-        // ─── UPDATE LAST SEEN ─────────────────────────────────
-        public async Task UpdateLastSeenAsync(
-            string refreshToken,
-            CancellationToken ct = default)
+        // ─── SET SIGNALR CONNECTION ID ────────────────────────
+        public async Task SetConnectionIdAsync(int userId, string deviceId,
+            string connectionId, CancellationToken ct = default)
         {
-            await _db.UserSessions
-                .Where(x => x.RefreshToken == refreshToken && x.IsRevoked)
-                .ExecuteUpdateAsync(s =>
-                    s.SetProperty(x => x.LastSeenAt, DateTime.Now), ct);
+            var session = await _db.UserSessions
+                .FirstOrDefaultAsync(s => s.UserId == userId && s.DeviceId == deviceId && s.IsActive, ct);
+
+            if (session == null) return;
+
+            session.SignalRConnectionId = connectionId;
+            session.LastSeenAt = DateTime.Now;
+            await _db.SaveChangesAsync(ct);
         }
 
-        // ─── REVOKE ───────────────────────────────────────────
-        public async Task RevokeSessionAsync(
-            string refreshToken,
-            CancellationToken ct = default)
+        // ─── CLEAR SIGNALR CONNECTION ID ──────────────────────
+        public async Task ClearConnectionIdAsync(string connectionId, CancellationToken ct = default)
         {
-            await _db.UserSessions
-                .Where(x => x.RefreshToken == refreshToken)
-                .ExecuteUpdateAsync(s =>
-                    s.SetProperty(x => x.IsRevoked, false), ct);
+            var session = await _db.UserSessions
+                .FirstOrDefaultAsync(s => s.SignalRConnectionId == connectionId, ct);
 
-            _logger.LogInformation("[SESSION] Revoked RefreshToken");
+            if (session == null) return;
+
+            session.SignalRConnectionId = null;
+            await _db.SaveChangesAsync(ct);
         }
 
-        // ─── GET ACTIVE ───────────────────────────────────────
-        public async Task<List<UserSession>> GetActiveSessionsAsync(
-            int userId,
-            CancellationToken ct = default)
+        // ─── GET CONNECTION IDS FOR BROADCAST ──────────────────
+        public async Task<List<string>> GetConnectionIdsAsync(int userId, CancellationToken ct = default)
             => await _db.UserSessions
-                .Where(x =>
-                    x.UserId == userId &&
-                    x.IsRevoked == true &&
-                    x.ExpireTime > DateTime.Now)
-                .OrderByDescending(x => x.LastSeenAt)
+                .AsNoTracking()
+                .Where(s => s.UserId == userId && s.IsActive && s.SignalRConnectionId != null)
+                .Select(s => s.SignalRConnectionId!)
                 .ToListAsync(ct);
 
-        // ─── Helpers ─────────────────────────────────────────
-        private static string GenerateRefreshToken()
-            => Convert.ToBase64String(Guid.NewGuid().ToByteArray())
-             + Convert.ToBase64String(Guid.NewGuid().ToByteArray());
-
-        private static DateTime GetExpiry(string deviceType, bool rememberMe)
+        // ─── REVOKE SINGLE SESSION (LOGOUT) ────────────────────
+        // Thay đổi param nhận vào từ (userId, deviceId) thành (jwtToken) để đồng bộ hóa việc đăng xuất từ chuỗi token
+        public async Task RevokeAsync(string jwtToken, CancellationToken ct = default)
         {
-            if (deviceType == DeviceType.Mobile && rememberMe)
-                return DateTime.Now.Add(SessionPolicy.MobileExpiry);
+            var session = await _db.UserSessions
+                .FirstOrDefaultAsync(s => s.JwtToken == jwtToken, ct);
 
-            return DateTime.Now.Add(SessionPolicy.WebExpiry);
+            if (session == null) return;
+
+            session.IsActive = false;
+            session.RevokedAt = DateTime.Now;
+            session.SignalRConnectionId = null;
+            await _db.SaveChangesAsync(ct);
+        }
+
+        // ─── REVOKE ALL SESSIONS ───────────────────────────────
+        public async Task RevokeAllAsync(int userId, CancellationToken ct = default)
+        {
+            await _db.UserSessions
+                .Where(s => s.UserId == userId && s.IsActive)
+                .ExecuteUpdateAsync(s => s
+                    .SetProperty(n => n.IsActive, false)
+                    .SetProperty(n => n.RevokedAt, DateTime.Now)
+                    .SetProperty(n => n.SignalRConnectionId, (string?)null), ct);
         }
     }
 }

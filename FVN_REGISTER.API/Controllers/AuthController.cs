@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using FVN_REGISTER.API.Hubs;
 using FVN_REGISTER.Contract.Interfaces.Auths;
 using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Contract.Interfaces.Users;
@@ -7,6 +8,8 @@ using FVN_REGISTER.Contract.ViewModels;
 using FVN_REGISTER.Core.Configurations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Controllers
@@ -128,41 +131,61 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         // ─── SESSIONS ────────────────────────────────────────
-        [HttpGet("sessions")]                              // ✅ THÊM MỚI
+        [HttpGet("sessions")]
         public async Task<IActionResult> GetSessions(
-            [FromServices] ISessionService sessionService,
+            [FromServices] FVNWEBAPPContext db, // Inject DbContext trực tiếp hoặc qua Service để lấy data nhanh
             CancellationToken ct)
         {
             if (UserInfo == null)
                 return Unauthorized();
 
-            var sessions = await sessionService
-                .GetActiveSessionsAsync(UserInfo.UserId, ct);
+            // Lấy danh sách session hiển thị cho người dùng, ẩn chuỗi mã JwtToken đi để bảo mật
+            var sessions = await db.UserSessions
+                .AsNoTracking()
+                .Where(x => x.UserId == UserInfo.UserId && x.IsActive)
+                .Select(x => new
+                {
+                    x.Id,
+                    x.DeviceType,
+                    x.DeviceName,
+                    x.CreatedAt,
+                    x.LastSeenAt,
+                    IsCurrent = x.JwtToken == Request.Headers["Authorization"].ToString().Replace("Bearer ", "")
+                    // Thêm flag IsCurrent để Front-End biết thiết bị nào là thiết bị hiện tại đang cầm bấm xem
+                })
+                .OrderByDescending(x => x.LastSeenAt)
+                .ToListAsync(ct);
 
-            return Ok(ApiResponse<List<UserSession>>.Ok(sessions));
+            return Ok(ApiResponse<object>.Ok(sessions));
         }
 
-        [HttpDelete("sessions/{sessionId}")]               // ✅ THÊM MỚI
+        [HttpDelete("sessions/{sessionId}")]
         public async Task<IActionResult> RevokeSession(
-            int sessionId,
-            [FromServices] ISessionService sessionService,
-            CancellationToken ct)
+    int sessionId,
+    [FromServices] FVNWEBAPPContext db,
+    [FromServices] ISessionService sessionService,
+    [FromServices] IHubContext<NotificationHub> hubContext, // 🌟 THÊM DÒNG NÀY
+    CancellationToken ct)
         {
             if (UserInfo == null)
                 return Unauthorized();
 
-            // Chỉ cho revoke session của chính mình
-            var sessions = await sessionService
-                .GetActiveSessionsAsync(UserInfo.UserId, ct);
+            var targetSession = await db.UserSessions
+                .FirstOrDefaultAsync(x => x.Id == sessionId && x.UserId == UserInfo.UserId && x.IsActive, ct);
 
-            var target = sessions.FirstOrDefault(x => x.Id == sessionId);
-            if (target == null)
-                return NotFound(ApiResponse<object>.Fail("Session không tồn tại"));
+            if (targetSession == null)
+                return NotFound(ApiResponse<object>.Fail("Thiết bị không tồn tại hoặc đã đăng xuất."));
 
-            await sessionService.RevokeSessionAsync(
-                target.RefreshToken, ct);
+            await sessionService.RevokeAsync(targetSession.JwtToken, ct);
 
-            return Ok(ApiResponse.Ok("Đã đăng xuất thiết bị"));
+            // 🌟 ĐỔI chữ _hubContext thành hubContext (bỏ dấu gạch dưới vì dùng biến local)
+            if (!string.IsNullOrEmpty(targetSession.SignalRConnectionId))
+            {
+                await hubContext.Clients.Client(targetSession.SignalRConnectionId)
+                    .SendAsync("ForceLogout", "Thiết bị của bạn đã bị đăng xuất từ xa.", ct);
+            }
+
+            return Ok(ApiResponse.Ok("Đã đăng xuất thiết bị thành công."));
         }
     }
 
