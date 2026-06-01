@@ -3,14 +3,14 @@
 @using FVN_REGISTER.Shared.Utils.Helpers
 @using FVN_REGISTER.Core.Logging
 @inherits AppLayoutBase
-@implements IDisposable
+@implements IAsyncDisposable
 @inject IJSRuntime JS
-
 @inject IAuthClientService _authService
 @inject ISnackbar _snackbar
 @inject ICurrentUserClientService _user
 @inject NavigationManager _nav
 @inject CustomAuthStateProvider _authStateProvider
+
 <MudLayout>
     <MudPopoverProvider />
     @if (_isLoading)
@@ -21,7 +21,6 @@
     }
     else
     {
-         <NotificationBadge DeviceId="@_deviceId" />
         <MudAppBar Elevation="1" Color="Color.Primary">
             <MudIconButton Icon="@Icons.Material.Filled.Menu"
                            OnClick="DrawerToggle" />
@@ -29,46 +28,55 @@
             <MudText Typo="Typo.h6" Class="ml-3">
                 FCC Smart Portal
             </MudText>
-  
+
             <MudSpacer />
 
-        <MudMenu Label="@(_user.User?.FullName ?? "Nhân viên FCC")"
-         Variant="Variant.Text"
-         Color="Color.Inherit"
-         StartIcon="@Icons.Material.Filled.AccountCircle"
-         EndIcon="@Icons.Material.Filled.ArrowDropDown"
-         AnchorOrigin="Origin.BottomRight"
-         TransformOrigin="Origin.TopRight"
-         Dense="true"
-         Class="ml-auto">
-    <ChildContent>
-        @* Phần Header hiển thị thông tin chi tiết bên trong Menu *@
-        <div class="pa-4" style="min-width: 220px;">
-            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
-                <MudAvatar Color="Color.Secondary" Size="Size.Small">
-                    @(_user.User?.FullName?.FirstOrDefault().ToString().ToUpper() ?? "U")
-                </MudAvatar>
-                <div>
-                    <MudText Typo="Typo.subtitle2">@(_user.User?.FullName ?? "N/A")</MudText>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">Mã NV: @(_user.User?.EmployeeCode ?? "N/A")</MudText>
-                </div>
-            </MudStack>
-        </div>
-        <MudDivider />
-        
-        <MudMenuItem Icon="@Icons.Material.Filled.PersonOutline" OnClick="@(() => _nav.NavigateTo("/profile"))">
-            Hồ sơ của tôi
-        </MudMenuItem>
-        <MudMenuItem Icon="@Icons.Material.Filled.LockReset" OnClick="@(() => _nav.NavigateTo("/change-password"))">
-            Đổi mật khẩu
-        </MudMenuItem>
-        <MudDivider />
-        <MudMenuItem Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error" OnClick="HandleLogout">
-            <MudText Color="Color.Error">Đăng xuất</MudText>
-        </MudMenuItem>
-    </ChildContent>
-</MudMenu>
-      
+            @* ✅ NotificationBadge đặt trong AppBar, trước Menu user *@
+            @if (!string.IsNullOrEmpty(_deviceId))
+            {
+                <NotificationBadge DeviceId="@_deviceId" />
+            }
+
+            <MudMenu Label="@(_user.User?.FullName ?? "Nhân viên FCC")"
+                     Variant="Variant.Text"
+                     Color="Color.Inherit"
+                     StartIcon="@Icons.Material.Filled.AccountCircle"
+                     EndIcon="@Icons.Material.Filled.ArrowDropDown"
+                     AnchorOrigin="Origin.BottomRight"
+                     TransformOrigin="Origin.TopRight"
+                     Dense="true"
+                     Class="ml-auto">
+                <ChildContent>
+                    <div class="pa-4" style="min-width: 220px;">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
+                            <MudAvatar Color="Color.Secondary" Size="Size.Small">
+                                @(_user.User?.FullName?.FirstOrDefault().ToString().ToUpper() ?? "U")
+                            </MudAvatar>
+                            <div>
+                                <MudText Typo="Typo.subtitle2">@(_user.User?.FullName ?? "N/A")</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                    Mã NV: @(_user.User?.EmployeeCode ?? "N/A")
+                                </MudText>
+                            </div>
+                        </MudStack>
+                    </div>
+                    <MudDivider />
+                    <MudMenuItem Icon="@Icons.Material.Filled.PersonOutline"
+                                 OnClick="@(() => _nav.NavigateTo("/profile"))">
+                        Hồ sơ của tôi
+                    </MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.LockReset"
+                                 OnClick="@(() => _nav.NavigateTo("/change-password"))">
+                        Đổi mật khẩu
+                    </MudMenuItem>
+                    <MudDivider />
+                    <MudMenuItem Icon="@Icons.Material.Filled.Logout"
+                                 IconColor="Color.Error"
+                                 OnClick="HandleLogout">
+                        <MudText Color="Color.Error">Đăng xuất</MudText>
+                    </MudMenuItem>
+                </ChildContent>
+            </MudMenu>
         </MudAppBar>
 
         <MudDrawer @bind-Open="_drawerOpen">
@@ -86,32 +94,31 @@
 @code {
     private bool _drawerOpen = true;
     private bool _isLoading = true;
+    private bool _isDisposed = false;        // ✅ khai báo thiếu
     private string _deviceId = string.Empty;
+
     protected override async Task OnInitializedAsync()
     {
         try
         {
             _isLoading = true;
-            
-            // Sử dụng Logger từ AppLayoutBase với Extension Method mới
+
             Logger.LogInfoIf(Debug, "[{Component}] Starting initialization...", ComponentName);
 
-            // Kiểm tra Auth State trước khi init user để tránh lỗi redirect vòng lặp
             var authState = await _authStateProvider.GetAuthenticationStateAsync();
             if (authState.User.Identity is not { IsAuthenticated: true })
             {
-                Logger.LogWarnIf(Debug, "[{Component}] User not authenticated, redirecting to login", ComponentName);
+                Logger.LogWarnIf(Debug, "[{Component}] Not authenticated, redirecting", ComponentName);
                 _nav.NavigateTo("/login");
                 return;
             }
 
             await _user.InitializeAsync();
-            
-            Logger.LogInfoIf(Debug, "[{Component}] Initialized successfully for User: {UserId}", ComponentName, _user.User?.UserId!);
+
+            Logger.LogInfoIf(Debug, "[{Component}] Initialized: {UserId}", ComponentName, _user.User?.UserId);
         }
         catch (Exception ex)
         {
-            // Log lỗi sử dụng hệ thống logging thay vì Console.WriteLine
             Logger.LogError(ex, "[{Component}] Initialization failed", ComponentName);
         }
         finally
@@ -119,32 +126,58 @@
             _isLoading = false;
         }
     }
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender)
+        if (!firstRender || _isDisposed) return;
+
+        try
         {
-            // Lấy hoặc tạo deviceId cho trình duyệt này
             var stored = await JS.InvokeAsync<string?>("localStorage.getItem", "fvn_device_id");
+
+            if (_isDisposed) return;
+
             if (string.IsNullOrEmpty(stored))
             {
                 stored = $"web-{Guid.NewGuid():N}";
-                await JS.InvokeVoidAsync("localStorage.setItem", "fvn_device_id", stored);
+
+                if (!_isDisposed)
+                    await JS.InvokeVoidAsync("localStorage.setItem", "fvn_device_id", stored);
             }
-            _deviceId = stored;
-            StateHasChanged();
+
+            if (!_isDisposed)
+            {
+                _deviceId = stored ?? string.Empty;
+                StateHasChanged();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit dispose → bình thường
+        }
+        catch (OperationCanceledException)
+        {
+            // User navigate đi → bình thường
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[{Component}] DeviceId init failed", ComponentName);
         }
     }
+
     private async Task HandleLogout()
     {
-        Logger.LogInfoIf(Debug, "[{Component}] User requested logout", ComponentName);
+        Logger.LogInfoIf(Debug, "[{Component}] Logout requested", ComponentName);
         await _authService.Logout();
         _nav.NavigateTo("/login", forceLoad: false);
     }
 
     void DrawerToggle() => _drawerOpen = !_drawerOpen;
 
-    public void Dispose()
+    // ✅ Chỉ dùng IAsyncDisposable, xóa IDisposable
+    public async ValueTask DisposeAsync()
     {
-        // Thực hiện cleanup nếu cần
+        _isDisposed = true;
+        await Task.CompletedTask;
     }
 }

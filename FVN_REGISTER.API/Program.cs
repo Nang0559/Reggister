@@ -1,4 +1,5 @@
-﻿using FVN_REGISTER.API.Repositories;
+﻿using FVN_REGISTER.API.Hubs;
+using FVN_REGISTER.API.Repositories;
 using FVN_REGISTER.API.Services.Auths;
 using FVN_REGISTER.API.Services.Emails;
 using FVN_REGISTER.API.Services.Leaves;
@@ -22,42 +23,67 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
+
 var builder = WebApplication.CreateBuilder(args);
 
-// --- 1. CẤU HÌNH CORS (THÊM MỚI) ---
+// =========================================================
+// 1. CORS — SignalR bắt buộc WithOrigins + AllowCredentials
+// =========================================================
+var allowedOrigins = builder.Configuration
+    .GetSection("AllowedOrigins")
+    .Get<string[]>()
+    ?? new[]
+    {
+        "https://localhost:7264",  // Blazor Web HTTPS
+        "http://localhost:5120",   // Blazor Web HTTP
+        "http://localhost:5017",   // API HTTP (self-call nếu cần)
+        "https://localhost:7135"   // API HTTPS
+    };
+
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("FccCorsPolicy", policy =>
     {
-        policy.AllowAnyOrigin() // Hoặc chỉ định rõ URL của Blazor Client
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        policy
+            .WithOrigins(allowedOrigins)   // ✅ Không dùng AllowAnyOrigin với SignalR
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();           // ✅ Bắt buộc cho SignalR WebSocket
     });
 });
 
+// =========================================================
+// 2. INFRASTRUCTURE
+// =========================================================
 builder.Services.AddMemoryCache();
 builder.Services.Configure<AuthDebugOptions>(
     builder.Configuration.GetSection("AuthDebug"));
-// 1. Add services to the container.
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<FVNWEBAPPContext>(options =>
     options.UseSqlServer(connectionString));
 
-// 2. [QUAN TRỌNG] Đăng ký HttpContextAccessor
 builder.Services.AddHttpContextAccessor();
+
+// ✅ SignalR
 builder.Services.AddSignalR();
-builder.Services.AddScoped<IStatisticsService, StatisticsService>();
-// đăng ký repository
+
+// =========================================================
+// 3. REPOSITORIES & SERVICES
+// =========================================================
 builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
-// 3. Đăng ký các Infrastructure Services
+
+// Infrastructure
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<INetworkService, NetworkService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IWorkingDayService, WorkingDayService>();
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
-// 4. Đăng ký Business Services (Giữ nguyên của Rotyby)
+// Business
+builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ILeaveRepository, LeaveRepository>();
 builder.Services.AddScoped<ILeaveQueryService, LeaveQueryService>();
@@ -67,7 +93,7 @@ builder.Services.AddScoped<ILeaveNotificationService, LeaveNotificationService>(
 builder.Services.AddScoped<ILeaveEscalationService, LeaveEscalationService>();
 builder.Services.AddScoped<ILeaveService, LeaveService>();
 
-// 5. Đăng ký Dịch vụ User
+// User & Auth
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<IUserService, UserService>();
@@ -76,14 +102,17 @@ builder.Services.AddScoped<IUserLogService, UserLogService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
 
-// 6. Đăng ký Authentication/JWT
-
-builder.Services.AddAuthentication(options => {
+// =========================================================
+// 4. AUTHENTICATION / JWT
+// =========================================================
+builder.Services.AddAuthentication(options =>
+{
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultScheme = JwtBearerDefaults.AuthenticationScheme;
 })
-.AddJwtBearer(options => {
+.AddJwtBearer(options =>
+{
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true,
@@ -91,66 +120,76 @@ builder.Services.AddAuthentication(options => {
         ValidateAudience = true,
         ValidAudience = builder.Configuration["Jwt:Audience"],
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]!)),
+        IssuerSigningKey = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]!)),
         ValidateLifetime = true,
         ClockSkew = TimeSpan.FromMinutes(5),
-
-        // --- DÒNG QUAN TRỌNG NHẤT CHO ROTYBY ---
-        NameClaimType = "unique_name", // Ánh xạ claim 'unique_name' vào User.Identity.Name
-        RoleClaimType = "role",        // Ánh xạ claim 'role' vào Roles
+        NameClaimType = "unique_name",
+        RoleClaimType = "role",
     };
+
     options.Events = new JwtBearerEvents
     {
-        OnAuthenticationFailed = context =>
-        {
-            // ĐẶT BREAKPOINT TẠI ĐÂY
-            // Kiểm tra biến context.Exception để biết lý do (Expired, Invalid Signature...)
-            return Task.CompletedTask;
-        },
-        OnChallenge = context =>
-        {
-            // ĐẶT BREAKPOINT TẠI ĐÂY
-            // Đây là nơi nó quyết định trả về 401
-            return Task.CompletedTask;
-        },
         OnMessageReceived = context =>
         {
-            // ĐẶT BREAKPOINT TẠI ĐÂY
-            // Chuỗi Token nằm ở biến này:
-            var rawToken = context.Request.Headers["Authorization"].ToString();
+            // ✅ SignalR gửi token qua query string ?access_token=
+            var accessToken = context.Request.Query["access_token"];
+            var path = context.HttpContext.Request.Path;
 
-            // Hoặc lấy trực tiếp token đã lọc bỏ chữ "Bearer "
-            var tokenOnly = context.Token;
+            if (!string.IsNullOrEmpty(accessToken) &&
+                path.StartsWithSegments("/hubs"))
+            {
+                context.Token = accessToken;
+            }
 
-            Console.WriteLine($"[DEBUG] Token nhận được: {tokenOnly}");
+            // Giữ log debug
+            Console.WriteLine($"[DEBUG] Token: {context.Token?[..Math.Min(20, context.Token?.Length ?? 0)]}...");
+            return Task.CompletedTask;
+        },
+
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine($"[AUTH FAILED] {context.Exception.Message}");
+            return Task.CompletedTask;
+        },
+
+        OnChallenge = context =>
+        {
             return Task.CompletedTask;
         }
     };
 });
+
 builder.Services.AddControllers();
-// 7. Đăng ký Worker chạy ngầm
+
+// =========================================================
+// 5. BACKGROUND WORKERS
+// =========================================================
 builder.Services.AddHostedService<EmailBackgroundWorker>();
 
 builder.Services.AddOpenApi();
-// Lưu ý: Nếu dùng Swagger cũ thì thêm cấu hình SecurityDefinition ở đây
 
+// =========================================================
+// 6. PIPELINE
+// =========================================================
 var app = builder.Build();
-
-// --- HTTP request pipeline ---
 
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-// BẬT CORS TRƯỚC AUTHENTICATION
+// ✅ CORS phải đứng TRƯỚC tất cả middleware khác
 app.UseCors("FccCorsPolicy");
 
 app.UseHttpsRedirection();
 
-app.UseAuthentication(); // Ai là người đang gọi?
-app.UseAuthorization();  // Người đó có quyền làm gì?
+app.UseAuthentication();
+app.UseAuthorization();
 
 app.MapControllers();
+
+// ✅ MapHub sau MapControllers
+app.MapHub<NotificationHub>("/hubs/notification");
 
 app.Run();

@@ -5,6 +5,7 @@
 @inject ICurrentUserClientService CurrentUser
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
+@inject IConfiguration Configuration
 
 <MudBadge Content="@_unreadCount" Overlap="true" Color="Color.Error"
           Visible="@(_unreadCount > 0)" Max="99">
@@ -31,10 +32,23 @@
             </MudListItem>
             <MudDivider />
 
-            @if (_items.Count == 0)
+            @if (!_isConnected)
             {
                 <MudListItem>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">Không có thông báo mới</MudText>
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudProgressCircular Size="Size.Small" Indeterminate="true" />
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Đang kết nối...
+                        </MudText>
+                    </MudStack>
+                </MudListItem>
+            }
+            else if (_items.Count == 0)
+            {
+                <MudListItem>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">
+                        Không có thông báo mới
+                    </MudText>
                 </MudListItem>
             }
             else
@@ -62,106 +76,209 @@
 }
 
 @code {
-    // Truyền deviceId từ layout (Browser fingerprint hoặc Guid lưu localStorage)
     [Parameter] public string DeviceId { get; set; } = "web-default";
 
     private HubConnection? _hub;
     private int _unreadCount;
     private bool _showPanel;
+    private bool _isConnected;
+    private bool _isDisposed;
     private List<NotificationItem> _items = new();
 
-    protected override async Task OnInitializedAsync()
+    protected override async Task OnParametersSetAsync()
     {
+        // ✅ Chỉ khởi tạo 1 lần khi DeviceId có giá trị thực
+        if (_hub != null || string.IsNullOrEmpty(DeviceId)
+            || DeviceId == "web-default") return;
+
         if (!CurrentUser.IsLoggedIn) return;
 
-        var hubUrl = Nav.BaseUri.TrimEnd('/') +
-                     $"/hubs/notification?deviceId={DeviceId}";
-
-        _hub = new HubConnectionBuilder()
-            .WithUrl(hubUrl, opts =>
-            {
-                // Đính token JWT vào query string (SignalR không hỗ trợ Authorization header trên WebSocket)
-                opts.AccessTokenProvider = () =>
-                    Task.FromResult<string?>(CurrentUser.User?.Token);
-            })
-            .WithAutomaticReconnect()
-            .Build();
-
-        _hub.On<int>("BadgeCount", count =>
-        {
-            _unreadCount = count;
-            InvokeAsync(StateHasChanged);
-        });
-
-        _hub.On<object>("ReceiveNotification", payload =>
-        {
-            // Refresh danh sách
-            InvokeAsync(LoadNotifications);
-            InvokeAsync(StateHasChanged);
-        });
-
-        _hub.On<string>("ForceLogout", message =>
-        {
-            Snackbar.Add(message, Severity.Warning);
-            Nav.NavigateTo("/login", forceLoad: true);
-        });
-
-        await _hub.StartAsync();
+        await InitHubAsync();
     }
 
-    private async Task LoadNotifications()
+    private async Task InitHubAsync()
     {
+        try
+        {
+            // ✅ FIX QUAN TRỌNG: Lấy URL từ API config, không dùng Nav.BaseUri
+            // Nav.BaseUri là URL của Blazor Web (port 7264)
+            // Hub nằm ở API (port 7135)
+            var apiBase = Configuration["ApiSettings:BaseUrl"]
+                          ?? "https://localhost:7135/";
+
+            apiBase = apiBase.TrimEnd('/');
+
+            var hubUrl = $"{apiBase}/hubs/notification?deviceId={DeviceId}";
+
+            _hub = new HubConnectionBuilder()
+                .WithUrl(hubUrl, opts =>
+                {
+                    // ✅ Token từ User session
+                    opts.AccessTokenProvider = () =>
+                        Task.FromResult<string?>(CurrentUser.User?.Token);
+
+                    // ✅ Bỏ qua SSL dev cert nếu cần
+                    opts.HttpMessageHandlerFactory = handler =>
+                    {
+                        if (handler is HttpClientHandler h)
+                            h.ServerCertificateCustomValidationCallback =
+                                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
+                        return handler;
+                    };
+                })
+                .WithAutomaticReconnect(new[]
+                {
+                    TimeSpan.FromSeconds(0),
+                    TimeSpan.FromSeconds(5),
+                    TimeSpan.FromSeconds(10),
+                    TimeSpan.FromSeconds(30)
+                })
+                .Build();
+
+            // ✅ Lắng nghe events
+            _hub.On<int>("BadgeCount", count =>
+            {
+                if (_isDisposed) return;
+                _unreadCount = count;
+                InvokeAsync(StateHasChanged);
+            });
+
+            _hub.On<object>("ReceiveNotification", _ =>
+            {
+                if (_isDisposed) return;
+                InvokeAsync(LoadNotificationsAsync);
+            });
+
+            _hub.On<string>("ForceLogout", message =>
+            {
+                if (_isDisposed) return;
+                Snackbar.Add(message, Severity.Warning);
+                InvokeAsync(() => Nav.NavigateTo("/login", forceLoad: true));
+            });
+
+            // ✅ Theo dõi trạng thái reconnect
+            _hub.Reconnecting += _ =>
+            {
+                if (_isDisposed) return Task.CompletedTask;
+                _isConnected = false;
+                return InvokeAsync(StateHasChanged);
+            };
+
+            _hub.Reconnected += _ =>
+            {
+                if (_isDisposed) return Task.CompletedTask;
+                _isConnected = true;
+                return InvokeAsync(StateHasChanged);
+            };
+
+            _hub.Closed += _ =>
+            {
+                if (_isDisposed) return Task.CompletedTask;
+                _isConnected = false;
+                return InvokeAsync(StateHasChanged);
+            };
+
+            await _hub.StartAsync();
+            _isConnected = true;
+
+            // Load badge count ngay sau khi connect
+            await LoadNotificationsAsync();
+        }
+        catch (Exception ex)
+        {
+            // ✅ Không crash app nếu Hub không available
+            _isConnected = false;
+            Console.WriteLine($"[NotificationBadge] Hub connect failed: {ex.Message}");
+        }
+    }
+
+    private async Task LoadNotificationsAsync()
+    {
+        if (_isDisposed) return;
         if (_hub?.State != HubConnectionState.Connected) return;
 
-        var result = await _hub.InvokeAsync<IEnumerable<NotificationItem>>("GetNotifications");
-        _items = result.ToList();
-        _unreadCount = _items.Count(i => !i.IsRead);
+        try
+        {
+            var result = await _hub.InvokeAsync<IEnumerable<NotificationItem>>("GetNotifications");
+            _items = result?.ToList() ?? new();
+            _unreadCount = _items.Count(i => !i.IsRead);
+            await InvokeAsync(StateHasChanged);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[NotificationBadge] LoadNotifications failed: {ex.Message}");
+        }
     }
 
     private async Task TogglePanel()
     {
         _showPanel = !_showPanel;
-        if (_showPanel && _items.Count == 0)
-            await LoadNotifications();
+
+        if (_showPanel && _isConnected && _items.Count == 0)
+            await LoadNotificationsAsync();
     }
 
     private async Task ClickItem(NotificationItem item)
     {
-        if (!item.IsRead)
-        {
-            await _hub!.InvokeAsync("MarkRead", item.Id);
+        if (_hub?.State != HubConnectionState.Connected) return;
 
-            // 🌟 SỬA TẠI ĐÂY: Thay thế item trong list bằng bản sao mới đã cập nhật IsRead
-            var index = _items.IndexOf(item);
-            if (index != -1)
+        try
+        {
+            if (!item.IsRead)
             {
-                _items[index] = item with { IsRead = true };
+                await _hub.InvokeAsync("MarkRead", item.Id);
+
+                var index = _items.IndexOf(item);
+                if (index != -1)
+                    _items[index] = item with { IsRead = true };
+
+                _unreadCount = Math.Max(0, _unreadCount - 1);
             }
 
-            _unreadCount = Math.Max(0, _unreadCount - 1);
+            if (item.ReferenceId.HasValue)
+                Nav.NavigateTo($"/leave/details/{item.ReferenceId}");
+
+            _showPanel = false;
         }
-
-        if (item.ReferenceId.HasValue)
-            Nav.NavigateTo($"/leave/details/{item.ReferenceId}");
-
-        _showPanel = false;
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[NotificationBadge] ClickItem failed: {ex.Message}");
+        }
     }
 
     private async Task MarkAllRead()
     {
-        await _hub!.InvokeAsync("MarkAllRead");
+        if (_hub?.State != HubConnectionState.Connected) return;
 
-        // 🌟 SỬA TẠI ĐÂY: Tạo list mới hoàn toàn bằng từ khóa 'with'
-        _items = _items.Select(i => i with { IsRead = true }).ToList();
-
-        _unreadCount = 0;
-        _showPanel = false;
+        try
+        {
+            await _hub.InvokeAsync("MarkAllRead");
+            _items = _items.Select(i => i with { IsRead = true }).ToList();
+            _unreadCount = 0;
+            _showPanel = false;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[NotificationBadge] MarkAllRead failed: {ex.Message}");
+        }
     }
 
     public async ValueTask DisposeAsync()
     {
+        _isDisposed = true;
+
         if (_hub != null)
-            await _hub.DisposeAsync();
+        {
+            try
+            {
+                await _hub.StopAsync();
+                await _hub.DisposeAsync();
+            }
+            catch
+            {
+                // Bỏ qua lỗi khi dispose
+            }
+        }
     }
 
     private record NotificationItem(

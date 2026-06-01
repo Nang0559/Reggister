@@ -76,7 +76,7 @@ builder.Services.AddScoped<IApproveClientService, ApproveClientService>();
 builder.Services.AddScoped<ILeaveHistorysClientService, LeaveHistorysClientService>();
 
 builder.Services.AddScoped<INotificationClientService, NotificationClientService>();
-builder.Services.AddScoped<ISessionService, SessionService>();
+
 
 builder.Services.AddServerSideBlazor()
     .AddCircuitOptions(options => { options.DetailedErrors = true; });
