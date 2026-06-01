@@ -82,6 +82,7 @@
     private int _unreadCount;
     private bool _showPanel;
     private bool _isConnected;
+    private bool _isConnecting;
     private bool _isDisposed;
     private List<NotificationItem> _items = new();
 
@@ -109,7 +110,7 @@
             apiBase = apiBase.TrimEnd('/');
 
             var hubUrl = $"{apiBase}/hubs/notification?deviceId={DeviceId}";
-
+            Console.WriteLine($"[NotificationBadge] Connecting to: {hubUrl}");
             _hub = new HubConnectionBuilder()
                 .WithUrl(hubUrl, opts =>
                 {
@@ -179,16 +180,17 @@
             };
 
             await _hub.StartAsync();
+            Console.WriteLine($"[NotificationBadge] Connected! State={_hub.State}");
             _isConnected = true;
-
+            _isConnecting = false;
             // Load badge count ngay sau khi connect
             await LoadNotificationsAsync();
         }
         catch (Exception ex)
         {
-            // ✅ Không crash app nếu Hub không available
+            Console.WriteLine($"[NotificationBadge] FAILED: {ex.GetType().Name}: {ex.Message}");
             _isConnected = false;
-            Console.WriteLine($"[NotificationBadge] Hub connect failed: {ex.Message}");
+            _isConnecting = false;
         }
     }
 
