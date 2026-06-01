@@ -11,7 +11,10 @@ namespace FVN_REGISTER.Contract.ViewModels
         [Required(ErrorMessage = "Vui lòng nhập Mật khẩu")]
         [MaxLength(16, ErrorMessage = "Mật khẩu không quá 16 ký tự")]
         public String Password { get; set; }
+        public string DeviceId { get; set; } = Guid.NewGuid().ToString();
+        public string DeviceType { get; set; } = "Web";
+        public string? DeviceName { get; set; }
+        public bool RememberMe { get; set; } = false;
 
-        
     }
 }

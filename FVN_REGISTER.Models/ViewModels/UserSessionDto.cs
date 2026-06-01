@@ -23,5 +23,7 @@ namespace FVN_REGISTER.Contract.ViewModels
 
         // Token để gọi API (Thay thế cho SessionId)
         public string? Token { get; set; }
+        public string? RefreshToken { get; set; }  // ✅ THÊM
+        public bool RememberMe { get; set; }  // ✅ THÊM
     }
 }

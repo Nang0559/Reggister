@@ -102,7 +102,8 @@ public partial class FVNWEBAPPContext : DbContext
     public virtual DbSet<VwCurrentlyPresentEmployee> VwCurrentlyPresentEmployees { get; set; }
 
     public virtual DbSet<VwShiftCheckInOut> VwShiftCheckInOuts { get; set; }
-
+    public virtual DbSet<UserSession> UserSessions { get; set; }
+    public virtual DbSet<AppNotification> AppNotifications { get; set; }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
         => optionsBuilder.UseSqlServer("Data Source=192.168.200.10\\WEBAPPDB;Initial Catalog=FVNWEBAPP;User ID=sa;Password=Fcc@dmin;TrustServerCertificate=True;MultipleActiveResultSets=True");
@@ -1158,7 +1159,82 @@ public partial class FVNWEBAPPContext : DbContext
                 .HasMaxLength(50)
                 .IsFixedLength();
         });
+        modelBuilder.Entity<UserSession>(entity =>
+        {
+            entity.ToTable("UserSession");
 
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.DeviceId).HasMaxLength(100).IsRequired();
+            entity.Property(e => e.DeviceType).HasMaxLength(20).IsRequired();
+            entity.Property(e => e.DeviceName).HasMaxLength(200);
+            entity.Property(e => e.RefreshToken).HasMaxLength(500).IsRequired();
+
+            // Mapping thuộc tính IsRevoked vào cột IsActive trong SQL
+            entity.Property(e => e.IsRevoked)
+                  .HasColumnName("IsActive")
+                  .HasConversion(
+                        v => !v,   // Khi lưu xuống DB: IsActive = !IsRevoked (Code truyền false -> DB lưu 1)
+                        v => !v    // Khi đọc từ DB lên: IsRevoked = !IsActive (DB là 1 -> Code nhận false)
+                  );
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("(getdate())")
+                  .HasColumnType("datetime");
+
+            entity.Property(e => e.LastSeenAt)
+                  .HasDefaultValueSql("(getdate())")
+                  .HasColumnType("datetime");
+
+            // Mapping thuộc tính ExpireTime vào cột ExpiredAt trong SQL
+            entity.Property(e => e.ExpireTime)
+                  .HasColumnName("ExpiredAt")
+                  .HasColumnType("datetime")
+                  .IsRequired();
+
+            entity.HasOne(d => d.User)
+                  .WithMany()
+                  .HasForeignKey(d => d.UserId)
+                  .OnDelete(DeleteBehavior.ClientSetNull)
+                  .HasConstraintName("FK_UserSession_User");
+        });
+        modelBuilder.Entity<AppNotification>(entity =>
+        {
+            entity.ToTable("AppNotification");
+
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.Title)
+                  .HasMaxLength(200)
+                  .IsRequired(); // NOT NULL
+
+            entity.Property(e => e.Body)
+                  .HasMaxLength(500)
+                  .IsRequired(); // NOT NULL
+
+            entity.Property(e => e.Type)
+                  .HasMaxLength(50)
+                  .IsRequired(); // NOT NULL
+
+            entity.Property(e => e.IsRead)
+                  .HasDefaultValueSql("((0))");
+
+            entity.Property(e => e.CreatedAt)
+                  .HasDefaultValueSql("(getdate())")
+                  .HasColumnType("datetime");
+
+            entity.Property(e => e.ReadAt)
+                  .HasColumnType("datetime");
+
+            entity.Property(e => e.RefId); // NULL int
+
+            // Cấu hình mối quan hệ khóa ngoại với F03user
+            entity.HasOne(d => d.User)
+                  .WithMany() // Để trống nếu trong class F03user.cs không khai báo Collection cho AppNotification
+                  .HasForeignKey(d => d.UserId)
+                  .OnDelete(DeleteBehavior.ClientSetNull)
+                  .HasConstraintName("FK_AppNotification_User");
+        });
         OnModelCreatingPartial(modelBuilder);
     }
 
