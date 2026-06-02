@@ -7,6 +7,7 @@ using FVN_REGISTER.API.Services.Notifications;
 using FVN_REGISTER.API.Services.Notifications.FVN_REGISTER.API.Services.Notifications;
 using FVN_REGISTER.API.Services.Statics;
 using FVN_REGISTER.API.Services.Users;
+using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Interfaces.Auths;
 using FVN_REGISTER.Contract.Interfaces.Emails;
 using FVN_REGISTER.Contract.Interfaces.Leaves;
@@ -17,10 +18,12 @@ using FVN_REGISTER.Contract.Maps;
 using FVN_REGISTER.Contract.Models;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Configurations;
+using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Infrastructure.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
@@ -39,7 +42,7 @@ var allowedOrigins = builder.Configuration
     {
         "https://localhost:7264",  // Blazor Web HTTPS
         "http://localhost:5120",   // Blazor Web HTTP
-        "http://localhost:5017",   // API HTTP (self-call nếu cần)
+        "http://localhost:5017",   // API HTTP
         "https://localhost:7135"   // API HTTPS
     };
 
@@ -48,10 +51,10 @@ builder.Services.AddCors(options =>
     options.AddPolicy("FccCorsPolicy", policy =>
     {
         policy
-            .WithOrigins(allowedOrigins)   // ✅ Không dùng AllowAnyOrigin với SignalR
+            .WithOrigins(allowedOrigins)
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .AllowCredentials();           // ✅ Bắt buộc cho SignalR WebSocket
+            .AllowCredentials(); // Bắt buộc cho SignalR WebSocket
     });
 });
 
@@ -59,6 +62,7 @@ builder.Services.AddCors(options =>
 // 2. INFRASTRUCTURE
 // =========================================================
 builder.Services.AddMemoryCache();
+
 builder.Services.Configure<AuthDebugOptions>(
     builder.Configuration.GetSection("AuthDebug"));
 
@@ -67,8 +71,6 @@ builder.Services.AddDbContext<FVNWEBAPPContext>(options =>
     options.UseSqlServer(connectionString));
 
 builder.Services.AddHttpContextAccessor();
-
-// ✅ SignalR
 builder.Services.AddSignalR();
 
 // =========================================================
@@ -131,37 +133,97 @@ builder.Services.AddAuthentication(options =>
 
     options.Events = new JwtBearerEvents
     {
+        // ── Đọc token cho SignalR (WebSocket không hỗ trợ custom header) ──
         OnMessageReceived = context =>
         {
             var path = context.HttpContext.Request.Path;
-            if (path.StartsWithSegments("/hubs"))
-            {
-                // Cách 1: Browser JS client gửi qua query string
-                var qs = context.Request.Query["access_token"].ToString();
-                if (!string.IsNullOrEmpty(qs))
-                {
-                    context.Token = qs;
-                    return Task.CompletedTask;
-                }
+            if (!path.StartsWithSegments("/hubs"))
+                return Task.CompletedTask;
 
-                // Cách 2: .NET client gửi qua Authorization header
-                var header = context.Request.Headers["Authorization"].ToString();
-                if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-                {
-                    context.Token = header["Bearer ".Length..].Trim();
-                }
+            var logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILogger<Program>>();
+            var debug = context.HttpContext.RequestServices
+                .GetRequiredService<IOptionsMonitor<AuthDebugOptions>>()
+                .CurrentValue.Enabled;
+
+            // Ưu tiên 1: query string (SignalR JS / .NET client dùng AccessTokenProvider)
+            var qs = context.Request.Query["access_token"].ToString();
+            if (!string.IsNullOrEmpty(qs))
+            {
+                context.Token = qs;
+                logger.LogDebugIf(debug,
+                    "[JWT] OnMessageReceived → token from QS | Path={Path} | Len={Len}",
+                    path, qs.Length);
+                return Task.CompletedTask;
             }
+
+            // Ưu tiên 2: Authorization header (fallback)
+            var header = context.Request.Headers["Authorization"].ToString();
+            if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+            {
+                context.Token = header["Bearer ".Length..].Trim();
+                logger.LogDebugIf(debug,
+                    "[JWT] OnMessageReceived → token from Header | Path={Path} | Len={Len}",
+                    path, context.Token.Length);
+                return Task.CompletedTask;
+            }
+
+            // Không tìm thấy token — log warn (luôn log, không cần flag)
+            logger.LogWarning(
+                "[JWT] OnMessageReceived → no token found | Path={Path} | QS_keys={Keys}",
+                path,
+                string.Join(",", context.Request.Query.Keys));
+
             return Task.CompletedTask;
         },
 
+        // ── Token validate thành công ──
+        OnTokenValidated = context =>
+        {
+            var logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILogger<Program>>();
+            var debug = context.HttpContext.RequestServices
+                .GetRequiredService<IOptionsMonitor<AuthDebugOptions>>()
+                .CurrentValue.Enabled;
+
+            var claims = string.Join(" | ",
+                context.Principal?.Claims.Select(c => $"{c.Type}={c.Value}") ?? []);
+
+            logger.LogDebugIf(debug,
+                "[JWT] TokenValidated | Claims={Claims}", claims);
+
+            return Task.CompletedTask;
+        },
+
+        // ── Token lỗi — LUÔN log, không cần flag debug ──
         OnAuthenticationFailed = context =>
         {
-            Console.WriteLine($"[AUTH FAILED] {context.Exception.Message}");
+            var logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILogger<Program>>();
+
+            logger.LogError(context.Exception,
+                "[JWT] AuthenticationFailed | {ExType}: {ExMsg}",
+                context.Exception.GetType().Name,
+                context.Exception.Message);
+
             return Task.CompletedTask;
         },
 
+        // ── 401 Challenge ──
         OnChallenge = context =>
         {
+            var logger = context.HttpContext.RequestServices
+                .GetRequiredService<ILogger<Program>>();
+            var debug = context.HttpContext.RequestServices
+                .GetRequiredService<IOptionsMonitor<AuthDebugOptions>>()
+                .CurrentValue.Enabled;
+
+            logger.LogWarnIf(debug,
+                "[JWT] Challenge | Path={Path} | Error={Error} | Desc={Desc}",
+                context.Request.Path,
+                context.Error,
+                context.ErrorDescription);
+
             return Task.CompletedTask;
         }
     };
@@ -173,30 +235,64 @@ builder.Services.AddControllers();
 // 5. BACKGROUND WORKERS
 // =========================================================
 builder.Services.AddHostedService<EmailBackgroundWorker>();
-
 builder.Services.AddOpenApi();
 
 // =========================================================
-// 6. PIPELINE
+// 6. BUILD & PIPELINE
 // =========================================================
 var app = builder.Build();
 
+// Lấy logger + debug flag sau khi build xong
+var appLogger = app.Services.GetRequiredService<ILogger<Program>>();
+var debugOptions = app.Services.GetRequiredService<IOptionsMonitor<AuthDebugOptions>>();
+bool IsDebug() => debugOptions.CurrentValue.Enabled;
+
+appLogger.LogInfoIf(IsDebug(),
+    "[STARTUP] AuthDebug.Enabled={Debug} | Env={Env}",
+    IsDebug(), app.Environment.EnvironmentName);
+
+// ── OpenAPI (chỉ dev) ──
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+
+    // Endpoint test notification — CHỈ dùng khi debug
+    app.MapGet("/test-notify/{userId}", async (
+        int userId,
+        INotificationService svc,
+        ILogger<Program> logger,
+        IOptionsMonitor<AuthDebugOptions> opts) =>
+    {
+        var debug = opts.CurrentValue.Enabled;
+        logger.LogInfoIf(debug,
+            "[TEST] Creating test notification for UserId={UserId}", userId);
+
+        await svc.CreateAsync(new CreateNotificationDto
+        {
+            UserId = userId,
+            NotificationType = "TEST",
+            Title = "Test thông báo",
+            Body = "Nội dung test từ server",
+            ActionUrl = "/leave/history"
+        });
+
+        logger.LogInfoIf(debug,
+            "[TEST] Notification created for UserId={UserId}", userId);
+
+        return Results.Ok(new { message = $"Sent to userId={userId}" });
+    });
 }
 
-// ✅ CORS phải đứng TRƯỚC tất cả middleware khác
-app.UseCors("FccCorsPolicy");
+// ── Middleware pipeline (THỨ TỰ QUAN TRỌNG) ──
+app.UseCors("FccCorsPolicy");       // 1. CORS trước tất cả
+app.UseHttpsRedirection();          // 2. HTTPS redirect
+app.UseAuthentication();            // 3. Xác thực (JWT)
+app.UseAuthorization();             // 4. Phân quyền
 
-app.UseHttpsRedirection();
+app.MapControllers();               // 5. Controllers
+app.MapHub<NotificationHub>("/hubs/notification"); // 6. SignalR Hub
 
-app.UseAuthentication();
-app.UseAuthorization();
-
-app.MapControllers();
-
-// ✅ MapHub sau MapControllers
-app.MapHub<NotificationHub>("/hubs/notification");
+appLogger.LogInfoIf(IsDebug(),
+    "[STARTUP] Pipeline ready | Hub=/hubs/notification");
 
 app.Run();

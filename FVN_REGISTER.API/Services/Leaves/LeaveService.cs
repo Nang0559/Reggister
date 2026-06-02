@@ -1,4 +1,6 @@
-﻿using FVN_REGISTER.Contract.Dtos;
+﻿using FVN_REGISTER.API.Services.Notifications.FVN_REGISTER.API.Services.Notifications;
+using FVN_REGISTER.Contract.Dtos;
+using FVN_REGISTER.Contract.Interfaces.Auths;
 using FVN_REGISTER.Contract.Interfaces.Leaves;
 using FVN_REGISTER.Contract.Maps;
 using FVN_REGISTER.Contract.Models;
@@ -19,18 +21,23 @@ namespace FVN_REGISTER.API.Services.Leaves
         private readonly FVNWEBAPPContext _db;
         private readonly ILeaveNotificationService _notification;
         private readonly ILeaveValidator _validator;
-
+        private readonly INotificationService _notificationService;
+        private readonly IServiceScopeFactory _scopeFactory;
         public LeaveService(
             FVNWEBAPPContext db,
             ILeaveNotificationService notification,
             ILeaveValidator validator,
             ILogger<LeaveService> logger,
+            INotificationService notificationService,
+            IServiceScopeFactory scopeFactory,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(logger, options)
         {
             _db = db;
             _notification = notification;
             _validator = validator;
+            _notificationService = notificationService;
+            _scopeFactory = scopeFactory;
         }
 
         // ================= DÀNH CHO NHÂN VIÊN =================
@@ -120,17 +127,90 @@ namespace FVN_REGISTER.API.Services.Leaves
                 await tx.CommitAsync(ct);
                 Logger.LogInfoIf(Debug, "[LEAVE] Created: {User}", user.UserName);
 
+                // Sau dòng await tx.CommitAsync(ct);
+                // Sau dòng await tx.CommitAsync(ct);
+
+                // Capture các giá trị cần thiết TRƯỚC khi vào Task.Run
+                // vì object có thể bị dispose sau khi request kết thúc
+                var capturedLeaveId = newLeave.Id;
+                var capturedEmail = newLeave.Level1ApproveEmail;
+                var capturedStartDate = newLeave.StartDate;
+                var capturedEndDate = newLeave.EndDate;
+                var capturedTotalDay = newLeave.TotalDay;
+                var capturedReason = newLeave.LeaveReason;
+                var capturedEmpName = user.FullName ?? user.EmployeeCode ?? "";
+
                 _ = Task.Run(async () =>
                 {
+                    // Tạo scope mới — DbContext riêng, không bị dispose cùng request
+                    await using var scope = _scopeFactory.CreateAsyncScope();
+                    var db = scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
+                    var emailSvc = scope.ServiceProvider.GetRequiredService<ILeaveNotificationService>();
+                    var notifySvc = scope.ServiceProvider.GetRequiredService<INotificationService>();
+
                     try
                     {
-                        await _notification.SendApprovalRequestAsync(newLeave.Level1ApproveEmail, "Approver", newLeave, user.FullName, ct);
+                        // 1. Queue email — dùng db mới trong scope
+                        if (!string.IsNullOrEmpty(capturedEmail))
+                        {
+                            // Rebuild leave object tối giản để gửi email
+                            var leaveForEmail = new F03leaveDay
+                            {
+                                Id = capturedLeaveId,
+                                StartDate = capturedStartDate,
+                                EndDate = capturedEndDate,
+                                TotalDay = capturedTotalDay,
+                                LeaveReason = capturedReason,
+                                Level1ApproveEmail = capturedEmail
+                            };
+
+                            await emailSvc.SendApprovalRequestAsync(
+                                capturedEmail,
+                                "Approver",
+                                leaveForEmail,
+                                capturedEmpName,
+                                CancellationToken.None); // Dùng None vì request scope đã kết thúc
+                        }
+
+                        // 2. Tạo AppNotification cho approver — tìm UserId từ email
+                        if (!string.IsNullOrEmpty(capturedEmail))
+                        {
+                            var approverUser = await db.F03users
+                                .AsNoTracking()
+                                .Join(db.F03employees,
+                                    u => u.EmployeeCode,
+                                    e => e.EmployeeCode,
+                                    (u, e) => new { u.IdUser, e.EmailAddress })
+                                .FirstOrDefaultAsync(x =>
+                                    x.EmailAddress == capturedEmail);
+
+                            if (approverUser != null)
+                            {
+                                await notifySvc.NotifyPendingLeaveAsync(
+                                    approverUserId: approverUser.IdUser,
+                                    employeeName: capturedEmpName,
+                                    leaveId: capturedLeaveId,
+                                    ct: CancellationToken.None);
+
+                                Logger.LogDebugIf(Debug,
+                                    "[LEAVE] Notification pushed | ApproverUserId={UserId} | LeaveId={LeaveId}",
+                                    approverUser.IdUser, capturedLeaveId);
+                            }
+                            else
+                            {
+                                Logger.LogWarning(
+                                    "[LEAVE] Approver not found by email={Email} | LeaveId={LeaveId}",
+                                    capturedEmail, capturedLeaveId);
+                            }
+                        }
                     }
                     catch (Exception ex)
                     {
-                        Logger.LogError(ex, "[LEAVE] Notification failed");
+                        Logger.LogError(ex,
+                            "[LEAVE] Background notification failed | LeaveId={LeaveId}",
+                            capturedLeaveId);
                     }
-                }, ct);
+                }); // Không truyền ct vào Task.Run vì request đã kết thúc
 
                 return ServiceResult.Ok("Đã gửi đơn nghỉ thành công.");
             }
