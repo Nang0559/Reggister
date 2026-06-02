@@ -97,25 +97,25 @@
     private bool _isDisposed = false;        // ✅ khai báo thiếu
     private string _deviceId = string.Empty;
 
-    protected override async Task OnInitializedAsync()
+   protected override async Task OnInitializedAsync()
     {
         try
         {
             _isLoading = true;
 
-            Logger.LogInfoIf(Debug, "[{Component}] Starting initialization...", ComponentName);
-
             var authState = await _authStateProvider.GetAuthenticationStateAsync();
             if (authState.User.Identity is not { IsAuthenticated: true })
             {
-                Logger.LogWarnIf(Debug, "[{Component}] Not authenticated, redirecting", ComponentName);
                 _nav.NavigateTo("/login");
                 return;
             }
 
+            // ✅ Phải await xong InitializeAsync trước khi _isLoading = false
+            // Vì NotificationBadge cần CurrentUser.User?.Token
             await _user.InitializeAsync();
 
-            Logger.LogInfoIf(Debug, "[{Component}] Initialized: {UserId}", ComponentName, _user.User?.UserId);
+            Logger.LogInfoIf(Debug, "[{Component}] Initialized: {UserId}", 
+                ComponentName, _user.User?.UserId);
         }
         catch (Exception ex)
         {
@@ -123,7 +123,7 @@
         }
         finally
         {
-            _isLoading = false;
+            _isLoading = false; // ✅ Chỉ false SAU KHI user đã có token
         }
     }
 

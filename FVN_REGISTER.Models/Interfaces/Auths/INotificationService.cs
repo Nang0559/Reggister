@@ -37,5 +37,6 @@ namespace FVN_REGISTER.Contract.Interfaces.Auths
         /// Gọi từ LeaveService.ApproveAsync() / RejectAsync()
         /// </summary>
         Task NotifyLeaveStatusChangedAsync(int requesterUserId, string status, int leaveId, CancellationToken ct = default);
+        Task PushToUserAsync(int userId, AppNotification entity, CancellationToken ct);
     }
 }

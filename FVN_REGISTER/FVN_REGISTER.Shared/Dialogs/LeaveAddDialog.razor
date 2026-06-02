@@ -56,7 +56,6 @@
             @* Hàng 1: Năm, Từ ngày, Đến ngày *@
             <MudGrid Spacing="2">
                 <MudItem xs="12" sm="4">
-                    @* ✅ Năm làm việc — native select *@
                     <div class="field-wrap">
                         <span class="field-label">Năm làm việc *</span>
                         <select class="native-select"
@@ -78,7 +77,6 @@
                     </div>
                 </MudItem>
 
-                @* Từ ngày *@
                 <MudItem xs="12" sm="4">
                     <MudDatePicker Date="_startDate"
                                    DateChanged="OnStartDateChanged"
@@ -87,7 +85,6 @@
                                    IsDateDisabledFunc="IsHolidayOrWeekend" />
                 </MudItem>
 
-                @* Đến ngày *@
                 <MudItem xs="12" sm="4">
                     <MudDatePicker Date="_endDate"
                                    DateChanged="OnEndDateChanged"
@@ -120,7 +117,6 @@
                                         </MudText>
                                     </td>
                                     <td>
-                                        @* ✅ native select — tránh MudListItem crash *@
                                         <select class="native-select"
                                                 @onchange="@((ChangeEventArgs e) =>
                                                 OnLeaveTypeChanged(d, e.Value?.ToString() ?? ""))">
@@ -138,7 +134,6 @@
                                         </select>
                                     </td>
                                     <td style="text-align:center;">
-                                        @* ✅ native checkbox *@
                                         <input type="checkbox"
                                                checked="@d.IsHalfDay"
                                                @onchange="@((ChangeEventArgs e) =>
@@ -186,21 +181,20 @@
                           Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense"
                           Class="mt-2" Required="true" RequiredError="Vui lòng nhập lý do" />
 
-            @* Người duyệt — ✅ toàn bộ dùng native select *@
+            @* ✅ Người duyệt — mỗi level có handler riêng gán cả Email + Code + Name *@
             <MudGrid Spacing="2" Class="mt-2">
+
                 @if (Model.LVA1.Any())
                 {
                     <MudItem xs="12" sm="4">
                         <div class="field-wrap">
-                            <span class="field-label">1. @Model.LVA1.First().LevelName</span>
+                            <span class="field-label">1. @(Model.LVA1.First().LevelName ?? "Cấp duyệt 1")</span>
                             <select class="native-select"
-                                    @onchange="@((ChangeEventArgs e) =>
-                                    _request.Level1ApproveEmail = e.Value?.ToString() ?? "")">
-                            <option value="">-- Chọn --</option>
-                            @foreach (var a in Model.LVA1)
+                                    @onchange="@((ChangeEventArgs e) => OnApprover1Changed(e.Value?.ToString()))">
+                                <option value="">-- Chọn --</option>
+                                @foreach (var a in Model.LVA1)
                                 {
-                                    var selected = a.ApproveLevelEmail == _request.Level1ApproveEmail;
-                                    @if (selected)
+                                    @if (a.ApproveLevelEmail == _request.Level1ApproveEmail)
                                     {
                                         <option value="@a.ApproveLevelEmail" selected>
                                             @a.ApproveLevelName (@(string.IsNullOrEmpty(a.DeptCode) ? "ALL" : a.DeptCode))
@@ -222,15 +216,13 @@
                 {
                     <MudItem xs="12" sm="4">
                         <div class="field-wrap">
-                            <span class="field-label">2. @Model.LVA2.First().LevelName</span>
+                            <span class="field-label">2. @(Model.LVA2.First().LevelName ?? "Cấp duyệt 2")</span>
                             <select class="native-select"
-                                    @onchange="@((ChangeEventArgs e) =>
-                                    _request.Level2ApproveEmail = e.Value?.ToString() ?? "")">
-                            <option value="">-- Chọn --</option>
-                            @foreach (var a in Model.LVA2)
+                                    @onchange="@((ChangeEventArgs e) => OnApprover2Changed(e.Value?.ToString()))">
+                                <option value="">-- Chọn --</option>
+                                @foreach (var a in Model.LVA2)
                                 {
-                                    var selected = a.ApproveLevelEmail == _request.Level2ApproveEmail;
-                                    @if (selected)
+                                    @if (a.ApproveLevelEmail == _request.Level2ApproveEmail)
                                     {
                                         <option value="@a.ApproveLevelEmail" selected>
                                             @a.ApproveLevelName (@(string.IsNullOrEmpty(a.DeptCode) ? "ALL" : a.DeptCode))
@@ -252,15 +244,13 @@
                 {
                     <MudItem xs="12" sm="4">
                         <div class="field-wrap">
-                            <span class="field-label">3. @Model.LVA3.First().LevelName</span>
+                            <span class="field-label">3. @(Model.LVA3.First().LevelName ?? "Cấp duyệt 3")</span>
                             <select class="native-select"
-                                    @onchange="@((ChangeEventArgs e) =>
-                                    _request.Level3ApproveEmail = e.Value?.ToString() ?? "")">
-                            <option value="">-- Chọn --</option>
-                            @foreach (var a in Model.LVA3)
+                                    @onchange="@((ChangeEventArgs e) => OnApprover3Changed(e.Value?.ToString()))">
+                                <option value="">-- Chọn --</option>
+                                @foreach (var a in Model.LVA3)
                                 {
-                                    var selected = a.ApproveLevelEmail == _request.Level3ApproveEmail;
-                                    @if (selected)
+                                    @if (a.ApproveLevelEmail == _request.Level3ApproveEmail)
                                     {
                                         <option value="@a.ApproveLevelEmail" selected>
                                             @a.ApproveLevelName (@(string.IsNullOrEmpty(a.DeptCode) ? "ALL" : a.DeptCode))
@@ -277,6 +267,7 @@
                         </div>
                     </MudItem>
                 }
+
             </MudGrid>
 
         </MudForm>
@@ -393,7 +384,7 @@
         RecalcTotals();
     }
 
-    // ─── Event Handlers ──────────────────────────────────
+    // ─── Leave Type / Half Day ───────────────────────────
     private void OnLeaveTypeChanged(CreateLeaveDetailModel detail, string newCode)
     {
         if (detail == null || string.IsNullOrEmpty(newCode)) return;
@@ -417,6 +408,31 @@
 
         RecalcTotals();
         InvokeAsync(StateHasChanged);
+    }
+
+    // ─── ✅ Approver Handlers — gán đủ Email + Code + Name ──
+    private void OnApprover1Changed(string? email)
+    {
+        var approver = Model.LVA1.FirstOrDefault(a => a.ApproveLevelEmail == email);
+        _request.Level1ApproveEmail = approver?.ApproveLevelEmail ?? "";
+        _request.Level1ApproveCode = approver?.ApproveLevelCode ?? "";
+        _request.Level1ApproveName = approver?.ApproveLevelName ?? "";
+    }
+
+    private void OnApprover2Changed(string? email)
+    {
+        var approver = Model.LVA2.FirstOrDefault(a => a.ApproveLevelEmail == email);
+        _request.Level2ApproveEmail = approver?.ApproveLevelEmail ?? "";
+        _request.Level2ApproveCode = approver?.ApproveLevelCode ?? "";
+        _request.Level2ApproveName = approver?.ApproveLevelName ?? "";
+    }
+
+    private void OnApprover3Changed(string? email)
+    {
+        var approver = Model.LVA3.FirstOrDefault(a => a.ApproveLevelEmail == email);
+        _request.Level3ApproveEmail = approver?.ApproveLevelEmail ?? "";
+        _request.Level3ApproveCode = approver?.ApproveLevelCode ?? "";
+        _request.Level3ApproveName = approver?.ApproveLevelName ?? "";
     }
 
     // ─── Totals ──────────────────────────────────────────
@@ -460,8 +476,6 @@
         _request.Details = _details;
         _request.TotalDay = _totalDay;
         _request.TotalLeaveDay = _totalLeaveDay;
-        // ✅ Tạm thêm để kiểm tra data gửi đi
-        Snackbar.Add($"L1={_request.Level1ApproveEmail ?? "NULL"} | L2={_request.Level2ApproveEmail ?? "NULL"}", Severity.Info, c => c.VisibleStateDuration = 8000);
 
         var result = await LeaveService.CreateLeaveAsync(_request);
 

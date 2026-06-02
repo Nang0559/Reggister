@@ -72,16 +72,30 @@ namespace FVN_REGISTER.API.Services.Leaves
                 {
                     EmployeeCode = user.EmployeeCode,
                     WorkYear = model.WorkYear,
-                    RegisterDate = DateTime.Now,        // ✅ Thêm
-                    RegisterId = user.UserId,
+                    RegisterDate = DateTime.Now,
                     StartDate = model.StartDate,
                     EndDate = model.EndDate,
-                    TotalDay = (decimal)model.TotalDay,
-                    LeaveReason = model.LeaveReason,
+                    TotalDay = model.TotalDay,
+                    LeaveReason = model.LeaveReason ?? "",
                     RequestStatus = LeaveStatus.Pending,
                     IsActive = true,
                     CreatedAt = DateTime.Now,
-                    CreatedBy = user.UserId
+                    CreatedBy = user.UserId,
+
+                    // ✅ Level 1
+                    Level1ApproveEmail = model.Level1ApproveEmail,
+                    Level1ApproveCode = model.Level1ApproveCode,
+                    Level1ApproveName = model.Level1ApproveName,
+
+                    // ✅ Level 2
+                    Level2ApproveEmail = model.Level2ApproveEmail,
+                    Level2ApproveCode = model.Level2ApproveCode,
+                    Level2ApproveName = model.Level2ApproveName,
+
+                    // ✅ Level 3
+                    Level3ApproveEmail = model.Level3ApproveEmail,
+                    Level3ApproveCode = model.Level3ApproveCode,
+                    Level3ApproveName = model.Level3ApproveName,
                 };
 
                 _db.F03leaveDays.Add(newLeave);

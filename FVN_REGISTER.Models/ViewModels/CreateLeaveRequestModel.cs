@@ -7,31 +7,33 @@ namespace FVN_REGISTER.Contract.ViewModels
     {
         public int EmployeeId { get; set; }
         public string? EmployeeCode { get; set; }
-
         public string? LeaveReason { get; set; }
-
         public int WorkYear { get; set; }
-
         public DateTime StartDate { get; set; }
-
         public DateTime EndDate { get; set; }
 
         public List<CreateLeaveDetailModel>? Details { get; set; }
 
         public decimal TotalDay { get; set; }
-
         public decimal TotalLeaveDay { get; set; }
 
-        // 🔥 ADD
         public List<F03leaveType> LeaveTypes { get; set; } = new();
-        public string? Level1ApproveEmail { get; set; }
-        public string? Level2ApproveEmail { get; set; }
-        public string? Level3ApproveEmail { get; set; }
-        public string? Level1ApproveCode { get; set; }
-        public string? Level2ApproveCode { get; set; }
-        public string? Level3ApproveCode { get; set; }
 
-        // 🔥 ADD (global setting)
+        // Level 1
+        public string? Level1ApproveEmail { get; set; }
+        public string? Level1ApproveCode { get; set; }
+        public string? Level1ApproveName { get; set; } // ✅ thêm
+
+        // Level 2
+        public string? Level2ApproveEmail { get; set; }
+        public string? Level2ApproveCode { get; set; }
+        public string? Level2ApproveName { get; set; } // ✅ thêm
+
+        // Level 3
+        public string? Level3ApproveEmail { get; set; }
+        public string? Level3ApproveCode { get; set; }
+        public string? Level3ApproveName { get; set; } // ✅ thêm
+
         public bool IsHalfDay { get; set; }
         public string? HalfDayOption { get; set; }
 
@@ -45,10 +47,7 @@ namespace FVN_REGISTER.Contract.ViewModels
             }
 
             TotalDay = Details.Sum(x => x.DayValue);
-
-            TotalLeaveDay = Details
-                .Where(x => x.TinhPhep == 1)
-                .Sum(x => x.DayValue);
+            TotalLeaveDay = Details.Where(x => x.TinhPhep == 1).Sum(x => x.DayValue);
         }
     }
 }

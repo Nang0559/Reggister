@@ -4,6 +4,7 @@ using FVN_REGISTER.API.Services.Auths;
 using FVN_REGISTER.API.Services.Emails;
 using FVN_REGISTER.API.Services.Leaves;
 using FVN_REGISTER.API.Services.Notifications;
+using FVN_REGISTER.API.Services.Notifications.FVN_REGISTER.API.Services.Notifications;
 using FVN_REGISTER.API.Services.Statics;
 using FVN_REGISTER.API.Services.Users;
 using FVN_REGISTER.Contract.Interfaces.Auths;
@@ -132,18 +133,24 @@ builder.Services.AddAuthentication(options =>
     {
         OnMessageReceived = context =>
         {
-            // ✅ SignalR gửi token qua query string ?access_token=
-            var accessToken = context.Request.Query["access_token"];
             var path = context.HttpContext.Request.Path;
-
-            if (!string.IsNullOrEmpty(accessToken) &&
-                path.StartsWithSegments("/hubs"))
+            if (path.StartsWithSegments("/hubs"))
             {
-                context.Token = accessToken;
-            }
+                // Cách 1: Browser JS client gửi qua query string
+                var qs = context.Request.Query["access_token"].ToString();
+                if (!string.IsNullOrEmpty(qs))
+                {
+                    context.Token = qs;
+                    return Task.CompletedTask;
+                }
 
-            // Giữ log debug
-            Console.WriteLine($"[DEBUG] Token: {context.Token?[..Math.Min(20, context.Token?.Length ?? 0)]}...");
+                // Cách 2: .NET client gửi qua Authorization header
+                var header = context.Request.Headers["Authorization"].ToString();
+                if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
+                {
+                    context.Token = header["Bearer ".Length..].Trim();
+                }
+            }
             return Task.CompletedTask;
         },
 
