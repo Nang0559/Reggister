@@ -10,73 +10,84 @@ using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Services.Leaves
 {
-    public class EscalationRuleService
-    : BaseService<EscalationRuleService>, IEscalationRuleService
+    namespace FVN_REGISTER.API.Services.Leaves
     {
-        private readonly FVNWEBAPPContext _db;
-        private readonly IMemoryCache _cache;
-
-        private const string RULE_CACHE_KEY = "EscalationRules_Cache";
-
-        public EscalationRuleService(
-            FVNWEBAPPContext db,
-            IMemoryCache cache,
-            ILogger<EscalationRuleService> logger,
-            IOptionsMonitor<AuthDebugOptions> options)
-            : base(logger, options)
+        public class EscalationRuleService
+            : BaseService<EscalationRuleService>, IEscalationRuleService
         {
-            _db = db;
-            _cache = cache;
-        }
+            private readonly FVNWEBAPPContext _db;
+            private readonly IMemoryCache _cache;
+            private const string RULE_CACHE_KEY = "EscalationRules_Cache";
+            private const int DEFAULT_TIMEOUT_DAYS = 2;
 
-        public async Task<int> GetTimeoutDaysAsync(
-            F03leaveDay leave,
-            int level,
-            string deptCode,
-            CancellationToken ct = default)
-        {
-            try
+            public EscalationRuleService(
+                FVNWEBAPPContext db,
+                IMemoryCache cache,
+                ILogger<EscalationRuleService> logger,
+                IOptionsMonitor<AuthDebugOptions> options)
+                : base(logger, options)
             {
-                Logger.LogDebugIf(Debug,
-                    "[RULE] Get timeout Level={Level} Dept={Dept}",
-                    level, deptCode);
-
-                var rules = await _cache.GetOrCreateAsync(RULE_CACHE_KEY, async entry =>
-                {
-                    entry.SlidingExpiration = TimeSpan.FromHours(1);
-
-                    Logger.LogDebugIf(Debug, "[RULE] Loading rules from DB");
-
-                    return await _db.EscalationRules
-                        .AsNoTracking()
-                        .Where(x => x.IsActive == true)
-                        .ToListAsync(ct);
-                });
-
-                if (rules == null || rules.Count == 0)
-                {
-                    Logger.LogWarnIf(Debug, "[RULE] No escalation rules found");
-                    return 2;
-                }
-
-                var matchedRule = rules
-                    .Where(x => x.Level == level)
-                    .OrderByDescending(x => x.DeptCode == deptCode)
-                    .ThenByDescending(x => string.IsNullOrEmpty(x.DeptCode) || x.DeptCode == "ALL")
-                    .FirstOrDefault();
-
-                int timeout = matchedRule?.TimeoutDays ?? 2;
-
-                Logger.LogDebugIf(Debug,
-                    "[RULE] Result Level={Level} Timeout={Timeout}",
-                    level, timeout);
-
-                return timeout;
+                _db = db;
+                _cache = cache;
             }
-            catch (Exception ex)
+
+            public async Task<int> GetTimeoutDaysAsync(
+                F03leaveDay leave,
+                int level,
+                string deptCode,
+                CancellationToken ct = default)
             {
-                Logger.LogError(ex, "[RULE] Error GetTimeoutDaysAsync");
-                return 2;
+                try
+                {
+                    Logger.LogDebugIf(Debug,
+                        "[RULE] Get timeout Level={Level} Dept={Dept}",
+                        level, deptCode);
+
+                    // ✅ Dùng GetOrCreateAsync an toàn với nullable
+                    var rules = await _cache.GetOrCreateAsync(
+                        RULE_CACHE_KEY,
+                        async entry =>
+                        {
+                            entry.SlidingExpiration = TimeSpan.FromHours(1);
+                            Logger.LogDebugIf(Debug, "[RULE] Loading rules from DB");
+
+                            return await _db.EscalationRules
+                                .AsNoTracking()
+                                .Where(x => x.IsActive == true)
+                                .ToListAsync(ct);
+                        });
+
+                    // ✅ Xử lý null an toàn
+                    if (rules == null || rules.Count == 0)
+                    {
+                        Logger.LogWarnIf(Debug, "[RULE] No escalation rules found, using default={Default}",
+                            DEFAULT_TIMEOUT_DAYS);
+                        return DEFAULT_TIMEOUT_DAYS;
+                    }
+
+                    // ✅ Ưu tiên: rule khớp dept trước, fallback sang ALL/global
+                    var matchedRule = rules
+                        .Where(x => x.Level == level)
+                        .OrderByDescending(x =>
+                            string.Equals(x.DeptCode, deptCode, StringComparison.OrdinalIgnoreCase))
+                        .ThenByDescending(x =>
+                            string.IsNullOrEmpty(x.DeptCode) ||
+                            string.Equals(x.DeptCode, "ALL", StringComparison.OrdinalIgnoreCase))
+                        .FirstOrDefault();
+
+                    int timeout = matchedRule?.TimeoutDays ?? DEFAULT_TIMEOUT_DAYS;
+
+                    Logger.LogDebugIf(Debug,
+                        "[RULE] Result Level={Level} Dept={Dept} Timeout={Timeout} RuleId={RuleId}",
+                        level, deptCode, timeout, matchedRule?.Id);
+
+                    return timeout;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError(ex, "[RULE] Error GetTimeoutDaysAsync Level={Level}", level);
+                    return DEFAULT_TIMEOUT_DAYS;
+                }
             }
         }
     }

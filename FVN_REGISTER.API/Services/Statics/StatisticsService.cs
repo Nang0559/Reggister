@@ -11,8 +11,7 @@
     using Microsoft.EntityFrameworkCore;
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Options;
-    using System.Diagnostics;
-    using System.Runtime.CompilerServices;
+ 
 
     public class StatisticsService
      : BaseService<StatisticsService>, IStatisticsService

@@ -2,7 +2,9 @@
 using FVN_REGISTER.API.Repositories;
 using FVN_REGISTER.API.Services.Auths;
 using FVN_REGISTER.API.Services.Emails;
+using FVN_REGISTER.API.Services.Escalations;
 using FVN_REGISTER.API.Services.Leaves;
+using FVN_REGISTER.API.Services.Leaves.FVN_REGISTER.API.Services.Leaves;
 using FVN_REGISTER.API.Services.Notifications;
 using FVN_REGISTER.API.Services.Notifications.FVN_REGISTER.API.Services.Notifications;
 using FVN_REGISTER.API.Services.Statics;
@@ -235,6 +237,7 @@ builder.Services.AddControllers();
 // 5. BACKGROUND WORKERS
 // =========================================================
 builder.Services.AddHostedService<EmailBackgroundWorker>();
+builder.Services.AddHostedService<EscalationBackgroundWorker>();
 builder.Services.AddOpenApi();
 
 // =========================================================
