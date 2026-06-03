@@ -6,8 +6,15 @@ namespace FVN_REGISTER.Contract.Interfaces.OT
 {
     public interface IOTNotificationService
     {
-        Task SendApprovalRequestAsync(F03OTRequest request, string? toEmail, string stepName);
-        Task SendRejectedAsync(F03OTRequest request, string rejectedBy);
-        Task SendApprovedAsync(F03OTRequest request);
+        Task SendApprovalRequestAsync(
+            string approverEmail,
+            F03OTRequest otRequest,
+            string requesterName,
+            CancellationToken ct = default);
+
+        Task SendStatusChangedAsync(
+            F03OTRequest otRequest,
+            string newStatus,
+            CancellationToken ct = default);
     }
 }

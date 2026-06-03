@@ -1,4 +1,7 @@
-﻿using FVN_REGISTER.Contract.Dtos;
+﻿// ============================================================
+// FILE: FVN_REGISTER.API/Services/OT/OTService.cs
+// ============================================================
+using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Interfaces.OT;
 using FVN_REGISTER.Contract.Models;
@@ -10,6 +13,7 @@ using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Core.Services;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Services.OT;
@@ -33,477 +37,516 @@ public class OTService : BaseService<OTService>, IOTService
         _notification = notification;
     }
 
-    // ============================================================
-    // CREATE
-    // ============================================================
-    public async Task<ServiceResult> CreateAsync(
+    // ── BƯỚC 1-2: TẠO ĐƠN OT ──────────────────────────────────
+    public async Task<ServiceResult<int>> CreateOTAsync(
         CreateOTRequestModel model,
         CurrentUser user,
         CancellationToken ct = default)
     {
         try
         {
-            Logger.LogDebugIf(Debug, "[OT] Create start: {User}", user.UserName);
+            Logger.LogDebugIf(Debug, "[OT] CreateOT start by {User}", user.UserName);
 
-            var valResult = await _validator.ValidateAsync(model, user, ct);
-            if (!valResult.IsSuccess) return valResult;
+            // Validate
+            var validation = await _validator.ValidateCreateAsync(model, user, ct);
+            if (!validation.IsSuccess)
+            {
+                Logger.LogWarnIf(Debug, "[OT] Validation failed: {Msg}", validation.Message);
+                return ServiceResult<int>.Fail(validation.Message!);
+            }
 
             await using var tx = await _db.Database.BeginTransactionAsync(ct);
 
-            var request = new F03OTRequest
+            // Sinh mã OT tự động
+            var otCode = await GenerateOTCodeAsync(ct);
+
+            var otRequest = new F03OTRequest
             {
-                WorkYear = model.OTDate.Year,
-                EmployeeCode = user.EmployeeCode!,
-                DeptCode = user.DeptCode!,
-                CvCode = user.CvCode,
+                OTCode = otCode,
+                DeptCode = model.DeptCode,
                 OTDate = DateOnly.FromDateTime(model.OTDate),
-                PlannedFrom = model.PlannedFrom,
-                PlannedTo = model.PlannedTo,
+                OTType = model.OTType,
+                StartTime = TimeOnly.FromTimeSpan(model.StartTime),
+                EndTime = TimeOnly.FromTimeSpan(model.EndTime),
                 PlannedHours = model.PlannedHours,
-                DayType = model.DayType,
                 OTReason = model.OTReason,
-                RequiresGM = model.RequiresGM,
-                CreatedByEmail = user.Email,
-                CreatedByLevel = model.CreatedByLevel,
-
-                // Bước 3
-                Lv3ApproveCode = model.Lv3Skip ? null : model.Lv3ApproveCode,
-                Lv3ApproveName = model.Lv3Skip ? null : model.Lv3ApproveName,
-                Lv3ApproveEmail = model.Lv3Skip ? null : model.Lv3ApproveEmail,
-                Lv3Skip = model.Lv3Skip,
-
-                // Bước 4
-                Lv4ApproveCode = model.Lv4ApproveCode,
-                Lv4ApproveName = model.Lv4ApproveName,
-                Lv4ApproveEmail = model.Lv4ApproveEmail,
-
-                // Bước 5
-                Lv5ApproveCode = model.Lv5ApproveCode,
-                Lv5ApproveName = model.Lv5ApproveName,
-                Lv5ApproveEmail = model.Lv5ApproveEmail,
-
-                // Bước 6
-                Lv6ApproveCode = model.Lv6ApproveCode,
-                Lv6ApproveName = model.Lv6ApproveName,
-                Lv6ApproveEmail = model.Lv6ApproveEmail,
-
-                // Bước 7 (GM)
-                Lv7ApproveCode = model.RequiresGM ? model.Lv7ApproveCode : null,
-                Lv7ApproveName = model.RequiresGM ? model.Lv7ApproveName : null,
-                Lv7ApproveEmail = model.RequiresGM ? model.Lv7ApproveEmail : null,
-
+                ScopeType = model.ScopeType,
                 RequestStatus = OTStatus.Pending,
+
+                // Level 1 - Sub-leader/Leader (chỉ khi có công nhân)
+                Level1ApproveCode = model.HasWorker ? model.Level1ApproveCode : null,
+                Level1ApproveName = model.HasWorker ? model.Level1ApproveName : null,
+                Level1ApproveEmail = model.HasWorker ? model.Level1ApproveEmail : null,
+
+                // Level 2 - Ast.Chief/Chief
+                Level2ApproveCode = model.Level2ApproveCode,
+                Level2ApproveName = model.Level2ApproveName,
+                Level2ApproveEmail = model.Level2ApproveEmail,
+
+                // Level 3 - A.MG/MG
+                Level3ApproveCode = model.Level3ApproveCode,
+                Level3ApproveName = model.Level3ApproveName,
+                Level3ApproveEmail = model.Level3ApproveEmail,
+
+                // Level 4 - GM (tùy điều kiện)
+                Level4ApproveCode = model.Level4ApproveCode,
+                Level4ApproveName = model.Level4ApproveName,
+                Level4ApproveEmail = model.Level4ApproveEmail,
+
                 IsActive = true,
                 CreatedBy = user.UserId,
                 CreatedAt = DateTime.Now
             };
 
-            _db.Set<F03OTRequest>().Add(request);
-            await _db.SaveChangesAsync(ct);
-
-            // Thêm từng nhân viên OT
-            foreach (var emp in model.Employees)
+            // Nếu không có công nhân → bỏ qua Level 1, trạng thái bắt đầu từ Level 2
+            if (!model.HasWorker)
             {
-                var row = new F03OTRow
-                {
-                    OTRequestId = request.Id,
-                    EmployeeCode = emp.EmployeeCode,
-                    EmployeeName = emp.EmployeeName,
-                    DeptCode = emp.DeptCode,
-                    PlannedFrom = emp.PlannedFrom ?? model.PlannedFrom,
-                    PlannedTo = emp.PlannedTo ?? model.PlannedTo,
-                    PlannedHours = emp.PlannedHours ?? model.PlannedHours,
-                };
-                _db.Set<F03OTRow>().Add(row);
+                otRequest.Level1IsApprove = null; // skip - không cần
             }
 
+            _db.F03OTRequests.Add(otRequest);
             await _db.SaveChangesAsync(ct);
+
+            // Thêm danh sách nhân viên
+            var employees = model.Employees.Select(e => new F03OTEmployee
+            {
+                OTRequestId = otRequest.Id,
+                EmployeeCode = e.EmployeeCode,
+                EmployeeName = e.EmployeeName,
+                DeptCode = e.DeptCode,
+                CvCode = e.CvCode,
+                Note = e.Note,
+                IsActive = true,
+                CreatedAt = DateTime.Now
+            });
+
+            _db.F03OTEmployees.AddRange(employees);
+            await _db.SaveChangesAsync(ct);
+
             await tx.CommitAsync(ct);
 
-            Logger.LogInfoIf(Debug, "[OT] Created Id={Id}", request.Id);
+            Logger.LogInfoIf(Debug, "[OT] Created: {Code} by {User}", otCode, user.UserName);
 
-            // Gửi email cho người duyệt đầu tiên
+            // Gửi email thông báo bất đồng bộ
             _ = Task.Run(async () =>
             {
                 try
                 {
-                    var firstEmail = request.Lv3Skip
-                        ? request.Lv4ApproveEmail
-                        : request.Lv3ApproveEmail;
-                    var stepName = request.Lv3Skip ? "BCH Công đoàn" : "Sub.Leader/Leader";
-                    await _notification.SendApprovalRequestAsync(request, firstEmail, stepName);
+                    var firstApproverEmail = model.HasWorker
+                        ? model.Level1ApproveEmail!
+                        : model.Level2ApproveEmail!;
+
+                    await _notification.SendApprovalRequestAsync(
+                        firstApproverEmail,
+                        otRequest,
+                        user.FullName ?? user.UserName ?? "",
+                        ct);
                 }
                 catch (Exception ex)
                 {
-                    Logger.LogError(ex, "[OT] Notification failed");
+                    Logger.LogError(ex, "[OT] Notification failed for {Code}", otCode);
                 }
-            }, ct);
+            }, CancellationToken.None);
 
-            return ServiceResult.Ok("Đã gửi đơn OT thành công.");
+            return ServiceResult<int>.Ok(otRequest.Id, $"Tạo đơn OT {otCode} thành công.");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "[OT] Create error");
-            return ServiceResult.Fail("Lỗi hệ thống khi tạo đơn OT.");
+            Logger.LogError(ex, "[OT] CreateOT ERROR");
+            return ServiceResult<int>.Fail("Lỗi hệ thống khi tạo đơn OT.");
         }
     }
 
-    // ============================================================
-    // APPROVE  (level = 3|4|5|6|7)
-    // ============================================================
+    // ── DUYỆT / TỪ CHỐI (BATCH) ────────────────────────────────
     public async Task<ServiceResult> ApproveAsync(
-        List<int> ids, int level, CurrentUser user,
-        string? comment, CancellationToken ct = default)
-    {
-        if (ids.Count == 0) return ServiceResult.Fail("Không có đơn nào được chọn.");
+        List<int> ids, int level, CurrentUser user, string? comment,
+        CancellationToken ct = default)
+        => await ProcessBatchAsync(ids, level, user, comment, isApprove: true, ct);
 
-        try
-        {
-            await using var tx = await _db.Database.BeginTransactionAsync(ct);
-            var requests = await _db.Set<F03OTRequest>()
-                .Where(x => ids.Contains(x.Id) && x.IsActive)
-                .ToListAsync(ct);
-
-            int success = 0;
-            var now = DateTime.Now;
-            bool isAdmin = user.IsAdmin() || user.IsSuperAdmin();
-
-            foreach (var r in requests)
-            {
-                // Kiểm tra quyền duyệt
-                var approverEmail = GetApproverEmail(r, level);
-                if (!isAdmin && user.Email != approverEmail) continue;
-
-                // Áp dụng duyệt
-                ApplyApprove(r, level, user, comment, now, isAdmin);
-
-                // Cập nhật trạng thái tổng thể
-                UpdateStatus(r);
-
-                // Nếu Approved hoàn tất → cập nhật summary giờ OT
-                if (r.RequestStatus == OTStatus.Approved)
-                    await UpdateOTSummaryAsync(r, ct);
-
-                success++;
-
-                // Gửi email bước tiếp theo
-                var (nextEmail, nextStep) = GetNextApprover(r);
-                if (!string.IsNullOrEmpty(nextEmail))
-                {
-                    _ = Task.Run(() =>
-                        _notification.SendApprovalRequestAsync(r, nextEmail, nextStep));
-                }
-            }
-
-            await _db.SaveChangesAsync(ct);
-            await tx.CommitAsync(ct);
-
-            return success > 0
-                ? ServiceResult.Ok($"Đã duyệt {success}/{requests.Count} đơn.")
-                : ServiceResult.Fail("Không có đơn nào đủ điều kiện để duyệt.");
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[OT] Approve error");
-            return ServiceResult.Fail("Lỗi hệ thống khi duyệt đơn OT.");
-        }
-    }
-
-    // ============================================================
-    // REJECT
-    // ============================================================
     public async Task<ServiceResult> RejectAsync(
-        List<int> ids, int level, CurrentUser user,
-        string comment, CancellationToken ct = default)
+        List<int> ids, int level, CurrentUser user, string? comment,
+        CancellationToken ct = default)
+        => await ProcessBatchAsync(ids, level, user, comment, isApprove: false, ct);
+
+    private async Task<ServiceResult> ProcessBatchAsync(
+        List<int> ids, int level, CurrentUser user, string? comment,
+        bool isApprove, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(comment))
-            return ServiceResult.Fail("Phải nhập lý do từ chối.");
+        if (ids == null || ids.Count == 0)
+            return ServiceResult.Fail("Không có đơn nào được chọn.");
 
         try
         {
             await using var tx = await _db.Database.BeginTransactionAsync(ct);
-            var requests = await _db.Set<F03OTRequest>()
+            var requests = await _db.F03OTRequests
                 .Where(x => ids.Contains(x.Id) && x.IsActive)
                 .ToListAsync(ct);
 
+            bool isAdmin = user.IsAdmin() || user.IsSuperAdmin();
             int success = 0;
             var now = DateTime.Now;
 
-            foreach (var r in requests)
+            foreach (var req in requests)
             {
-                if (r.RequestStatus == OTStatus.Approved) continue;
+                // Bỏ qua đơn đã hoàn tất
+                if (req.RequestStatus is OTStatus.Approved or OTStatus.Rejected or OTStatus.Cancelled)
+                    continue;
 
-                ApplyReject(r, level, user, comment, now);
-                r.RequestStatus = OTStatus.Rejected;
+                // Kiểm tra quyền duyệt
+                var approverEmail = GetApproverEmail(req, level);
+                if (!isAdmin && user.Email != approverEmail && user.EmployeeCode != GetApproverCode(req, level))
+                    continue;
+
+                if (isApprove)
+                {
+                    ApplyApprove(req, level, user, comment, now);
+                    UpdateOverallStatus(req);
+                }
+                else
+                {
+                    ApplyReject(req, level, user, comment, now);
+                    req.RequestStatus = OTStatus.Rejected;
+
+                    // Thông báo từ chối
+                    _ = Task.Run(async () =>
+                    {
+                        try { await _notification.SendStatusChangedAsync(req, "Rejected", ct); }
+                        catch { /* silent */ }
+                    }, CancellationToken.None);
+                }
+
                 success++;
-
-                _ = Task.Run(() =>
-                    _notification.SendRejectedAsync(r, user.FullName ?? user.UserName ?? ""));
             }
 
             await _db.SaveChangesAsync(ct);
             await tx.CommitAsync(ct);
 
             return success > 0
-                ? ServiceResult.Ok($"Đã từ chối {success} đơn.")
-                : ServiceResult.Fail("Không có đơn nào được xử lý.");
+                ? ServiceResult.Ok($"Đã xử lý {success}/{requests.Count} đơn OT.")
+                : ServiceResult.Fail("Không có đơn nào đủ điều kiện xử lý.");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "[OT] Reject error");
-            return ServiceResult.Fail("Lỗi hệ thống khi từ chối đơn.");
+            Logger.LogError(ex, "[OT] Batch approve/reject ERROR");
+            return ServiceResult.Fail("Lỗi hệ thống khi xử lý đơn OT.");
         }
     }
 
-    // ============================================================
-    // CANCEL
-    // ============================================================
+    // ── HỦY ĐƠN ────────────────────────────────────────────────
     public async Task<ServiceResult> CancelAsync(
-        int id, string reason, CurrentUser user, CancellationToken ct = default)
+        int id, string? reason, CurrentUser user, CancellationToken ct = default)
     {
         try
         {
-            var r = await _db.Set<F03OTRequest>().FindAsync([id], ct);
-            if (r == null) return ServiceResult.Fail("Không tìm thấy đơn OT.");
+            var req = await _db.F03OTRequests.FirstOrDefaultAsync(x => x.Id == id, ct);
+            if (req == null) return ServiceResult.Fail("Không tìm thấy đơn OT.");
 
-            bool isOwner = r.EmployeeCode == user.EmployeeCode;
+            bool isOwner = req.CreatedBy == user.UserId;
             bool isAdmin = user.IsAdmin() || user.IsSuperAdmin();
 
-            if (!isOwner && !isAdmin) return ServiceResult.Fail("Không có quyền hủy đơn này.");
-            if (r.RequestStatus == OTStatus.Approved && !isAdmin)
-                return ServiceResult.Fail("Đơn đã duyệt hoàn tất, không thể hủy.");
+            if (!isOwner && !isAdmin)
+                return ServiceResult.Fail("Không có quyền hủy đơn này.");
 
-            r.RequestStatus = OTStatus.Cancelled;
-            r.IsActive = false;
-            r.Lv3Comment = $"Hủy bởi {(isOwner ? "NV" : "Admin")}: {reason}";
-            r.ModifiedBy = user.UserId;
-            r.ModifiedAt = DateTime.Now;
+            if (req.RequestStatus == OTStatus.Approved && !isAdmin)
+                return ServiceResult.Fail("Đơn đã duyệt hoàn tất không thể hủy. Liên hệ Admin.");
+
+            req.RequestStatus = OTStatus.Cancelled;
+            req.IsActive = false;
+            req.Level1Comment = $"[Hủy bởi {(isOwner ? "Người tạo" : "Admin")} {user.FullName}]: {reason}";
+            req.ModifiedBy = user.UserId;
+            req.ModifiedAt = DateTime.Now;
 
             await _db.SaveChangesAsync(ct);
-            return ServiceResult.Ok("Đã hủy đơn OT.");
+
+            Logger.LogInfoIf(Debug, "[OT] Cancelled: {Id} by {User}", id, user.UserName);
+            return ServiceResult.Ok("Đã hủy đơn OT thành công.");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "[OT] Cancel error");
-            return ServiceResult.Fail("Lỗi khi hủy đơn.");
+            Logger.LogError(ex, "[OT] Cancel ERROR");
+            return ServiceResult.Fail("Lỗi hệ thống khi hủy đơn OT.");
         }
     }
 
-    // ============================================================
-    // CONFIRM ACTUAL HOURS (nhân viên xác nhận sau OT)
-    // ============================================================
-    public async Task<ServiceResult> ConfirmActualHoursAsync(
-        int id, DateTime actualFrom, DateTime actualTo,
-        CurrentUser user, CancellationToken ct = default)
+    // ── VALIDATE & ARCHIVE (Bước 9-10) ─────────────────────────
+    public async Task<ServiceResult> ValidateAndArchiveAsync(
+        int id, CurrentUser user, string? note, CancellationToken ct = default)
     {
         try
         {
-            var r = await _db.Set<F03OTRequest>().FindAsync([id], ct);
-            if (r == null) return ServiceResult.Fail("Không tìm thấy đơn.");
-            if (r.EmployeeCode != user.EmployeeCode) return ServiceResult.Fail("Không có quyền xác nhận.");
-            if (r.RequestStatus != OTStatus.Approved) return ServiceResult.Fail("Đơn chưa được duyệt hoàn tất.");
+            var req = await _db.F03OTRequests.FirstOrDefaultAsync(x => x.Id == id, ct);
+            if (req == null) return ServiceResult.Fail("Không tìm thấy đơn OT.");
 
-            r.ActualFrom = actualFrom;
-            r.ActualTo = actualTo;
-            r.ActualHours = (decimal)(actualTo - actualFrom).TotalHours;
-            r.EmployeeConfirmed = true;
-            r.ConfirmedAt = DateTime.Now;
+            if (req.RequestStatus != OTStatus.Approved)
+                return ServiceResult.Fail("Chỉ có thể lưu trữ đơn đã được duyệt hoàn tất.");
+
+            req.ValidatedAt = DateTime.Now;
+            req.ValidatedBy = user.UserId;
+            req.ValidationNote = note;
+            req.ArchivedAt = DateTime.Now;
+            req.ArchivedBy = user.UserId;
+            req.ModifiedBy = user.UserId;
+            req.ModifiedAt = DateTime.Now;
 
             await _db.SaveChangesAsync(ct);
-            return ServiceResult.Ok("Đã xác nhận giờ OT thực tế.");
+
+            Logger.LogInfoIf(Debug, "[OT] Archived: {Id}", id);
+            return ServiceResult.Ok("Đơn OT đã được xác nhận và lưu trữ.");
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "[OT] Confirm error");
-            return ServiceResult.Fail("Lỗi khi xác nhận.");
+            Logger.LogError(ex, "[OT] Archive ERROR");
+            return ServiceResult.Fail("Lỗi hệ thống khi lưu trữ đơn OT.");
         }
     }
 
-    // ============================================================
-    // GET DETAILS
-    // ============================================================
-    public async Task<ServiceResult<OTDetailViewModel>> GetDetailsAsync(
+    // ── QUERIES ─────────────────────────────────────────────────
+    public async Task<ServiceResult<OTRequestViewModel>> GetDetailsAsync(
         int id, CancellationToken ct = default)
     {
-        var r = await _db.Set<VF03OTRequest>()
-            .FirstOrDefaultAsync(x => x.Id == id, ct);
-        if (r == null) return ServiceResult<OTDetailViewModel>.Fail("Không tìm thấy.");
-
-        var rows = await _db.Set<F03OTRow>()
-            .Where(x => x.OTRequestId == id && x.IsActive)
-            .ToListAsync(ct);
-
-        var vm = new OTDetailViewModel
+        try
         {
-            Id = r.Id,
-            EmployeeCode = r.EmployeeCode,
-            EmployeeName = r.EmployeeName,
-            DeptName = r.DeptName,
-            OTDate = r.OTDate,
-            DayType = r.DayType,
-            PlannedHours = r.PlannedHours,
-            ActualHours = r.ActualHours,
-            OTReason = r.OTReason,
-            RequiresGM = r.RequiresGM,
-            RequestStatus = r.RequestStatus,
-            EmployeeConfirmed = r.EmployeeConfirmed,
+            var req = await _db.VF03OTRequests
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => x.Id == id, ct);
 
-            ApprovalSteps = BuildSteps(r),
+            if (req == null)
+                return ServiceResult<OTRequestViewModel>.Fail("Không tìm thấy đơn OT.");
 
-            Employees = rows.Select(row => new OTEmployeeModel
+            var employees = await _db.F03OTEmployees
+                .AsNoTracking()
+                .Where(e => e.OTRequestId == id && e.IsActive)
+                .ToListAsync(ct);
+
+            return ServiceResult<OTRequestViewModel>.Ok(MapToViewModel(req, employees));
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[OT] GetDetails ERROR");
+            return ServiceResult<OTRequestViewModel>.Fail("Lỗi hệ thống khi lấy chi tiết đơn OT.");
+        }
+    }
+
+    public async Task<ServiceResult<OTBalanceDto>> GetOTBalanceAsync(
+        string employeeCode, int year, int month, CancellationToken ct = default)
+    {
+        try
+        {
+            var data = await _db.VF03OTSummaries
+                .AsNoTracking()
+                .Where(x => x.EmployeeCode == employeeCode
+                         && x.OTYear == year
+                         && x.RequestStatus != OTStatus.Rejected
+                         && x.RequestStatus != OTStatus.Cancelled)
+                .ToListAsync(ct);
+
+            var today = DateOnly.FromDateTime(DateTime.Today);
+            var limits = await _db.F03OTLimitRules
+                .AsNoTracking()
+                .Where(x => x.IsActive)
+                .ToListAsync(ct);
+
+            var dto = new OTBalanceDto
             {
-                EmployeeCode = row.EmployeeCode,
-                EmployeeName = row.EmployeeName,
-                DeptCode = row.DeptCode,
-                PlannedFrom = row.PlannedFrom,
-                PlannedTo = row.PlannedTo,
-                PlannedHours = row.PlannedHours,
-                ActualFrom = row.ActualFrom,
-                ActualTo = row.ActualTo,
-                ActualHours = row.ActualHours
-            }).ToList()
-        };
+                EmployeeCode = employeeCode,
+                Year = year,
+                Month = month,
+                UsedHoursToday = data.Where(x => x.OTDate == today).Sum(x => x.OTHours),
+                DailyLimit = limits.FirstOrDefault(r => r.RuleType == OTLimitType.Daily)?.MaxHours ?? 4,
+                UsedHoursThisMonth = data.Where(x => x.OTMonth == month).Sum(x => x.OTHours),
+                MonthlyLimit = limits.FirstOrDefault(r => r.RuleType == OTLimitType.Monthly)?.MaxHours ?? 40,
+                UsedHoursThisYear = data.Sum(x => x.OTHours),
+                YearlyLimit = limits.FirstOrDefault(r => r.RuleType == OTLimitType.Yearly)?.MaxHours ?? 200
+            };
 
-        return ServiceResult<OTDetailViewModel>.Ok(vm);
-    }
-
-    // ============================================================
-    // PRIVATE HELPERS
-    // ============================================================
-
-    private static void ApplyApprove(
-        F03OTRequest r, int level, CurrentUser user,
-        string? comment, DateTime now, bool isAdmin)
-    {
-        var suffix = isAdmin ? $" [Admin: {user.FullName}]" : "";
-        switch (level)
+            return ServiceResult<OTBalanceDto>.Ok(dto);
+        }
+        catch (Exception ex)
         {
-            case 3: r.Lv3IsApprove = true; r.Lv3ApproveTime = now; r.Lv3Comment = comment + suffix; break;
-            case 4: r.Lv4IsApprove = true; r.Lv4ApproveTime = now; r.Lv4Comment = comment + suffix; break;
-            case 5: r.Lv5IsApprove = true; r.Lv5ApproveTime = now; r.Lv5Comment = comment + suffix; break;
-            case 6: r.Lv6IsApprove = true; r.Lv6ApproveTime = now; r.Lv6Comment = comment + suffix; break;
-            case 7: r.Lv7IsApprove = true; r.Lv7ApproveTime = now; r.Lv7Comment = comment + suffix; break;
+            Logger.LogError(ex, "[OT] GetBalance ERROR");
+            return ServiceResult<OTBalanceDto>.Fail("Lỗi khi lấy số giờ OT.");
         }
     }
 
-    private static void ApplyReject(
-        F03OTRequest r, int level, CurrentUser user, string comment, DateTime now)
+    // ── PRIVATE HELPERS ─────────────────────────────────────────
+    private async Task<string> GenerateOTCodeAsync(CancellationToken ct)
     {
+        var year = DateTime.Now.Year;
+        var count = await _db.F03OTRequests.CountAsync(x => x.CreatedAt.Year == year, ct);
+        return $"OT-{year}-{(count + 1):D4}";
+    }
+
+    private static void ApplyApprove(F03OTRequest req, int level, CurrentUser user, string? comment, DateTime now)
+    {
+        bool isAdmin = user.IsAdmin() || user.IsSuperAdmin();
+        string note = isAdmin && user.EmployeeCode != GetApproverCode(req, level)
+            ? $"[Admin {user.FullName} duyệt thay]: {comment}"
+            : comment ?? "";
+
         switch (level)
         {
-            case 3: r.Lv3IsApprove = false; r.Lv3ApproveTime = now; r.Lv3Comment = comment; break;
-            case 4: r.Lv4IsApprove = false; r.Lv4ApproveTime = now; r.Lv4Comment = comment; break;
-            case 5: r.Lv5IsApprove = false; r.Lv5ApproveTime = now; r.Lv5Comment = comment; break;
-            case 6: r.Lv6IsApprove = false; r.Lv6ApproveTime = now; r.Lv6Comment = comment; break;
-            case 7: r.Lv7IsApprove = false; r.Lv7ApproveTime = now; r.Lv7Comment = comment; break;
+            case 1: req.Level1IsApprove = true; req.Level1ApproveTime = now; req.Level1Comment = note; break;
+            case 2: req.Level2IsApprove = true; req.Level2ApproveTime = now; req.Level2Comment = note; break;
+            case 3: req.Level3IsApprove = true; req.Level3ApproveTime = now; req.Level3Comment = note; break;
+            case 4: req.Level4IsApprove = true; req.Level4ApproveTime = now; req.Level4Comment = note; break;
         }
     }
 
-    private static void UpdateStatus(F03OTRequest r)
+    private static void ApplyReject(F03OTRequest req, int level, CurrentUser user, string? comment, DateTime now)
     {
-        // Lv3 ok (hoặc skip) → sang Lv4
-        bool lv3Done = r.Lv3Skip || r.Lv3IsApprove == true;
-        if (!lv3Done) { r.RequestStatus = OTStatus.Pending; return; }
+        bool isAdmin = user.IsAdmin() || user.IsSuperAdmin();
+        string note = isAdmin ? $"[Admin {user.FullName} từ chối]: {comment}" : comment ?? "";
 
-        if (r.Lv4IsApprove != true) { r.RequestStatus = OTStatus.ApprovedLv3; return; }
-        if (r.Lv5IsApprove != true) { r.RequestStatus = OTStatus.ApprovedLv4; return; }
-        if (r.Lv6IsApprove != true) { r.RequestStatus = OTStatus.ApprovedLv5; return; }
-
-        // Lv6 xong
-        if (r.RequiresGM && r.Lv7IsApprove != true)
-        { r.RequestStatus = OTStatus.ApprovedLv6; return; }
-
-        r.RequestStatus = OTStatus.Approved;
+        switch (level)
+        {
+            case 1: req.Level1IsApprove = false; req.Level1ApproveTime = now; req.Level1Comment = note; break;
+            case 2: req.Level2IsApprove = false; req.Level2ApproveTime = now; req.Level2Comment = note; break;
+            case 3: req.Level3IsApprove = false; req.Level3ApproveTime = now; req.Level3Comment = note; break;
+            case 4: req.Level4IsApprove = false; req.Level4ApproveTime = now; req.Level4Comment = note; break;
+        }
     }
 
-    private static string? GetApproverEmail(F03OTRequest r, int level) => level switch
+    /// <summary>
+    /// Cập nhật trạng thái tổng dựa trên các level đã duyệt.
+    /// Logic: Level 1 (tùy có/không) → Level 2 → Level 3 → Level 4 (tùy) → Approved
+    /// </summary>
+    private static void UpdateOverallStatus(F03OTRequest req)
     {
-        3 => r.Lv3ApproveEmail,
-        4 => r.Lv4ApproveEmail,
-        5 => r.Lv5ApproveEmail,
-        6 => r.Lv6ApproveEmail,
-        7 => r.Lv7ApproveEmail,
+        bool hasLevel1 = !string.IsNullOrEmpty(req.Level1ApproveEmail);
+        bool hasLevel4 = !string.IsNullOrEmpty(req.Level4ApproveEmail);
+
+        bool level1Done = !hasLevel1 || req.Level1IsApprove == true;
+        bool level2Done = req.Level2IsApprove == true;
+        bool level3Done = req.Level3IsApprove == true;
+        bool level4Done = !hasLevel4 || req.Level4IsApprove == true;
+
+        if (level1Done && level2Done && level3Done && level4Done)
+        {
+            req.RequestStatus = OTStatus.Approved;
+        }
+        else if (level1Done && level2Done && level3Done)
+        {
+            req.RequestStatus = hasLevel4 ? OTStatus.ApprovedLv3 : OTStatus.Approved;
+        }
+        else if (level1Done && level2Done)
+        {
+            req.RequestStatus = OTStatus.ApprovedLv2;
+        }
+        else if (level1Done)
+        {
+            req.RequestStatus = OTStatus.ApprovedLv1;
+        }
+        else
+        {
+            req.RequestStatus = OTStatus.Pending;
+        }
+    }
+
+    private static string? GetApproverEmail(F03OTRequest req, int level) => level switch
+    {
+        1 => req.Level1ApproveEmail,
+        2 => req.Level2ApproveEmail,
+        3 => req.Level3ApproveEmail,
+        4 => req.Level4ApproveEmail,
         _ => null
     };
 
-    private static (string? email, string stepName) GetNextApprover(F03OTRequest r)
+    private static string? GetApproverCode(F03OTRequest req, int level) => level switch
     {
-        if (!r.Lv3Skip && r.Lv3IsApprove == true && r.Lv4IsApprove == null)
-            return (r.Lv4ApproveEmail, "BCH Công đoàn");
-        if (r.Lv4IsApprove == true && r.Lv5IsApprove == null)
-            return (r.Lv5ApproveEmail, "Ast.Chief/Chief");
-        if (r.Lv5IsApprove == true && r.Lv6IsApprove == null)
-            return (r.Lv6ApproveEmail, "A.MG/MG");
-        if (r.Lv6IsApprove == true && r.RequiresGM && r.Lv7IsApprove == null)
-            return (r.Lv7ApproveEmail, "GM");
-        return (null, "");
-    }
+        1 => req.Level1ApproveCode,
+        2 => req.Level2ApproveCode,
+        3 => req.Level3ApproveCode,
+        4 => req.Level4ApproveCode,
+        _ => null
+    };
 
-    private static List<OTApprovalStep> BuildSteps(VF03OTRequest r) =>
-    [
-        new() {
-            Level = 3, StepName = "Sub.Leader / Leader",
-            ApproverName = r.Lv3ApproveName, ApproverEmail = r.Lv3ApproveEmail,
-            IsApproved = r.Lv3IsApprove, ApproveTime = r.Lv3ApproveTime,
-            Comment = r.Lv3Comment, IsSkipped = r.Lv3Skip, IsRequired = !r.Lv3Skip
-        },
-        new() {
-            Level = 4, StepName = "BCH Công đoàn",
-            ApproverName = r.Lv4ApproveName, ApproverEmail = r.Lv4ApproveEmail,
-            IsApproved = r.Lv4IsApprove, ApproveTime = r.Lv4ApproveTime,
-            Comment = r.Lv4Comment, IsRequired = true
-        },
-        new() {
-            Level = 5, StepName = "Ast.Chief / Chief",
-            ApproverName = r.Lv5ApproveName, ApproverEmail = r.Lv5ApproveEmail,
-            IsApproved = r.Lv5IsApprove, ApproveTime = r.Lv5ApproveTime,
-            Comment = r.Lv5Comment, IsRequired = true
-        },
-        new() {
-            Level = 6, StepName = "A.MG / MG",
-            ApproverName = r.Lv6ApproveName, ApproverEmail = r.Lv6ApproveEmail,
-            IsApproved = r.Lv6IsApprove, ApproveTime = r.Lv6ApproveTime,
-            Comment = r.Lv6Comment, IsRequired = true
-        },
-        new() {
-            Level = 7, StepName = "GM",
-            ApproverName = r.Lv7ApproveName, ApproverEmail = r.Lv7ApproveEmail,
-            IsApproved = r.Lv7IsApprove, ApproveTime = r.Lv7ApproveTime,
-            Comment = r.Lv7Comment, IsRequired = r.RequiresGM,
-            IsSkipped = !r.RequiresGM
-        }
-    ];
-
-    private async Task UpdateOTSummaryAsync(F03OTRequest r, CancellationToken ct)
+    private static OTRequestViewModel MapToViewModel(
+        VF03OTRequest req,
+        List<F03OTEmployee> employees)
     {
-        var rows = await _db.Set<F03OTRow>()
-            .Where(x => x.OTRequestId == r.Id && x.IsActive)
-            .ToListAsync(ct);
-
-        foreach (var row in rows)
+        var vm = new OTRequestViewModel
         {
-            var s = await _db.Set<F03OTSummary>()
-                .FirstOrDefaultAsync(x =>
-                    x.EmployeeCode == row.EmployeeCode &&
-                    x.WorkYear == r.OTDate.Year &&
-                    x.WorkMonth == r.OTDate.Month, ct);
-
-            if (s == null)
+            Id = req.Id,
+            OTCode = req.OTCode,
+            DeptCode = req.DeptCode,
+            DeptName = req.DeptName,
+            OTDate = req.OTDate.ToDateTime(TimeOnly.MinValue),
+            OTType = req.OTType,
+            OTTypeText = OTTypeConst.GetDisplayName(req.OTType),
+            StartTime = req.StartTimeText ?? "",
+            EndTime = req.EndTimeText ?? "",
+            PlannedHours = req.PlannedHours,
+            OTReason = req.OTReason,
+            RequestStatus = req.RequestStatus,
+            StatusText = req.StatusText ?? OTStatus.GetDisplayName(req.RequestStatus),
+            StatusColor = req.StatusColor ?? OTStatus.GetColor(req.RequestStatus),
+            EmployeeCount = req.EmployeeCount,
+            CreatedAt = req.CreatedAt,
+            IsActive = req.IsActive,
+            Employees = employees.Select(e => new OTEmployeeModel
             {
-                s = new F03OTSummary
-                {
-                    EmployeeCode = row.EmployeeCode,
-                    WorkYear = r.OTDate.Year,
-                    WorkMonth = r.OTDate.Month
-                };
-                _db.Set<F03OTSummary>().Add(s);
-            }
+                EmployeeCode = e.EmployeeCode,
+                EmployeeName = e.EmployeeName,
+                DeptCode = e.DeptCode,
+                CvCode = e.CvCode,
+                Note = e.Note
+            }).ToList()
+        };
 
-            s.TotalHoursMonth += row.PlannedHours;
-            s.TotalHoursYear += row.PlannedHours;
-            s.UpdatedAt = DateTime.Now;
+        // Build approval steps
+        var steps = new List<OTApprovalStep>();
+
+        if (!string.IsNullOrEmpty(req.Level1ApproveEmail))
+        {
+            steps.Add(new OTApprovalStep
+            {
+                Level = 1,
+                RoleName = "Sub-leader / Leader",
+                ApproverName = req.Level1ApproveName,
+                IsApproved = req.Level1IsApprove,
+                ApproveTime = req.Level1ApproveTime,
+                Comment = req.Level1Comment,
+                IsRequired = true // Chỉ xuất hiện khi có công nhân
+            });
         }
 
-        await _db.SaveChangesAsync(ct);
+        steps.Add(new OTApprovalStep
+        {
+            Level = 2,
+            RoleName = "Ast. Chief / Chief",
+            ApproverName = req.Level2ApproveName,
+            IsApproved = req.Level2IsApprove,
+            ApproveTime = req.Level2ApproveTime,
+            Comment = req.Level2Comment,
+            IsRequired = true
+        });
+
+        steps.Add(new OTApprovalStep
+        {
+            Level = 3,
+            RoleName = "A.MG / MG",
+            ApproverName = req.Level3ApproveName,
+            IsApproved = req.Level3IsApprove,
+            ApproveTime = req.Level3ApproveTime,
+            Comment = req.Level3Comment,
+            IsRequired = true
+        });
+
+        if (!string.IsNullOrEmpty(req.Level4ApproveEmail))
+        {
+            steps.Add(new OTApprovalStep
+            {
+                Level = 4,
+                RoleName = "GM",
+                ApproverName = req.Level4ApproveName,
+                IsApproved = req.Level4IsApprove,
+                ApproveTime = req.Level4ApproveTime,
+                Comment = req.Level4Comment,
+                IsRequired = true
+            });
+        }
+
+        vm.ApprovalSteps = steps;
+        return vm;
     }
 }

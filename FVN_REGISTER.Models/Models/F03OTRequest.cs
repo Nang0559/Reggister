@@ -1,4 +1,5 @@
-﻿using System;
+﻿using FVN_REGISTER.Contract.Utils;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -9,78 +10,57 @@ namespace FVN_REGISTER.Contract.Models
     public partial class F03OTRequest
     {
         public int Id { get; set; }
-        public int WorkYear { get; set; }
-        public string EmployeeCode { get; set; } = null!;
+        public string OTCode { get; set; } = null!;
         public string DeptCode { get; set; } = null!;
-        public string? CvCode { get; set; }
-
-        // Thời gian OT
         public DateOnly OTDate { get; set; }
-        public DateTime PlannedFrom { get; set; }
-        public DateTime PlannedTo { get; set; }
+        public string OTType { get; set; } = "WEEKDAY";         // WEEKDAY | WEEKEND | HOLIDAY
+        public TimeOnly StartTime { get; set; }
+        public TimeOnly EndTime { get; set; }
         public decimal PlannedHours { get; set; }
-
-        // Loại ngày: Normal | Weekend | Holiday | Tet
-        public string DayType { get; set; } = "Normal";
-
         public string OTReason { get; set; } = null!;
+        public string ScopeType { get; set; } = "SELECTED";     // DEPT | SELECTED
 
-        // Bắt buộc GM khi ngày nghỉ/lễ hoặc người tạo từ cấp Ast.Chief trở lên
-        public bool RequiresGM { get; set; }
-        public string? CreatedByEmail { get; set; }
-        public string? CreatedByLevel { get; set; }
+        // Level 1 - Sub-leader/Leader (bắt buộc với CVCode 0003)
+        public string? Level1ApproveCode { get; set; }
+        public string? Level1ApproveName { get; set; }
+        public string? Level1ApproveEmail { get; set; }
+        public bool? Level1IsApprove { get; set; }
+        public DateTime? Level1ApproveTime { get; set; }
+        public string? Level1Comment { get; set; }
 
-        // ===== BƯỚC 3: Sub.Leader / Leader (NV VP bỏ qua) =====
-        public string? Lv3ApproveCode { get; set; }
-        public string? Lv3ApproveName { get; set; }
-        public string? Lv3ApproveEmail { get; set; }
-        public bool? Lv3IsApprove { get; set; }
-        public DateTime? Lv3ApproveTime { get; set; }
-        public string? Lv3Comment { get; set; }
-        public bool Lv3Skip { get; set; }              // true = NV văn phòng, bỏ qua
+        // Level 2 - Ast.Chief / Chief
+        public string? Level2ApproveCode { get; set; }
+        public string? Level2ApproveName { get; set; }
+        public string? Level2ApproveEmail { get; set; }
+        public bool? Level2IsApprove { get; set; }
+        public DateTime? Level2ApproveTime { get; set; }
+        public string? Level2Comment { get; set; }
 
-        // ===== BƯỚC 4: BCH Công đoàn =====
-        public string? Lv4ApproveCode { get; set; }
-        public string? Lv4ApproveName { get; set; }
-        public string? Lv4ApproveEmail { get; set; }
-        public bool? Lv4IsApprove { get; set; }
-        public DateTime? Lv4ApproveTime { get; set; }
-        public string? Lv4Comment { get; set; }
+        // Level 3 - A.MG / MG
+        public string? Level3ApproveCode { get; set; }
+        public string? Level3ApproveName { get; set; }
+        public string? Level3ApproveEmail { get; set; }
+        public bool? Level3IsApprove { get; set; }
+        public DateTime? Level3ApproveTime { get; set; }
+        public string? Level3Comment { get; set; }
 
-        // ===== BƯỚC 5: Ast.Chief / Chief =====
-        public string? Lv5ApproveCode { get; set; }
-        public string? Lv5ApproveName { get; set; }
-        public string? Lv5ApproveEmail { get; set; }
-        public bool? Lv5IsApprove { get; set; }
-        public DateTime? Lv5ApproveTime { get; set; }
-        public string? Lv5Comment { get; set; }
+        // Level 4 - GM (ngày thường 3 bộ đưa / ngày nhất định)
+        public string? Level4ApproveCode { get; set; }
+        public string? Level4ApproveName { get; set; }
+        public string? Level4ApproveEmail { get; set; }
+        public bool? Level4IsApprove { get; set; }
+        public DateTime? Level4ApproveTime { get; set; }
+        public string? Level4Comment { get; set; }
 
-        // ===== BƯỚC 6: A.MG / MG =====
-        public string? Lv6ApproveCode { get; set; }
-        public string? Lv6ApproveName { get; set; }
-        public string? Lv6ApproveEmail { get; set; }
-        public bool? Lv6IsApprove { get; set; }
-        public DateTime? Lv6ApproveTime { get; set; }
-        public string? Lv6Comment { get; set; }
+        public string RequestStatus { get; set; } = OTStatus.Pending;
 
-        // ===== BƯỚC 7: GM (chỉ khi RequiresGM = true) =====
-        public string? Lv7ApproveCode { get; set; }
-        public string? Lv7ApproveName { get; set; }
-        public string? Lv7ApproveEmail { get; set; }
-        public bool? Lv7IsApprove { get; set; }
-        public DateTime? Lv7ApproveTime { get; set; }
-        public string? Lv7Comment { get; set; }
+        // Validate + Archive
+        public DateTime? ValidatedAt { get; set; }
+        public int? ValidatedBy { get; set; }
+        public string? ValidationNote { get; set; }
+        public DateTime? ArchivedAt { get; set; }
+        public int? ArchivedBy { get; set; }
 
-        public string RequestStatus { get; set; } = "Pending";
-
-        // Giờ thực tế sau khi OT xong
-        public DateTime? ActualFrom { get; set; }
-        public DateTime? ActualTo { get; set; }
-        public decimal? ActualHours { get; set; }
-        public bool EmployeeConfirmed { get; set; }
-        public DateTime? ConfirmedAt { get; set; }
-
-        // Audit
         public bool IsActive { get; set; } = true;
         public int CreatedBy { get; set; } = -1;
         public DateTime CreatedAt { get; set; } = DateTime.Now;
@@ -88,6 +68,6 @@ namespace FVN_REGISTER.Contract.Models
         public DateTime ModifiedAt { get; set; } = DateTime.Now;
 
         // Navigation
-        public virtual ICollection<F03OTRow> Rows { get; set; } = new List<F03OTRow>();
+        public virtual ICollection<F03OTEmployee> OTEmployees { get; set; } = new List<F03OTEmployee>();
     }
 }

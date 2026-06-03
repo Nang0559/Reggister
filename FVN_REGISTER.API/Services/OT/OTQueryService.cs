@@ -101,14 +101,14 @@ namespace FVN_REGISTER.API.Services.OT
         public async Task<ServiceResult<OTSummaryDto>> GetSummaryAsync(
             string employeeCode, int year, int month, CancellationToken ct = default)
         {
-            var summary = await _db.Set<F03OTSummary>()
+            var summary = await _db.Set<VF03OTSummary>()
                 .AsNoTracking()
                 .Where(x => x.EmployeeCode == employeeCode &&
                             x.WorkYear == year && x.WorkMonth == month)
                 .FirstOrDefaultAsync(ct);
 
             // Tổng giờ năm = tổng các tháng
-            var yearTotal = await _db.Set<F03OTSummary>()
+            var yearTotal = await _db.Set<VF03OTSummary>()
                 .AsNoTracking()
                 .Where(x => x.EmployeeCode == employeeCode && x.WorkYear == year)
                 .SumAsync(x => x.TotalHoursMonth, ct);

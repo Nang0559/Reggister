@@ -7,7 +7,7 @@ namespace FVN_REGISTER.Contract.Interfaces.OT
 {
     public interface IOTValidator
     {
-        Task<ServiceResult> ValidateAsync(
+        Task<ServiceResult> ValidateCreateAsync(
             CreateOTRequestModel model,
             CurrentUser user,
             CancellationToken ct = default);

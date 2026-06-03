@@ -18,11 +18,9 @@ namespace FVN_REGISTER.API.Controllers;
 public class OTController : BaseApiController
 {
     private readonly IOTService _otService;
-    private readonly IOTQueryService _queryService;
 
     public OTController(
         IOTService otService,
-        IOTQueryService queryService,
         ICurrentUserService currentUser,
         IUserLogService userLog,
         IMapper mapper,
@@ -31,118 +29,99 @@ public class OTController : BaseApiController
         : base(currentUser, userLog, mapper, logger, options)
     {
         _otService = otService;
-        _queryService = queryService;
     }
 
-    // ===== TẠO ĐƠN OT =====
-    [HttpPost]
-    public async Task<IActionResult> Create(
-        [FromBody] CreateOTRequestModel model, CancellationToken ct)
-    {
-        if (UserInfo == null) return Unauthorized();
-        var result = await _otService.CreateAsync(model, UserInfo, ct);
-        await LogActionAsync($"Tạo đơn OT ngày {model.OTDate:dd/MM/yyyy}");
-        return HandleResult(result);
-    }
-
-    // ===== DUYỆT ĐƠN =====
-    [HttpPost("approve")]
-    public async Task<IActionResult> Approve(
-        [FromBody] OTApproveRequest request, CancellationToken ct)
-    {
-        if (UserInfo == null) return Unauthorized();
-        var result = await _otService.ApproveAsync(
-            request.Ids, request.Level, UserInfo, request.Comment, ct);
-        await LogActionAsync($"Duyệt OT Level {request.Level}");
-        return HandleResult(result);
-    }
-
-    // ===== TỪ CHỐI =====
-    [HttpPost("reject")]
-    public async Task<IActionResult> Reject(
-        [FromBody] OTApproveRequest request, CancellationToken ct)
-    {
-        if (UserInfo == null) return Unauthorized();
-        if (string.IsNullOrWhiteSpace(request.Comment))
-            return BadRequest(ApiResponse<object>.Fail("Phải nhập lý do từ chối."));
-        var result = await _otService.RejectAsync(
-            request.Ids, request.Level, UserInfo, request.Comment!, ct);
-        await LogActionAsync($"Từ chối OT Level {request.Level}");
-        return HandleResult(result);
-    }
-
-    // ===== HỦY ĐƠN =====
-    [HttpPost("{id}/cancel")]
-    public async Task<IActionResult> Cancel(
-        int id, [FromBody] string reason, CancellationToken ct)
-    {
-        if (UserInfo == null) return Unauthorized();
-        var result = await _otService.CancelAsync(id, reason, UserInfo, ct);
-        return HandleResult(result);
-    }
-
-    // ===== XÁC NHẬN GIỜ THỰC TẾ =====
-    [HttpPost("{id}/confirm")]
-    public async Task<IActionResult> ConfirmActual(
-        int id,
-        [FromBody] ConfirmOTRequest req,
-        CancellationToken ct)
-    {
-        if (UserInfo == null) return Unauthorized();
-        var result = await _otService.ConfirmActualHoursAsync(
-            id, req.ActualFrom, req.ActualTo, UserInfo, ct);
-        return HandleResult(result);
-    }
-
-    // ===== CHI TIẾT =====
-    [HttpGet("{id}")]
+    // ── GET DETAILS ─────────────────────────────────────────────
+    [HttpGet("{id:int}")]
     public async Task<IActionResult> GetDetails(int id, CancellationToken ct)
     {
         var result = await _otService.GetDetailsAsync(id, ct);
         return HandleResult(result);
     }
 
-    // ===== DANH SÁCH CHỜ DUYỆT CỦA TÔI =====
-    [HttpGet("pending")]
-    public async Task<IActionResult> GetMyPending(CancellationToken ct)
+    // ── GET BALANCE (giờ OT còn lại của nhân viên) ────────────────
+    [HttpGet("balance/{employeeCode}/{year:int}/{month:int}")]
+    public async Task<IActionResult> GetBalance(
+        string employeeCode, int year, int month, CancellationToken ct)
     {
-        if (UserInfo == null) return Unauthorized();
-        var result = await _queryService.GetPendingForApproverAsync(
-            UserInfo.Email ?? "", ct);
+        var result = await _otService.GetOTBalanceAsync(employeeCode, year, month, ct);
         return HandleResult(result);
     }
 
-    // ===== LỊCH SỬ OT CỦA NHÂN VIÊN =====
-    [HttpGet("history")]
-    public async Task<IActionResult> GetHistory(
-        [FromQuery] int? year, CancellationToken ct)
+    // ── TẠO ĐƠN OT ─────────────────────────────────────────────
+    /// <summary>
+    /// Bước 1-2: Tạo đơn OT, chọn phạm vi nhân viên và người duyệt.
+    /// CVCode 0003 (công nhân) cần thêm Level1 (Sub-leader).
+    /// </summary>
+    [HttpPost]
+    public async Task<IActionResult> Create(
+        [FromBody] CreateOTRequestModel model, CancellationToken ct)
     {
-        if (UserInfo == null) return Unauthorized();
-        var result = await _queryService.GetByEmployeeAsync(
-            UserInfo.EmployeeCode!, year ?? DateTime.Now.Year, ct);
+        if (!ModelState.IsValid)
+            return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
+
+        if (UserInfo == null)
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+
+        await LogActionAsync($"Tạo đơn OT ngày {model.OTDate:dd/MM/yyyy}");
+        var result = await _otService.CreateOTAsync(model, UserInfo, ct);
         return HandleResult(result);
     }
 
-    // ===== DANH SÁCH NGƯỜI KÝ (dropdown) =====
-    [HttpGet("approvers")]
-    public async Task<IActionResult> GetApprovers(
-        [FromQuery] string deptCode,
-        [FromQuery] int level,
-        CancellationToken ct)
+    // ── DUYỆT ─────────────────────────────────────────────────
+    /// <summary>
+    /// Level 1 = Sub-leader/Leader (Bước 3 - chỉ công nhân)
+    /// Level 2 = Ast.Chief/Chief  (Bước 5)
+    /// Level 3 = A.MG/MG         (Bước 6)
+    /// Level 4 = GM               (Bước 7)
+    /// </summary>
+    [HttpPost("approve")]
+    public async Task<IActionResult> Approve(
+        [FromBody] OTApproveRequest request, CancellationToken ct)
     {
-        var result = await _queryService.GetApproversAsync(deptCode, level, ct);
+        if (UserInfo == null)
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+
+        await LogActionAsync($"Duyệt OT Level {request.Level}: {string.Join(",", request.Ids)}");
+        var result = await _otService.ApproveAsync(request.Ids, request.Level, UserInfo, request.Comment, ct);
         return HandleResult(result);
     }
 
-    // ===== TỔNG GIỜ OT =====
-    [HttpGet("summary/{employeeCode}")]
-    public async Task<IActionResult> GetSummary(
-        string employeeCode,
-        [FromQuery] int year,
-        [FromQuery] int month,
-        CancellationToken ct)
+    // ── TỪ CHỐI ─────────────────────────────────────────────────
+    [HttpPost("reject")]
+    public async Task<IActionResult> Reject(
+        [FromBody] OTApproveRequest request, CancellationToken ct)
     {
-        var result = await _queryService.GetSummaryAsync(employeeCode, year, month, ct);
+        if (UserInfo == null)
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+
+        await LogActionAsync($"Từ chối OT Level {request.Level}: {string.Join(",", request.Ids)}");
+        var result = await _otService.RejectAsync(request.Ids, request.Level, UserInfo, request.Comment, ct);
+        return HandleResult(result);
+    }
+
+    // ── HỦY ─────────────────────────────────────────────────────
+    [HttpPost("{id:int}/cancel")]
+    public async Task<IActionResult> Cancel(int id, [FromBody] string? reason, CancellationToken ct)
+    {
+        if (UserInfo == null)
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+
+        await LogActionAsync($"Hủy đơn OT ID: {id}");
+        var result = await _otService.CancelAsync(id, reason, UserInfo, ct);
+        return HandleResult(result);
+    }
+
+    // ── VALIDATE & ARCHIVE (GA lưu trữ - Bước 9-10) ────────────
+    [HttpPost("{id:int}/archive")]
+    public async Task<IActionResult> Archive(
+        int id, [FromBody] string? note, CancellationToken ct)
+    {
+        if (UserInfo == null)
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+
+        await LogActionAsync($"Lưu trữ đơn OT ID: {id}");
+        var result = await _otService.ValidateAndArchiveAsync(id, UserInfo, note, ct);
         return HandleResult(result);
     }
 }

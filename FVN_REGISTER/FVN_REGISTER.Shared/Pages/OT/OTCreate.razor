@@ -1,931 +1,538 @@
-﻿@page "/ot/create"
+﻿@* ============================================================
+   FILE: FVN_REGISTER.Shared/Pages/OT/CreateOT.razor
+   Bước 1-2: Tạo đơn OT → Chọn phạm vi → Nhập danh sách NV
+   ============================================================ *@
+@page "/ot/create"
 @attribute [Authorize]
-@using FVN_REGISTER.Contract.Dtos.OT
+@using FVN_REGISTER.Contract.Utils
 @using FVN_REGISTER.Contract.ViewModels
-@using FVN_REGISTER.Contract.Interfaces.Repositores
 @using FVN_REGISTER.Contract.ViewModels.OT
+@using FVN_REGISTER.Shared.Services.OT
 @using FVN_REGISTER.Shared.Services.Users
-@using FVN_REGISTER.Shared.Handlers
 @using FVN_REGISTER.Shared.Utils.Helpers
 @using FVN_REGISTER.Core.Logging
-@using System.Text.Json
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
+@inject IOTClientService OTService
+@inject ICurrentUserClientService CurrentUser
+@inject NavigationManager Nav
+@inject ISnackbar Snackbar
 
-@inject IHttpClientWithAuth _http
-@inject ICurrentUserClientService _currentUser
-@inject ISnackbar _snackbar
-@inject NavigationManager _nav
+<PageTitle>Tạo Đơn OT - FCC Portal</PageTitle>
 
-<PageTitle>Tạo Đơn Đăng Ký OT</PageTitle>
+<MudText Typo="Typo.h5" Class="mb-1">
+    <MudIcon Icon="@Icons.Material.Filled.AccessTimeFilled" Class="mr-2" Color="Color.Warning" />
+    Đăng Ký Tăng Ca (OT)
+</MudText>
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+    1 đơn OT có thể áp dụng cho nhiều nhân viên cùng bộ phận
+</MudText>
 
-<MudContainer MaxWidth="MaxWidth.Large" Class="py-4">
+@* ── STEPPER ──────────────────────────────────────────────── *@
+<MudStepper @ref="_stepper" Linear="true" Color="Color.Warning">
 
-    @* ===== TIÊU ĐỀ ===== *@
-    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
-        <MudIconButton Icon="@Icons.Material.Filled.ArrowBack"
-                       OnClick="@(() => _nav.NavigateTo("/ot/list"))" />
-        <div>
-            <MudText Typo="Typo.h5" Style="font-weight:700;">
-                <MudIcon Icon="@Icons.Material.Filled.AccessTime" Class="mr-2" Style="vertical-align:middle;" />
-                Đăng Ký Làm Thêm Giờ (OT)
-            </MudText>
-            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                Theo quy định QĐ-HC-03 — Luồng duyệt 4 cấp
-            </MudText>
-        </div>
-    </MudStack>
+    @* BƯỚC 1: Thông tin OT *@
+    <MudStep Title="Thông tin OT" Icon="@Icons.Material.Filled.Info">
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudDatePicker Label="Ngày OT (*)"
+                               @bind-Date="_otDate"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               DateFormat="dd/MM/yyyy"
+                               Required="true"
+                               HelperText="Chọn ngày làm thêm" />
+            </MudItem>
 
-    @* ===== CẢNH BÁO GM ===== *@
-    @if (_requiresGM)
-    {
-        <MudAlert Severity="Severity.Warning" Class="mb-4" Dense="true"
-                  Icon="@Icons.Material.Filled.VerifiedUser">
-            <MudText Typo="Typo.body2">
-                <b>Lưu ý:</b> Đơn này <b>bắt buộc GM duyệt</b> vì OT vào
-                @(_model.DayType == "Normal" ? "ngày thường từ cấp Ast.Chief trở lên" : "ngày nghỉ / lễ / Tết").
-            </MudText>
-        </MudAlert>
-    }
+            <MudItem xs="12" sm="6">
+                <MudSelect T="string" Label="Loại OT (*)"
+                           @bind-Value="_model.OTType"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense">
+                    <MudSelectItem Value="@OTTypeConst.Weekday">Ngày thường</MudSelectItem>
+                    <MudSelectItem Value="@OTTypeConst.Weekend">Cuối tuần</MudSelectItem>
+                    <MudSelectItem Value="@OTTypeConst.Holiday">Ngày lễ</MudSelectItem>
+                </MudSelect>
+            </MudItem>
 
-    @* ===== CẢNH BÁO GIỜ VẬN ===== *@
-    @if (_hourWarning != null)
-    {
-        <MudAlert Severity="Severity.Error" Class="mb-4" Dense="true">@_hourWarning</MudAlert>
-    }
+            <MudItem xs="12" sm="3">
+                <MudTimePicker Label="Giờ bắt đầu (*)"
+                               @bind-Time="_startTime"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               AmPm="false"
+                               Required="true" />
+            </MudItem>
 
-    <MudForm @ref="_form" @bind-IsValid="_isFormValid">
-        <MudGrid Spacing="3">
+            <MudItem xs="12" sm="3">
+                <MudTimePicker Label="Giờ kết thúc (*)"
+                               @bind-Time="_endTime"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               AmPm="false"
+                               Required="true" />
+            </MudItem>
 
-            @* ======================================================
-               CỘT TRÁI: THÔNG TIN OT
-               ====================================================== *@
-            <MudItem xs="12" md="7">
+            <MudItem xs="12" sm="3">
+                <MudNumericField T="decimal"
+                                 Label="Số giờ OT"
+                                 @bind-Value="_model.PlannedHours"
+                                 Variant="Variant.Outlined"
+                                 Margin="Margin.Dense"
+                                 ReadOnly="true"
+                                 HelperText="Tự tính từ giờ" />
+            </MudItem>
 
-                @* --- CARD 1: THÔNG TIN CHUNG --- *@
-                <MudPaper Elevation="2" Class="pa-4 mb-4" Style="border-radius:12px;">
-                    <MudText Typo="Typo.subtitle1" Class="mb-3" Style="font-weight:600;">
-                        <MudIcon Icon="@Icons.Material.Filled.Info" Size="Size.Small" Class="mr-1" />
-                        Thông Tin OT
-                    </MudText>
+            <MudItem xs="12" sm="3">
+                <MudSelect T="string" Label="Phạm vi (*)"
+                           @bind-Value="_model.ScopeType"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense">
+                    <MudSelectItem Value="@("SELECTED")">Chọn từng người</MudSelectItem>
+                    <MudSelectItem Value="@("DEPT")">Toàn bộ phận</MudSelectItem>
+                </MudSelect>
+            </MudItem>
 
-                    <MudGrid Spacing="2">
-                        @* Ngày OT *@
-                        <MudItem xs="12" sm="6">
-                            <MudDatePicker Label="Ngày OT (*)"
-                                           @bind-Date="_otDate"
-                                           Variant="Variant.Outlined"
-                                           Margin="Margin.Dense"
-                                           MinDate="DateTime.Today"
-                                           Required="true"
-                                           RequiredError="Chọn ngày OT"
-                                           DateChanged="OnOTDateChanged" />
-                        </MudItem>
+            <MudItem xs="12">
+                <MudTextField T="string" Label="Lý do OT (*)"
+                              @bind-Value="_model.OTReason"
+                              Variant="Variant.Outlined"
+                              Lines="3"
+                              Required="true"
+                              MaxLength="500"
+                              HelperText="@($"{_model.OTReason?.Length ?? 0}/500")" />
+            </MudItem>
+        </MudGrid>
+    </MudStep>
 
-                        @* Loại ngày *@
-                        <MudItem xs="12" sm="6">
-                            <MudSelect T="string" Label="Loại ngày (*)"
-                                       @bind-Value="_model.DayType"
-                                       Variant="Variant.Outlined"
-                                       Margin="Margin.Dense"
-                                       Required="true"
-                                       ValueChanged="OnDayTypeChanged">
-                                <MudSelectItem Value=@("Normal")>Ngày thường</MudSelectItem>
-                                <MudSelectItem Value=@("Weekend")>Ngày nghỉ / Cuối tuần</MudSelectItem>
-                                <MudSelectItem Value=@("Holiday")>Ngày lễ</MudSelectItem>
-                                <MudSelectItem Value=@("Tet")>Ngày Tết</MudSelectItem>
-                            </MudSelect>
-                        </MudItem>
+    @* BƯỚC 2: Danh sách nhân viên *@
+    <MudStep Title="Danh sách NV" Icon="@Icons.Material.Filled.People">
 
-                        @* Giờ bắt đầu *@
-                        <MudItem xs="12" sm="6">
-                            <MudTimePicker Label="Giờ bắt đầu (*)"
-                                           @bind-Time="_plannedFrom"
-                                           Variant="Variant.Outlined"
-                                           Margin="Margin.Dense"
-                                           AmPm="false"
-                                           Required="true"
-                                           RequiredError="Chọn giờ bắt đầu"
-                                           TimeChanged="OnTimeChanged" />
-                        </MudItem>
+        @* Thanh tìm kiếm + thêm NV *@
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3" Spacing="2">
+            <MudTextField T="string" @bind-Value="_searchEmp"
+                          Placeholder="Tìm mã / tên nhân viên..."
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Style="max-width:320px" />
+            <MudButton Variant="Variant.Filled" Color="Color.Warning"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="OpenAddEmployeeDialog">
+                Thêm nhân viên
+            </MudButton>
+            @if (_model.ScopeType == "DEPT")
+            {
+                <MudButton Variant="Variant.Outlined" Color="Color.Info"
+                           StartIcon="@Icons.Material.Filled.GroupAdd"
+                           OnClick="LoadAllDeptEmployees">
+                    Thêm toàn bộ phận
+                </MudButton>
+            }
+        </MudStack>
 
-                        @* Giờ kết thúc *@
-                        <MudItem xs="12" sm="6">
-                            <MudTimePicker Label="Giờ kết thúc (*)"
-                                           @bind-Time="_plannedTo"
-                                           Variant="Variant.Outlined"
-                                           Margin="Margin.Dense"
-                                           AmPm="false"
-                                           Required="true"
-                                           RequiredError="Chọn giờ kết thúc"
-                                           TimeChanged="OnTimeChanged" />
-                        </MudItem>
+        @* Cảnh báo công nhân - hiện Bước 3 *@
+        @if (_model.Employees.Any(e => e.CvCode == "0003"))
+        {
+            <MudAlert Severity="Severity.Info" Class="mb-3" Dense="true">
+                <MudIcon Icon="@Icons.Material.Filled.Engineering" Class="mr-1" />
+                Danh sách có <b>công nhân (CVCode 0003)</b> — Bước 3 (Sub-leader/Leader) là <b>bắt buộc</b>.
+            </MudAlert>
+        }
 
-                        @* Số giờ kế hoạch — tự tính *@
-                        <MudItem xs="12">
-                            <MudPaper Elevation="0"
-                                      Style="background:#f0f4ff; border-radius:8px; padding:12px 16px;">
-                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
-                                    <MudText Typo="Typo.body2" Color="Color.Primary">
-                                        <b>Số giờ OT (kế hoạch):</b>
-                                    </MudText>
-                                    <MudChip T="string" Color="@(_plannedHoursOk ? Color.Success : Color.Error)"
-                                             Size="Size.Medium" Style="font-weight:700; font-size:1.1rem;">
-                                        @_model.PlannedHours.ToString("F2") h
-                                    </MudChip>
-                                </MudStack>
-                                @if (!string.IsNullOrEmpty(_hourLimitNote))
-                                {
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
-                                        @_hourLimitNote
-                                    </MudText>
-                                }
-                            </MudPaper>
-                        </MudItem>
-
-                        @* Lý do OT *@
-                        <MudItem xs="12">
-                            <MudTextField T="string" Label="Lý do làm thêm giờ (*)"
-                                          @bind-Value="_model.OTReason"
-                                          Variant="Variant.Outlined"
-                                          Lines="3"
-                                          Required="true"
-                                          RequiredError="Nhập lý do OT"
-                                          MaxLength="500"
-                                          Counter="500"
-                                          Immediate="true" />
-                        </MudItem>
-                    </MudGrid>
-                </MudPaper>
-
-                @* --- CARD 2: DANH SÁCH NHÂN VIÊN OT --- *@
-                <MudPaper Elevation="2" Class="pa-4 mb-4" Style="border-radius:12px;">
-                    <MudStack Row="true" AlignItems="AlignItems.Center"
-                              Justify="Justify.SpaceBetween" Class="mb-3">
-                        <MudText Typo="Typo.subtitle1" Style="font-weight:600;">
-                            <MudIcon Icon="@Icons.Material.Filled.People" Size="Size.Small" Class="mr-1" />
-                            Danh Sách Nhân Viên OT
-                        </MudText>
-                        <MudButton StartIcon="@Icons.Material.Filled.PersonAdd"
-                                   Variant="Variant.Outlined"
-                                   Color="Color.Primary"
-                                   Size="Size.Small"
-                                   OnClick="AddEmployee">
-                            Thêm NV
-                        </MudButton>
-                    </MudStack>
-
-                    @if (_employees.Count == 0)
+        @* Bảng nhân viên đã chọn *@
+        <MudTable Items="@FilteredEmployees" Dense="true" Hover="true" Striped="true"
+                  Elevation="0" FixedHeader="true" Height="280px">
+            <HeaderContent>
+                <MudTh>Mã NV</MudTh>
+                <MudTh>Họ tên</MudTh>
+                <MudTh>Bộ phận</MudTh>
+                <MudTh>CV</MudTh>
+                <MudTh>Ghi chú</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.EmployeeCode</MudTd>
+                <MudTd>@context.EmployeeName</MudTd>
+                <MudTd>@context.DeptCode</MudTd>
+                <MudTd>
+                    @if (context.CvCode == "0003")
                     {
-                        <MudAlert Severity="Severity.Info" Dense="true">
-                            Chưa có nhân viên nào. Nhấn "Thêm NV" để thêm.
-                        </MudAlert>
+                        <MudChip Size="Size.Small" Color="Color.Warning" Icon="@Icons.Material.Filled.Engineering">
+                            Công nhân
+                        </MudChip>
                     }
                     else
                     {
-                        <MudTable Items="_employees" Dense="true" Hover="true"
-                                  Elevation="0" Class="mt-2">
-                            <HeaderContent>
-                                <MudTh>Mã NV</MudTh>
-                                <MudTh>Họ tên</MudTh>
-                                <MudTh>Bộ phận</MudTh>
-                                <MudTh>Giờ từ</MudTh>
-                                <MudTh>Giờ đến</MudTh>
-                                <MudTh>Số giờ</MudTh>
-                                <MudTh></MudTh>
-                            </HeaderContent>
-                            <RowTemplate>
-                                <MudTd>@context.EmployeeCode</MudTd>
-                                <MudTd><b>@context.EmployeeName</b></MudTd>
-                                <MudTd>@context.DeptCode</MudTd>
-                                <MudTd>@context.PlannedFrom.ToString("HH:mm")</MudTd>
-                                <MudTd>@context.PlannedTo.ToString("HH:mm")</MudTd>
-                                <MudTd>
-                                    <MudChip T="string" Size="Size.Small"
-                                             Color="Color.Primary">
-                                        @context.PlannedHours h
-                                    </MudChip>
-                                </MudTd>
-                                <MudTd>
-                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                                   Color="Color.Error"
-                                                   Size="Size.Small"
-                                                   OnClick="@(() => RemoveEmployee(context))" />
-                                </MudTd>
-                            </RowTemplate>
-                        </MudTable>
+                        <MudChip Size="Size.Small" Color="Color.Info" Icon="@Icons.Material.Filled.BusinessCenter">
+                            Văn phòng
+                        </MudChip>
                     }
-
-                    @* Dialog thêm nhân viên inline *@
-                    @if (_showAddEmpPanel)
-                    {
-                        <MudPaper Elevation="0"
-                                  Style="background:#f8f9fa; border:1px solid #e0e0e0; border-radius:8px; margin-top:16px; padding:12px;">
-                            <MudText Typo="Typo.subtitle2" Class="mb-2">Thêm nhân viên vào danh sách OT</MudText>
-                            <MudGrid Spacing="2">
-                                <MudItem xs="12" sm="5">
-                                    <MudTextField T="string" Label="Mã nhân viên"
-                                                  @bind-Value="_newEmpCode"
-                                                  Variant="Variant.Outlined"
-                                                  Margin="Margin.Dense"
-                                                  Immediate="true" />
-                                </MudItem>
-                                <MudItem xs="12" sm="5">
-                                    <MudTextField T="string" Label="Họ tên"
-                                                  @bind-Value="_newEmpName"
-                                                  Variant="Variant.Outlined"
-                                                  Margin="Margin.Dense" />
-                                </MudItem>
-                                <MudItem xs="12" sm="2"
-                                         Style="display:flex; align-items:center; gap:8px;">
-                                    <MudIconButton Icon="@Icons.Material.Filled.Check"
-                                                   Color="Color.Success"
-                                                   OnClick="ConfirmAddEmployee" />
-                                    <MudIconButton Icon="@Icons.Material.Filled.Close"
-                                                   Color="Color.Default"
-                                                   OnClick="@(() => _showAddEmpPanel = false)" />
-                                </MudItem>
-                            </MudGrid>
-                        </MudPaper>
-                    }
-                </MudPaper>
-
-            </MudItem>
-
-            @* ======================================================
-               CỘT PHẢI: LUỒNG DUYỆT 4 CẤP
-               ====================================================== *@
-            <MudItem xs="12" md="5">
-                <MudPaper Elevation="2" Class="pa-4" Style="border-radius:12px; position:sticky; top:16px;">
-
-                    <MudText Typo="Typo.subtitle1" Class="mb-1" Style="font-weight:600;">
-                        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Size="Size.Small" Class="mr-1" />
-                        Luồng Phê Duyệt
-                    </MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-3 d-block">
-                        Theo QĐ-HC-03 — chọn người ký từng cấp
-                    </MudText>
-
-                    @* === BƯỚC 3: Sub.Leader / Leader === *@
-                    <MudPaper Elevation="0" Class="pa-3 mb-2"
-                              Style="@GetStepStyle(_skipLv3 ? "skip" : "active")">
-                        <MudStack Row="true" AlignItems="AlignItems.Center"
-                                  Justify="Justify.SpaceBetween" Class="mb-1">
-                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                                <MudAvatar Size="Size.Small"
-                                           Style="background:#7c3aed; color:white; font-size:0.75rem; width:28px; height:28px;">
-                                    3
-                                </MudAvatar>
-                                <div>
-                                    <MudText Typo="Typo.subtitle2">Sub.Leader / Leader</MudText>
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                        Trực tiếp quản lý
-                                    </MudText>
-                                </div>
-                            </MudStack>
-                            <MudSwitch T="bool" @bind-Value="_skipLv3"
-                                       Label="NV VP bỏ qua"
-                                       Color="Color.Warning"
-                                       Size="Size.Small" />
-                        </MudStack>
-
-                        @if (!_skipLv3)
-                        {
-                            <MudSelect T="string" Label="Chọn Sub.Leader / Leader"
-                                       @bind-Value="_model.Lv3ApproveEmail"
-                                       Variant="Variant.Outlined"
-                                       Margin="Margin.Dense"
-                                       Required="!_skipLv3"
-                                       RequiredError="Chọn người duyệt bước 3"
-                                       Dense="true">
-                                @foreach (var a in _approversLv3)
-                                {
-                                    <MudSelectItem Value="@a.ApproveLevelEmail">
-                                        @a.ApproveLevelName (@a.DeptCode)
-                                    </MudSelectItem>
-                                }
-                            </MudSelect>
-                        }
-                        else
-                        {
-                            <MudAlert Dense="true" Severity="Severity.Warning"
-                                      Style="font-size:0.78rem;">
-                                Nhân viên văn phòng — bỏ qua bước này
-                            </MudAlert>
-                        }
-                    </MudPaper>
-
-                    @* Connector *@
-                    <div Style="width:2px; height:16px; background:#e0e0e0; margin:0 auto 4px;"></div>
-
-                    @* === BƯỚC 4: BCH Công đoàn === *@
-                    <MudPaper Elevation="0" Class="pa-3 mb-2"
-                              Style="@GetStepStyle("active")">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-2">
-                            <MudAvatar Size="Size.Small"
-                                       Style="background:#0ea5e9; color:white; font-size:0.75rem; width:28px; height:28px;">
-                                4
-                            </MudAvatar>
-                            <div>
-                                <MudText Typo="Typo.subtitle2">BCH Công đoàn</MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    Xác nhận điều kiện OT
-                                </MudText>
-                            </div>
-                        </MudStack>
-                        <MudSelect T="string" Label="Chọn đại diện BCH CĐ"
-                                   @bind-Value="_model.Lv4ApproveEmail"
-                                   Variant="Variant.Outlined"
-                                   Margin="Margin.Dense"
-                                   Required="true"
-                                   RequiredError="Chọn người duyệt bước 4"
-                                   Dense="true">
-                            @foreach (var a in _approversLv4)
-                            {
-                                <MudSelectItem Value="@a.ApproveLevelEmail">
-                                    @a.ApproveLevelName
-                                </MudSelectItem>
-                            }
-                        </MudSelect>
-                    </MudPaper>
-
-                    <div Style="width:2px; height:16px; background:#e0e0e0; margin:0 auto 4px;"></div>
-
-                    @* === BƯỚC 5: Ast.Chief / Chief === *@
-                    <MudPaper Elevation="0" Class="pa-3 mb-2"
-                              Style="@GetStepStyle("active")">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-2">
-                            <MudAvatar Size="Size.Small"
-                                       Style="background:#059669; color:white; font-size:0.75rem; width:28px; height:28px;">
-                                5
-                            </MudAvatar>
-                            <div>
-                                <MudText Typo="Typo.subtitle2">Ast.Chief / Chief</MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    Kiểm tra &amp; chuyển A.MG/MG
-                                </MudText>
-                            </div>
-                        </MudStack>
-                        <MudSelect T="string" Label="Chọn Ast.Chief / Chief"
-                                   @bind-Value="_model.Lv5ApproveEmail"
-                                   Variant="Variant.Outlined"
-                                   Margin="Margin.Dense"
-                                   Required="true"
-                                   RequiredError="Chọn người duyệt bước 5"
-                                   Dense="true"
-                                   ValueChanged="OnLv5Changed">
-                            @foreach (var a in _approversLv5)
-                            {
-                                <MudSelectItem Value="@a.ApproveLevelEmail">
-                                    @a.ApproveLevelName (@a.DeptCode)
-                                </MudSelectItem>
-                            }
-                        </MudSelect>
-                    </MudPaper>
-
-                    <div Style="width:2px; height:16px; background:#e0e0e0; margin:0 auto 4px;"></div>
-
-                    @* === BƯỚC 6: A.MG / MG === *@
-                    <MudPaper Elevation="0" Class="pa-3 mb-2"
-                              Style="@GetStepStyle("active")">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-2">
-                            <MudAvatar Size="Size.Small"
-                                       Style="background:#d97706; color:white; font-size:0.75rem; width:28px; height:28px;">
-                                6
-                            </MudAvatar>
-                            <div>
-                                <MudText Typo="Typo.subtitle2">A.MG / MG</MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    Quyết định tổ chức OT
-                                </MudText>
-                            </div>
-                        </MudStack>
-                        <MudSelect T="string" Label="Chọn A.MG / MG"
-                                   @bind-Value="_model.Lv6ApproveEmail"
-                                   Variant="Variant.Outlined"
-                                   Margin="Margin.Dense"
-                                   Required="true"
-                                   RequiredError="Chọn người duyệt bước 6"
-                                   Dense="true">
-                            @foreach (var a in _approversLv6)
-                            {
-                                <MudSelectItem Value="@a.ApproveLevelEmail">
-                                    @a.ApproveLevelName
-                                </MudSelectItem>
-                            }
-                        </MudSelect>
-                    </MudPaper>
-
-                    <div Style="width:2px; height:16px; background:#e0e0e0; margin:0 auto 4px;"></div>
-
-                    @* === BƯỚC 7: GM (chỉ khi RequiresGM) === *@
-                    <MudPaper Elevation="0" Class="pa-3 mb-3"
-                              Style="@GetStepStyle(_requiresGM ? "gm-required" : "gm-skip")">
-                        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-2">
-                            <MudAvatar Size="Size.Small"
-                                       Style="@(_requiresGM ? "background:#dc2626;" : "background:#9ca3af;") color:white; font-size:0.75rem; width:28px; height:28px;">
-                                7
-                            </MudAvatar>
-                            <div>
-                                <MudText Typo="Typo.subtitle2">
-                                    GM
-                                    @if (_requiresGM)
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Error"
-                                                 Class="ml-1" Style="height:20px;">Bắt buộc</MudChip>
-                                    }
-                                </MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    @if (_requiresGM)
-                                    {
-                                        @("OT ngày lễ / Tết / từ Ast.Chief trở lên")
-                                    }
-                                    else
-                                    {
-                                        @("Ngày thường → không cần GM")
-                                    }
-                                </MudText>
-                            </div>
-                        </MudStack>
-
-                        @if (_requiresGM)
-                        {
-                            <MudSelect T="string" Label="Chọn GM (*)"
-                                       @bind-Value="_model.Lv7ApproveEmail"
-                                       Variant="Variant.Outlined"
-                                       Margin="Margin.Dense"
-                                       Required="_requiresGM"
-                                       RequiredError="Bắt buộc chọn GM"
-                                       Dense="true">
-                                @foreach (var a in _approversLv7)
-                                {
-                                    <MudSelectItem Value="@a.ApproveLevelEmail">
-                                        @a.ApproveLevelName
-                                    </MudSelectItem>
-                                }
-                            </MudSelect>
-                        }
-                        else
-                        {
-                            <MudText Typo="Typo.caption"
-                                     Style="color:#9ca3af; font-style:italic;">
-                                Không cần duyệt GM cho ca OT này
-                            </MudText>
-                        }
-                    </MudPaper>
-
-                    @* === TỔNG KẾT SỐ GIỜ === *@
-                    @if (_otHourSummary != null)
-                    {
-                        <MudDivider Class="my-2" />
-                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
-                            Tổng giờ OT tháng này (của bạn):
-                        </MudText>
-                        <MudStack Spacing="1">
-                            <MudStack Row="true" Justify="Justify.SpaceBetween">
-                                <MudText Typo="Typo.caption">Đã OT tháng @DateTime.Now.Month:</MudText>
-                                <MudText Typo="Typo.caption">
-                                    <b>@_otHourSummary.UsedThisMonth h</b> / 40h
-                                </MudText>
-                            </MudStack>
-                            <MudProgressLinear Value="@((_otHourSummary.UsedThisMonth / 40.0) * 100)"
-                                               Color="@(_otHourSummary.UsedThisMonth >= 36 ? Color.Error : Color.Primary)"
-                                               Rounded="true" Size="Size.Small" />
-                            <MudStack Row="true" Justify="Justify.SpaceBetween">
-                                <MudText Typo="Typo.caption">Đã OT năm @DateTime.Now.Year:</MudText>
-                                <MudText Typo="Typo.caption">
-                                    <b>@_otHourSummary.UsedThisYear h</b> / 300h
-                                </MudText>
-                            </MudStack>
-                        </MudStack>
-                    }
-
-                </MudPaper>
-            </MudItem>
-
-        </MudGrid>
-
-        @* ===== NÚT HÀNH ĐỘNG ===== *@
-        <MudPaper Elevation="2" Class="pa-3 mt-4" Style="border-radius:12px;">
-            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                <MudButton Variant="Variant.Text"
-                           StartIcon="@Icons.Material.Filled.Cancel"
-                           Color="Color.Default"
-                           OnClick="@(() => _nav.NavigateTo("/ot/list"))">
-                    Hủy bỏ
-                </MudButton>
-
-                <MudStack Row="true" Spacing="2">
-                    @* Nút lưu nháp *@
-                    <MudButton Variant="Variant.Outlined"
-                               StartIcon="@Icons.Material.Filled.Save"
-                               Color="Color.Secondary"
-                               Disabled="_isSaving"
-                               OnClick="@(() => SaveAsync(isDraft: true))">
-                        Lưu nháp
-                    </MudButton>
-
-                    @* Nút gửi *@
-                    <MudButton Variant="Variant.Filled"
-                               StartIcon="@Icons.Material.Filled.Send"
-                               Color="Color.Primary"
-                               Disabled="_isSaving || !_plannedHoursOk || _employees.Count == 0"
-                               OnClick="@(() => SaveAsync(isDraft: false))">
-                        @(_isSaving ? "Đang gửi..." : "Gửi Đăng Ký")
-                    </MudButton>
-                </MudStack>
-            </MudStack>
-
-            @if (_employees.Count == 0)
-            {
-                <MudText Typo="Typo.caption" Color="Color.Error" Class="mt-1">
-                    * Cần có ít nhất 1 nhân viên trong danh sách OT
+                </MudTd>
+                <MudTd>
+                    <MudTextField T="string" @bind-Value="context.Note"
+                                  Placeholder="Ghi chú..."
+                                  Variant="Variant.Text" Margin="Margin.Dense" />
+                </MudTd>
+                <MudTd>
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                   Size="Size.Small" Color="Color.Error"
+                                   OnClick="@(() => RemoveEmployee(context))" />
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="pa-4">
+                    Chưa có nhân viên. Bấm "Thêm nhân viên" để chọn.
                 </MudText>
+            </NoRecordsContent>
+        </MudTable>
+
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+            Tổng: <b>@_model.Employees.Count</b> nhân viên
+            (@_model.Employees.Count(e => e.CvCode == "0003") công nhân /
+             @_model.Employees.Count(e => e.CvCode != "0003") văn phòng)
+        </MudText>
+    </MudStep>
+
+    @* BƯỚC 3 (Bước 3 Sub-leader - chỉ hiện khi có công nhân) + Các approver *@
+    <MudStep Title="Người duyệt" Icon="@Icons.Material.Filled.VerifiedUser">
+        <MudGrid>
+            @* Flow giải thích *@
+            <MudItem xs="12">
+                <MudAlert Severity="Severity.Normal" Dense="true" Class="mb-2">
+                    <b>Luồng duyệt:</b>
+                    @if (_model.HasWorker)
+                    {
+                        <span> Bước 3 (Sub-leader) → </span>
+                    }
+                    <span>Bước 5 (Ast.Chief/Chief) → Bước 6 (A.MG/MG)</span>
+                    @if (_needGM)
+                    {
+                        <span> → Bước 7 (GM)</span>
+                    }
+                </MudAlert>
+            </MudItem>
+
+            @* Level 1 - Sub-leader (chỉ khi có công nhân) *@
+            @if (_model.HasWorker)
+            {
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1" Color="Color.Warning">
+                        <MudIcon Icon="@Icons.Material.Filled.Engineering" Size="Size.Small" Class="mr-1" />
+                        Bước 3 — Sub-leader / Leader <MudChip Size="Size.Small" Color="Color.Error">Bắt buộc (có công nhân)</MudChip>
+                    </MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string" Label="Chọn Sub-leader/Leader (*)"
+                               @bind-Value="_model.Level1ApproveEmail"
+                               Variant="Variant.Outlined" Margin="Margin.Dense"
+                               ToStringFunc="@(e => _approverOptions.FirstOrDefault(a => a.ApproveLevelEmail == e)?.ApproveLevelName ?? e)">
+                        @foreach (var a in _approverOptions.Where(x => x.ApproveLevel == 1))
+                        {
+                            <MudSelectItem Value="@a.ApproveLevelEmail">
+                                @a.ApproveLevelName (@a.RoleName)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
             }
-        </MudPaper>
 
-    </MudForm>
+            @* Level 2 - Ast.Chief / Chief *@
+            <MudItem xs="12">
+                <MudText Typo="Typo.subtitle2" Class="mb-1 mt-2">
+                    <MudIcon Icon="@Icons.Material.Filled.SupervisorAccount" Size="Size.Small" Class="mr-1" />
+                    Bước 5 — Ast. Chief / Chief <MudChip Size="Size.Small" Color="Color.Error">Bắt buộc</MudChip>
+                </MudText>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="string" Label="Chọn Ast.Chief/Chief (*)"
+                           @bind-Value="_model.Level2ApproveEmail"
+                           Variant="Variant.Outlined" Margin="Margin.Dense">
+                    @foreach (var a in _approverOptions.Where(x => x.ApproveLevel == 2))
+                    {
+                        <MudSelectItem Value="@a.ApproveLevelEmail">
+                            @a.ApproveLevelName (@a.RoleName)
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
 
-</MudContainer>
+            @* Level 3 - A.MG / MG *@
+            <MudItem xs="12">
+                <MudText Typo="Typo.subtitle2" Class="mb-1 mt-2">
+                    <MudIcon Icon="@Icons.Material.Filled.ManageAccounts" Size="Size.Small" Class="mr-1" />
+                    Bước 6 — A.MG / MG <MudChip Size="Size.Small" Color="Color.Error">Bắt buộc</MudChip>
+                </MudText>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudSelect T="string" Label="Chọn A.MG/MG (*)"
+                           @bind-Value="_model.Level3ApproveEmail"
+                           Variant="Variant.Outlined" Margin="Margin.Dense">
+                    @foreach (var a in _approverOptions.Where(x => x.ApproveLevel == 3))
+                    {
+                        <MudSelectItem Value="@a.ApproveLevelEmail">
+                            @a.ApproveLevelName (@a.RoleName)
+                        </MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            @* Level 4 - GM (điều kiện) *@
+            @if (_needGM)
+            {
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1 mt-2" Color="Color.Secondary">
+                        <MudIcon Icon="@Icons.Material.Filled.Stars" Size="Size.Small" Class="mr-1" />
+                        Bước 7 — GM
+                        <MudTooltip Text="@_gmReason">
+                            <MudChip Size="Size.Small" Color="Color.Warning">Bắt buộc (@_gmReason)</MudChip>
+                        </MudTooltip>
+                    </MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string" Label="Chọn GM (*)"
+                               @bind-Value="_model.Level4ApproveEmail"
+                               Variant="Variant.Outlined" Margin="Margin.Dense">
+                        @foreach (var a in _approverOptions.Where(x => x.ApproveLevel == 4))
+                        {
+                            <MudSelectItem Value="@a.ApproveLevelEmail">
+                                @a.ApproveLevelName (@a.RoleName)
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+            }
+        </MudGrid>
+    </MudStep>
+
+    @* BƯỚC 4: Xác nhận + Submit *@
+    <MudStep Title="Xác nhận" Icon="@Icons.Material.Filled.CheckCircle">
+        <MudGrid>
+            <MudItem xs="12" sm="6">
+                <MudPaper Elevation="0" Class="pa-4 mud-background-gray rounded">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">📋 Thông tin OT</MudText>
+                    <MudStack Spacing="1">
+                        <MudText Typo="Typo.body2">
+                            <b>Ngày:</b> @_model.OTDate.ToString("dd/MM/yyyy (dddd)")
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            <b>Giờ:</b> @_startTime?.ToString(@"hh\:mm") → @_endTime?.ToString(@"hh\:mm")
+                            (@_model.PlannedHours h)
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            <b>Loại:</b> @OTTypeConst.GetDisplayName(_model.OTType)
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            <b>Lý do:</b> @_model.OTReason
+                        </MudText>
+                        <MudText Typo="Typo.body2">
+                            <b>Nhân viên:</b> @_model.Employees.Count người
+                        </MudText>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" sm="6">
+                <MudPaper Elevation="0" Class="pa-4 mud-background-gray rounded">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">✅ Luồng duyệt</MudText>
+                    <MudTimeline TimelineAlign="TimelineAlign.Start" Dense="true">
+                        @if (_model.HasWorker && !string.IsNullOrEmpty(_model.Level1ApproveName))
+                        {
+                            <MudTimelineItem Color="Color.Warning" Size="Size.Small">
+                                <MudText Typo="Typo.body2">
+                                    <b>Bước 3</b> - @_model.Level1ApproveName (Sub-leader)
+                                </MudText>
+                            </MudTimelineItem>
+                        }
+                        @if (!string.IsNullOrEmpty(_model.Level2ApproveName))
+                        {
+                            <MudTimelineItem Color="Color.Info" Size="Size.Small">
+                                <MudText Typo="Typo.body2">
+                                    <b>Bước 5</b> - @_model.Level2ApproveName (Ast.Chief)
+                                </MudText>
+                            </MudTimelineItem>
+                        }
+                        @if (!string.IsNullOrEmpty(_model.Level3ApproveName))
+                        {
+                            <MudTimelineItem Color="Color.Secondary" Size="Size.Small">
+                                <MudText Typo="Typo.body2">
+                                    <b>Bước 6</b> - @_model.Level3ApproveName (A.MG/MG)
+                                </MudText>
+                            </MudTimelineItem>
+                        }
+                        @if (_needGM && !string.IsNullOrEmpty(_model.Level4ApproveName))
+                        {
+                            <MudTimelineItem Color="Color.Success" Size="Size.Small">
+                                <MudText Typo="Typo.body2">
+                                    <b>Bước 7</b> - @_model.Level4ApproveName (GM)
+                                </MudText>
+                            </MudTimelineItem>
+                        }
+                    </MudTimeline>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" Class="d-flex justify-center mt-4">
+                <MudButton Variant="Variant.Filled" Color="Color.Warning"
+                           Size="Size.Large"
+                           StartIcon="@Icons.Material.Filled.Send"
+                           Disabled="@_isSubmitting"
+                           OnClick="SubmitOT">
+                    @(_isSubmitting ? "Đang gửi..." : "GỬI ĐƠN OT")
+                </MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudStep>
+
+</MudStepper>
 
 @code {
-
-    // ===== STATE =====
-    private MudForm _form = null!;
-    private bool _isFormValid;
-    private bool _isSaving;
-
-    // Model chính
+    private MudStepper? _stepper;
     private CreateOTRequestModel _model = new();
 
-    // Ngày & giờ — dùng riêng để bind DatePicker / TimePicker
-    private DateTime? _otDate = DateTime.Today.AddDays(1);
-    private TimeSpan? _plannedFrom = new TimeSpan(17, 0, 0);
-    private TimeSpan? _plannedTo   = new TimeSpan(21, 0, 0);
+    private DateTime? _otDate = DateTime.Today;
+    private TimeSpan? _startTime;
+    private TimeSpan? _endTime;
+    private bool _isSubmitting;
+    private bool _needGM;
+    private string _gmReason = string.Empty;
+    private string _searchEmp = string.Empty;
 
-    // Nhân viên OT
-    private List<OTEmployeeModel> _employees = new();
-    private bool _showAddEmpPanel;
-    private string _newEmpCode = "";
-    private string _newEmpName = "";
+    // Danh sách approver từ API
+    private List<F03OTApproverOption> _approverOptions = new();
 
-    // Approvers cho từng cấp
-    private List<OTApproverSelectDto> _approversLv3 = new();
-    private List<OTApproverSelectDto> _approversLv4 = new();
-    private List<OTApproverSelectDto> _approversLv5 = new();
-    private List<OTApproverSelectDto> _approversLv6 = new();
-    private List<OTApproverSelectDto> _approversLv7 = new();
+    private IEnumerable<OTEmployeeModel> FilteredEmployees =>
+        string.IsNullOrWhiteSpace(_searchEmp)
+            ? _model.Employees
+            : _model.Employees.Where(e =>
+                e.EmployeeCode.Contains(_searchEmp, StringComparison.OrdinalIgnoreCase) ||
+                (e.EmployeeName?.Contains(_searchEmp, StringComparison.OrdinalIgnoreCase) ?? false));
 
-    // Flags
-    private bool _skipLv3;
-    private bool _requiresGM;
-    private bool _plannedHoursOk = true;
-    private string? _hourWarning;
-    private string? _hourLimitNote;
-
-    // Summary giờ OT hiện tại
-    private OTHourSummaryDto? _otHourSummary;
-
-    // ===== LIFECYCLE =====
     protected override async Task OnInitializedAsync()
     {
-        // Thêm chủ đơn vào danh sách nhân viên mặc định
-        var user = _currentUser.User;
-        if (user != null)
-        {
-            _model.EmployeeCode = user.EmployeeCode;
-            _model.DeptCode     = user.DeptCode ?? "";
-            _model.CvCode       = user.CVCode ?? "";
-            _model.CreatedByEmail = user.Email ?? "";
+        _model.DeptCode = CurrentUser.User?.DeptCode ?? string.Empty;
 
-            _employees.Add(new OTEmployeeModel
-            {
-                EmployeeCode = user.EmployeeCode ?? "",
-                EmployeeName = user.FullName ?? "",
-                DeptCode     = user.DeptCode ?? "",
-                PlannedFrom  = BuildDateTime(_otDate, _plannedFrom),
-                PlannedTo    = BuildDateTime(_otDate, _plannedTo),
-                PlannedHours = CalculateHours(_plannedFrom, _plannedTo)
-            });
-        }
-
-        RecalcHours();
-        await LoadApproversAsync();
-        await LoadHourSummaryAsync();
-    }
-
-    // ===== LOAD APPROVERS =====
-    private async Task LoadApproversAsync()
-    {
+        // Load approvers
         try
         {
-            var deptCode = _currentUser.User?.DeptCode ?? "";
-
-            // Gọi API lấy danh sách approver theo từng cấp
-            // API endpoint: GET /api/OT/approvers?deptCode=XXX&level=3
-            var tasksLv3 = _http.GetAsync<List<OTApproverSelectDto>>(
-                $"api/OT/approvers?deptCode={deptCode}&level=3");
-            var tasksLv4 = _http.GetAsync<List<OTApproverSelectDto>>(
-                $"api/OT/approvers?deptCode={deptCode}&level=4");
-            var tasksLv5 = _http.GetAsync<List<OTApproverSelectDto>>(
-                $"api/OT/approvers?deptCode={deptCode}&level=5");
-            var tasksLv6 = _http.GetAsync<List<OTApproverSelectDto>>(
-                $"api/OT/approvers?level=6");
-            var tasksLv7 = _http.GetAsync<List<OTApproverSelectDto>>(
-                $"api/OT/approvers?level=7");
-
-            await Task.WhenAll(tasksLv3, tasksLv4, tasksLv5, tasksLv6, tasksLv7);
-
-            _approversLv3 = (await tasksLv3).Data ?? new();
-            _approversLv4 = (await tasksLv4).Data ?? new();
-            _approversLv5 = (await tasksLv5).Data ?? new();
-            _approversLv6 = (await tasksLv6).Data ?? new();
-            _approversLv7 = (await tasksLv7).Data ?? new();
+            _approverOptions = await OTService.GetApproversAsync(_model.DeptCode);
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "[OTCreate] LoadApprovers failed");
-            _snackbar.Add("Không thể tải danh sách người duyệt", Severity.Warning);
+            Logger.LogError(ex, "[OT-CREATE] Load approvers failed");
         }
     }
 
-    private async Task LoadHourSummaryAsync()
+    private void RecalculateHours()
     {
-        try
+        if (_startTime.HasValue && _endTime.HasValue && _endTime > _startTime)
         {
-            var empCode = _currentUser.User?.EmployeeCode ?? "";
-            var result  = await _http.GetAsync<OTHourSummaryDto>(
-                $"api/OT/hour-summary?employeeCode={empCode}&year={DateTime.Now.Year}&month={DateTime.Now.Month}");
-
-            if (result.IsSuccess)
-                _otHourSummary = result.Data;
+            _model.PlannedHours = (decimal)(_endTime.Value - _startTime.Value).TotalHours;
+            _model.StartTime = _startTime.Value;
+            _model.EndTime   = _endTime.Value;
         }
-        catch { /* Không bắt buộc */ }
+
+        if (_otDate.HasValue)
+            _model.OTDate = _otDate.Value;
     }
 
-    // ===== EVENT HANDLERS =====
-    private void OnOTDateChanged(DateTime? date)
+    private void RecalculateGM()
     {
-        _otDate = date;
-        // Cập nhật giờ cho tất cả nhân viên
-        foreach (var emp in _employees)
+        var distinctDepts = _model.Employees.Select(e => e.DeptCode).Distinct().Count();
+
+        if (_model.OTType is OTTypeConst.Weekend or OTTypeConst.Holiday)
         {
-            emp.PlannedFrom = BuildDateTime(_otDate, _plannedFrom);
-            emp.PlannedTo   = BuildDateTime(_otDate, _plannedTo);
+            _needGM   = true;
+            _gmReason = "Cuối tuần / Ngày lễ";
         }
-        RecalcHours();
-        CheckRequiresGM();
-    }
-
-    private void OnDayTypeChanged(string dayType)
-    {
-        _model.DayType = dayType;
-        CheckRequiresGM();
-        UpdateHourLimit();
-    }
-
-    private void OnTimeChanged(TimeSpan? _)
-    {
-        RecalcHours();
-        foreach (var emp in _employees)
+        else if (distinctDepts >= 3)
         {
-            emp.PlannedFrom  = BuildDateTime(_otDate, _plannedFrom);
-            emp.PlannedTo    = BuildDateTime(_otDate, _plannedTo);
-            emp.PlannedHours = CalculateHours(_plannedFrom, _plannedTo);
-        }
-    }
-
-    private void OnLv5Changed(string email)
-    {
-        _model.Lv5ApproveEmail = email;
-
-        // Nếu người tạo là Ast.Chief (= chọn chính mình ở Lv5) thì bắt buộc GM
-        var userEmail = _currentUser.User?.Email ?? "";
-        if (!string.IsNullOrEmpty(email) && email == userEmail)
-        {
-            _model.RequiresGM = true;
-            _requiresGM = true;
+            _needGM   = true;
+            _gmReason = "Ngày thường 3 bộ phận trở lên";
         }
         else
         {
-            CheckRequiresGM();
+            _needGM   = false;
+            _gmReason = string.Empty;
         }
-    }
-
-    // ===== EMPLOYEE MANAGEMENT =====
-    private void AddEmployee()
-    {
-        _showAddEmpPanel = true;
-        _newEmpCode = "";
-        _newEmpName = "";
-    }
-
-    private void ConfirmAddEmployee()
-    {
-        if (string.IsNullOrWhiteSpace(_newEmpCode))
-        {
-            _snackbar.Add("Nhập mã nhân viên", Severity.Warning);
-            return;
-        }
-
-        if (_employees.Any(e => e.EmployeeCode == _newEmpCode.Trim()))
-        {
-            _snackbar.Add("Nhân viên này đã có trong danh sách", Severity.Warning);
-            return;
-        }
-
-        _employees.Add(new OTEmployeeModel
-        {
-            EmployeeCode = _newEmpCode.Trim(),
-            EmployeeName = _newEmpName.Trim(),
-            DeptCode     = _currentUser.User?.DeptCode ?? "",
-            PlannedFrom  = BuildDateTime(_otDate, _plannedFrom),
-            PlannedTo    = BuildDateTime(_otDate, _plannedTo),
-            PlannedHours = CalculateHours(_plannedFrom, _plannedTo)
-        });
-
-        _showAddEmpPanel = false;
-        _snackbar.Add($"Đã thêm nhân viên {_newEmpCode}", Severity.Success);
     }
 
     private void RemoveEmployee(OTEmployeeModel emp)
     {
-        // Không xóa chính chủ đơn
-        if (emp.EmployeeCode == _currentUser.User?.EmployeeCode)
-        {
-            _snackbar.Add("Không thể xóa người tạo đơn khỏi danh sách", Severity.Warning);
-            return;
-        }
-        _employees.Remove(emp);
+        _model.Employees.Remove(emp);
+        RecalculateGM();
     }
 
-    // ===== SAVE =====
-    private async Task SaveAsync(bool isDraft)
+    private async Task OpenAddEmployeeDialog()
     {
-        if (!isDraft)
-        {
-            await _form.Validate();
-            if (!_isFormValid) return;
+        // TODO: Mở Dialog chọn nhân viên từ danh sách
+        // Sau khi chọn, gọi _model.Employees.Add(...)
+        // RecalculateGM()
+        Snackbar.Add("Mở dialog chọn nhân viên (cần implement SearchEmployeeDialog)", Severity.Info);
+    }
 
-            if (_employees.Count == 0)
-            {
-                _snackbar.Add("Cần ít nhất 1 nhân viên trong danh sách OT", Severity.Error);
-                return;
-            }
-
-            if (!_plannedHoursOk)
-            {
-                _snackbar.Add(_hourWarning ?? "Số giờ OT vượt giới hạn quy định", Severity.Error);
-                return;
-            }
-
-            // Kiểm tra tự duyệt
-            var userEmail = _currentUser.User?.Email ?? "";
-            var approverEmails = new[] { _model.Lv3ApproveEmail, _model.Lv4ApproveEmail,
-                                         _model.Lv5ApproveEmail, _model.Lv6ApproveEmail,
-                                         _model.Lv7ApproveEmail };
-            if (approverEmails.Any(e => !string.IsNullOrEmpty(e) && e == userEmail))
-            {
-                _snackbar.Add("Không thể chọn chính mình làm người phê duyệt", Severity.Error);
-                return;
-            }
-        }
-
-        _isSaving = true;
-
+    private async Task LoadAllDeptEmployees()
+    {
         try
         {
-            // Build model
-            _model.OTDate        = _otDate ?? DateTime.Today;
-            _model.PlannedFrom   = BuildDateTime(_otDate, _plannedFrom);
-            _model.PlannedTo     = BuildDateTime(_otDate, _plannedTo);
-            _model.PlannedHours  = CalculateHours(_plannedFrom, _plannedTo);
-            _model.RequiresGM    = _requiresGM;
-            _model.Lv3Skip       = _skipLv3;
-            _model.WorkYear      = (_otDate ?? DateTime.Today).Year;
-            _model.Employees     = _employees;
-            _model.RequestStatus = isDraft ? "Draft" : "Pending";
+            var result = await OTService.GetDeptEmployeesAsync(_model.DeptCode);
+            foreach (var emp in result)
+            {
+                if (!_model.Employees.Any(e => e.EmployeeCode == emp.EmployeeCode))
+                    _model.Employees.Add(emp);
+            }
+            RecalculateGM();
+            Snackbar.Add($"Đã thêm {result.Count} nhân viên từ bộ phận.", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Không thể tải danh sách nhân viên.", Severity.Error);
+        }
+    }
 
-            var endpoint = isDraft ? "api/OT/save-draft" : "api/OT/create";
-            var result   = await _http.PostAsync<object>(endpoint, _model);
+    private async Task SubmitOT()
+    {
+        RecalculateHours();
 
+        if (_model.Employees.Count == 0)
+        {
+            Snackbar.Add("Vui lòng thêm ít nhất 1 nhân viên.", Severity.Warning);
+            return;
+        }
+
+        _isSubmitting = true;
+        try
+        {
+            var result = await OTService.CreateOTAsync(_model);
             if (result.IsSuccess)
             {
-                _snackbar.Add(
-                    isDraft ? "Đã lưu nháp thành công!" : "Đã gửi đơn OT thành công!",
-                    Severity.Success);
-                _nav.NavigateTo("/ot/list");
+                Snackbar.Add($"✅ {result.Message}", Severity.Success);
+                Nav.NavigateTo("/ot/history");
             }
             else
             {
-                _snackbar.Add(result.Message ?? "Lỗi khi lưu đơn OT", Severity.Error);
+                Snackbar.Add($"❌ {result.Message}", Severity.Error);
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "[OTCreate] SaveAsync failed");
-            _snackbar.Add("Lỗi hệ thống — không thể lưu đơn OT", Severity.Error);
+            Logger.LogError(ex, "[OT-CREATE] Submit failed");
+            Snackbar.Add("Lỗi kết nối máy chủ.", Severity.Error);
         }
         finally
         {
-            _isSaving = false;
+            _isSubmitting = false;
         }
     }
 
-    // ===== HELPERS =====
-
-    /// <summary>Tính giờ OT và làm tròn 15 phút theo quy định</summary>
-    private decimal CalculateHours(TimeSpan? from, TimeSpan? to)
+    // Helper class để hiện trong select
+    public class F03OTApproverOption
     {
-        if (from == null || to == null) return 0;
-
-        var diff = to.Value - from.Value;
-        if (diff.TotalMinutes <= 0) return 0;
-
-        // Làm tròn xuống bội số 15 phút
-        var totalMinutes = (int)(diff.TotalMinutes / 15) * 15;
-        return Math.Round((decimal)totalMinutes / 60, 2);
+        public int ApproveLevel { get; set; }
+        public string? RoleName { get; set; }
+        public string ApproveLevelCode { get; set; } = string.Empty;
+        public string ApproveLevelName { get; set; } = string.Empty;
+        public string ApproveLevelEmail { get; set; } = string.Empty;
     }
-
-    private void RecalcHours()
-    {
-        var hours = CalculateHours(_plannedFrom, _plannedTo);
-        _model.PlannedHours = hours;
-        ValidateHourLimit(hours);
-    }
-
-    /// <summary>Validate giới hạn giờ theo QĐ-HC-03</summary>
-    private void ValidateHourLimit(decimal hours)
-    {
-        var maxPerDay = _model.DayType == "Normal" ? 4m : 12m;
-        _hourLimitNote = $"Giới hạn: {maxPerDay}h/ngày · 40h/tháng · 300h/năm";
-
-        if (hours <= 0)
-        {
-            _plannedHoursOk = false;
-            _hourWarning = "Giờ kết thúc phải sau giờ bắt đầu.";
-            return;
-        }
-
-        if (hours > maxPerDay)
-        {
-            _plannedHoursOk = false;
-            _hourWarning = $"Vượt giới hạn {maxPerDay}h/ngày " +
-                           $"({'ngày ' + (_model.DayType == "Normal" ? "thường" : "nghỉ/lễ/Tết")}).";
-            return;
-        }
-
-        // Kiểm tra tháng (nếu đã load summary)
-        if (_otHourSummary != null)
-        {
-            var projected = _otHourSummary.UsedThisMonth + hours;
-            if (projected > 40)
-            {
-                _plannedHoursOk = false;
-                _hourWarning = $"Cộng thêm {hours}h sẽ vượt 40h/tháng " +
-                               $"(hiện tại: {_otHourSummary.UsedThisMonth}h).";
-                return;
-            }
-
-            projected = _otHourSummary.UsedThisYear + hours;
-            if (projected > 300)
-            {
-                _plannedHoursOk = false;
-                _hourWarning = $"Cộng thêm {hours}h sẽ vượt 300h/năm " +
-                               $"(hiện tại: {_otHourSummary.UsedThisYear}h).";
-                return;
-            }
-        }
-
-        _plannedHoursOk = true;
-        _hourWarning    = null;
-    }
-
-    private void CheckRequiresGM()
-    {
-        // GM bắt buộc nếu OT ngày nghỉ/lễ/Tết
-        _requiresGM = _model.DayType != "Normal";
-        _model.RequiresGM = _requiresGM;
-    }
-
-    private void UpdateHourLimit()
-    {
-        RecalcHours();
-    }
-
-    private DateTime BuildDateTime(DateTime? date, TimeSpan? time)
-    {
-        var d = date ?? DateTime.Today;
-        var t = time ?? TimeSpan.Zero;
-        return d.Date + t;
-    }
-
-    private string GetStepStyle(string state) => state switch
-    {
-        "active"      => "background:#f8f9ff; border:1px solid #e0e7ff; border-radius:8px;",
-        "skip"        => "background:#fffbeb; border:1px solid #fde68a; border-radius:8px; opacity:0.75;",
-        "gm-required" => "background:#fff5f5; border:1.5px solid #fca5a5; border-radius:8px;",
-        "gm-skip"     => "background:#f9fafb; border:1px dashed #d1d5db; border-radius:8px; opacity:0.6;",
-        _             => "background:#f9fafb; border:1px solid #e5e7eb; border-radius:8px;"
-    };
 }
