@@ -1,0 +1,105 @@
+﻿@* ============================================================
+   ApproverPicker.razor
+   Autocomplete chọn người ký cho từng bước OT.
+   Nhận List<OTApproverSelectDto>, bind SelectedEmail + SelectedName.
+   ============================================================ *@
+
+@* File: FVN_REGISTER.Shared/Components/OT/ApproverPicker.razor *@
+
+@using FVN_REGISTER.Contract.Dtos.OT
+@using FVN_REGISTER.Contract.ViewModels.OT
+
+<MudAutocomplete T="OTApproverSelectDto"
+                 Value="_selectedItem"
+                 ValueChanged="OnSelected"
+                 SearchFunc="SearchApprovers"
+                 Label="@Placeholder"
+                 ToStringFunc="@(a => a?.DisplayText ?? string.Empty)"
+                 Variant="Variant.Outlined"
+                 Margin="Margin.Dense"
+                 ResetValueOnEmptyText="true"
+                 CoerceText="true"
+                 CoerceValue="false"
+                 Dense="true"
+                 AdornmentIcon="@Icons.Material.Filled.PersonSearch"
+                 AdornmentColor="Color.Primary"
+                 NoItemsFoundText="Không tìm thấy"
+                 MinCharacters="0"
+                 ShowProgressIndicator="true">
+    <ItemTemplate Context="item">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+            <MudAvatar Color="Color.Primary" Size="Size.Small"
+                       Style="width:24px;height:24px;font-size:0.72rem">
+                @item.FullName.FirstOrDefault()
+            </MudAvatar>
+            <div>
+                <MudText Typo="Typo.body2">@item.FullName</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@item.Email</MudText>
+            </div>
+        </MudStack>
+    </ItemTemplate>
+</MudAutocomplete>
+
+@if (!string.IsNullOrEmpty(SelectedEmail))
+{
+    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mt-1 ml-1" Spacing="1">
+        <MudIcon Icon="@Icons.Material.Filled.CheckCircle"
+                 Color="Color.Success" Size="Size.Small" />
+        <MudText Typo="Typo.caption" Color="Color.Success">
+            @SelectedName (@SelectedEmail)
+        </MudText>
+        <MudIconButton Icon="@Icons.Material.Filled.Clear"
+                       Size="Size.Small" Color="Color.Error"
+                       OnClick="Clear" />
+    </MudStack>
+}
+
+@code {
+    [Parameter] public List<OTApproverSelectDto> Approvers { get; set; } = new();
+    [Parameter] public string? SelectedEmail { get; set; }
+    [Parameter] public string? SelectedName { get; set; }
+    [Parameter] public EventCallback<string?> SelectedEmailChanged { get; set; }
+    [Parameter] public EventCallback<string?> SelectedNameChanged { get; set; }
+    [Parameter] public string Placeholder { get; set; } = "Chọn người ký";
+    [Parameter] public EventCallback OnChanged { get; set; }
+
+    private OTApproverSelectDto? _selectedItem;
+
+    protected override void OnParametersSet()
+    {
+        // Sync lại nếu email được set từ bên ngoài
+        if (!string.IsNullOrEmpty(SelectedEmail) && _selectedItem == null)
+        {
+            _selectedItem = Approvers.FirstOrDefault(a =>
+                string.Equals(a.Email, SelectedEmail, StringComparison.OrdinalIgnoreCase));
+        }
+    }
+
+    private async Task<IEnumerable<OTApproverSelectDto>> SearchApprovers(
+        string value, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+            return Approvers;
+
+        return Approvers.Where(a =>
+            a.FullName.Contains(value, StringComparison.OrdinalIgnoreCase) ||
+            a.Email.Contains(value, StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task OnSelected(OTApproverSelectDto? item)
+    {
+        _selectedItem = item;
+
+        await SelectedEmailChanged.InvokeAsync(item?.Email);
+        await SelectedNameChanged.InvokeAsync(item?.FullName);
+        await OnChanged.InvokeAsync();
+    }
+
+    private async Task Clear()
+    {
+        _selectedItem = null;
+        await SelectedEmailChanged.InvokeAsync(null);
+        await SelectedNameChanged.InvokeAsync(null);
+        await OnChanged.InvokeAsync();
+    }
+}
