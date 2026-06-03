@@ -64,6 +64,10 @@ namespace FVN_REGISTER.Contract.ViewModels.OT
         // Trạng thái: "Pending" | "Draft"
         public string RequestStatus { get; set; } = "Pending";
 
+
+        public string ErrorMessage { get; set; } = string.Empty;
+        public bool HasError { get; set; }
+
         // Danh sách nhân viên trong ca OT
         public List<OTEmployeeModel> Employees { get; set; } = new();
     }
