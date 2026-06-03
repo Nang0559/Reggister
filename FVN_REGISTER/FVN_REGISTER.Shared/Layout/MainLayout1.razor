@@ -1,11 +1,10 @@
-﻿@* File: FVN_REGISTER/FVN_REGISTER.Shared/Layout/MainLayout.razor *@
-@using FVN_REGISTER.Shared.Services.Users
+﻿@using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils
 @using FVN_REGISTER.Shared.Utils.Helpers
 @using FVN_REGISTER.Core.Logging
 @inherits AppLayoutBase
-@implements IDisposable
-
+@implements IAsyncDisposable
+@inject IJSRuntime JS
 @inject IAuthClientService _authService
 @inject ISnackbar _snackbar
 @inject ICurrentUserClientService _user
@@ -14,7 +13,6 @@
 
 <MudLayout>
     <MudPopoverProvider />
-
     @if (_isLoading)
     {
         <div class="d-flex vh-100 align-center justify-center">
@@ -23,30 +21,22 @@
     }
     else
     {
-        @* ===== APP BAR: luôn hiển thị ===== *@
         <MudAppBar Elevation="1" Color="Color.Primary">
+            <MudIconButton Icon="@Icons.Material.Filled.Menu"
+                           OnClick="DrawerToggle" />
 
-            @* Nút menu: CHỈ hiện với Approver / Admin *@
-            @if (!_isNormalUser)
-            {
-                <MudIconButton Icon="@Icons.Material.Filled.Menu"
-                               OnClick="DrawerToggle"
-                               Color="Color.Inherit" />
-            }
-            else
-            {
-                @* Nhân viên: hiện logo thay vì nút menu *@
-                <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing"
-                         Style="margin-right: 8px;" />
-            }
-
-            <MudText Typo="Typo.h6" Class="@(_isNormalUser ? "" : "ml-1")">
+            <MudText Typo="Typo.h6" Class="ml-3">
                 FCC Smart Portal
             </MudText>
 
             <MudSpacer />
 
-            @* ===== USER MENU: luôn hiển thị ===== *@
+            @* ✅ NotificationBadge đặt trong AppBar, trước Menu user *@
+            @if (!string.IsNullOrEmpty(_deviceId))
+            {
+                <NotificationBadge DeviceId="@_deviceId" />
+            }
+
             <MudMenu Label="@(_user.User?.FullName ?? "Nhân viên FCC")"
                      Variant="Variant.Text"
                      Color="Color.Inherit"
@@ -71,7 +61,6 @@
                         </MudStack>
                     </div>
                     <MudDivider />
-
                     <MudMenuItem Icon="@Icons.Material.Filled.PersonOutline"
                                  OnClick="@(() => _nav.NavigateTo("/profile"))">
                         Hồ sơ của tôi
@@ -80,21 +69,6 @@
                                  OnClick="@(() => _nav.NavigateTo("/change-password"))">
                         Đổi mật khẩu
                     </MudMenuItem>
-
-                    @* Nhân viên thường: thêm các lối tắt trong menu *@
-                    @if (_isNormalUser)
-                    {
-                        <MudDivider />
-                        <MudMenuItem Icon="@Icons.Material.Filled.EventAvailable"
-                                     OnClick="@(() => _nav.NavigateTo("/leave/create"))">
-                            Đăng ký nghỉ phép
-                        </MudMenuItem>
-                        <MudMenuItem Icon="@Icons.Material.Filled.History"
-                                     OnClick="@(() => _nav.NavigateTo("/leave/history"))">
-                            Lịch sử đơn của tôi
-                        </MudMenuItem>
-                    }
-
                     <MudDivider />
                     <MudMenuItem Icon="@Icons.Material.Filled.Logout"
                                  IconColor="Color.Error"
@@ -103,21 +77,14 @@
                     </MudMenuItem>
                 </ChildContent>
             </MudMenu>
-
         </MudAppBar>
 
-        @* ===== SIDEBAR: CHỈ hiện với Approver / Admin ===== *@
-        @if (!_isNormalUser)
-        {
-            <MudDrawer @bind-Open ="_drawerOpen" Elevation="1">
-                <NavMenu />
-            </MudDrawer>
-        }
+        <MudDrawer @bind-Open="_drawerOpen">
+            <NavMenu />
+        </MudDrawer>
 
-        @* ===== MAIN CONTENT ===== *@
         <MudMainContent>
-            <MudContainer MaxWidth="@(_isNormalUser? MaxWidth.ExtraLarge: MaxWidth.ExtraLarge)"
-                          Class="my-4">
+            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">
                 @Body
             </MudContainer>
         </MudMainContent>
@@ -127,31 +94,28 @@
 @code {
     private bool _drawerOpen = true;
     private bool _isLoading = true;
-    private bool _isNormalUser = false;
+    private bool _isDisposed = false;        // ✅ khai báo thiếu
+    private string _deviceId = string.Empty;
 
-    protected override async Task OnInitializedAsync()
+   protected override async Task OnInitializedAsync()
     {
         try
         {
             _isLoading = true;
-            Logger.LogInfoIf(Debug, "[{Component}] Starting initialization...", ComponentName);
 
             var authState = await _authStateProvider.GetAuthenticationStateAsync();
             if (authState.User.Identity is not { IsAuthenticated: true })
             {
-                Logger.LogWarnIf(Debug, "[{Component}] Not authenticated, redirecting...", ComponentName);
                 _nav.NavigateTo("/login");
                 return;
             }
 
+            // ✅ Phải await xong InitializeAsync trước khi _isLoading = false
+            // Vì NotificationBadge cần CurrentUser.User?.Token
             await _user.InitializeAsync();
 
-@* Xác định role ngay trong layout để ẩn/hiện sidebar *@
-            _isNormalUser = UserRoleHelper.IsNormalUser(_user.User?.PermissionCode);
-
-            Logger.LogInfoIf(Debug,
-                "[{Component}] Init done. User={UserId}, IsNormalUser={Flag}",
-                ComponentName, _user.User?.UserId, _isNormalUser);
+            Logger.LogInfoIf(Debug, "[{Component}] Initialized: {UserId}", 
+                ComponentName, _user.User?.UserId);
         }
         catch (Exception ex)
         {
@@ -159,7 +123,45 @@
         }
         finally
         {
-            _isLoading = false;
+            _isLoading = false; // ✅ Chỉ false SAU KHI user đã có token
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _isDisposed) return;
+
+        try
+        {
+            var stored = await JS.InvokeAsync<string?>("localStorage.getItem", "fvn_device_id");
+
+            if (_isDisposed) return;
+
+            if (string.IsNullOrEmpty(stored))
+            {
+                stored = $"web-{Guid.NewGuid():N}";
+
+                if (!_isDisposed)
+                    await JS.InvokeVoidAsync("localStorage.setItem", "fvn_device_id", stored);
+            }
+
+            if (!_isDisposed)
+            {
+                _deviceId = stored ?? string.Empty;
+                StateHasChanged();
+            }
+        }
+        catch (JSDisconnectedException)
+        {
+            // Circuit dispose → bình thường
+        }
+        catch (OperationCanceledException)
+        {
+            // User navigate đi → bình thường
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[{Component}] DeviceId init failed", ComponentName);
         }
     }
 
@@ -172,5 +174,10 @@
 
     void DrawerToggle() => _drawerOpen = !_drawerOpen;
 
-    public void Dispose() { }
+    // ✅ Chỉ dùng IAsyncDisposable, xóa IDisposable
+    public async ValueTask DisposeAsync()
+    {
+        _isDisposed = true;
+        await Task.CompletedTask;
+    }
 }

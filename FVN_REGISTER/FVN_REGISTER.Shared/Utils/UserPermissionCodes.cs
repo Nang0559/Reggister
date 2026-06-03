@@ -1,5 +1,8 @@
 ﻿
 
+// File: FVN_REGISTER/FVN_REGISTER.Shared/Utils/UserPermissionCodes.cs
+// THAY THẾ file cũ bằng file này — chỉ thêm method IsNormalUser
+
 namespace FVN_REGISTER.Shared.Utils
 {
     public static class UserPermissionCodes
@@ -12,16 +15,23 @@ namespace FVN_REGISTER.Shared.Utils
 
     public static class UserRoleHelper
     {
-        // Nhận vào int? thay vì string?
         public static bool IsSuperAdmin(this int? code)
             => code == UserPermissionCodes.SuperAdmin;
 
         public static bool IsAdmin(this int? code)
-            => code == UserPermissionCodes.SuperAdmin || code == UserPermissionCodes.Admin;
+            => code == UserPermissionCodes.SuperAdmin
+            || code == UserPermissionCodes.Admin;
 
         public static bool IsApprover(this int? code)
-            => code == UserPermissionCodes.SuperAdmin ||
-               code == UserPermissionCodes.Admin ||
-               code == UserPermissionCodes.Approver;
+            => code == UserPermissionCodes.SuperAdmin
+            || code == UserPermissionCodes.Admin
+            || code == UserPermissionCodes.Approver;
+
+        /// <summary>
+        /// Nhân viên thường: chỉ có quyền User (code = 5).
+        /// Những role này sẽ thấy UserDashboard dạng widget, không có sidebar.
+        /// </summary>
+        public static bool IsNormalUser(this int? code)
+            => code == UserPermissionCodes.User;
     }
 }

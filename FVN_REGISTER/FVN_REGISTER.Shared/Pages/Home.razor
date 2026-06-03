@@ -1,9 +1,12 @@
-﻿@page "/"
+﻿@* File: FVN_REGISTER/FVN_REGISTER.Shared/Pages/Home.razor *@
+@page "/"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Contract.Utils
 @using FVN_REGISTER.Shared.Components
 @using FVN_REGISTER.Shared.Services.Dashboards
 @using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Utils
 @using FVN_REGISTER.Shared.Utils.Helpers
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
@@ -18,43 +21,71 @@
 
 @if (_isLoading)
 {
-    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-7" />
-}
-else if (_model != null)
-{
-    <MudText Typo="Typo.h5" Class="mb-4">
-        Chào mừng, @(CurrentUserService.User?.FullName ?? "Cán bộ FCC")!
-    </MudText>
-
-    <DashboardOverview Data="_model" />
+    <div style="padding: 24px 0;">
+        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="120px" Class="mb-4" Style="border-radius: 16px;" />
+        <MudGrid Spacing="3" Class="mb-4">
+            <MudItem xs="4"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="80px" Style="border-radius: 12px;" /></MudItem>
+            <MudItem xs="4"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="80px" Style="border-radius: 12px;" /></MudItem>
+            <MudItem xs="4"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="80px" Style="border-radius: 12px;" /></MudItem>
+        </MudGrid>
+        <MudGrid Spacing="3">
+            @for (int i = 0; i < 6; i++)
+            {
+                <MudItem xs="6" sm="4" md="3">
+                    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="100px" Style="border-radius: 14px;" />
+                </MudItem>
+            }
+        </MudGrid>
+    </div>
 }
 else
 {
-    <MudAlert Severity="Severity.Info">Không có dữ liệu hiển thị hoặc phiên làm việc hết hạn.</MudAlert>
+    @* ===== PHÂN LUỒNG THEO ROLE ===== *@
+
+    @if (_isNormalUser)
+    {
+        @* Nhân viên thường: hiển thị UserDashboard dạng widget, KHÔNG có sidebar *@
+        <UserDashboard Balance="_balance" RecentRequests="_recentRequests" />
+    }
+    else if (_model != null)
+    {
+        @* Approver / Admin / HR: hiển thị DashboardOverview với đầy đủ số liệu *@
+        <MudText Typo="Typo.h5" Class="mb-4">
+            Chào mừng, @(CurrentUserService.User?.FullName ?? "Cán bộ FCC")!
+        </MudText>
+        <DashboardOverview Data="_model" />
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Info">
+            Không có dữ liệu hiển thị hoặc phiên làm việc hết hạn.
+        </MudAlert>
+    }
 }
 
 @code {
     private DashboardViewModel? _model;
     private bool _isLoading = true;
+    private bool _isNormalUser = false;
     private CancellationTokenSource _cts = new();
+
+    @* Dữ liệu riêng cho UserDashboard *@
+    private FVN_REGISTER.Contract.Dtos.LeaveBalanceDto? _balance;
+    private List<FVN_REGISTER.Contract.Dtos.RecentLeaveRequestDto>? _recentRequests;
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
             _isLoading = true;
+            Logger.LogInfoIf(Debug, "[{Component}] Bắt đầu tải Dashboard...", ComponentName);
 
-            // Sử dụng Logger và Debug từ AppBase
-            Logger.LogInfoIf(Debug, "[{Component}] Bắt đầu tải dữ liệu Dashboard...", ComponentName);
-
-            // 1. Kiểm tra User đã sẵn sàng chưa
             if (!CurrentUserService.IsLoggedIn)
             {
                 Logger.LogDebugIf(Debug, "[{Component}] User chưa init, đang chạy InitializeAsync", ComponentName);
                 await CurrentUserService.InitializeAsync();
             }
 
-            // 2. Nếu vẫn không có User (lỗi Token/API) -> Dừng
             if (!CurrentUserService.IsLoggedIn)
             {
                 Logger.LogWarnIf(Debug, "[{Component}] Không thể xác thực User sau khi init", ComponentName);
@@ -62,29 +93,73 @@ else
                 return;
             }
 
-            // 3. Gọi API Dashboard
-            var result = await DashboardService.GetDashboardDataAsync(_cts.Token);
+            @* Kiểm tra xem có phải nhân viên thường không *@
+            _isNormalUser = UserRoleHelper.IsNormalUser(CurrentUserService.PermissionCode);
 
-            if (result.IsSuccess)
+            Logger.LogInfoIf(Debug, "[{Component}] Role={Code}, IsNormalUser={Flag}",
+                ComponentName, CurrentUserService.PermissionCode, _isNormalUser);
+
+            if (_isNormalUser)
             {
-                _model = result.Data;
-                Logger.LogInfoIf(Debug, "[{Component}] Tải dữ liệu thành công", ComponentName);
+                @* Nhân viên: chỉ cần load số dư phép + lịch sử gần đây (nhẹ hơn nhiều) *@
+                await LoadUserDashboardAsync();
             }
-            else if (!result.IsUnauthorized)
+            else
             {
-                Logger.LogWarnIf(Debug, "[{Component}] Lỗi API: {Msg}", ComponentName, result.Message);
-                Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
+                @* Approver / Admin: load đầy đủ dashboard *@
+                await LoadManagerDashboardAsync();
             }
         }
         catch (Exception ex)
         {
-            // Tận dụng Logger hệ thống thay vì Console
-            Logger.LogError(ex, "[{Component}] Lỗi nghiêm trọng tại trang Home", ComponentName);
+            Logger.LogError(ex, "[{Component}] Lỗi tại trang Home", ComponentName);
             Snackbar.Add($"Hệ thống gặp sự cố: {ex.Message}", Severity.Error);
         }
         finally
         {
             _isLoading = false;
+        }
+    }
+
+    @* Load nhẹ cho nhân viên thường *@
+    private async Task LoadUserDashboardAsync()
+    {
+        try
+        {
+            var result = await DashboardService.GetDashboardDataAsync(_cts.Token);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                _balance = result.Data.PersonalBalance;
+                _recentRequests = result.Data.RecentRequests;
+            }
+            else if (!result.IsUnauthorized)
+            {
+                Logger.LogWarnIf(Debug, "[{Component}] Lỗi API User Dashboard: {Msg}",
+                    ComponentName, result.Message);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[{Component}] LoadUserDashboard error", ComponentName);
+        }
+    }
+
+    @* Load đầy đủ cho Approver / Admin *@
+    private async Task LoadManagerDashboardAsync()
+    {
+        var result = await DashboardService.GetDashboardDataAsync(_cts.Token);
+
+        if (result.IsSuccess)
+        {
+            _model = result.Data;
+            Logger.LogInfoIf(Debug, "[{Component}] Tải Manager Dashboard thành công", ComponentName);
+        }
+        else if (!result.IsUnauthorized)
+        {
+            Logger.LogWarnIf(Debug, "[{Component}] Lỗi Manager Dashboard: {Msg}",
+                ComponentName, result.Message);
+            Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
         }
     }
 
