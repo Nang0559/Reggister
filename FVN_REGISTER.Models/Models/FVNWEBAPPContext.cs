@@ -104,6 +104,8 @@ public partial class FVNWEBAPPContext : DbContext
     public virtual DbSet<VwShiftCheckInOut> VwShiftCheckInOuts { get; set; }
     public virtual DbSet<UserSession> UserSessions { get; set; }
     public virtual DbSet<AppNotification> AppNotifications { get; set; }
+    public virtual DbSet<F03OTRequest> F03OTRequests { get; set; }
+    public virtual DbSet<F03OTEmployee> F03OTEmployees { get; set; }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
         => optionsBuilder.UseSqlServer("Data Source=192.168.200.10\\WEBAPPDB;Initial Catalog=FVNWEBAPP;User ID=sa;Password=Fcc@dmin;TrustServerCertificate=True;MultipleActiveResultSets=True");
@@ -1236,6 +1238,29 @@ public partial class FVNWEBAPPContext : DbContext
             entity.Property(e => e.ReadAt).HasColumnType("datetime");
         });
         OnModelCreatingPartial(modelBuilder);
+        modelBuilder.Entity<F03OTRequest>(entity =>
+        {
+            entity.ToTable("F03OTRequest");
+            entity.Property(e => e.OTDate).HasColumnType("date");
+            entity.Property(e => e.TotalHours).HasColumnType("decimal(5,2)");
+            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
+            entity.Property(e => e.ModifiedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
+            entity.Property(e => e.OTType).HasMaxLength(20).HasDefaultValue("Normal");
+            entity.Property(e => e.RequestStatus).HasMaxLength(50).HasDefaultValue("Pending");
+            entity.Property(e => e.DeptCode).HasMaxLength(30);
+        });
+
+        modelBuilder.Entity<F03OTEmployee>(entity =>
+        {
+            entity.ToTable("F03OTEmployee");
+            entity.Property(e => e.PlannedHours).HasColumnType("decimal(5,2)");
+            entity.Property(e => e.ActualHours).HasColumnType("decimal(5,2)");
+            entity.Property(e => e.EmployeeCode).HasMaxLength(30);
+            entity.HasOne(e => e.OTRequest)
+                  .WithMany(r => r.Employees)
+                  .HasForeignKey(e => e.OTRequestId)
+                  .HasConstraintName("FK_F03OTEmployee_F03OTRequest");
+        });
     }
 
     partial void OnModelCreatingPartial(ModelBuilder modelBuilder);

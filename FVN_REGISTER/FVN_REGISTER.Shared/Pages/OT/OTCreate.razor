@@ -1,0 +1,562 @@
+﻿@page "/ot/create"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos
+@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Shared.Services.OT
+@using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Utils.Helpers
+@using Microsoft.AspNetCore.Authorization
+@using FVN_REGISTER.Core.Logging
+@inherits AppComponentBase
+
+@inject IOTClientService     _otService
+@inject ICurrentUserClientService _currentUser
+@inject ISnackbar            _snackbar
+@inject NavigationManager    _nav
+
+<PageTitle>Đăng ký làm thêm giờ (OT)</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-1">
+    <MudIcon Icon="@Icons.Material.Filled.AccessTime" Class="mr-2"/>
+    Đăng ký làm thêm giờ (OT)
+</MudText>
+<MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-4">
+    Bộ phận: @(_deptName ?? _deptCode) — Giới hạn: 40h/tuần · 300h/năm
+</MudText>
+
+@if (_isLoadingEmps)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-4"/>
+}
+
+<MudGrid Spacing="3">
+
+    <!-- ===== THÔNG TIN CHUNG ===== -->
+    <MudItem xs="12" md="5">
+        <MudPaper Elevation="2" Class="pa-4" Style="border-radius:12px;">
+            <MudText Typo="Typo.subtitle1" Class="mb-3" Style="font-weight:600">
+                Thông tin chung
+            </MudText>
+
+            <MudDatePicker Label="Ngày OT *"
+                           @bind-Date="_otDatePicker"
+                           DateFormat="dd/MM/yyyy"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense"
+                           Class="mb-3"
+                           Required="true"
+                           DateChanged="OnDateChanged"/>
+
+            <MudSelect T="string" Label="Loại ngày"
+                       @bind-Value="_model.OTType"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Class="mb-3">
+                <MudSelectItem Value="@("Normal")">📅 Ngày thường</MudSelectItem>
+                <MudSelectItem Value="@("Weekend")">📅 Ngày nghỉ tuần (T7/CN)</MudSelectItem>
+                <MudSelectItem Value="@("Holiday")">🎌 Ngày lễ</MudSelectItem>
+            </MudSelect>
+
+            <MudTextField T="string"
+                          Label="Lý do OT chung"
+                          @bind-Value="_model.Reason"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Lines="3"
+                          Class="mb-1"/>
+        </MudPaper>
+    </MudItem>
+
+    <!-- ===== CHỌN NHÂN VIÊN TỪ BỘ PHẬN ===== -->
+    <MudItem xs="12" md="7">
+        <MudPaper Elevation="2" Class="pa-4" Style="border-radius:12px; height:100%;">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+                <MudText Typo="Typo.subtitle1" Style="font-weight:600">
+                    Nhân viên trong bộ phận
+                </MudText>
+                <MudSpacer/>
+                <MudTextField T="string"
+                              @bind-Value="_searchText"
+                              Placeholder="Tìm tên / mã NV..."
+                              Adornment="Adornment.Start"
+                              AdornmentIcon="@Icons.Material.Filled.Search"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Style="max-width:220px"/>
+                <MudButton Size="Size.Small"
+                           Variant="Variant.Outlined"
+                           OnClick="SelectAll">
+                    Chọn tất cả
+                </MudButton>
+                <MudButton Size="Size.Small"
+                           Variant="Variant.Text"
+                           OnClick="DeselectAll">
+                    Bỏ chọn
+                </MudButton>
+            </MudStack>
+
+            @if (_allEmployees.Count == 0 && !_isLoadingEmps)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    Không có nhân viên trong bộ phận.
+                </MudAlert>
+            }
+            else
+            {
+                <MudList T="string" Dense="true"
+                         Style="max-height:260px; overflow-y:auto; border:1px solid var(--mud-palette-lines-default); border-radius:8px;">
+                    @foreach (var emp in FilteredEmployees)
+                    {
+                        var isSelected = _selectedCodes.Contains(emp.EmployeeCode);
+                        <MudListItem T="string"
+                                     Style="@(isSelected ? "background:var(--mud-palette-primary-lighten);cursor:pointer" : "cursor:pointer")"
+                                     OnClick="@(() => ToggleEmployee(emp))">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                <MudCheckBox T="bool"
+                                             Value="isSelected"
+                                             Color="Color.Primary"
+                                             Dense="true"
+                                             StopClickPropagation="true"
+                                             ValueChanged="@(_ => ToggleEmployee(emp))"/>
+                                <div>
+                                    <MudText Typo="Typo.body2"
+                                             Style="@(isSelected ? "font-weight:600" : "")">
+                                        @emp.EmployeeName
+                                    </MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                        @emp.EmployeeCode
+                                    </MudText>
+                                </div>
+                            </MudStack>
+                        </MudListItem>
+                    }
+                </MudList>
+
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                    Đã chọn @_selectedCodes.Count / @_allEmployees.Count nhân viên
+                </MudText>
+            }
+        </MudPaper>
+    </MudItem>
+
+    <!-- ===== BẢNG THIẾT LẬP GIỜ OT ===== -->
+    @if (_model.Employees.Count > 0)
+    {
+        <MudItem xs="12">
+            <MudPaper Elevation="2" Class="pa-4" Style="border-radius:12px;">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+                    <MudText Typo="Typo.subtitle1" Style="font-weight:600">
+                        Thiết lập giờ OT
+                    </MudText>
+                    <MudSpacer/>
+                    <!-- Áp dụng giờ chung cho tất cả -->
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Áp dụng tất cả:</MudText>
+                        <MudTimePicker Time="_bulkFrom"
+                                       TimeChanged="t => _bulkFrom = t"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       Style="width:110px"
+                                       AmPm="false"
+                                       Placeholder="Từ"/>
+                        <MudText Typo="Typo.caption">→</MudText>
+                        <MudTimePicker Time="_bulkTo"
+                                       TimeChanged="t => _bulkTo = t"
+                                       Variant="Variant.Outlined"
+                                       Margin="Margin.Dense"
+                                       Style="width:110px"
+                                       AmPm="false"
+                                       Placeholder="Đến"/>
+                        <MudButton Size="Size.Small"
+                                   Variant="Variant.Filled"
+                                   Color="Color.Secondary"
+                                   OnClick="ApplyBulkTime">
+                            Áp dụng
+                        </MudButton>
+                    </MudStack>
+                </MudStack>
+
+                <MudTable Items="@_model.Employees"
+                          Dense="true"
+                          Hover="true"
+                          Striped="true">
+                    <HeaderContent>
+                        <MudTh Style="width:130px">Mã NV</MudTh>
+                        <MudTh Style="width:180px">Họ tên</MudTh>
+                        <MudTh Style="width:130px">Giờ bắt đầu</MudTh>
+                        <MudTh Style="width:130px">Giờ kết thúc</MudTh>
+                        <MudTh Style="width:80px">Số giờ</MudTh>
+                        <MudTh>Lý do OT</MudTh>
+                        <MudTh Style="width:40px"></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Mã NV">
+                            <MudText Typo="Typo.body2">@context.EmployeeCode</MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Họ tên">
+                            <MudText Typo="Typo.body2">@context.EmployeeName</MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Giờ bắt đầu">
+                            <MudTimePicker
+                                Time="@context.PlannedFrom.ToTimeSpan()"
+                                TimeChanged="@(t => UpdateTime(context, t, isFrom: true))"
+                                Variant="Variant.Text"
+                                Margin="Margin.Dense"
+                                AmPm="false"/>
+                        </MudTd>
+                        <MudTd DataLabel="Giờ kết thúc">
+                            <MudTimePicker
+                                Time="@context.PlannedTo.ToTimeSpan()"
+                                TimeChanged="@(t => UpdateTime(context, t, isFrom: false))"
+                                Variant="Variant.Text"
+                                Margin="Margin.Dense"
+                                AmPm="false"/>
+                        </MudTd>
+                        <MudTd DataLabel="Số giờ">
+                            @{
+                                var hrs = CalcHours(context.PlannedFrom, context.PlannedTo);
+                                var chipColor = hrs > 4 ? Color.Warning : Color.Info;
+                            }
+                            <MudChip T="string" Color="@chipColor" Size="Size.Small"
+                                     Style="font-weight:600; min-width:52px">
+                                @hrs.ToString("F1")h
+                            </MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Lý do OT">
+                            <MudSelect T="string"
+                                       @bind-Value="context.OTReason"
+                                       Variant="Variant.Text"
+                                       Margin="Margin.Dense"
+                                       Style="min-width:180px">
+                                <MudSelectItem Value="@("A")">A – Nghỉ phép đột xuất (có phép)</MudSelectItem>
+                                <MudSelectItem Value="@("B")">B – Không phải nghỉ phép</MudSelectItem>
+                                <MudSelectItem Value="@("C")">C – Thiếu người theo kế hoạch</MudSelectItem>
+                                <MudSelectItem Value="@("D")">D – Quá tải (Sản xuất Overrun)</MudSelectItem>
+                                <MudSelectItem Value="@("E")">E – Bù làm tiến độ</MudSelectItem>
+                                <MudSelectItem Value="@("F")">F – Sự cố chất lượng</MudSelectItem>
+                                <MudSelectItem Value="@("G")">G – Sự cố thiết bị</MudSelectItem>
+                                <MudSelectItem Value="@("H")">H – Lỗi do maker</MudSelectItem>
+                                <MudSelectItem Value="@("I")">I – 5S/khác</MudSelectItem>
+                            </MudSelect>
+                        </MudTd>
+                        <MudTd>
+                            <MudIconButton Icon="@Icons.Material.Filled.PersonRemove"
+                                           Color="Color.Error"
+                                           Size="Size.Small"
+                                           OnClick="@(() => RemoveEmployee(context))"
+                                           Title="Bỏ khỏi danh sách"/>
+                        </MudTd>
+                    </RowTemplate>
+                    <FooterContent>
+                        <MudTd colspan="4" Style="font-weight:600">Tổng cộng:</MudTd>
+                        <MudTd>
+                            <MudChip T="string" Color="Color.Primary" Size="Size.Small"
+                                     Style="font-weight:700; min-width:52px">
+                                @TotalHours.ToString("F1")h
+                            </MudChip>
+                        </MudTd>
+                        <MudTd colspan="2"/>
+                    </FooterContent>
+                </MudTable>
+            </MudPaper>
+        </MudItem>
+    }
+
+    <!-- ===== CẢNH BÁO RULE ===== -->
+    @if (_hoursWarning?.Warnings.Any() == true)
+    {
+        <MudItem xs="12">
+            <MudAlert Severity="@(_hoursWarning.IsValid ? Severity.Success : Severity.Warning)"
+                      Dense="true" ShowCloseIcon="false">
+                @if (_hoursWarning.IsValid)
+                {
+                    <MudText Typo="Typo.body2">
+                        ✅ Tất cả nhân viên đều trong giới hạn giờ OT. Có thể gửi đơn!
+                    </MudText>
+                }
+                else
+                {
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">
+                        ⚠ Một số nhân viên vượt giới hạn OT:
+                    </MudText>
+                    @foreach (var w in _hoursWarning.Warnings)
+                    {
+                        <div Class="ml-2">
+                            <MudText Typo="Typo.body2">
+                                • <b>@w.EmployeeName</b>:
+                                @if (w.ExceedsWeekly)
+                                {
+                                    <MudChip T="string" Color="Color.Error" Size="Size.Small">
+                                        Tuần: @w.WeeklyHours.ToString("F1")h / 40h
+                                    </MudChip>
+                                }
+                                @if (w.ExceedsMonthly)
+                                {
+                                    <MudChip T="string" Color="Color.Warning" Size="Size.Small">
+                                        Năm: @w.MonthlyHours.ToString("F1")h / 300h
+                                    </MudChip>
+                                }
+                            </MudText>
+                        </div>
+                    }
+                }
+            </MudAlert>
+        </MudItem>
+    }
+
+    <!-- ===== ACTIONS ===== -->
+    <MudItem xs="12">
+        <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Default"
+                       OnClick="@(() => _nav.NavigateTo("/ot/history"))">
+                Hủy
+            </MudButton>
+
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Info"
+                       StartIcon="@Icons.Material.Filled.FactCheck"
+                       OnClick="CheckHours"
+                       Disabled="@(_isBusy || _model.Employees.Count == 0)">
+                Kiểm tra giờ OT
+            </MudButton>
+
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Send"
+                       OnClick="Submit"
+                       Disabled="@(_isBusy || _model.Employees.Count == 0 || !_checkedOnce)">
+                @(_isBusy ? "Đang gửi..." : "Gửi đơn OT")
+            </MudButton>
+        </MudStack>
+        @if (!_checkedOnce && _model.Employees.Count > 0)
+        {
+            <MudText Typo="Typo.caption" Color="Color.Warning"
+                     Align="Align.Right" Class="mt-1">
+                * Vui lòng bấm "Kiểm tra giờ OT" trước khi gửi
+            </MudText>
+        }
+    </MudItem>
+</MudGrid>
+
+@code {
+    // ── State ──────────────────────────────────────────────
+    private CreateOTRequestModel _model = new() { OTType = "Normal" };
+    private DateTime? _otDatePicker = DateTime.Today;
+    private string    _deptCode     = string.Empty;
+    private string?   _deptName;
+    private string    _searchText   = string.Empty;
+
+    private List<EmployeeSelectDto> _allEmployees  = new();
+    private HashSet<string>         _selectedCodes = new();
+
+    private bool _isLoadingEmps = false;
+    private bool _isBusy        = false;
+    private bool _checkedOnce   = false;
+
+    private OTValidationResult? _hoursWarning;
+
+    // Bulk time apply
+    private TimeSpan? _bulkFrom = new TimeSpan(17, 0, 0);
+    private TimeSpan? _bulkTo   = new TimeSpan(20, 0, 0);
+
+    // ── Computed ──────────────────────────────────────────
+    private IEnumerable<EmployeeSelectDto> FilteredEmployees =>
+        string.IsNullOrWhiteSpace(_searchText)
+            ? _allEmployees
+            : _allEmployees.Where(e =>
+                e.EmployeeName.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
+                e.EmployeeCode.Contains(_searchText, StringComparison.OrdinalIgnoreCase));
+
+    private decimal TotalHours =>
+        _model.Employees.Sum(e => CalcHours(e.PlannedFrom, e.PlannedTo));
+
+    private static decimal CalcHours(TimeOnly from, TimeOnly to)
+    {
+        if (to <= from) return 0;
+        return (decimal)(to - from).TotalHours;
+    }
+
+    // ── Lifecycle ─────────────────────────────────────────
+    protected override async Task OnInitializedAsync()
+    {
+        // Lấy DeptCode của user đang đăng nhập
+        _deptCode = _currentUser.User?.DeptCode ?? string.Empty;
+
+        // Load nhân viên trong bộ phận ngay khi vào form
+        if (!string.IsNullOrEmpty(_deptCode))
+            await LoadEmployeesAsync();
+    }
+
+    private async Task LoadEmployeesAsync()
+    {
+        _isLoadingEmps = true;
+        StateHasChanged();
+
+        var result = await _otService.GetEmployeesByDeptAsync(_deptCode);
+
+        if (result.IsSuccess && result.Data != null)
+        {
+            _allEmployees = result.Data;
+            // Mặc định chọn tất cả nhân viên trong bộ phận
+            _selectedCodes = _allEmployees.Select(e => e.EmployeeCode).ToHashSet();
+            SyncEmployeeList();
+        }
+        else
+        {
+            _snackbar.Add("Không thể tải danh sách nhân viên.", Severity.Warning);
+        }
+
+        _isLoadingEmps = false;
+        StateHasChanged();
+    }
+
+    // ── Employee selection ────────────────────────────────
+    private void ToggleEmployee(EmployeeSelectDto emp)
+    {
+        if (_selectedCodes.Contains(emp.EmployeeCode))
+            _selectedCodes.Remove(emp.EmployeeCode);
+        else
+            _selectedCodes.Add(emp.EmployeeCode);
+
+        SyncEmployeeList();
+        _checkedOnce = false; // reset vì danh sách thay đổi
+    }
+
+    private void SelectAll()
+    {
+        _selectedCodes = FilteredEmployees.Select(e => e.EmployeeCode).ToHashSet();
+        SyncEmployeeList();
+        _checkedOnce = false;
+    }
+
+    private void DeselectAll()
+    {
+        _selectedCodes.Clear();
+        SyncEmployeeList();
+        _checkedOnce = false;
+    }
+
+    /// Đồng bộ _model.Employees từ _selectedCodes
+    /// Giữ nguyên giờ đã thiết lập của nhân viên đang có; thêm mới với giờ mặc định
+    private void SyncEmployeeList()
+    {
+        var defaultFrom = TimeOnly.FromTimeSpan(_bulkFrom ?? new TimeSpan(17, 0, 0));
+        var defaultTo   = TimeOnly.FromTimeSpan(_bulkTo   ?? new TimeSpan(20, 0, 0));
+
+        // Xóa những người không còn được chọn
+        _model.Employees.RemoveAll(e => !_selectedCodes.Contains(e.EmployeeCode));
+
+        // Thêm người mới được chọn (chưa có trong list)
+        var existingCodes = _model.Employees.Select(e => e.EmployeeCode).ToHashSet();
+
+        foreach (var code in _selectedCodes)
+        {
+            if (existingCodes.Contains(code)) continue;
+
+            var empInfo = _allEmployees.FirstOrDefault(e => e.EmployeeCode == code);
+            if (empInfo == null) continue;
+
+            _model.Employees.Add(new OTEmployeeModel
+            {
+                EmployeeCode = empInfo.EmployeeCode,
+                EmployeeName = empInfo.EmployeeName,
+                PlannedFrom  = defaultFrom,
+                PlannedTo    = defaultTo,
+            });
+        }
+
+        // Sắp xếp theo tên
+        _model.Employees = _model.Employees
+            .OrderBy(e => e.EmployeeName)
+            .ToList();
+    }
+
+    private void RemoveEmployee(OTEmployeeModel emp)
+    {
+        _selectedCodes.Remove(emp.EmployeeCode);
+        _model.Employees.Remove(emp);
+        _checkedOnce = false;
+    }
+
+    // ── Time editing ──────────────────────────────────────
+    private void UpdateTime(OTEmployeeModel emp, TimeSpan? ts, bool isFrom)
+    {
+        if (ts == null) return;
+        if (isFrom) emp.PlannedFrom = TimeOnly.FromTimeSpan(ts.Value);
+        else        emp.PlannedTo   = TimeOnly.FromTimeSpan(ts.Value);
+    }
+
+    private void ApplyBulkTime()
+    {
+        if (_bulkFrom == null || _bulkTo == null) return;
+        var from = TimeOnly.FromTimeSpan(_bulkFrom.Value);
+        var to   = TimeOnly.FromTimeSpan(_bulkTo.Value);
+
+        foreach (var emp in _model.Employees)
+        {
+            emp.PlannedFrom = from;
+            emp.PlannedTo   = to;
+        }
+        _snackbar.Add($"Đã áp dụng {from:HH\\:mm}–{to:HH\\:mm} cho tất cả nhân viên.", Severity.Info);
+        _checkedOnce = false;
+    }
+
+    // ── Date change ───────────────────────────────────────
+    private void OnDateChanged(DateTime? dt)
+    {
+        _otDatePicker = dt;
+        _checkedOnce  = false; // ngày đổi → phải check lại
+    }
+
+    // ── Check hours rule ──────────────────────────────────
+    private async Task CheckHours()
+    {
+        if (_model.Employees.Count == 0)
+        {
+            _snackbar.Add("Chưa có nhân viên nào trong danh sách!", Severity.Warning);
+            return;
+        }
+
+        _isBusy = true;
+        _model.OTDate = DateOnly.FromDateTime(_otDatePicker ?? DateTime.Today);
+
+        var result = await _otService.CheckHoursAsync(_model.OTDate, _model.Employees);
+        _hoursWarning = result.Data;
+        _checkedOnce  = true;
+
+        if (_hoursWarning?.IsValid == true)
+            _snackbar.Add("✅ Giờ OT hợp lệ, có thể gửi đơn!", Severity.Success);
+        else
+            _snackbar.Add("⚠ Một số nhân viên vượt giới hạn OT. Vui lòng kiểm tra lại.", Severity.Warning);
+
+        _isBusy = false;
+    }
+
+    // ── Submit ────────────────────────────────────────────
+    private async Task Submit()
+    {
+        if (_model.Employees.Count == 0)
+        {
+            _snackbar.Add("Phải chọn ít nhất 1 nhân viên!", Severity.Error);
+            return;
+        }
+
+        _model.OTDate   = DateOnly.FromDateTime(_otDatePicker ?? DateTime.Today);
+        _model.DeptCode = _deptCode;
+
+        _isBusy = true;
+        var result = await _otService.CreateAsync(_model);
+
+        if (result.IsSuccess)
+        {
+            _snackbar.Add("✅ Đã gửi đơn OT thành công!", Severity.Success);
+            _nav.NavigateTo("/ot/history");
+        }
+        else
+        {
+            _snackbar.Add(result.Message ?? "Lỗi hệ thống!", Severity.Error);
+        }
+        _isBusy = false;
+    }
+}

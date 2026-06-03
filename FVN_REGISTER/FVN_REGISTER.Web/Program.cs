@@ -4,6 +4,7 @@ using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Shared.Handlers;
 using FVN_REGISTER.Shared.Services.Dashboards;
 using FVN_REGISTER.Shared.Services.Leaves;
+using FVN_REGISTER.Shared.Services.OT;
 using FVN_REGISTER.Shared.Services.Users;
 using FVN_REGISTER.Shared.Utils;
 using FVN_REGISTER.Web.Components;
@@ -73,7 +74,7 @@ builder.Services.AddScoped<IApproveClientService, ApproveClientService>();
 builder.Services.AddScoped<ILeaveHistorysClientService, LeaveHistorysClientService>();
 builder.Services.AddScoped<IReportClientService, ReportClientService>();
 builder.Services.AddScoped<INotificationClientService, NotificationClientService>();
-
+builder.Services.AddScoped<IOTClientService, OTClientService>();
 
 builder.Services.AddServerSideBlazor()
     .AddCircuitOptions(options => { options.DetailedErrors = true; });
