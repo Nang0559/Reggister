@@ -1,97 +1,73 @@
 ﻿using FVN_REGISTER.Contract.Interfaces.Emails;
 using FVN_REGISTER.Contract.Interfaces.OT;
 using FVN_REGISTER.Contract.Models;
-using FVN_REGISTER.Contract.Utils;
+using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Services;
+using Microsoft.Extensions.Options;
+using FVN_REGISTER.Core.Logging;
 
 namespace FVN_REGISTER.API.Services.OT
 {
-    // OTNotificationService.cs
-    public class OTNotificationService : BaseService<OTNotificationService>,
-        IOTNotificationService
+    public class OTNotificationService
+     : BaseService<OTNotificationService>, IOTNotificationService
     {
         private readonly IEmailService _email;
 
-        public async Task NotifyApprovalChainAsync(
-            F03OTRequest ot, CancellationToken ct)
+        public OTNotificationService(
+            IEmailService email,
+            ILogger<OTNotificationService> logger,
+            IOptionsMonitor<AuthDebugOptions> options)
+            : base(logger, options)
         {
-            // Gửi cho BCH Công đoàn trước
-            if (!string.IsNullOrEmpty(ot.UnionRepEmail))
-                await _email.QueueEmail(ot.UnionRepEmail, "OT_REQUEST_NEW", new
-                {
-                    ApproverName = ot.UnionRepCode,
-                    OTDate = ot.OTDate.ToString("dd/MM/yyyy"),
-                    OTType = GetOTTypeName(ot.OTType),
-                    TotalEmployees = ot.Rows.Count,
-                    Department = ot.DeptCode,
-                    CreatedBy = ot.CreatedByName,
-                    Url = $"https://yourdomain/ot/approve/{ot.Id}"
-                }, ct);
-
-            // Gửi cho từng nhân viên trong danh sách
-            foreach (var row in ot.Rows)
-            {
-                var empEmail = await GetEmpEmailAsync(row.EmployeeCode);
-                if (!string.IsNullOrEmpty(empEmail))
-                    await _email.QueueEmail(empEmail, "OT_EMPLOYEE_ADDED", new
-                    {
-                        EmployeeName = row.EmployeeName,
-                        OTDate = ot.OTDate.ToString("dd/MM/yyyy"),
-                        PlannedFrom = row.PlannedFrom.ToString("HH:mm"),
-                        PlannedTo = row.PlannedTo.ToString("HH:mm"),
-                        OTReason = row.OTReason,
-                        Url = $"https://yourdomain/ot/my-row/{ot.Id}"
-                    }, ct);
-            }
+            _email = email;
         }
 
-        public async Task NotifyNextApproverAsync(
-            F03OTRequest ot, string level, CancellationToken ct)
+        public async Task SendApprovalRequestAsync(
+            F03OTRequest request, string? toEmail, string stepName)
         {
-            // Sau khi Union approve → báo Chief
-            // Sau khi Chief approve → báo MG
-            // Sau khi MG approve → báo GM (nếu cần) hoặc approved
-            var (email, name) = level switch
-            {
-                "Union" => (ot.ChiefEmail, "Ast.Chief/Chief"),
-                "Chief" => (ot.MGEmail, "A.MG/MG"),
-                "MG" => (ot.GMEmail, "GM"),
-                _ => (null, null)
-            };
+            if (string.IsNullOrWhiteSpace(toEmail)) return;
 
-            if (string.IsNullOrEmpty(email)) return;
+            Logger.LogDebugIf(Debug,
+                "[OT-MAIL] Approval request → {Email} | Step: {Step}",
+                toEmail, stepName);
 
-            await _email.QueueEmail(email, "OT_REQUEST_NEW", new
+            await _email.QueueEmail(toEmail, "OT_REQUEST_APPROVE", new
             {
-                ApproverName = name,
-                OTDate = ot.OTDate.ToString("dd/MM/yyyy"),
-                OTType = GetOTTypeName(ot.OTType),
-                TotalEmployees = ot.Rows.Count,
-                Department = ot.DeptCode,
-                Url = $"https://yourdomain/ot/approve/{ot.Id}"
-            }, ct);
+                StepName = stepName,
+                OTDate = request.OTDate.ToString("dd/MM/yyyy"),
+                PlannedFrom = request.PlannedFrom.ToString("HH:mm"),
+                PlannedTo = request.PlannedTo.ToString("HH:mm"),
+                Hours = request.PlannedHours,
+                Reason = request.OTReason,
+                EmployeeCode = request.EmployeeCode,
+                RequiresGM = request.RequiresGM ? "CÓ" : "KHÔNG",
+                Url = $"https://yourdomain/ot/approve/{request.Id}"
+            });
         }
 
-        public async Task NotifyResultAsync(
-            F03OTRequest ot, string status, CancellationToken ct)
+        public async Task SendRejectedAsync(F03OTRequest request, string rejectedBy)
         {
-            // Gửi kết quả cho người tạo đơn
-            if (!string.IsNullOrEmpty(ot.CreatedByEmail))
-                await _email.QueueEmail(ot.CreatedByEmail, "OT_STATUS_CHANGED", new
-                {
-                    CreatedByName = ot.CreatedByName,
-                    OTDate = ot.OTDate.ToString("dd/MM/yyyy"),
-                    Status = status == OTStatus.Approved ? "ĐÃ DUYỆT" : "TỪ CHỐI",
-                    Comment = ot.MGComment ?? ot.ChiefComment ?? ot.GMComment
-                }, ct);
+            if (string.IsNullOrWhiteSpace(request.CreatedByEmail)) return;
+
+            await _email.QueueEmail(request.CreatedByEmail, "OT_REQUEST_REJECTED", new
+            {
+                RejectedBy = rejectedBy,
+                OTDate = request.OTDate.ToString("dd/MM/yyyy"),
+                Hours = request.PlannedHours,
+                Url = $"https://yourdomain/ot/detail/{request.Id}"
+            });
         }
 
-        private static string GetOTTypeName(string type) => type switch
+        public async Task SendApprovedAsync(F03OTRequest request)
         {
-            "Normal" => "Ngày thường",
-            "Weekend" => "Ngày nghỉ tuần",
-            "Holiday" => "Ngày lễ/Tết",
-            _ => type
-        };
+            if (string.IsNullOrWhiteSpace(request.CreatedByEmail)) return;
+
+            await _email.QueueEmail(request.CreatedByEmail, "OT_REQUEST_APPROVED", new
+            {
+                OTDate = request.OTDate.ToString("dd/MM/yyyy"),
+                Hours = request.PlannedHours,
+                Url = $"https://yourdomain/ot/detail/{request.Id}"
+            });
+        }
     }
 }

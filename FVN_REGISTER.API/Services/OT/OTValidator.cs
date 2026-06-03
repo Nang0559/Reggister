@@ -112,7 +112,7 @@ namespace FVN_REGISTER.API.Services.OT
             foreach (var emp in model.Employees)
             {
                 // Giờ OT từng nhân viên (có thể riêng hoặc dùng giờ đơn)
-                var empHours = emp.PlannedHours ?? model.PlannedHours;
+                var empHours = emp.ActualHours ?? model.PlannedHours;
 
                 // Lấy tổng giờ hiện tại
                 var summary = await _db.Set<F03OTSummary>()
@@ -124,7 +124,7 @@ namespace FVN_REGISTER.API.Services.OT
                 var monthUsed = summary?.TotalHoursMonth ?? 0;
                 var yearUsed = summary?.TotalHoursYear ?? 0;
 
-                emp.CurrentMonthHours = monthUsed;
+                emp.ActualFrom = monthUsed;
                 emp.CurrentYearHours = yearUsed;
 
                 // Kiểm tra trùng ngày

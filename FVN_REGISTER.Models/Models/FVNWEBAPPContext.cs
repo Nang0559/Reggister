@@ -105,7 +105,9 @@ public partial class FVNWEBAPPContext : DbContext
     public virtual DbSet<UserSession> UserSessions { get; set; }
     public virtual DbSet<AppNotification> AppNotifications { get; set; }
     public virtual DbSet<F03OTRequest> F03OTRequests { get; set; }
-    public virtual DbSet<F03OTEmployee> F03OTEmployees { get; set; }
+    public virtual DbSet<F03OTRow> F03OTRows { get; set; }
+    public virtual DbSet<F03OTSummary> F03OTSummarys { get; set; }
+    public virtual DbSet<VF03OTRequest> VF03OTRequests { get; set; }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
         => optionsBuilder.UseSqlServer("Data Source=192.168.200.10\\WEBAPPDB;Initial Catalog=FVNWEBAPP;User ID=sa;Password=Fcc@dmin;TrustServerCertificate=True;MultipleActiveResultSets=True");
@@ -1237,29 +1239,122 @@ public partial class FVNWEBAPPContext : DbContext
             entity.Property(e => e.ActionUrl).HasMaxLength(500);
             entity.Property(e => e.ReadAt).HasColumnType("datetime");
         });
-        OnModelCreatingPartial(modelBuilder);
         modelBuilder.Entity<F03OTRequest>(entity =>
         {
             entity.ToTable("F03OTRequest");
+            entity.HasKey(e => e.Id);
+
+            // Định dạng kiểu dữ liệu SQL
             entity.Property(e => e.OTDate).HasColumnType("date");
-            entity.Property(e => e.TotalHours).HasColumnType("decimal(5,2)");
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
-            entity.Property(e => e.ModifiedAt).HasDefaultValueSql("(getdate())").HasColumnType("datetime");
-            entity.Property(e => e.OTType).HasMaxLength(20).HasDefaultValue("Normal");
-            entity.Property(e => e.RequestStatus).HasMaxLength(50).HasDefaultValue("Pending");
+            entity.Property(e => e.PlannedFrom).HasColumnType("datetime");
+            entity.Property(e => e.PlannedTo).HasColumnType("datetime");
+            entity.Property(e => e.PlannedHours).HasColumnType("decimal(5,2)");
+
+            entity.Property(e => e.ActualFrom).HasColumnType("datetime");
+            entity.Property(e => e.ActualTo).HasColumnType("datetime");
+            entity.Property(e => e.ActualHours).HasColumnType("decimal(5,2)");
+
+            entity.Property(e => e.Lv3ApproveTime).HasColumnType("datetime");
+            entity.Property(e => e.Lv4ApproveTime).HasColumnType("datetime");
+            entity.Property(e => e.Lv5ApproveTime).HasColumnType("datetime");
+            entity.Property(e => e.Lv6ApproveTime).HasColumnType("datetime");
+            entity.Property(e => e.Lv7ApproveTime).HasColumnType("datetime");
+            entity.Property(e => e.ConfirmedAt).HasColumnType("datetime");
+
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime").HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.ModifiedAt).HasColumnType("datetime").HasDefaultValueSql("(getdate())");
+
+            // Giới hạn độ dài và Giá trị mặc định (để đồng bộ với SQL)
+            entity.Property(e => e.EmployeeCode).HasMaxLength(50);
             entity.Property(e => e.DeptCode).HasMaxLength(30);
+            entity.Property(e => e.CvCode).HasMaxLength(30);
+            entity.Property(e => e.DayType).HasMaxLength(20).HasDefaultValue("Normal");
+            entity.Property(e => e.RequestStatus).HasMaxLength(50).HasDefaultValue("Pending");
+            entity.Property(e => e.OTReason).HasMaxLength(500);
+
+            entity.Property(e => e.RequiresGM).HasDefaultValue(false);
+            entity.Property(e => e.Lv3Skip).HasDefaultValue(false);
+            entity.Property(e => e.EmployeeConfirmed).HasDefaultValue(false);
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+
+            // Mối quan hệ 1 - Nhiều với F03OTRow
+            entity.HasMany(d => d.Rows)
+                  .WithOne(p => p.Request)
+                  .HasForeignKey(d => d.OTRequestId)
+                  .OnDelete(DeleteBehavior.Cascade) // Tự động xóa các dòng con nếu xóa đơn chính
+                  .HasConstraintName("FK_F03OTRow_Request");
         });
 
-        modelBuilder.Entity<F03OTEmployee>(entity =>
+        // ============================================================
+        // 2. CẤU HÌNH BẢNG DÒNG NHÂN VIÊN: F03OTRow
+        // ============================================================
+        modelBuilder.Entity<F03OTRow>(entity =>
         {
-            entity.ToTable("F03OTEmployee");
+            entity.ToTable("F03OTRow");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.EmployeeCode).HasMaxLength(50);
+            entity.Property(e => e.EmployeeName).HasMaxLength(100);
+            entity.Property(e => e.DeptCode).HasMaxLength(30);
+
+            entity.Property(e => e.PlannedFrom).HasColumnType("datetime");
+            entity.Property(e => e.PlannedTo).HasColumnType("datetime");
             entity.Property(e => e.PlannedHours).HasColumnType("decimal(5,2)");
+
+            entity.Property(e => e.ActualFrom).HasColumnType("datetime");
+            entity.Property(e => e.ActualTo).HasColumnType("datetime");
             entity.Property(e => e.ActualHours).HasColumnType("decimal(5,2)");
-            entity.Property(e => e.EmployeeCode).HasMaxLength(30);
-            entity.HasOne(e => e.OTRequest)
-                  .WithMany(r => r.Employees)
-                  .HasForeignKey(e => e.OTRequestId)
-                  .HasConstraintName("FK_F03OTEmployee_F03OTRequest");
+
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime").HasDefaultValueSql("(getdate())");
+            entity.Property(e => e.IsActive).HasDefaultValue(true);
+        });
+
+        // ============================================================
+        // 3. CẤU HÌNH BẢNG TỔNG HỢP GIỜ: F03OTSummary
+        // ============================================================
+        modelBuilder.Entity<F03OTSummary>(entity =>
+        {
+            entity.ToTable("F03OTSummary");
+            entity.HasKey(e => e.Id);
+
+            entity.Property(e => e.EmployeeCode).HasMaxLength(50);
+            entity.Property(e => e.TotalHoursMonth).HasColumnType("decimal(7,2)").HasDefaultValue(0);
+            entity.Property(e => e.TotalHoursYear).HasColumnType("decimal(7,2)").HasDefaultValue(0);
+            entity.Property(e => e.UpdatedAt).HasColumnType("datetime").HasDefaultValueSql("(getdate())");
+
+            // Đảm bảo tính duy nhất (Unique Index) theo thiết kế DB
+            entity.HasIndex(e => new { e.EmployeeCode, e.WorkYear, e.WorkMonth }, "UQ_OTSummary")
+                  .IsUnique();
+        });
+
+        // ============================================================
+        // 4. CẤU HÌNH VIEW: vF03OTRequests (Chỉ đọc)
+        // ============================================================
+        modelBuilder.Entity<VF03OTRequest>(entity =>
+        {
+            // Khai báo ánh xạ vào View trong SQL Server
+            entity.ToView("vF03OTRequests");
+
+            // Cần báo cho EF Core biết View này không dùng Khóa chính thuần túy
+            entity.HasNoKey();
+
+            // Khai báo các cột dạng ngày tháng & decimal để tránh lỗi sai kiểu dữ liệu khi lấy lên
+            entity.Property(e => e.OTDate).HasColumnType("date");
+            entity.Property(e => e.PlannedFrom).HasColumnType("datetime");
+            entity.Property(e => e.PlannedTo).HasColumnType("datetime");
+            entity.Property(e => e.PlannedHours).HasColumnType("decimal(5,2)");
+
+            entity.Property(e => e.ActualFrom).HasColumnType("datetime");
+            entity.Property(e => e.ActualTo).HasColumnType("datetime");
+            entity.Property(e => e.ActualHours).HasColumnType("decimal(5,2)");
+
+            entity.Property(e => e.Lv3ApproveTime).HasColumnType("datetime");
+            entity.Property(e => e.Lv4ApproveTime).HasColumnType("datetime");
+            entity.Property(e => e.Lv5ApproveTime).HasColumnType("datetime");
+            entity.Property(e => e.Lv6ApproveTime).HasColumnType("datetime");
+            entity.Property(e => e.Lv7ApproveTime).HasColumnType("datetime");
+            entity.Property(e => e.ConfirmedAt).HasColumnType("datetime");
+            entity.Property(e => e.CreatedAt).HasColumnType("datetime");
         });
     }
 

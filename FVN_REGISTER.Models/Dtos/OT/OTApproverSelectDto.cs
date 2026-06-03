@@ -8,19 +8,17 @@ namespace FVN_REGISTER.Contract.Dtos.OT
 {
     public class OTApproverSelectDto
     {
-        public string Code { get; set; } = null!;
-        public string Name { get; set; } = null!;
-        public string Email { get; set; } = null!;
-        public string DeptCode { get; set; } = null!;
-        public string DeptName { get; set; } = null!;
+        public int Id { get; set; }
+        public string DeptCode { get; set; } = "";
+        public string DeptName { get; set; } = "";
+        public int ApproveLevel { get; set; }  // 3,4,5,6,7
 
-        // Role trong luồng duyệt OT
-        // "SubLeader" | "Leader" | "UnionRep" | "AstChief" | "Chief" | "AMG" | "MG" | "GM"
-        public string Role { get; set; } = null!;
+        // Role label: "SubLeader" | "Union" | "Chief" | "MG" | "GM"
+        public string Role { get; set; } = "";
 
-        // Cấp duyệt trong workflow: 3 | 4 | 5 | 6 | 7
-        public int ApproveLevel { get; set; }
-
-        public string DisplayText => $"{Name} ({Role}) - {DeptName}";
+        public string? ApproveLevelCode { get; set; }
+        public string ApproveLevelName { get; set; } = "";
+        public string ApproveLevelEmail { get; set; } = "";
+        public bool IsActive { get; set; } = true;
     }
 }

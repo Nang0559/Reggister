@@ -7,8 +7,6 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.API.Services.OT
 {
- 
-
     public class OTQueryService : IOTQueryService
     {
         private readonly FVNWEBAPPContext _db;
@@ -79,9 +77,9 @@ namespace FVN_REGISTER.API.Services.OT
 
             var result = data.Select(x => new OTApproverSelectDto
             {
-                Code = x.ApproveLevelCode ?? "",
-                Name = x.ApproveLevelName,
-                Email = x.ApproveLevelEmail,
+                ApproveLevelCode = x.ApproveLevelCode ?? "",
+                ApproveLevelName = x.ApproveLevelName,
+                ApproveLevelEmail = x.ApproveLevelEmail,
                 DeptCode = x.DeptCode,
                 DeptName = x.DeptName,
                 Role = level switch

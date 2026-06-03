@@ -9,27 +9,37 @@ namespace FVN_REGISTER.Contract.ViewModels.OT
 {
     public class CreateOTRequestModel
     {
+        public int WorkYear { get; set; } = DateTime.Now.Year;
+
+        // Người tạo đơn
         public string? EmployeeCode { get; set; }
         public string? DeptCode { get; set; }
         public string? CvCode { get; set; }
+        public string? CreatedByEmail { get; set; }
+        public string? CreatedByLevel { get; set; }
 
-        // Thời gian
+        // Thời gian OT
         public DateTime OTDate { get; set; } = DateTime.Today;
         public DateTime PlannedFrom { get; set; }
         public DateTime PlannedTo { get; set; }
-        public decimal PlannedHours { get; set; }   // Tự tính và validate
+        public decimal PlannedHours { get; set; }  // Tự tính, làm tròn 15 phút
 
-        // Loại ngày - tự tính dựa vào OTDate + bảng CompanyHoliday
+        // Loại ngày: Normal | Weekend | Holiday | Tet
         public string DayType { get; set; } = "Normal";
 
-        public string OTReason { get; set; } = string.Empty;
+        // Lý do
+        public string? OTReason { get; set; }
 
-        // ===== 4 CẤP KÝ =====
+        // Cờ bắt buộc GM (tự tính phía client và server đều validate lại)
+        public bool RequiresGM { get; set; }
+        public bool Lv3Skip { get; set; }  // NV văn phòng bỏ qua bước 3
+
+        // ========== 4 CẤP DUYỆT ==========
+
         // Bước 3: Sub.Leader / Leader
         public string? Lv3ApproveCode { get; set; }
         public string? Lv3ApproveName { get; set; }
         public string? Lv3ApproveEmail { get; set; }
-        public bool Lv3Skip { get; set; }           // true nếu NV văn phòng
 
         // Bước 4: BCH Công đoàn
         public string? Lv4ApproveCode { get; set; }
@@ -51,14 +61,10 @@ namespace FVN_REGISTER.Contract.ViewModels.OT
         public string? Lv7ApproveName { get; set; }
         public string? Lv7ApproveEmail { get; set; }
 
-        // Cờ computed - tự tính trong Validator/Service
-        public bool RequiresGM { get; set; }
-        public string? CreatedByLevel { get; set; }     // Role của người tạo
+        // Trạng thái: "Pending" | "Draft"
+        public string RequestStatus { get; set; } = "Pending";
 
-        // Danh sách nhân viên OT (có thể nhiều người)
+        // Danh sách nhân viên trong ca OT
         public List<OTEmployeeModel> Employees { get; set; } = new();
-
-        // WorkYear tự tính
-        public int WorkYear => OTDate.Year;
     }
 }
