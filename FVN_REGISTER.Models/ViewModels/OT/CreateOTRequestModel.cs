@@ -9,37 +9,56 @@ namespace FVN_REGISTER.Contract.ViewModels.OT
 {
     public class CreateOTRequestModel
     {
-        public DateOnly OTDate { get; set; }
-        public string OTType { get; set; } = "Normal"; // Normal | Weekend | Holiday
-        public string DeptCode { get; set; } = string.Empty;
-        public string? Reason { get; set; }
+        public string? EmployeeCode { get; set; }
+        public string? DeptCode { get; set; }
+        public string? CvCode { get; set; }
 
-        // ===== 4 CẤP KÝ THEO QĐ-HC-03 =====
-        // Cấp 1: BCH Công đoàn (bắt buộc)
-        public string? UnionRepCode { get; set; }
-        public string? UnionRepName { get; set; }
-        public string? UnionRepEmail { get; set; }
+        // Thời gian
+        public DateTime OTDate { get; set; } = DateTime.Today;
+        public DateTime PlannedFrom { get; set; }
+        public DateTime PlannedTo { get; set; }
+        public decimal PlannedHours { get; set; }   // Tự tính và validate
 
-        // Cấp 2: Ast.Chief / Chief (bắt buộc)
-        public string? ChiefCode { get; set; }
-        public string? ChiefName { get; set; }
-        public string? ChiefEmail { get; set; }
+        // Loại ngày - tự tính dựa vào OTDate + bảng CompanyHoliday
+        public string DayType { get; set; } = "Normal";
 
-        // Cấp 3: A.MG / MG (bắt buộc)
-        public string? MGCode { get; set; }
-        public string? MGName { get; set; }
-        public string? MGEmail { get; set; }
+        public string OTReason { get; set; } = string.Empty;
 
-        // Cấp 4: GM — bắt buộc nếu OT ngày nghỉ/lễ/Tết
-        //         hoặc người OT là Ast.Chief trở lên
-        public string? GMCode { get; set; }
-        public string? GMName { get; set; }
-        public string? GMEmail { get; set; }
+        // ===== 4 CẤP KÝ =====
+        // Bước 3: Sub.Leader / Leader
+        public string? Lv3ApproveCode { get; set; }
+        public string? Lv3ApproveName { get; set; }
+        public string? Lv3ApproveEmail { get; set; }
+        public bool Lv3Skip { get; set; }           // true nếu NV văn phòng
 
-        public bool RequiresGM =>
-            OTType is "Weekend" or "Holiday" ||
-            Employees.Any(e => e.IsAstChiefOrAbove);
+        // Bước 4: BCH Công đoàn
+        public string? Lv4ApproveCode { get; set; }
+        public string? Lv4ApproveName { get; set; }
+        public string? Lv4ApproveEmail { get; set; }
 
+        // Bước 5: Ast.Chief / Chief
+        public string? Lv5ApproveCode { get; set; }
+        public string? Lv5ApproveName { get; set; }
+        public string? Lv5ApproveEmail { get; set; }
+
+        // Bước 6: A.MG / MG
+        public string? Lv6ApproveCode { get; set; }
+        public string? Lv6ApproveName { get; set; }
+        public string? Lv6ApproveEmail { get; set; }
+
+        // Bước 7: GM (chỉ khi RequiresGM = true)
+        public string? Lv7ApproveCode { get; set; }
+        public string? Lv7ApproveName { get; set; }
+        public string? Lv7ApproveEmail { get; set; }
+
+        // Cờ computed - tự tính trong Validator/Service
+        public bool RequiresGM { get; set; }
+        public string? CreatedByLevel { get; set; }     // Role của người tạo
+
+        // Danh sách nhân viên OT (có thể nhiều người)
         public List<OTEmployeeModel> Employees { get; set; } = new();
+
+        // WorkYear tự tính
+        public int WorkYear => OTDate.Year;
     }
 }

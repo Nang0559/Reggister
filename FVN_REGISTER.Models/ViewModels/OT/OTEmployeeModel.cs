@@ -9,12 +9,21 @@ namespace FVN_REGISTER.Contract.ViewModels.OT
 {
     public class OTEmployeeModel
     {
-        public string EmployeeCode { get; set; } = string.Empty;
-        public string EmployeeName { get; set; } = string.Empty;
-        public TimeOnly PlannedFrom { get; set; } = new(17, 0);
-        public TimeOnly PlannedTo { get; set; } = new(20, 0);
-        public string? OTReason { get; set; }
-        public bool IsAstChiefOrAbove { get; set; } // từ CvCode
-        public bool IsOfficeStaff { get; set; }   // NV văn phòng (bỏ qua bước Sub.Leader)
+        public string EmployeeCode { get; set; } = null!;
+        public string? EmployeeName { get; set; }
+        public string? DeptCode { get; set; }
+
+        // Có thể khác giờ so với đơn chính (nhân viên theo ca)
+        public DateTime? PlannedFrom { get; set; }
+        public DateTime? PlannedTo { get; set; }
+        public decimal? PlannedHours { get; set; }
+
+        // Tổng giờ hiện tại trong tháng/năm (để hiển thị cảnh báo)
+        public decimal CurrentMonthHours { get; set; }
+        public decimal CurrentYearHours { get; set; }
+
+        // Sau khi validate
+        public bool IsValid { get; set; } = true;
+        public string? ValidationMessage { get; set; }
     }
 }

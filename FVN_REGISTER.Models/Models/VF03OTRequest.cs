@@ -6,88 +6,77 @@ using System.Threading.Tasks;
 
 namespace FVN_REGISTER.Contract.Models
 {
-    public partial class F03OTRequest
+    public partial class VF03OTRequest
     {
         public int Id { get; set; }
         public int WorkYear { get; set; }
         public string EmployeeCode { get; set; } = null!;
+        public string? EmployeeName { get; set; }
         public string DeptCode { get; set; } = null!;
+        public string? DeptName { get; set; }
         public string? CvCode { get; set; }
+        public string? CvName { get; set; }
+        public string? EmailAddress { get; set; }
 
-        // Thời gian OT
         public DateOnly OTDate { get; set; }
         public DateTime PlannedFrom { get; set; }
         public DateTime PlannedTo { get; set; }
         public decimal PlannedHours { get; set; }
-
-        // Loại ngày: Normal | Weekend | Holiday | Tet
         public string DayType { get; set; } = "Normal";
-
         public string OTReason { get; set; } = null!;
-
-        // Bắt buộc GM khi ngày nghỉ/lễ hoặc người tạo từ cấp Ast.Chief trở lên
         public bool RequiresGM { get; set; }
         public string? CreatedByEmail { get; set; }
         public string? CreatedByLevel { get; set; }
 
-        // ===== BƯỚC 3: Sub.Leader / Leader (NV VP bỏ qua) =====
-        public string? Lv3ApproveCode { get; set; }
+        // Lv3
         public string? Lv3ApproveName { get; set; }
         public string? Lv3ApproveEmail { get; set; }
         public bool? Lv3IsApprove { get; set; }
         public DateTime? Lv3ApproveTime { get; set; }
         public string? Lv3Comment { get; set; }
-        public bool Lv3Skip { get; set; }              // true = NV văn phòng, bỏ qua
+        public bool Lv3Skip { get; set; }
+        public string? Lv3StatusText { get; set; }
 
-        // ===== BƯỚC 4: BCH Công đoàn =====
-        public string? Lv4ApproveCode { get; set; }
+        // Lv4
         public string? Lv4ApproveName { get; set; }
         public string? Lv4ApproveEmail { get; set; }
         public bool? Lv4IsApprove { get; set; }
         public DateTime? Lv4ApproveTime { get; set; }
         public string? Lv4Comment { get; set; }
+        public string? Lv4StatusText { get; set; }
 
-        // ===== BƯỚC 5: Ast.Chief / Chief =====
-        public string? Lv5ApproveCode { get; set; }
+        // Lv5
         public string? Lv5ApproveName { get; set; }
         public string? Lv5ApproveEmail { get; set; }
         public bool? Lv5IsApprove { get; set; }
         public DateTime? Lv5ApproveTime { get; set; }
         public string? Lv5Comment { get; set; }
+        public string? Lv5StatusText { get; set; }
 
-        // ===== BƯỚC 6: A.MG / MG =====
-        public string? Lv6ApproveCode { get; set; }
+        // Lv6
         public string? Lv6ApproveName { get; set; }
         public string? Lv6ApproveEmail { get; set; }
         public bool? Lv6IsApprove { get; set; }
         public DateTime? Lv6ApproveTime { get; set; }
         public string? Lv6Comment { get; set; }
+        public string? Lv6StatusText { get; set; }
 
-        // ===== BƯỚC 7: GM (chỉ khi RequiresGM = true) =====
-        public string? Lv7ApproveCode { get; set; }
+        // Lv7 (GM)
         public string? Lv7ApproveName { get; set; }
         public string? Lv7ApproveEmail { get; set; }
         public bool? Lv7IsApprove { get; set; }
         public DateTime? Lv7ApproveTime { get; set; }
         public string? Lv7Comment { get; set; }
+        public string? Lv7StatusText { get; set; }
 
         public string RequestStatus { get; set; } = "Pending";
-
-        // Giờ thực tế sau khi OT xong
         public DateTime? ActualFrom { get; set; }
         public DateTime? ActualTo { get; set; }
         public decimal? ActualHours { get; set; }
         public bool EmployeeConfirmed { get; set; }
         public DateTime? ConfirmedAt { get; set; }
-
-        // Audit
-        public bool IsActive { get; set; } = true;
-        public int CreatedBy { get; set; } = -1;
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
-        public int ModifiedBy { get; set; } = -1;
-        public DateTime ModifiedAt { get; set; } = DateTime.Now;
-
-        // Navigation
-        public virtual ICollection<F03OTRow> Rows { get; set; } = new List<F03OTRow>();
+        public bool IsActive { get; set; }
+        public int CreatedBy { get; set; }
+        public DateTime CreatedAt { get; set; }
     }
 }

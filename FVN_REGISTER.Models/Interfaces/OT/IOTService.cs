@@ -9,41 +9,16 @@ namespace FVN_REGISTER.Contract.Interfaces.OT
 {
     public interface IOTService
     {
-        Task<ServiceResult<OTRequestDto>> CreateAsync(
-            CreateOTRequestModel model,
-            CurrentUser user,
-            CancellationToken ct = default);
+        Task<ServiceResult> CreateAsync(CreateOTRequestModel model, CurrentUser user, CancellationToken ct = default);
 
-        Task<ServiceResult> ApproveAsync(
-            List<int> ids, int level,
-            CurrentUser user, string? comment,
-            CancellationToken ct = default);
+        Task<ServiceResult> ApproveAsync(List<int> ids, int level, CurrentUser user, string? comment, CancellationToken ct = default);
 
-        Task<ServiceResult> RejectAsync(
-            List<int> ids, int level,
-            CurrentUser user, string? comment,
-            CancellationToken ct = default);
+        Task<ServiceResult> RejectAsync(List<int> ids, int level, CurrentUser user, string comment, CancellationToken ct = default);
 
-        Task<ServiceResult> CancelAsync(
-            int id, CurrentUser user,
-            CancellationToken ct = default);
+        Task<ServiceResult> CancelAsync(int id, string reason, CurrentUser user, CancellationToken ct = default);
 
-        Task<ServiceResult<OTRequestDto>> GetByIdAsync(
-            int id, CancellationToken ct = default);
+        Task<ServiceResult> ConfirmActualHoursAsync(int id, DateTime actualFrom, DateTime actualTo, CurrentUser user, CancellationToken ct = default);
 
-        Task<ServiceResult<List<OTRequestDto>>> GetByEmployeeAsync(
-            string employeeCode, int? year,
-            CancellationToken ct = default);
-
-        Task<ServiceResult<List<OTRequestDto>>> GetPendingForApproverAsync(
-            string approverEmail,
-            CancellationToken ct = default);
-
-        /// <summary>Kiểm tra rule 40h/tuần và 300h/năm</summary>
-        Task<OTValidationResult> CheckOTHoursRuleAsync(
-            DateOnly otDate,
-            List<OTEmployeeModel> employees,
-            CancellationToken ct = default);
-        Task<ServiceResult<List<EmployeeSelectDto>>> GetEmployeesByDeptAsync(string deptCode, CancellationToken ct = default);
+        Task<ServiceResult<OTDetailViewModel>> GetDetailsAsync(int id, CancellationToken ct = default);
     }
 }

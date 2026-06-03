@@ -6,22 +6,26 @@ using System.Threading.Tasks;
 
 namespace FVN_REGISTER.Contract.Models
 {
-    public partial class F03OTEmployee
+    public partial class F03OTRow
     {
         public int Id { get; set; }
         public int OTRequestId { get; set; }
         public string EmployeeCode { get; set; } = null!;
         public string? EmployeeName { get; set; }
-        public TimeOnly PlannedFrom { get; set; }
-        public TimeOnly PlannedTo { get; set; }
-        public TimeOnly? ActualFrom { get; set; }
-        public TimeOnly? ActualTo { get; set; }
-        public decimal PlannedHours { get; set; }
-        public decimal? ActualHours { get; set; }
-        public string? OTReason { get; set; }  // A,B,C,D,E,F,G,H,I
-        public bool IsActive { get; set; } = true;
-        public DateTime CreatedAt { get; set; }
+        public string? DeptCode { get; set; }
 
-        public virtual F03OTRequest OTRequest { get; set; } = null!;
+        public DateTime PlannedFrom { get; set; }
+        public DateTime PlannedTo { get; set; }
+        public decimal PlannedHours { get; set; }
+
+        public DateTime? ActualFrom { get; set; }
+        public DateTime? ActualTo { get; set; }
+        public decimal? ActualHours { get; set; }
+
+        public bool IsActive { get; set; } = true;
+        public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+        // Navigation
+        public virtual F03OTRequest Request { get; set; } = null!;
     }
 }
