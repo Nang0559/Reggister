@@ -44,7 +44,6 @@ namespace FVN_REGISTER.Contract.Interfaces.OT
             DateOnly otDate,
             List<OTEmployeeModel> employees,
             CancellationToken ct = default);
-        Task<ApiResponse<List<EmployeeSelectDto>>> GetEmployeesByDeptAsync(
-       string deptCode, CancellationToken ct = default);
+        Task<ServiceResult<List<EmployeeSelectDto>>> GetEmployeesByDeptAsync(string deptCode, CancellationToken ct = default);
     }
 }

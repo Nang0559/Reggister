@@ -9,23 +9,37 @@ namespace FVN_REGISTER.Contract.ViewModels.OT
 {
     public class CreateOTRequestModel
     {
-        [Required] public DateOnly OTDate { get; set; } = DateOnly.FromDateTime(DateTime.Today);
-        [Required] public string OTType { get; set; } = "Normal"; // Normal, Weekend, Holiday
-        [Required] public string DeptCode { get; set; } = null!;
+        public DateOnly OTDate { get; set; }
+        public string OTType { get; set; } = "Normal"; // Normal | Weekend | Holiday
+        public string DeptCode { get; set; } = string.Empty;
         public string? Reason { get; set; }
 
-        // Danh sách nhân viên OT
-        [Required] public List<OTEmployeeModel> Employees { get; set; } = new();
+        // ===== 4 CẤP KÝ THEO QĐ-HC-03 =====
+        // Cấp 1: BCH Công đoàn (bắt buộc)
+        public string? UnionRepCode { get; set; }
+        public string? UnionRepName { get; set; }
+        public string? UnionRepEmail { get; set; }
 
-        // Approver
-        public string? Level1ApproveCode { get; set; }
-        public string? Level1ApproveName { get; set; }
-        public string? Level1ApproveEmail { get; set; }
-        public string? Level2ApproveCode { get; set; }
-        public string? Level2ApproveName { get; set; }
-        public string? Level2ApproveEmail { get; set; }
-        public string? Level3ApproveCode { get; set; }
-        public string? Level3ApproveName { get; set; }
-        public string? Level3ApproveEmail { get; set; }
+        // Cấp 2: Ast.Chief / Chief (bắt buộc)
+        public string? ChiefCode { get; set; }
+        public string? ChiefName { get; set; }
+        public string? ChiefEmail { get; set; }
+
+        // Cấp 3: A.MG / MG (bắt buộc)
+        public string? MGCode { get; set; }
+        public string? MGName { get; set; }
+        public string? MGEmail { get; set; }
+
+        // Cấp 4: GM — bắt buộc nếu OT ngày nghỉ/lễ/Tết
+        //         hoặc người OT là Ast.Chief trở lên
+        public string? GMCode { get; set; }
+        public string? GMName { get; set; }
+        public string? GMEmail { get; set; }
+
+        public bool RequiresGM =>
+            OTType is "Weekend" or "Holiday" ||
+            Employees.Any(e => e.IsAstChiefOrAbove);
+
+        public List<OTEmployeeModel> Employees { get; set; } = new();
     }
 }

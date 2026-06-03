@@ -1,7 +1,9 @@
 ﻿@page "/ot/create"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos
+@using FVN_REGISTER.Contract.Dtos.OT
 @using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Contract.ViewModels.OT
 @using FVN_REGISTER.Shared.Services.OT
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils.Helpers
@@ -40,12 +42,12 @@
 
             <MudDatePicker Label="Ngày OT *"
                            @bind-Date="_otDatePicker"
+                           @bind-Date:after="OnDateChanged"
                            DateFormat="dd/MM/yyyy"
                            Variant="Variant.Outlined"
                            Margin="Margin.Dense"
                            Class="mb-3"
-                           Required="true"
-                           DateChanged="OnDateChanged"/>
+                           Required="true"/>
 
             <MudSelect T="string" Label="Loại ngày"
                        @bind-Value="_model.OTType"
@@ -380,10 +382,8 @@
     // ── Lifecycle ─────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
-        // Lấy DeptCode của user đang đăng nhập
         _deptCode = _currentUser.User?.DeptCode ?? string.Empty;
 
-        // Load nhân viên trong bộ phận ngay khi vào form
         if (!string.IsNullOrEmpty(_deptCode))
             await LoadEmployeesAsync();
     }
@@ -398,7 +398,6 @@
         if (result.IsSuccess && result.Data != null)
         {
             _allEmployees = result.Data;
-            // Mặc định chọn tất cả nhân viên trong bộ phận
             _selectedCodes = _allEmployees.Select(e => e.EmployeeCode).ToHashSet();
             SyncEmployeeList();
         }
@@ -420,7 +419,7 @@
             _selectedCodes.Add(emp.EmployeeCode);
 
         SyncEmployeeList();
-        _checkedOnce = false; // reset vì danh sách thay đổi
+        _checkedOnce = false;
     }
 
     private void SelectAll()
@@ -437,17 +436,13 @@
         _checkedOnce = false;
     }
 
-    /// Đồng bộ _model.Employees từ _selectedCodes
-    /// Giữ nguyên giờ đã thiết lập của nhân viên đang có; thêm mới với giờ mặc định
     private void SyncEmployeeList()
     {
         var defaultFrom = TimeOnly.FromTimeSpan(_bulkFrom ?? new TimeSpan(17, 0, 0));
         var defaultTo   = TimeOnly.FromTimeSpan(_bulkTo   ?? new TimeSpan(20, 0, 0));
 
-        // Xóa những người không còn được chọn
         _model.Employees.RemoveAll(e => !_selectedCodes.Contains(e.EmployeeCode));
 
-        // Thêm người mới được chọn (chưa có trong list)
         var existingCodes = _model.Employees.Select(e => e.EmployeeCode).ToHashSet();
 
         foreach (var code in _selectedCodes)
@@ -466,7 +461,6 @@
             });
         }
 
-        // Sắp xếp theo tên
         _model.Employees = _model.Employees
             .OrderBy(e => e.EmployeeName)
             .ToList();
@@ -503,10 +497,13 @@
     }
 
     // ── Date change ───────────────────────────────────────
-    private void OnDateChanged(DateTime? dt)
+    // @bind-Date:after → không có tham số, _otDatePicker đã được cập nhật tự động
+    private async Task OnDateChanged()
     {
-        _otDatePicker = dt;
-        _checkedOnce  = false; // ngày đổi → phải check lại
+        if (_otDatePicker == null) return;
+
+        // Reload danh sách nhân viên khi đổi ngày (nếu cần lọc theo ngày)
+        await LoadEmployeesAsync();
     }
 
     // ── Check hours rule ──────────────────────────────────

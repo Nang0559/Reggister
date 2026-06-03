@@ -129,21 +129,10 @@ public class OTController : BaseApiController
     /// <summary>Lấy danh sách nhân viên active theo DeptCode</summary>
     [HttpGet("employees/{deptCode}")]
     public async Task<IActionResult> GetEmployeesByDept(
-        string deptCode, CancellationToken ct)
+     string deptCode, CancellationToken ct)
     {
-        var list = await _db.F03employees
-            .AsNoTracking()
-            .Where(e => e.DeptCode == deptCode && e.IsActive == true)
-            .OrderBy(e => e.EmployeeName)
-            .Select(e => new EmployeeSelectDto
-            {
-                EmployeeCode = e.EmployeeCode,
-                EmployeeName = e.EmployeeName,
-                DeptCode = e.DeptCode
-            })
-            .ToListAsync(ct);
-
-        return Ok(ApiResponse<List<EmployeeSelectDto>>.Ok(list));
+        var result = await _otService.GetEmployeesByDeptAsync(deptCode, ct);
+        return HandleResult(result);
     }
 }
 

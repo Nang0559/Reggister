@@ -338,6 +338,40 @@ public class OTService : BaseService<OTService>, IOTService
         }
         return ServiceResult<List<OTRequestDto>>.Ok(dtos);
     }
+    public async Task<ServiceResult<List<EmployeeSelectDto>>> GetEmployeesByDeptAsync(
+    string deptCode,
+    CancellationToken ct = default)
+    {
+        try
+        {
+            Logger.LogDebugIf(Debug, "[OT] GetEmployeesByDept: {Dept}", deptCode);
+
+            if (string.IsNullOrWhiteSpace(deptCode))
+                return ServiceResult<List<EmployeeSelectDto>>.Fail("Mã bộ phận không hợp lệ.");
+
+            var list = await _db.F03employees
+                .AsNoTracking()
+                .Where(e => e.DeptCode == deptCode && e.IsActive == true)
+                .OrderBy(e => e.EmployeeName)
+                .Select(e => new EmployeeSelectDto
+                {
+                    EmployeeCode = e.EmployeeCode,
+                    EmployeeName = e.EmployeeName,
+                    DeptCode = e.DeptCode
+                })
+                .ToListAsync(ct);
+
+            Logger.LogInfoIf(Debug,
+                "[OT] GetEmployeesByDept: {Dept} → {Count} employees",
+                deptCode, list.Count);
+
+            return ServiceResult<List<EmployeeSelectDto>>.Ok(list);
+        }
+        catch (Exception ex)
+        {
+            return InternalError<List<EmployeeSelectDto>>(ex, "Lỗi khi lấy danh sách nhân viên.");
+        }
+    }
 
     // ========== HELPERS ==========
     private async Task<OTRequestDto?> BuildDtoAsync(int id, CancellationToken ct)
