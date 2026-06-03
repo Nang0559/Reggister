@@ -32,5 +32,11 @@ namespace FVN_REGISTER.Contract.Interfaces.Emails
         Task CancelEmail(int id, CancellationToken ct = default);
 
         Task ResendEmail(int id, CancellationToken ct = default);
+        Task SendApprovalRequestAsync(
+        string toEmail,
+        string recipientRole,
+        F03leaveDay leave,
+        string employeeName,
+        CancellationToken ct = default);
     }
 }

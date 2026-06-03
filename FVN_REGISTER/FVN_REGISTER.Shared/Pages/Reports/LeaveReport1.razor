@@ -1,0 +1,60 @@
+﻿@* LeaveReport.razor *@
+@page "/report1/leave"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Reports
+@using FVN_REGISTER.Shared.Pages.Reports
+@using FVN_REGISTER.Shared.Utils.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+
+<MudText Typo="Typo.h5" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" />
+    Báo cáo nghỉ phép
+</MudText>
+
+<MudTabs @bind-ActivePanelIndex="_activeTab" Color="Color.Primary" Rounded="true" Class="mb-4">
+    <MudTabPanel Text="Số dư phép" />
+    <MudTabPanel Text="Theo phòng ban" />
+    <MudTabPanel Text="Theo nhân viên" />
+    <MudTabPanel Text="Chi tiết đơn" />
+    <MudTabPanel Text="Trạng thái duyệt" />
+</MudTabs>
+
+@if (_activeTab == 0)
+{
+    <MudSelect T="int?" Label="Năm"
+               Value="_query.WorkYear"
+               ValueChanged="OnYearChanged"
+               Style="max-width:150px;" Class="mb-2"
+               Dense="true" Variant="Variant.Outlined">
+        @for (int y = DateTime.Now.Year; y >= 2022; y--)
+        {
+            <MudSelectItem T="int?" Value="@((int?)y)">@y</MudSelectItem>
+        }
+    </MudSelect>
+}
+
+<ReportBase @ref="_baseRef"
+            ReportType="_currentType"
+            Query="_query" />
+
+@code {
+    private ReportBase? _baseRef;
+    private ReportQueryDto _query = new() { WorkYear = DateTime.Now.Year };
+    private int _activeTab;
+
+    private ReportType _currentType => _activeTab switch
+    {
+        0 => ReportType.LeaveBalance,
+        1 => ReportType.LeaveSummaryByDept,
+        2 => ReportType.LeaveSummaryByEmployee,
+        3 => ReportType.LeaveDetail,
+        4 => ReportType.LeaveApprovalStatus,
+        _ => ReportType.LeaveBalance
+    };
+
+    private void OnYearChanged(int? value)
+    {
+        _query.WorkYear = value;
+    }
+}

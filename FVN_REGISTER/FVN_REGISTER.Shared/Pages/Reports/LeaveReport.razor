@@ -1,0 +1,174 @@
+﻿@* LeaveReport.razor *@
+@page "/report/leave"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Reports
+@using FVN_REGISTER.Shared.Pages.Reports
+@using FVN_REGISTER.Shared.Services.Leaves
+@using FVN_REGISTER.Shared.Utils.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IReportClientService ReportService 
+
+<MudText Typo="Typo.h5" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" />
+    Báo cáo nghỉ phép
+</MudText>
+
+<MudTabs ActivePanelIndex="_activeTab" ActivePanelIndexChanged="OnTabChanged" Color="Color.Primary" Rounded="true" Class="mb-4">
+    <MudTabPanel Text="Số dư phép" />
+    <MudTabPanel Text="Theo phòng ban" />
+    <MudTabPanel Text="Theo nhân viên" />
+    <MudTabPanel Text="Chi tiết đơn" />
+    <MudTabPanel Text="Trạng thái duyệt" />
+</MudTabs>
+
+<ReportBase @ref="_baseRef" ReportType="_currentType" Query="_query">
+
+    @* Định nghĩa các bộ lọc động theo từng Tab (Map chính xác với DTO mới) *@
+    <AdditionalFilters>
+        @if (_activeTab == 0) @* Tab: Số dư phép *@
+        {
+            <MudItem xs="12" sm="3">
+                <MudSelect T="int?" Label="Năm làm việc" @bind-Value="_query.WorkYear"
+                           Margin="Margin.Dense" Variant="Variant.Outlined">
+                    @for (int y = DateTime.Now.Year; y >= 2022; y--)
+                    {
+                        // TẠO BIẾN CỤC BỘ TẠM THỜI Ở ĐÂY để cố định giá trị cho từng dòng
+                        var currentYear = y;
+
+                        <MudSelectItem T="int?" Value="@((int?)currentYear)">@currentYear</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        }
+        else if (_activeTab == 1 || _activeTab == 4)
+ @* Tab: Theo phòng ban hoặc Trạng thái duyệt *@
+        {
+            <MudItem xs="12" sm="3">
+                @* Sửa MudSelect để lặp qua danh sách _departments tải từ API *@
+                <MudSelect T="string" Label="Phòng ban" @bind-Value="_query.DeptCode"
+                           Margin="Margin.Dense" Variant="Variant.Outlined" Clearable="true">
+                    <MudSelectItem T="string" Value="@(null)">-- Tất cả phòng ban --</MudSelectItem>
+                    @if (_departments != null)
+                    {
+                        @foreach (var dept in _departments)
+                        {
+                            <MudSelectItem T="string" Value="@dept.Key">@dept.Value</MudSelectItem>
+                        }
+                    }
+                </MudSelect>
+            </MudItem>
+        }
+        else if (_activeTab == 2 || _activeTab == 3)
+ @* Tab: Theo nhân viên hoặc Chi tiết đơn *@
+        {
+            <MudItem xs="12" sm="3">
+                @* Cấu hình lại MudAutocomplete sử dụng Key-Value *@
+                <MudAutocomplete T="KeyValuePair<string, string>"
+                                 Label="Nhân viên"
+                                 Value="@_selectedEmployee"
+                                 ValueChanged="OnEmployeeChanged"
+                                 SearchFunc="@SearchEmployees"
+                                 ToStringFunc="@(e => e.Value)"
+                                 Clearable="true"
+                                 Margin="Margin.Dense"
+                                 Variant="Variant.Outlined"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true" />
+            </MudItem>
+        }
+    </AdditionalFilters>
+
+    @* Không cần truyền <ChartContent> nữa vì ReportBase đã tự động xử lý dựa trên data của Backend *@
+
+</ReportBase>
+
+@code {
+    private ReportBase? _baseRef;
+    private ReportQueryDto _query = new() { WorkYear = DateTime.Now.Year, IncludeChart = true };
+    private int _activeTab;
+
+    private List<KeyValuePair<string, string>>? _departments;
+
+    // Biến tạm để hỗ trợ hiển thị tên nhân viên trên Autocomplete (nhưng bind mã code vào query)
+    private KeyValuePair<string, string> _selectedEmployee;
+
+    private ReportType _currentType => _activeTab switch
+    {
+        0 => ReportType.LeaveBalance,
+        1 => ReportType.LeaveSummaryByDept,
+        2 => ReportType.LeaveSummaryByEmployee,
+        3 => ReportType.LeaveDetail,
+        4 => ReportType.LeaveApprovalStatus,
+        _ => ReportType.LeaveBalance
+    };
+    protected override async Task OnInitializedAsync()
+    {
+        var res = await ReportService.GetLookupDepartmentsAsync();
+        if (res.IsSuccess)
+        {
+            _departments = res.Data;
+        }
+    }
+
+    // Hàm gọi API tìm kiếm nhân viên theo text người dùng gõ trên MudAutocomplete
+    private async Task<IEnumerable<KeyValuePair<string, string>>> SearchEmployees(string value, CancellationToken token)
+    {
+        var res = await ReportService.SearchLookupEmployeesAsync(value ?? "", token);
+        if (res.IsSuccess && res.Data != null)
+        {
+            return res.Data;
+        }
+        return Array.Empty<KeyValuePair<string, string>>();
+    }
+
+    // Xử lý khi người dùng chọn 1 nhân viên trong danh sách gợi ý
+    private void OnEmployeeChanged(KeyValuePair<string, string> employee)
+    {
+        _selectedEmployee = employee;
+        // Nếu người dùng xóa trắng ô input, Key sẽ là null hoặc chuỗi rỗng
+        _query.EmployeeCode = !string.IsNullOrEmpty(employee.Key) ? employee.Key : null;
+    }
+    private async Task OnTabChanged(int index)
+    {
+        _activeTab = index;
+
+        // 1. Reset các bộ lọc danh mục tránh rác dữ liệu giữa các tab
+        _query.DeptCode = null;
+        _query.EmployeeCode = null;
+        _selectedEmployee = default; // Reset cả thực thể autocomplete hiển thị nếu có
+
+        // 2. Phân phối khoảng thời gian thông minh dựa vào loại Tab công việc
+        if (_activeTab == 0) @* Tab: Số dư phép *@
+        {
+            _query.WorkYear = DateTime.Now.Year;
+            _query.FromDate = null; // Báo cáo số dư không cần mốc ngày
+            _query.ToDate = null;
+            _query.GroupBy = null;
+        }
+        else @* Các Tab còn lại: Xem theo mốc Từ ngày - Đến ngày *@
+        {
+            _query.WorkYear = null; // Báo cáo động theo ngày không cần WorkYear cố định
+
+            // Tự động thiết lập: Từ ngày 01/01 năm nay -> Đến ngày hôm nay
+            _query.FromDate = new DateTime(DateTime.Now.Year, 1, 1);
+            _query.ToDate = DateTime.Now;
+
+            _query.GroupBy = _activeTab switch
+            {
+                1 => "dept",
+                2 => "employee",
+                _ => null
+            };
+        }
+
+        // 3. Kích hoạt tầng Base nạp lại dữ liệu chuẩn lên table
+        await Task.Delay(50);
+        if (_baseRef != null)
+        {
+            await _baseRef.LoadReport();
+        }
+    }
+
+    
+}

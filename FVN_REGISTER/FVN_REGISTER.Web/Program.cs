@@ -1,7 +1,5 @@
 ﻿using Blazored.LocalStorage;
-using FVN_REGISTER.API.Services.Auths;
-using FVN_REGISTER.API.Services.Notifications;
-using FVN_REGISTER.Contract.Interfaces.Auths;
+
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Shared.Handlers;
 using FVN_REGISTER.Shared.Services.Dashboards;
@@ -9,7 +7,6 @@ using FVN_REGISTER.Shared.Services.Leaves;
 using FVN_REGISTER.Shared.Services.Users;
 using FVN_REGISTER.Shared.Utils;
 using FVN_REGISTER.Web.Components;
-using FVN_REGISTER.Web.Services;
 using FVN_REGISTER.Web.Services.FVN_REGISTER.Web.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using MudBlazor.Services;
@@ -74,7 +71,7 @@ builder.Services.AddScoped<IDashboardClientService, DashboardClientService>();
 builder.Services.AddScoped<ILeaveCreateClientService, LeaveCreateClientService>();
 builder.Services.AddScoped<IApproveClientService, ApproveClientService>();
 builder.Services.AddScoped<ILeaveHistorysClientService, LeaveHistorysClientService>();
-
+builder.Services.AddScoped<IReportClientService, ReportClientService>();
 builder.Services.AddScoped<INotificationClientService, NotificationClientService>();
 
 

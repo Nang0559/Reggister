@@ -39,4 +39,18 @@
             <MudNavLink href="/admin/managers" Icon="@Icons.Material.Filled.AdminPanelSettings">Quản trị viên</MudNavLink>
         </MudNavGroup>
     }
+    @* ===== BÁO CÁO ===== *@
+    @if (UserRoleHelper.IsApprover(CurrentUser.PermissionCode))
+    {
+        <MudNavGroup Title="Báo cáo"
+                     Icon="@Icons.Material.Filled.Assessment"
+                     Expanded="false">
+            <MudNavLink href="/report/leave"
+                        Icon="@Icons.Material.Filled.BeachAccess">
+                Báo cáo nghỉ phép
+            </MudNavLink>
+            @* Sau này thêm OT vào đây *@
+            @* <MudNavLink href="/report/overtime">Báo cáo làm thêm</MudNavLink> *@
+        </MudNavGroup>
+    }
 </MudNavMenu>

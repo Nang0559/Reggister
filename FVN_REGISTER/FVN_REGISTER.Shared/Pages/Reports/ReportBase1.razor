@@ -1,0 +1,175 @@
+﻿@* FVN_REGISTER.Shared/Pages/Reports/ReportBase.razor *@
+@using FVN_REGISTER.Contract.Dtos.Reports
+@using FVN_REGISTER.Shared.Services.Leaves
+@using FVN_REGISTER.Shared.Utils.Helpers
+@inherits AppComponentBase
+@inject IReportClientService ReportService
+@inject ISnackbar Snackbar
+
+<MudPaper Elevation="1" Class="pa-4 mb-4">
+    <MudGrid>
+        <MudItem xs="12" sm="3">
+            <MudDateRangePicker Label="Khoảng thời gian"
+                                DateRange="_dateRange"
+                                DateRangeChanged="OnDateRangeChanged" />
+        </MudItem>
+        <MudItem xs="12" sm="3">
+            @AdditionalFilters
+        </MudItem>
+        <MudItem xs="12" sm="6" Class="d-flex align-end gap-2">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       OnClick="LoadReport" Disabled="_loading"
+                       StartIcon="@Icons.Material.Filled.Search">
+                @(_loading ? "Đang tải..." : "Xem báo cáo")
+            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Success"
+                       OnClick="ExportExcel"
+                       StartIcon="@Icons.Material.Filled.Download">
+                Excel
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@* Summary cards *@
+@if (_result?.Summary.Any() == true)
+{
+    <MudGrid Class="mb-4">
+        @foreach (var kv in _result.Summary)
+        {
+            <MudItem xs="6" sm="3">
+                <MudPaper Elevation="2" Class="pa-3 text-center">
+                    <MudText Typo="Typo.h5">@FormatSummaryValue(kv.Value)</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @GetSummaryLabel(kv.Key)
+                    </MudText>
+                </MudPaper>
+            </MudItem>
+        }
+    </MudGrid>
+}
+
+@* Data table *@
+@if (_result != null)
+{
+    <MudTable Items="@_result.Rows" Dense="true" Striped="true"
+              Hover="true" Loading="_loading" Bordered="false"
+              FixedHeader="true" Height="500px">
+        <HeaderContent>
+            @foreach (var col in _result.Columns.Where(c => c.IsVisible))
+            {
+                <MudTh>@col.Header</MudTh>
+            }
+        </HeaderContent>
+        <RowTemplate>
+            @foreach (var col in _result.Columns.Where(c => c.IsVisible))
+            {
+                <MudTd Class="@col.CssClass">
+                    @FormatCellValue(context, col)
+                </MudTd>
+            }
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>Không có dữ liệu. Vui lòng chọn bộ lọc và bấm Xem báo cáo.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+
+    <MudText Typo="Typo.caption" Class="mt-2" Color="Color.Secondary">
+        Tổng: @_result.TotalRows dòng
+    </MudText>
+}
+
+@code {
+    [Parameter] public RenderFragment? AdditionalFilters { get; set; }
+    [Parameter] public ReportType ReportType { get; set; }
+    [Parameter] public ReportQueryDto Query { get; set; } = new();
+
+    protected ReportResultDto? _result;
+    protected bool _loading;
+    private MudBlazor.DateRange? _dateRange = new(
+        new DateTime(DateTime.Now.Year, 1, 1), DateTime.Now);
+
+    private void OnDateRangeChanged(MudBlazor.DateRange range)
+    {
+        _dateRange = range;
+    }
+
+    public async Task LoadReport()
+    {
+        _loading = true;
+        try
+        {
+            Query.Type = ReportType;
+            Query.FromDate = _dateRange?.Start ?? new DateTime(DateTime.Now.Year, 1, 1);
+            Query.ToDate = _dateRange?.End ?? DateTime.Now;
+
+            var result = await ReportService.GetReportAsync(Query);
+            if (result.IsSuccess)
+                _result = result.Data;
+            else
+                Snackbar.Add(result.Message ?? "Lỗi tải báo cáo", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ExportExcel()
+    {
+        Query.Type = ReportType;
+        var result = await ReportService.ExportExcelAsync(Query);
+        if (!result.IsSuccess)
+            Snackbar.Add(result.Message ?? "Lỗi xuất Excel", Severity.Error);
+        // TODO: trigger file download khi ExportExcel implement xong
+    }
+
+    // ================= HELPERS =================
+
+    // Map key tiếng Anh → nhãn tiếng Việt cho summary cards
+    private static string GetSummaryLabel(string key) => key switch
+    {
+        "TotalEmployees" => "Nhân viên",
+        "TotalEntitled" => "Tổng phép (ngày)",
+        "TotalUsed" => "Đã dùng (ngày)",
+        "TotalRemaining" => "Còn lại (ngày)",
+        "TotalDepts" => "Phòng ban",
+        "TotalRequests" => "Số đơn",
+        "TotalDays" => "Tổng ngày",
+        "ApprovedDays" => "Đã duyệt (ngày)",
+        _ => key
+    };
+
+    private static string FormatSummaryValue(object? value)
+    {
+        if (value is null) return "—";
+        if (value is decimal d) return d.ToString("N1");
+        if (value is double dbl) return dbl.ToString("N1");
+        if (value is int i) return i.ToString("N0");
+        return value.ToString() ?? "—";
+    }
+
+    private static string FormatCellValue(
+        Dictionary<string, object?> row, ReportColumnDef col)
+    {
+        if (!row.TryGetValue(col.Field, out var val) || val is null)
+            return "—";
+
+        return col.DataType switch
+        {
+            "date" when val is DateTime dt =>
+                dt.ToString(col.Format ?? "dd/MM/yyyy"),
+
+            "decimal" when val is decimal dec =>
+                dec.ToString(col.Format ?? "N1"),
+
+            "decimal" when val is double dbl =>
+                ((decimal)dbl).ToString(col.Format ?? "N1"),
+
+            "number" when val is int n =>
+                n.ToString("N0"),
+
+            _ => val.ToString() ?? "—"
+        };
+    }
+}

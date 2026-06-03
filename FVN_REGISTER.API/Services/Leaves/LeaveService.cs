@@ -1,6 +1,5 @@
-﻿using FVN_REGISTER.API.Services.Notifications.FVN_REGISTER.API.Services.Notifications;
+﻿
 using FVN_REGISTER.Contract.Dtos;
-using FVN_REGISTER.Contract.Interfaces.Auths;
 using FVN_REGISTER.Contract.Interfaces.Leaves;
 using FVN_REGISTER.Contract.Maps;
 using FVN_REGISTER.Contract.Models;
@@ -16,19 +15,19 @@ using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Services.Leaves
 {
+  
+
     public class LeaveService : BaseService<LeaveService>, ILeaveService
     {
         private readonly FVNWEBAPPContext _db;
-        private readonly ILeaveNotificationService _leaveNotification; // Chỉ lo email
+        private readonly ILeaveNotificationService _leaveNotification; // Đầu mối duy nhất lo thông báo
         private readonly ILeaveValidator _validator;
-        private readonly INotificationService _notificationService;   // Chỉ lo in-app + SignalR
         private readonly IServiceScopeFactory _scopeFactory;
 
         public LeaveService(
             FVNWEBAPPContext db,
             ILeaveNotificationService leaveNotification,
             ILeaveValidator validator,
-            INotificationService notificationService,
             IServiceScopeFactory scopeFactory,
             ILogger<LeaveService> logger,
             IOptionsMonitor<AuthDebugOptions> options)
@@ -37,7 +36,6 @@ namespace FVN_REGISTER.API.Services.Leaves
             _db = db;
             _leaveNotification = leaveNotification;
             _validator = validator;
-            _notificationService = notificationService;
             _scopeFactory = scopeFactory;
         }
 
@@ -121,82 +119,31 @@ namespace FVN_REGISTER.API.Services.Leaves
                 await tx.CommitAsync(ct);
                 Logger.LogInfoIf(Debug, "[LEAVE] Created: {User}", user.UserName);
 
-                // ✅ Capture tất cả giá trị cần thiết trước khi vào Task.Run
+                // ✅ Lấy dữ liệu cần thiết ra biến cục bộ trước khi vào luồng ngầm
                 var capturedLeaveId = newLeave.Id;
-                var capturedEmail = newLeave.Level1ApproveEmail;
-                var capturedStartDate = newLeave.StartDate;
-                var capturedEndDate = newLeave.EndDate;
-                var capturedTotalDay = newLeave.TotalDay;
-                var capturedReason = newLeave.LeaveReason;
+                var capturedApproverEmail = newLeave.Level1ApproveEmail;
                 var capturedEmpName = user.FullName ?? user.EmployeeCode ?? "";
 
-                // ✅ Fire-and-forget background: email + in-app notification
-                // Chỉ gọi MỘT nguồn cho mỗi loại — không double
+                // ✅ Fire-and-forget xử lý background
                 _ = Task.Run(async () =>
                 {
                     await using var scope = _scopeFactory.CreateAsyncScope();
-                    var db = scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
-                    var emailSvc = scope.ServiceProvider.GetRequiredService<ILeaveNotificationService>();
-                    var notifySvc = scope.ServiceProvider.GetRequiredService<INotificationService>();
+                    var leaveNotifySvc = scope.ServiceProvider.GetRequiredService<ILeaveNotificationService>();
 
                     try
                     {
-                        if (string.IsNullOrEmpty(capturedEmail)) return;
+                        if (string.IsNullOrEmpty(capturedApproverEmail)) return;
 
-                        // ── BƯỚC 1: Gửi EMAIL (qua LeaveNotificationService) ──
-                        var leaveForEmail = new F03leaveDay
-                        {
-                            Id = capturedLeaveId,
-                            StartDate = capturedStartDate,
-                            EndDate = capturedEndDate,
-                            TotalDay = capturedTotalDay,
-                            LeaveReason = capturedReason,
-                            Level1ApproveEmail = capturedEmail
-                        };
-
-                        await emailSvc.SendApprovalRequestAsync(
-                            capturedEmail,
-                            "Approver",
-                            leaveForEmail,
-                            capturedEmpName,
-                            CancellationToken.None);
-
-                        // ── BƯỚC 2: In-app notification (qua NotificationService) ──
-                        // Tìm UserId của approver từ email
-                        var approverUser = await db.F03users
-                            .AsNoTracking()
-                            .Join(db.F03employees,
-                                u => u.EmployeeCode,
-                                e => e.EmployeeCode,
-                                (u, e) => new { u.IdUser, e.EmailAddress })
-                            .FirstOrDefaultAsync(x =>
-                                x.EmailAddress == capturedEmail);
-
-                        if (approverUser != null)
-                        {
-                            // ✅ Gọi DUY NHẤT NotifyPendingLeaveAsync — không gọi thêm ở nơi nào khác
-                            await notifySvc.NotifyPendingLeaveAsync(
-                                approverUserId: approverUser.IdUser,
-                                employeeName: capturedEmpName,
-                                leaveId: capturedLeaveId,
-                                ct: CancellationToken.None);
-
-                            Logger.LogDebugIf(Debug,
-                                "[LEAVE] Notification pushed | ApproverUserId={UserId} | LeaveId={LeaveId}",
-                                approverUser.IdUser, capturedLeaveId);
-                        }
-                        else
-                        {
-                            Logger.LogWarning(
-                                "[LEAVE] Approver not found by email={Email} | LeaveId={LeaveId}",
-                                capturedEmail, capturedLeaveId);
-                        }
+                        // Gọi trọn gói thông báo đơn mới đến Người duyệt cấp 1
+                        await leaveNotifySvc.NotifyNewLeaveRequestAsync(
+                            approverEmail: capturedApproverEmail,
+                            leaveId: capturedLeaveId,
+                            employeeName: capturedEmpName,
+                            cancellationToken: CancellationToken.None);
                     }
                     catch (Exception ex)
                     {
-                        Logger.LogError(ex,
-                            "[LEAVE] Background notification failed | LeaveId={LeaveId}",
-                            capturedLeaveId);
+                        Logger.LogError(ex, "[LEAVE] Background notification failed | LeaveId={LeaveId}", capturedLeaveId);
                     }
                 });
 
@@ -336,7 +283,7 @@ namespace FVN_REGISTER.API.Services.Leaves
 
                 int success = 0;
                 var now = DateTime.Now;
-                var processedLeaves = new List<(F03leaveDay Leave, bool IsApprove)>();
+                var processedLeaves = new List<(F03leaveDay Leave, bool IsApprove, int CurrentLevel)>();
 
                 foreach (var leave in leaves)
                 {
@@ -378,63 +325,77 @@ namespace FVN_REGISTER.API.Services.Leaves
                         leave.RequestStatus = LeaveStatus.Rejected;
                     }
 
-                    processedLeaves.Add((leave, isApprove));
+                    processedLeaves.Add((leave, isApprove, level));
                     success++;
                 }
 
                 await _db.SaveChangesAsync(ct);
                 await tx.CommitAsync(ct);
 
-                // ✅ Gửi notification sau khi commit — 1 lần duy nhất
+                // ✅ Khởi chạy luồng thông báo bất đồng bộ sau khi commit dữ liệu thành công
                 if (processedLeaves.Any())
                 {
                     _ = Task.Run(async () =>
                     {
                         await using var scope = _scopeFactory.CreateAsyncScope();
                         var db = scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
-                        var emailSvc = scope.ServiceProvider.GetRequiredService<ILeaveNotificationService>();
-                        var notifySvc = scope.ServiceProvider.GetRequiredService<INotificationService>();
+                        var leaveNotifySvc = scope.ServiceProvider.GetRequiredService<ILeaveNotificationService>();
 
-                        foreach (var (leave, approved) in processedLeaves)
+                        foreach (var (leave, approved, currentLevel) in processedLeaves)
                         {
                             try
                             {
-                                // Tìm employee gửi đơn để thông báo cho họ
-                                var requester = await db.F03employees
+                                // 1. Lấy thông tin tài khoản người gửi đơn (Requester) từ DB nội bộ của Scope chạy ngầm
+                                var requesterEmp = await db.F03employees
                                     .AsNoTracking()
                                     .FirstOrDefaultAsync(x => x.EmployeeCode == leave.EmployeeCode);
 
-                                if (requester == null) continue;
-
-                                var status = approved ? "Approved" : "Rejected";
-
-                                // ── EMAIL cho người gửi đơn ──
-                                await emailSvc.SendStatusChangedNotificationAsync(
-                                    requester.EmailAddress,
-                                    requester.EmployeeName,
-                                    status,
-                                    requester.EmployeeCode,
-                                    CancellationToken.None);
-
-                                // ── In-app notification cho người gửi đơn ──
                                 var requesterUser = await db.F03users
                                     .AsNoTracking()
                                     .FirstOrDefaultAsync(x => x.EmployeeCode == leave.EmployeeCode);
 
-                                if (requesterUser != null)
+                                if (requesterEmp != null && requesterUser != null)
                                 {
-                                    await notifySvc.NotifyLeaveStatusChangedAsync(
+                                    var statusStr = approved ? "Approved" : "Rejected";
+
+                                    // 💥 GỌI CHÍNH XÁC PHƯƠNG THỨC TRONG INTERFACE MỚI CỦA BẠN:
+                                    await leaveNotifySvc.NotifyStatusChangedAsync(
                                         requesterUserId: requesterUser.IdUser,
-                                        status: status,
+                                        targetEmail: requesterEmp.EmailAddress,
+                                        targetName: requesterEmp.EmployeeName,
+                                        status: statusStr,
+                                        employeeCode: leave.EmployeeCode,
                                         leaveId: leave.Id,
                                         ct: CancellationToken.None);
+                                }
+
+                                // 2. Tự động chuyển tiếp thông báo cho Người phê duyệt cấp kế tiếp nếu đơn được đồng ý và chưa hoàn tất luồng
+                                if (approved && leave.RequestStatus != LeaveStatus.Approved)
+                                {
+                                    int nextLevel = currentLevel + 1;
+                                    string? nextApproverEmail = nextLevel switch
+                                    {
+                                        2 => leave.Level2ApproveEmail,
+                                        3 => leave.Level3ApproveEmail,
+                                        _ => null
+                                    };
+
+                                    if (!string.IsNullOrEmpty(nextApproverEmail))
+                                    {
+                                        string empName = requesterEmp?.EmployeeName ?? leave.EmployeeCode;
+
+                                        // Đẩy thông báo đơn chờ duyệt mới lên cho sếp cấp tiếp theo
+                                        await leaveNotifySvc.NotifyNewLeaveRequestAsync(
+                                            approverEmail: nextApproverEmail,
+                                            leaveId: leave.Id,
+                                            employeeName: empName,
+                                            cancellationToken: CancellationToken.None);
+                                    }
                                 }
                             }
                             catch (Exception ex)
                             {
-                                Logger.LogError(ex,
-                                    "[LEAVE] Post-approve notification failed | LeaveId={LeaveId}",
-                                    leave.Id);
+                                Logger.LogError(ex, "[LEAVE] Post-approve background notification failed | LeaveId={LeaveId}", leave.Id);
                             }
                         }
                     });

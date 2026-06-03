@@ -14,8 +14,9 @@ using System.Net.Mail;
 
 namespace FVN_REGISTER.API.Services.Emails
 {
-    public class EmailService
-     : BaseService<EmailService>, IEmailService
+   
+
+    public class EmailService : BaseService<EmailService>, IEmailService
     {
         private readonly FVNWEBAPPContext _db;
 
@@ -26,6 +27,40 @@ namespace FVN_REGISTER.API.Services.Emails
             : base(logger, options)
         {
             _db = db;
+        }
+
+        // ================= ĐỒNG BỘ NGHIỆP VỤ: GỬI YÊU CẦU DUYỆT ĐƠN NGHỈ PHÉP =================
+        public async Task SendApprovalRequestAsync(
+            string toEmail,
+            string recipientRole,
+            F03leaveDay leave,
+            string employeeName,
+            CancellationToken ct = default)
+        {
+            try
+            {
+                // Định nghĩa dữ liệu truyền vào mẫu template email
+                var emailPayload = new
+                {
+                    EmployeeName = employeeName,
+                    Role = recipientRole,
+                    StartDate = leave.StartDate.ToString("dd/MM/yyyy") ?? "",
+                    EndDate = leave.EndDate.ToString("dd/MM/yyyy") ?? "",
+                    TotalDay = leave.TotalDay,
+                    Reason = leave.LeaveReason ?? "",
+                    LeaveId = leave.Id
+                };
+
+                // Tiến hành đẩy vào hàng đợi gửi Email ngầm (Tránh nghẽn kênh SMTP chính)
+                await QueueEmail(toEmail, "LEAVE_APPROVAL_REQUEST", emailPayload, ct);
+
+                Logger.LogDebugIf(Debug, "[EMAIL] Dispatched leave approval email request to queue for: {Email}", toEmail);
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError(ex, "[EMAIL] SendApprovalRequestAsync failed for LeaveId={LeaveId}", leave.Id);
+                // Không throw để đảm bảo luồng chạy ngầm của NotifyNewLeaveRequestAsync không bị crash đột ngột
+            }
         }
 
         // ================= QUEUE EMAIL =================
@@ -88,7 +123,7 @@ namespace FVN_REGISTER.API.Services.Emails
 
                         if (template == null)
                         {
-                            MarkFailed(email, "Template not found");
+                            MarkFailed(email, $"Template '{email.TemplateCode}' not found or inactive.");
                             continue;
                         }
 
@@ -121,7 +156,7 @@ namespace FVN_REGISTER.API.Services.Emails
             }
         }
 
-        // ================= SEND EMAIL =================
+        // ================= SEND EMAIL DIRECT (SMTP) =================
         public async Task SendEmail(
             string to,
             string subject,
@@ -134,7 +169,7 @@ namespace FVN_REGISTER.API.Services.Emails
                 .FirstOrDefaultAsync(ct);
 
             if (profile == null)
-                throw new Exception("Email profile not found");
+                throw new Exception("Active Email profile 'ITSYS' not found in database.");
 
             using var smtp = new SmtpClient
             {
@@ -148,7 +183,7 @@ namespace FVN_REGISTER.API.Services.Emails
                 )
             };
 
-            var mail = new MailMessage
+            using var mail = new MailMessage
             {
                 From = new MailAddress(profile.EmailAddress),
                 Subject = subject,
@@ -212,7 +247,7 @@ namespace FVN_REGISTER.API.Services.Emails
 
         public async Task CancelEmail(int id, CancellationToken ct = default)
         {
-            var email = await _db.EmailQueues.FindAsync([id], ct);
+            var email = await _db.EmailQueues.FindAsync(new object[] { id }, ct);
             if (email == null || email.Status == "Sent") return;
 
             email.Status = "Cancelled";
@@ -221,7 +256,7 @@ namespace FVN_REGISTER.API.Services.Emails
 
         public async Task ResendEmail(int id, CancellationToken ct = default)
         {
-            var email = await _db.EmailQueues.FindAsync([id], ct);
+            var email = await _db.EmailQueues.FindAsync(new object[] { id }, ct);
             if (email == null) return;
 
             email.Status = "Pending";

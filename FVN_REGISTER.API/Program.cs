@@ -6,13 +6,14 @@ using FVN_REGISTER.API.Services.Escalations;
 using FVN_REGISTER.API.Services.Leaves;
 using FVN_REGISTER.API.Services.Leaves.FVN_REGISTER.API.Services.Leaves;
 using FVN_REGISTER.API.Services.Notifications;
-using FVN_REGISTER.API.Services.Notifications.FVN_REGISTER.API.Services.Notifications;
+using FVN_REGISTER.API.Services.Reports;
 using FVN_REGISTER.API.Services.Statics;
 using FVN_REGISTER.API.Services.Users;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Interfaces.Auths;
 using FVN_REGISTER.Contract.Interfaces.Emails;
 using FVN_REGISTER.Contract.Interfaces.Leaves;
+using FVN_REGISTER.Contract.Interfaces.Reports;
 using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Contract.Interfaces.Statics;
 using FVN_REGISTER.Contract.Interfaces.Users;
@@ -97,7 +98,7 @@ builder.Services.AddScoped<ILeaveValidator, LeaveValidator>();
 builder.Services.AddScoped<ILeaveNotificationService, LeaveNotificationService>();
 builder.Services.AddScoped<ILeaveEscalationService, LeaveEscalationService>();
 builder.Services.AddScoped<ILeaveService, LeaveService>();
-
+builder.Services.AddScoped<IReportService, LeaveReportService>();
 // User & Auth
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAuthService, AuthService>();

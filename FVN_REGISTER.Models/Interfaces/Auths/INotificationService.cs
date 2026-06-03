@@ -30,13 +30,13 @@ namespace FVN_REGISTER.Contract.Interfaces.Auths
         /// Helper: Tạo thông báo khi có đơn nghỉ mới chờ duyệt.
         /// Gọi từ LeaveService.CreateLeaveAsync()
         /// </summary>
-        Task NotifyPendingLeaveAsync(int approverUserId, string employeeName, int leaveId, CancellationToken ct = default);
+        //Task NotifyPendingLeaveAsync(int approverUserId, string employeeName, int leaveId, CancellationToken ct = default);
 
-        /// <summary>
-        /// Helper: Tạo thông báo khi đơn được duyệt/từ chối.
-        /// Gọi từ LeaveService.ApproveAsync() / RejectAsync()
-        /// </summary>
-        Task NotifyLeaveStatusChangedAsync(int requesterUserId, string status, int leaveId, CancellationToken ct = default);
+        ///// <summary>
+        ///// Helper: Tạo thông báo khi đơn được duyệt/từ chối.
+        ///// Gọi từ LeaveService.ApproveAsync() / RejectAsync()
+        ///// </summary>
+        //Task NotifyLeaveStatusChangedAsync(int requesterUserId, string status, int leaveId, CancellationToken ct = default);
         Task PushToUserAsync(int userId, AppNotification entity, CancellationToken ct);
     }
 }
