@@ -9,47 +9,45 @@ namespace FVN_REGISTER.Contract.Interfaces.OT
 {
     public interface IOTService
     {
-        // ── COMMANDS ──────────────────────────────────────────
-        /// <summary>Tạo đơn OT mới (bao gồm danh sách nhân viên).</summary>
+        // ── COMMANDS ──────────────────────────────────────────────────────────
         Task<ServiceResult<int>> CreateAsync(
             CreateOTRequestModel model,
-            CurrentUser creator,
+            CurrentUser user,
             CancellationToken ct = default);
 
-        /// <summary>Duyệt một hoặc nhiều đơn OT ở cấp level (3|5|6|7).</summary>
         Task<ServiceResult> ApproveAsync(
-            List<int> ids,
+            List<int> otRequestIds,
             int level,
-            CurrentUser approver,
+            CurrentUser user,
             string? comment,
             CancellationToken ct = default);
 
-        /// <summary>Từ chối một hoặc nhiều đơn OT ở cấp level.</summary>
         Task<ServiceResult> RejectAsync(
-            List<int> ids,
+            List<int> otRequestIds,
             int level,
-            CurrentUser approver,
-            string? comment,
+            CurrentUser user,
+            string comment,
             CancellationToken ct = default);
 
-        /// <summary>Hủy đơn OT (chủ đơn hoặc Admin).</summary>
         Task<ServiceResult> CancelAsync(
-            int id,
+            int otRequestId,
             string reason,
-            CurrentUser actor,
+            CurrentUser user,
             CancellationToken ct = default);
 
-        // ── QUERIES ───────────────────────────────────────────
-        /// <summary>Chi tiết đơn OT theo Id.</summary>
+        // ── QUERIES ───────────────────────────────────────────────────────────
         Task<ServiceResult<OTRequestViewModel>> GetDetailsAsync(
-            int id,
+            int otRequestId,
             CancellationToken ct = default);
 
-        /// <summary>Số dư giờ OT của một nhân viên (daily / monthly / yearly).</summary>
         Task<ServiceResult<OTBalanceDto>> GetBalanceAsync(
             string employeeCode,
             int year,
             int month,
+            CancellationToken ct = default);
+
+        Task<ServiceResult<OTValidationResultDto>> ValidateHoursAsync(
+            CreateOTRequestModel model,
             CancellationToken ct = default);
     }
 }

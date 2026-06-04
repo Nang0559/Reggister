@@ -10,7 +10,7 @@ using FVN_REGISTER.Shared.Utils.Helpers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace FVN_REGISTER.Shared.Services.OT
+namespace FVN_REGISTER.Shared.Services.OTs
 {
     public class OTClientService : IOTClientService
     {
@@ -31,7 +31,9 @@ namespace FVN_REGISTER.Shared.Services.OT
             _options = options;
         }
 
-        // ===== COMMANDS =====
+        // ============================================================
+        // COMMANDS
+        // ============================================================
 
         public async Task<ApiResponse<object>> CreateOTRequestAsync(
             CreateOTRequestModel model,
@@ -39,12 +41,13 @@ namespace FVN_REGISTER.Shared.Services.OT
         {
             try
             {
-                _logger.LogDebugIf(Debug, "[OT_CLIENT] CreateOTRequest");
+                _logger.LogDebugIf(Debug, "[OT_CLIENT] Create date={Date}", model.OTDate);
+                // Controller: [HttpPost("create")] → POST api/OT/create
                 return await _http.PostAsync<object>($"{BASE}/create", model, ct);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[OT_CLIENT] CreateOTRequest ERROR");
+                _logger.LogError(ex, "[OT_CLIENT] Create ERROR");
                 return ApiResponse<object>.Fail("Không thể tạo đơn OT.");
             }
         }
@@ -55,7 +58,8 @@ namespace FVN_REGISTER.Shared.Services.OT
         {
             try
             {
-                _logger.LogDebugIf(Debug, "[OT_CLIENT] Approve level={Level}", request.Level);
+                _logger.LogDebugIf(Debug,
+                    "[OT_CLIENT] Approve level={Level}", request.Level);
                 return await _http.PostAsync<object>($"{BASE}/approve", request, ct);
             }
             catch (Exception ex)
@@ -71,7 +75,8 @@ namespace FVN_REGISTER.Shared.Services.OT
         {
             try
             {
-                _logger.LogDebugIf(Debug, "[OT_CLIENT] Reject level={Level}", request.Level);
+                _logger.LogDebugIf(Debug,
+                    "[OT_CLIENT] Reject level={Level}", request.Level);
                 return await _http.PostAsync<object>($"{BASE}/reject", request, ct);
             }
             catch (Exception ex)
@@ -83,13 +88,17 @@ namespace FVN_REGISTER.Shared.Services.OT
 
         public async Task<ApiResponse<object>> CancelAsync(
             int otRequestId,
-            string reason,
+            string? reason,
             CancellationToken ct = default)
         {
             try
             {
                 _logger.LogDebugIf(Debug, "[OT_CLIENT] Cancel OT {Id}", otRequestId);
-                return await _http.PostAsync<object>($"{BASE}/cancel/{otRequestId}", new { Reason = reason }, ct);
+                // Controller nhận record CancelOTRequest(string? Reason)
+                return await _http.PostAsync<object>(
+                    $"{BASE}/cancel/{otRequestId}",
+                    new { Reason = reason },
+                    ct);
             }
             catch (Exception ex)
             {
@@ -98,19 +107,23 @@ namespace FVN_REGISTER.Shared.Services.OT
             }
         }
 
-        // ===== QUERIES =====
+        // ============================================================
+        // QUERIES
+        // ============================================================
 
-        public async Task<ApiResponse<CreateOTRequestModel>> GetCombinedDataAsync(
+        public async Task<ApiResponse<CombinedOTViewModel>> GetCombinedDataAsync(
             CancellationToken ct = default)
         {
             try
             {
-                return await _http.GetAsync<CreateOTRequestModel>($"{BASE}/combined-data", ct);
+                _logger.LogDebugIf(Debug, "[OT_CLIENT] GetCombinedData");
+                return await _http.GetAsync<CombinedOTViewModel>(
+                    $"{BASE}/combined-data", ct);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[OT_CLIENT] GetCombinedData ERROR");
-                return ApiResponse<CreateOTRequestModel>.Fail("Không tải được dữ liệu.");
+                return ApiResponse<CombinedOTViewModel>.Fail("Không tải được dữ liệu trang OT.");
             }
         }
 
@@ -120,27 +133,15 @@ namespace FVN_REGISTER.Shared.Services.OT
         {
             try
             {
-                return await _http.GetAsync<OTBalanceDto>($"{BASE}/balance/{year}", ct);
+                _logger.LogDebugIf(Debug, "[OT_CLIENT] GetBalance year={Year}", year);
+                // Controller: GET api/OT/balance/{year}
+                return await _http.GetAsync<OTBalanceDto>(
+                    $"{BASE}/balance/{year}", ct);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[OT_CLIENT] GetOTBalance ERROR");
+                _logger.LogError(ex, "[OT_CLIENT] GetBalance ERROR");
                 return ApiResponse<OTBalanceDto>.Fail("Không tải được số dư OT.");
-            }
-        }
-
-        public async Task<ApiResponse<List<OTRequestViewModel>>> GetRecentOTRequestsAsync(
-            int limit = 10,
-            CancellationToken ct = default)
-        {
-            try
-            {
-                return await _http.GetAsync<List<OTRequestViewModel>>($"{BASE}/recent?limit={limit}", ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[OT_CLIENT] GetRecent ERROR");
-                return ApiResponse<List<OTRequestViewModel>>.Fail("Không tải được lịch sử.");
             }
         }
 
@@ -150,12 +151,32 @@ namespace FVN_REGISTER.Shared.Services.OT
         {
             try
             {
-                return await _http.GetAsync<OTRequestViewModel>($"{BASE}/detail/{otRequestId}", ct);
+                _logger.LogDebugIf(Debug, "[OT_CLIENT] GetDetail id={Id}", otRequestId);
+                // Controller: GET api/OT/detail/{id}
+                return await _http.GetAsync<OTRequestViewModel>(
+                    $"{BASE}/detail/{otRequestId}", ct);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[OT_CLIENT] GetOTDetail ERROR");
-                return ApiResponse<OTRequestViewModel>.Fail("Không tải được chi tiết.");
+                _logger.LogError(ex, "[OT_CLIENT] GetDetail ERROR");
+                return ApiResponse<OTRequestViewModel>.Fail("Không tải được chi tiết đơn OT.");
+            }
+        }
+
+        public async Task<ApiResponse<List<OTRequestViewModel>>> GetRecentOTRequestsAsync(
+            int limit = 10,
+            CancellationToken ct = default)
+        {
+            try
+            {
+                _logger.LogDebugIf(Debug, "[OT_CLIENT] GetRecent limit={L}", limit);
+                return await _http.GetAsync<List<OTRequestViewModel>>(
+                    $"{BASE}/recent?limit={limit}", ct);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[OT_CLIENT] GetRecent ERROR");
+                return ApiResponse<List<OTRequestViewModel>>.Fail("Không tải được lịch sử OT.");
             }
         }
 
@@ -165,20 +186,22 @@ namespace FVN_REGISTER.Shared.Services.OT
         {
             try
             {
-                return await _http.GetAsync<List<OTRequestViewModel>>($"{BASE}/pending?level={level}", ct);
+                _logger.LogDebugIf(Debug, "[OT_CLIENT] GetPending level={L}", level);
+                return await _http.GetAsync<List<OTRequestViewModel>>(
+                    $"{BASE}/pending?level={level}", ct);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "[OT_CLIENT] GetPendingApprovals ERROR");
+                _logger.LogError(ex, "[OT_CLIENT] GetPending ERROR");
                 return ApiResponse<List<OTRequestViewModel>>.Fail("Không tải được danh sách chờ duyệt.");
             }
         }
 
         public async Task<ApiResponse<PaginationResult<OTRequestViewModel>>> GetPagedOTRequestsAsync(
-            string? deptCode,
-            string? status,
-            DateTime? fromDate,
-            DateTime? toDate,
+            string? deptCode = null,
+            string? status = null,
+            DateTime? fromDate = null,
+            DateTime? toDate = null,
             int page = 1,
             int pageSize = 20,
             CancellationToken ct = default)
@@ -196,7 +219,8 @@ namespace FVN_REGISTER.Shared.Services.OT
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[OT_CLIENT] GetPaged ERROR");
-                return ApiResponse<PaginationResult<OTRequestViewModel>>.Fail("Không tải được danh sách.");
+                return ApiResponse<PaginationResult<OTRequestViewModel>>.Fail(
+                    "Không tải được danh sách đơn OT.");
             }
         }
 
@@ -205,7 +229,9 @@ namespace FVN_REGISTER.Shared.Services.OT
         {
             try
             {
-                return await _http.GetAsync<OTDashboardViewModel>($"{BASE}/dashboard", ct);
+                _logger.LogDebugIf(Debug, "[OT_CLIENT] GetDashboard");
+                return await _http.GetAsync<OTDashboardViewModel>(
+                    $"{BASE}/dashboard", ct);
             }
             catch (Exception ex)
             {
@@ -223,6 +249,9 @@ namespace FVN_REGISTER.Shared.Services.OT
         {
             try
             {
+                _logger.LogDebugIf(Debug,
+                    "[OT_CLIENT] Validate emp={E} hours={H}", employeeCode, hours);
+                // Controller nhận record ValidateOTRequest(EmployeeCode, OTDate, Hours, OTType)
                 return await _http.PostAsync<OTValidationResultDto>($"{BASE}/validate", new
                 {
                     EmployeeCode = employeeCode,
@@ -239,3 +268,4 @@ namespace FVN_REGISTER.Shared.Services.OT
         }
     }
 }
+

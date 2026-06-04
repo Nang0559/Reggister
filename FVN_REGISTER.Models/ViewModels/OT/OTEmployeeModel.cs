@@ -21,14 +21,22 @@ namespace FVN_REGISTER.Contract.ViewModels.OT
         public string? OTTypeCode { get; set; }
 
         public decimal? ActualHours { get; set; }
-
+        private decimal? _otRateMultiplier;
         // Tính tự động từ OTTypeCode — không nhập tay
-        public decimal OTRateMultiplier => OTTypeCode switch
+        public decimal OTRateMultiplier
         {
-            OTTypeConst.Weekend => 2.0m,
-            OTTypeConst.Holiday => 3.0m,
-            _ => 1.5m
-        };
+            get
+            {
+                // Nếu đã được gán giá trị thì lấy giá trị đó, nếu chưa thì tự tính theo OTTypeCode
+                return _otRateMultiplier ?? OTTypeCode switch
+                {
+                    OTTypeConst.Weekend => 2.0m,
+                    OTTypeConst.Holiday => 3.0m,
+                    _ => 1.5m
+                };
+            }
+            set => _otRateMultiplier = value;
+        }
 
         // --- Validate real-time ---
         // "Valid" | "Warning" | "Exceeded" — string thay vì MudBlazor Color

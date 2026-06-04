@@ -4,7 +4,7 @@
 @using FVN_REGISTER.Contract.ViewModels
 @using FVN_REGISTER.Contract.Utils
 @using FVN_REGISTER.Contract.ViewModels.OT
-@using FVN_REGISTER.Shared.Services.OT
+@using FVN_REGISTER.Shared.Services.OTs
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils.Helpers
 @using Microsoft.AspNetCore.Authorization
@@ -339,15 +339,27 @@ else if (_model != null)
             var combined = await combinedTask;
             if (combined.IsSuccess && combined.Data != null)
             {
-                _model = combined.Data;
-                // Thêm chính mình vào danh sách nhân viên
+                // 1. Gán _model bằng object OTForm nằm BÊN TRONG CombinedOTViewModel
+                _model = combined.Data.OTForm;
+
+                // 2. Đẩy các dữ liệu bổ trợ từ Combined vào _model để hiển thị lên UI
+                _model.ApprovalSteps = combined.Data.ApprovalSteps;
+                _model.Balance = combined.Data.Balance;
+                _model.LimitRules = combined.Data.LimitRules;
+
+                // 3. Tự động điền thông tin người tạo vào Form
                 if (CurrentUser.User != null)
                 {
+                    _model.EmployeeCode = CurrentUser.User.EmployeeCode ?? "";
+                    _model.DeptCode = CurrentUser.User.DeptCode ?? "";
+
+                    // Thêm chính mình vào danh sách nhân viên tham gia OT nếu chưa có
                     _selectedEmployees.Add(new OTEmployeeModel
                     {
                         EmployeeCode = CurrentUser.User.EmployeeCode ?? "",
                         EmployeeName = CurrentUser.User.FullName ?? "",
                         DeptCode = CurrentUser.User.DeptCode ?? "",
+                        CvCode = CurrentUser.User.CVCode ?? "", // Thêm CvCode để logic HasWorker chạy đúng
                         OTHours = 0
                     });
                 }

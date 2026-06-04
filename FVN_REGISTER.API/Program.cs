@@ -101,6 +101,9 @@ builder.Services.AddScoped<ILeaveNotificationService, LeaveNotificationService>(
 builder.Services.AddScoped<ILeaveEscalationService, LeaveEscalationService>();
 builder.Services.AddScoped<ILeaveService, LeaveService>();
 builder.Services.AddScoped<IReportService, LeaveReportService>();
+builder.Services.AddScoped<IOTNotificationService, OTNotificationService>();
+builder.Services.AddScoped<IOTQueryService, OTQueryService>();
+builder.Services.AddScoped<IOTValidator, OTValidator>();
 builder.Services.AddScoped<IOTService, OTService>();
 // User & Auth
 builder.Services.AddScoped<IAuditService, AuditService>();

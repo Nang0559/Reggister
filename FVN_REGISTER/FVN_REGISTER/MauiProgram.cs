@@ -2,7 +2,7 @@
 using FVN_REGISTER.Shared.Handlers;
 using FVN_REGISTER.Shared.Services.Dashboards;
 using FVN_REGISTER.Shared.Services.Leaves;
-using FVN_REGISTER.Shared.Services.OT;
+using FVN_REGISTER.Shared.Services.OTs;
 using FVN_REGISTER.Shared.Services.Users;
 using FVN_REGISTER.Shared.Utils;
 using Microsoft.AspNetCore.Components.Authorization;

@@ -1,10 +1,6 @@
-﻿// ============================================================
-// FVN_REGISTER.API/Services/OT/OTQueryService.cs
-// ============================================================
-using FVN_REGISTER.Contract.Dtos;
+﻿using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Interfaces.OT;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Contract.Models;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Contract.ViewModels;
@@ -31,52 +27,59 @@ namespace FVN_REGISTER.API.Services.OT
             _db = db;
         }
 
-        // ── COMBINED DATA ─────────────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════════
+        // COMBINED DATA — dùng để render trang tạo đơn OT
+        // ════════════════════════════════════════════════════════════════════
         public async Task<CombinedOTViewModel> GetCombinedDataAsync(
-            string employeeCode,
-            string deptCode,
-            string cvCode,
-            int year,
-            CancellationToken ct = default)
+    string employeeCode,
+    string deptCode,
+    string cvCode,
+    int year,
+    CancellationToken ct = default)
         {
             Logger.LogDebugIf(Debug, "[OT_QUERY] GetCombinedData: {Emp}", employeeCode);
 
             var now = DateTime.Now;
 
-            // Chạy song song các task độc lập
-            var balanceTask = GetBalanceInternalAsync(employeeCode, year, now.Month, ct);
-            var rulesTask = _db.F03OTLimitRules
-                                    .AsNoTracking()
-                                    .Where(x => x.IsActive)
-                                    .ToListAsync(ct);
-            var stepsTask = BuildApprovalStepsAsync(deptCode, cvCode, ct);
-            var deptEmpsTask = GetDeptEmployeesAsync(deptCode, ct);
+            // 1. Chạy tuần tự từng Task một để tránh xung đột dùng chung một instance _db (DbContext)
+            var balance = await GetBalanceInternalAsync(employeeCode, year, now.Month, ct);
 
-            await Task.WhenAll(balanceTask, rulesTask, stepsTask, deptEmpsTask);
+            var rules = await _db.F03OTLimitRules
+                                  .AsNoTracking()
+                                  .Where(x => x.IsActive)
+                                  .ToListAsync(ct);
 
+            var steps = await BuildApprovalStepsAsync(deptCode, cvCode, ct);
+
+            var deptEmps = await GetDeptEmployeesAsync(deptCode, ct);
+
+            // 2. Khởi tạo form dữ liệu gửi đi (Mapping dữ liệu bổ trợ vào như bạn đã định nghĩa)
             var form = new CreateOTRequestModel
             {
                 EmployeeCode = employeeCode,
                 DeptCode = deptCode,
                 CvCode = cvCode,
                 OTDate = DateTime.Today,
-                OTTypeCode = OTTypeConst.Weekday,
-                LimitRules = await rulesTask,
-                ApprovalSteps = await stepsTask,
-                Balance = await balanceTask
+                OTTypeCode = OTTypeConst.Weekday, // Đảm bảo hằng số này khớp với Frontend của bạn
+                LimitRules = rules,
+                ApprovalSteps = steps,
+                Balance = balance
             };
 
+            // 3. Trả về Wrapper Model chứa tất cả dữ liệu sạch sẽ
             return new CombinedOTViewModel
             {
                 OTForm = form,
-                Balance = await balanceTask,
-                LimitRules = await rulesTask,
-                ApprovalSteps = await stepsTask,
-                DeptEmployees = await deptEmpsTask
+                Balance = balance,
+                LimitRules = rules,
+                ApprovalSteps = steps,
+                DeptEmployees = deptEmps
             };
         }
 
-        // ── PENDING SUMMARY ────────────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════════
+        // PENDING SUMMARY — chỉ trả về số đếm (badge/widget)
+        // ════════════════════════════════════════════════════════════════════
         public async Task<List<OTPendingGroup>> GetPendingSummaryAsync(
             string approverEmail,
             CancellationToken ct = default)
@@ -89,16 +92,25 @@ namespace FVN_REGISTER.API.Services.OT
                          && !new[] { OTStatus.Approved, OTStatus.Rejected, OTStatus.Cancelled }
                                 .Contains(x.RequestStatus!));
 
-            var lv3 = baseQ.Where(x => x.Level3ApproveEmail == approverEmail && x.Level3IsApprove == null);
-            var lv5 = baseQ.Where(x => x.Level5ApproveEmail == approverEmail
-                                    && x.Level3IsApprove == true
-                                    && x.Level5IsApprove == null);
-            var lv6 = baseQ.Where(x => x.Level6ApproveEmail == approverEmail
-                                    && x.Level5IsApprove == true
-                                    && x.Level6IsApprove == null);
-            var lv7 = baseQ.Where(x => x.Level7ApproveEmail == approverEmail
-                                    && x.Level6IsApprove == true
-                                    && x.Level7IsApprove == null);
+            // Mỗi level chỉ chờ duyệt khi level trước đã xong
+            var lv3 = baseQ.Where(x =>
+                x.Level3ApproveEmail == approverEmail
+                && x.Level3IsApprove == null);
+
+            var lv5 = baseQ.Where(x =>
+                x.Level5ApproveEmail == approverEmail
+                && (x.Level3IsApprove == true || string.IsNullOrEmpty(x.Level3ApproveEmail))
+                && x.Level5IsApprove == null);
+
+            var lv6 = baseQ.Where(x =>
+                x.Level6ApproveEmail == approverEmail
+                && x.Level5IsApprove == true
+                && x.Level6IsApprove == null);
+
+            var lv7 = baseQ.Where(x =>
+                x.Level7ApproveEmail == approverEmail
+                && x.Level6IsApprove == true
+                && x.Level7IsApprove == null);
 
             var counts = await Task.WhenAll(
                 lv3.CountAsync(ct),
@@ -108,16 +120,18 @@ namespace FVN_REGISTER.API.Services.OT
 
             var result = new List<OTPendingGroup>
             {
-                new() { ApproverLevel = 3, Count = counts[0] },
-                new() { ApproverLevel = 5, Count = counts[1] },
-                new() { ApproverLevel = 6, Count = counts[2] },
-                new() { ApproverLevel = 7, Count = counts[3] }
+                new() { ApproverLevel = 3, LevelName = "Sub-leader / Leader", Count = counts[0] },
+                new() { ApproverLevel = 5, LevelName = "Ast. Chief / Chief",  Count = counts[1] },
+                new() { ApproverLevel = 6, LevelName = "A.MG / MG",           Count = counts[2] },
+                new() { ApproverLevel = 7, LevelName = "GM",                  Count = counts[3] }
             };
 
             return result.Where(x => x.Count > 0).ToList();
         }
 
-        // ── PENDING DETAILS ────────────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════════
+        // PENDING DETAILS — kèm danh sách đơn cụ thể
+        // ════════════════════════════════════════════════════════════════════
         public async Task<List<OTPendingGroup>> GetPendingDetailsAsync(
             string approverEmail,
             CancellationToken ct = default)
@@ -140,23 +154,28 @@ namespace FVN_REGISTER.API.Services.OT
                 new()
                 {
                     ApproverLevel = 3,
-                    Requests = data
-                        .Where(x => x.Level3ApproveEmail == approverEmail && x.Level3IsApprove == null)
+                    LevelName     = "Sub-leader / Leader",
+                    Requests      = data
+                        .Where(x => x.Level3ApproveEmail == approverEmail
+                                 && x.Level3IsApprove == null)
                         .Select(MapToViewModel).ToList()
                 },
                 new()
                 {
                     ApproverLevel = 5,
-                    Requests = data
+                    LevelName     = "Ast. Chief / Chief",
+                    Requests      = data
                         .Where(x => x.Level5ApproveEmail == approverEmail
-                                 && x.Level3IsApprove == true
+                                 && (x.Level3IsApprove == true
+                                     || string.IsNullOrEmpty(x.Level3ApproveEmail))
                                  && x.Level5IsApprove == null)
                         .Select(MapToViewModel).ToList()
                 },
                 new()
                 {
                     ApproverLevel = 6,
-                    Requests = data
+                    LevelName     = "A.MG / MG",
+                    Requests      = data
                         .Where(x => x.Level6ApproveEmail == approverEmail
                                  && x.Level5IsApprove == true
                                  && x.Level6IsApprove == null)
@@ -165,7 +184,8 @@ namespace FVN_REGISTER.API.Services.OT
                 new()
                 {
                     ApproverLevel = 7,
-                    Requests = data
+                    LevelName     = "GM",
+                    Requests      = data
                         .Where(x => x.Level7ApproveEmail == approverEmail
                                  && x.Level6IsApprove == true
                                  && x.Level7IsApprove == null)
@@ -177,7 +197,9 @@ namespace FVN_REGISTER.API.Services.OT
             return result.Where(x => x.Count > 0).ToList();
         }
 
-        // ── RECENT HISTORY ─────────────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════════
+        // RECENT HISTORY
+        // ════════════════════════════════════════════════════════════════════
         public async Task<List<OTRequestViewModel>> GetRecentHistoryAsync(
             string employeeCode,
             int limit,
@@ -193,14 +215,15 @@ namespace FVN_REGISTER.API.Services.OT
             return data.Select(MapToViewModel).ToList();
         }
 
-        // ── VALIDATE HOURS ─────────────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════════
+        // VALIDATE HOURS — trả về chi tiết vi phạm theo từng nhân viên
+        // ════════════════════════════════════════════════════════════════════
         public async Task<OTValidationResultDto> ValidateHoursAsync(
             CreateOTRequestModel model,
             CancellationToken ct = default)
         {
             var result = new OTValidationResultDto { IsValid = true };
 
-            // Lấy limit rules từ DB
             var rules = await _db.F03OTLimitRules
                 .AsNoTracking()
                 .Where(x => x.IsActive)
@@ -215,8 +238,7 @@ namespace FVN_REGISTER.API.Services.OT
             var month = otDate.Month;
             var empCodes = model.Employees.Select(e => e.EmployeeCode).Distinct().ToList();
 
-            // Lấy giờ OT đã dùng theo ngày / tháng / năm cho từng nhân viên
-            // (chỉ tính các đơn Approved hoặc đang trong luồng Active)
+            // Lấy dữ liệu giờ đã dùng của tất cả nhân viên trong 1 query
             var validStatuses = OTStatus.ActiveStatuses
                 .Concat(new[] { OTStatus.Approved })
                 .ToArray();
@@ -237,10 +259,18 @@ namespace FVN_REGISTER.API.Services.OT
 
             foreach (var emp in model.Employees)
             {
-                var empData = usedData.Where(u => u.EmployeeCode == emp.EmployeeCode).ToList();
+                var empData = usedData
+                    .Where(u => u.EmployeeCode == emp.EmployeeCode)
+                    .ToList();
 
-                decimal usedToday = empData.Where(u => u.OTDate.Date == otDate.Date).Sum(u => u.OTHours);
-                decimal usedMonth = empData.Where(u => u.OTDate.Year == year && u.OTDate.Month == month).Sum(u => u.OTHours);
+                decimal usedToday = empData
+                    .Where(u => u.OTDate.Date == otDate.Date)
+                    .Sum(u => u.OTHours);
+
+                decimal usedMonth = empData
+                    .Where(u => u.OTDate.Year == year && u.OTDate.Month == month)
+                    .Sum(u => u.OTHours);
+
                 decimal usedYear = empData.Sum(u => u.OTHours);
                 decimal requested = emp.OTHours;
 
@@ -251,7 +281,6 @@ namespace FVN_REGISTER.API.Services.OT
                     Requested = requested
                 };
 
-                // Check Daily
                 if (usedToday + requested > dailyLimit)
                 {
                     empResult.ViolationType = OTLimitType.Daily;
@@ -260,15 +289,6 @@ namespace FVN_REGISTER.API.Services.OT
                     result.IsValid = false;
                     result.Errors.Add(empResult.Message);
                 }
-                // Check Monthly
-                else if (usedMonth + requested > monthlyLimit)
-                {
-                    empResult.ViolationType = OTLimitType.Weekly;
-                    empResult.CurrentUsed = usedMonth;
-                    empResult.Limit = monthlyLimit;
-                    result.Warnings.Add(empResult.Message);
-                }
-                // Check Yearly
                 else if (usedYear + requested > yearlyLimit)
                 {
                     empResult.ViolationType = OTLimitType.Yearly;
@@ -277,17 +297,29 @@ namespace FVN_REGISTER.API.Services.OT
                     result.IsValid = false;
                     result.Errors.Add(empResult.Message);
                 }
+                else if (usedMonth + requested > monthlyLimit)
+                {
+                    // Warning — không block nhưng cảnh báo
+                    empResult.ViolationType = OTLimitType.Weekly;
+                    empResult.CurrentUsed = usedMonth;
+                    empResult.Limit = monthlyLimit;
+                    result.Warnings.Add(empResult.Message);
+                }
 
                 result.EmployeeResults.Add(empResult);
             }
 
             if (!result.IsValid)
                 result.Message = string.Join("; ", result.Errors);
+            else if (result.Warnings.Any())
+                result.Message = string.Join("; ", result.Warnings);
 
             return result;
         }
 
-        // ── APPROVERS ──────────────────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════════
+        // APPROVERS — ưu tiên phòng ban, fallback về "ALL"
+        // ════════════════════════════════════════════════════════════════════
         public async Task<List<F03OTApprover>> GetApproversAsync(
             int level,
             string deptCode,
@@ -298,14 +330,15 @@ namespace FVN_REGISTER.API.Services.OT
                 .Where(x => x.ApproveLevel == level && x.IsActive)
                 .ToListAsync(ct);
 
-            // Ưu tiên approver của phòng ban, nếu không có lấy "ALL"
             var deptSpecific = list.Where(x => x.DeptCode == deptCode).ToList();
             return deptSpecific.Any()
                 ? deptSpecific
                 : list.Where(x => x.DeptCode == "ALL").ToList();
         }
 
-        // ── DASHBOARD WIDGETS ──────────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════════
+        // DASHBOARD WIDGETS
+        // ════════════════════════════════════════════════════════════════════
         public async Task<List<WidgetCounterDto>> GetDashboardWidgetsAsync(
             string approverEmail,
             string deptCode,
@@ -313,19 +346,19 @@ namespace FVN_REGISTER.API.Services.OT
         {
             var today = DateTime.Today;
 
-            var pendingCount = await _db.VF03OTRequests
-                .CountAsync(x => x.IsActive == true
-                              && OTStatus.ActiveStatuses.Contains(x.RequestStatus!)
-                              && (x.Level3ApproveEmail == approverEmail
-                               || x.Level5ApproveEmail == approverEmail
-                               || x.Level6ApproveEmail == approverEmail
-                               || x.Level7ApproveEmail == approverEmail), ct);
+            var pendingCount = await _db.VF03OTRequests.CountAsync(x =>
+                x.IsActive == true
+                && OTStatus.ActiveStatuses.Contains(x.RequestStatus!)
+                && (x.Level3ApproveEmail == approverEmail
+                 || x.Level5ApproveEmail == approverEmail
+                 || x.Level6ApproveEmail == approverEmail
+                 || x.Level7ApproveEmail == approverEmail), ct);
 
-            var otToday = await _db.VF03OTRequests
-                .CountAsync(x => x.IsActive == true
-                              && x.DeptCode == deptCode
-                              && x.OTDate == today
-                              && x.RequestStatus == OTStatus.Approved, ct);
+            var otToday = await _db.VF03OTRequests.CountAsync(x =>
+                x.IsActive == true
+                && x.DeptCode == deptCode
+                && x.OTDate == today
+                && x.RequestStatus == OTStatus.Approved, ct);
 
             return new List<WidgetCounterDto>
             {
@@ -348,7 +381,20 @@ namespace FVN_REGISTER.API.Services.OT
             };
         }
 
-        // ── INTERNAL HELPERS ───────────────────────────────────────────────────
+        // ════════════════════════════════════════════════════════════════════
+        // GET BALANCE — public method khớp với interface
+        // ════════════════════════════════════════════════════════════════════
+        public Task<OTBalanceDto> GetBalanceAsync(
+            string employeeCode,
+            int year,
+            int month,
+            CancellationToken ct = default)
+            => GetBalanceInternalAsync(employeeCode, year, month, ct);
+
+        // ════════════════════════════════════════════════════════════════════
+        // PRIVATE HELPERS
+        // ════════════════════════════════════════════════════════════════════
+
         private async Task<OTBalanceDto> GetBalanceInternalAsync(
             string employeeCode,
             int year,
@@ -398,8 +444,8 @@ namespace FVN_REGISTER.API.Services.OT
             string cvCode,
             CancellationToken ct)
         {
-            // Công nhân (cvCode 0003) cần đủ 4 bước (3, 5, 6, 7)
-            // Văn phòng chỉ cần 3 bước (5, 6, 7)
+            // Công nhân (cvCode 0003): cần đủ bước 3, 5, 6, 7
+            // Văn phòng: chỉ cần bước 5, 6, 7
             var levels = cvCode == "0003"
                 ? new[] { 3, 5, 6, 7 }
                 : new[] { 5, 6, 7 };
@@ -408,13 +454,16 @@ namespace FVN_REGISTER.API.Services.OT
             foreach (var level in levels)
             {
                 var approvers = await GetApproversAsync(level, deptCode, ct);
+                var first = approvers.FirstOrDefault();
                 steps.Add(new OTApprovalStep
                 {
                     Level = level,
                     LevelName = GetLevelName(level),
-                    ApproverCode = approvers.FirstOrDefault()?.ApproverCode,
-                    ApproverName = approvers.FirstOrDefault()?.ApproverName,
-                    ApproverEmail = approvers.FirstOrDefault()?.ApproverEmail
+                    RoleName = first?.RoleName ?? "",
+                    ApproverCode = first?.ApproverCode,
+                    ApproverName = first?.ApproverName,
+                    ApproverEmail = first?.ApproverEmail,
+                    IsRequired = true
                 });
             }
             return steps;
@@ -455,7 +504,8 @@ namespace FVN_REGISTER.API.Services.OT
             _ => $"Level {level}"
         };
 
-        internal OTRequestViewModel MapToViewModel(VF03OTRequest x) => new()
+        // ── PUBLIC vì OTService cần gọi để map GetDetailsAsync ────────────
+        public OTRequestViewModel MapToViewModel(VF03OTRequest x) => new()
         {
             Id = x.Id ?? 0,
             OTCode = x.OTCode ?? "",
@@ -479,27 +529,98 @@ namespace FVN_REGISTER.API.Services.OT
             IsActive = x.IsActive ?? true,
             ApprovalSteps = BuildStepsFromView(x)
         };
+        public async Task<PaginationResult<OTRequestViewModel>> GetPagedAsync(
+    string? deptCode,
+    string? status,
+    DateTime? fromDate,
+    DateTime? toDate,
+    int page,
+    int pageSize,
+    CancellationToken ct = default)
+        {
+            var query = _db.VF03OTRequests
+                .AsNoTracking()
+                .Where(x => x.IsActive == true);
 
-        private static List<OTApprovalStep> BuildStepsFromView(VF03OTRequest x) =>
+            if (!string.IsNullOrWhiteSpace(deptCode))
+                query = query.Where(x => x.DeptCode == deptCode);
+
+            if (!string.IsNullOrWhiteSpace(status))
+                query = query.Where(x => x.RequestStatus == status);
+
+            if (fromDate.HasValue)
+                query = query.Where(x => x.OTDate >= fromDate.Value);
+
+            if (toDate.HasValue)
+                query = query.Where(x => x.OTDate <= toDate.Value);
+
+            var totalCount = await query.CountAsync(ct);
+
+            var items = await query
+                .OrderByDescending(x => x.OTDate)
+                .ThenByDescending(x => x.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(ct);
+
+            return new PaginationResult<OTRequestViewModel>(
+                items.Select(MapToViewModel).ToList(),
+                totalCount,
+                page,
+                pageSize);
+        }
+        private static List<OTApprovalStep> BuildStepsFromView(VF03OTRequest x) => new()
+        {
             new()
             {
-                new() { Level = 3, LevelName = "Sub-leader / Leader",
-                    ApproverEmail = x.Level3ApproveEmail, ApproverName = x.Level3ApproveName,
-                    ApproverCode  = x.Level3ApproveCode,  IsApproved    = x.Level3IsApprove,
-                    ApprovedAt    = x.Level3ApproveTime,  Comment       = x.Level3Comment },
-                new() { Level = 5, LevelName = "Ast. Chief / Chief",
-                    ApproverEmail = x.Level5ApproveEmail, ApproverName = x.Level5ApproveName,
-                    ApproverCode  = x.Level5ApproveCode,  IsApproved    = x.Level5IsApprove,
-                    ApprovedAt    = x.Level5ApproveTime,  Comment       = x.Level5Comment },
-                new() { Level = 6, LevelName = "A.MG / MG",
-                    ApproverEmail = x.Level6ApproveEmail, ApproverName = x.Level6ApproveName,
-                    ApproverCode  = x.Level6ApproveCode,  IsApproved    = x.Level6IsApprove,
-                    ApprovedAt    = x.Level6ApproveTime,  Comment       = x.Level6Comment },
-                new() { Level = 7, LevelName = "GM",
-                    ApproverEmail = x.Level7ApproveEmail, ApproverName = x.Level7ApproveName,
-                    ApproverCode  = x.Level7ApproveCode,  IsApproved    = x.Level7IsApprove,
-                    ApprovedAt    = x.Level7ApproveTime,  Comment       = x.Level7Comment },
-            };
+                Level         = 3,
+                LevelName     = "Sub-leader / Leader",
+                ApproverEmail = x.Level3ApproveEmail,
+                ApproverName  = x.Level3ApproveName,
+                ApproverCode  = x.Level3ApproveCode,
+                IsApproved    = x.Level3IsApprove,
+                ApproveTime   = x.Level3ApproveTime,
+                Comment       = x.Level3Comment,
+                IsRequired    = !string.IsNullOrEmpty(x.Level3ApproveEmail),
+                IsSkipped     = string.IsNullOrEmpty(x.Level3ApproveEmail)
+            },
+            new()
+            {
+                Level         = 5,
+                LevelName     = "Ast. Chief / Chief",
+                ApproverEmail = x.Level5ApproveEmail,
+                ApproverName  = x.Level5ApproveName,
+                ApproverCode  = x.Level5ApproveCode,
+                IsApproved    = x.Level5IsApprove,
+                ApproveTime   = x.Level5ApproveTime,
+                Comment       = x.Level5Comment,
+                IsRequired    = true
+            },
+            new()
+            {
+                Level         = 6,
+                LevelName     = "A.MG / MG",
+                ApproverEmail = x.Level6ApproveEmail,
+                ApproverName  = x.Level6ApproveName,
+                ApproverCode  = x.Level6ApproveCode,
+                IsApproved    = x.Level6IsApprove,
+                ApproveTime   = x.Level6ApproveTime,
+                Comment       = x.Level6Comment,
+                IsRequired    = true
+            },
+            new()
+            {
+                Level         = 7,
+                LevelName     = "GM",
+                ApproverEmail = x.Level7ApproveEmail,
+                ApproverName  = x.Level7ApproveName,
+                ApproverCode  = x.Level7ApproveCode,
+                IsApproved    = x.Level7IsApprove,
+                ApproveTime   = x.Level7ApproveTime,
+                Comment       = x.Level7Comment,
+                IsRequired    = !string.IsNullOrEmpty(x.Level7ApproveEmail),
+                IsSkipped     = string.IsNullOrEmpty(x.Level7ApproveEmail)
+            }
+        };
     }
-}
 }

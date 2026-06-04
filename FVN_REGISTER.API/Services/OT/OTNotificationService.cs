@@ -11,7 +11,8 @@ using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Services.OT
 {
-    public class OTNotificationService : BaseService<OTNotificationService>, IOTNotificationService
+    public class OTNotificationService
+        : BaseService<OTNotificationService>, IOTNotificationService
     {
         private readonly IEmailService _email;
         private readonly FVNWEBAPPContext _db;
@@ -27,149 +28,127 @@ namespace FVN_REGISTER.API.Services.OT
             _db = db;
         }
 
-        // ── Gửi yêu cầu duyệt cho approver hiện tại ───────────────
+        // ════════════════════════════════════════════════════════════════════
+        // GỬI YÊU CẦU PHÊ DUYỆT TỚI APPROVER CẤP TIẾP THEO
+        // ════════════════════════════════════════════════════════════════════
         public async Task SendApprovalRequestAsync(
             string approverEmail,
-            F03OTRequest request,
-            string requesterName,
+            string approverName,
+            F03OTRequest otRequest,
+            string creatorName,
+            int level,
             CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(approverEmail)) return;
 
-            try
-            {
-                Logger.LogDebugIf(Debug,
-                    "[OT-MAIL] SendApprovalRequest to {Email} for {Code}",
-                    approverEmail, request.OTCode);
+            Logger.LogDebugIf(Debug,
+                "[OT_NOTIFY] Send approval request Level={Level} → {Email}",
+                level, approverEmail);
 
-                await _email.QueueEmail(approverEmail, "OT_REQUEST_NEW", new
-                {
-                    RequesterName = requesterName,
-                    OTCode = request.OTCode,
-                    OTDate = request.OTDate.ToString("dd/MM/yyyy"),
-                    StartTime = request.StartTime.ToString(@"hh\:mm"),
-                    EndTime = request.EndTime.ToString(@"hh\:mm"),
-                    PlannedHours = request.PlannedHours,
-                    OTType = OTTypeConst.GetDisplayName(request.OTTypeCode),
-                    Reason = request.OTReason,
-                    Url = $"https://yourdomain/ot/approvals"
-                }, ct);
-            }
-            catch (Exception ex)
+            var levelName = level switch
             {
-                Logger.LogError(ex, "[OT-MAIL] SendApprovalRequest ERROR for {Code}", request.OTCode);
-            }
+                3 => "Sub-leader / Leader",
+                5 => "Ast. Chief / Chief",
+                6 => "A.MG / MG",
+                7 => "GM",
+                _ => $"Level {level}"
+            };
+
+            await _email.QueueEmail(approverEmail, "OT_REQUEST_NEW", new
+            {
+                ApproverName = approverName,
+                LevelName = levelName,
+                CreatorName = creatorName,
+                OTCode = otRequest.OTCode,
+                OTDate = otRequest.OTDate.ToString("dd/MM/yyyy"),
+                StartTime = otRequest.StartTime.ToString(@"hh\:mm"),
+                EndTime = otRequest.EndTime.ToString(@"hh\:mm"),
+                TotalHours = otRequest.TotalOTHours,
+                OTType = OTTypeConst.GetDisplayName(otRequest.OTTypeCode),
+                Reason = otRequest.OTReason,
+                Url = $"https://yourdomain/ot/details/{otRequest.Id}"
+            }, ct);
         }
 
-        // ── Thông báo kết quả (Approved / Rejected) cho người tạo ─
+        // ════════════════════════════════════════════════════════════════════
+        // THÔNG BÁO KẾT QUẢ (APPROVED / REJECTED) CHO NGƯỜI TẠO ĐƠN
+        // ════════════════════════════════════════════════════════════════════
         public async Task SendStatusChangedAsync(
-            F03OTRequest request,
-            string newStatus,
+            string targetEmail,
+            string targetName,
+            string status,
+            F03OTRequest otRequest,
             CancellationToken ct = default)
         {
-            // Lấy email người tạo đơn
-            var creatorEmail = await _db.F03employees
-                .AsNoTracking()
-                .Where(x => x.EmployeeCode == request.EmployeeCode && x.IsActive)
-                .Select(x => x.EmailAddress)
-                .FirstOrDefaultAsync(ct);
+            if (string.IsNullOrWhiteSpace(targetEmail)) return;
 
-            if (string.IsNullOrWhiteSpace(creatorEmail)
-                && !string.IsNullOrWhiteSpace(request.CreatedByEmail))
-                creatorEmail = request.CreatedByEmail;
+            Logger.LogDebugIf(Debug,
+                "[OT_NOTIFY] Status changed {Status} → {Email}",
+                status, targetEmail);
 
-            if (string.IsNullOrWhiteSpace(creatorEmail)) return;
+            var templateCode = status == OTStatus.Approved
+                ? "OT_APPROVED"
+                : "OT_REJECTED";
 
-            try
+            await _email.QueueEmail(targetEmail, templateCode, new
             {
-                Logger.LogDebugIf(Debug,
-                    "[OT-MAIL] StatusChanged {Status} → {Email} for {Code}",
-                    newStatus, creatorEmail, request.OTCode);
-
-                string templateCode = newStatus == OTStatus.Approved
-                    ? "OT_APPROVED"
-                    : "OT_REJECTED";
-
-                await _email.QueueEmail(creatorEmail, templateCode, new
-                {
-                    OTCode = request.OTCode,
-                    OTDate = request.OTDate.ToString("dd/MM/yyyy"),
-                    Status = OTStatus.GetDisplayName(newStatus),
-                    DateNotify = DateTime.Now.ToString("dd/MM/yyyy HH:mm"),
-                    Url = $"https://yourdomain/ot/history"
-                }, ct);
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "[OT-MAIL] SendStatusChanged ERROR for {Code}", request.OTCode);
-            }
+                EmployeeName = targetName,
+                OTCode = otRequest.OTCode,
+                OTDate = otRequest.OTDate.ToString("dd/MM/yyyy"),
+                TotalHours = otRequest.TotalOTHours,
+                Status = OTStatus.GetDisplayName(status),
+                DateNotify = DateTime.Now.ToString("dd/MM/yyyy HH:mm")
+            }, ct);
         }
 
-        // ── Nhắc nhở approver chưa duyệt (Background job) ─────────
-        public async Task SendReminderAsync(CancellationToken ct = default)
+        // ════════════════════════════════════════════════════════════════════
+        // QUÉT VÀ GỬI NHẮC NHỞ CÁC ĐƠN QUÁ HẠN CHƯA ĐƯỢC DUYỆT
+        // ════════════════════════════════════════════════════════════════════
+        public async Task SendPendingRemindersAsync(CancellationToken ct = default)
         {
-            try
+            Logger.LogDebugIf(Debug, "[OT_NOTIFY] Start pending reminder scan");
+
+            var pendingRequests = await _db.F03OTRequests
+                .AsNoTracking()
+                .Where(x => x.IsActive == true
+                         && OTStatus.ActiveStatuses.Contains(x.RequestStatus))
+                .ToListAsync(ct);
+
+            int sent = 0;
+            foreach (var req in pendingRequests)
             {
-                Logger.LogDebugIf(Debug, "[OT-MAIL] Reminder scan start");
+                ct.ThrowIfCancellationRequested();
 
-                var pendingList = await _db.F03OTRequests
-                    .AsNoTracking()
-                    .Where(x => x.IsActive == true
-                             && OTStatus.ActiveStatuses.Contains(x.RequestStatus))
-                    .ToListAsync(ct);
-
-                foreach (var req in pendingList)
+                // Xác định email approver đang chờ duyệt ở bước hiện tại
+                string? targetEmail = req.RequestStatus switch
                 {
-                    ct.ThrowIfCancellationRequested();
+                    OTStatus.Pending => req.Level3IsApprove == null
+                                                ? req.Level3ApproveEmail
+                                                : req.Level5ApproveEmail,
+                    OTStatus.ApprovedLv3 => req.Level5ApproveEmail,
+                    OTStatus.ApprovedLv5 => req.Level6ApproveEmail,
+                    OTStatus.ApprovedLv6 => req.Level7ApproveEmail,
+                    _ => null
+                };
 
-                    // Xác định approver hiện tại cần nhắc
-                    string? targetEmail = null;
-                    string? targetName = null;
+                if (string.IsNullOrWhiteSpace(targetEmail)) continue;
 
-                    bool hasLv3 = !string.IsNullOrEmpty(req.Level3ApproveEmail);
+                await _email.QueueEmail(targetEmail, "OT_REMINDER", new
+                {
+                    OTId = req.Id,
+                    OTCode = req.OTCode,
+                    OTDate = req.OTDate.ToString("dd/MM/yyyy"),
+                    TotalHours = req.TotalOTHours,
+                    Status = OTStatus.GetDisplayName(req.RequestStatus),
+                    Url = $"https://yourdomain/ot/details/{req.Id}"
+                }, ct);
 
-                    if (hasLv3 && req.Level3IsApprove == null)
-                    {
-                        targetEmail = req.Level3ApproveEmail;
-                        targetName = req.Level3ApproveName;
-                    }
-                    else if (req.Level5IsApprove == null
-                          && (req.Level3IsApprove == true || !hasLv3))
-                    {
-                        targetEmail = req.Level5ApproveEmail;
-                        targetName = req.Level5ApproveName;
-                    }
-                    else if (req.Level5IsApprove == true && req.Level6IsApprove == null)
-                    {
-                        targetEmail = req.Level6ApproveEmail;
-                        targetName = req.Level6ApproveName;
-                    }
-                    else if (req.Level6IsApprove == true && req.Level7IsApprove == null
-                          && !string.IsNullOrEmpty(req.Level7ApproveEmail))
-                    {
-                        targetEmail = req.Level7ApproveEmail;
-                        targetName = req.Level7ApproveName;
-                    }
-
-                    if (string.IsNullOrWhiteSpace(targetEmail)) continue;
-
-                    await _email.QueueEmail(targetEmail, "OT_REMINDER", new
-                    {
-                        ApproverName = targetName ?? "Approver",
-                        OTCode = req.OTCode,
-                        OTDate = req.OTDate.ToString("dd/MM/yyyy"),
-                        Url = "https://yourdomain/ot/approvals"
-                    }, ct);
-                }
-
-                Logger.LogInfoIf(Debug,
-                    "[OT-MAIL] Reminder done: {Count} đơn chờ duyệt",
-                    pendingList.Count);
+                sent++;
             }
-            catch (Exception ex)
-            {
-                Logger.LogError(ex, "[OT-MAIL] Reminder ERROR");
-            }
+
+            Logger.LogInfoIf(Debug,
+                "[OT_NOTIFY] Reminder scan done: {Sent}/{Total}",
+                sent, pendingRequests.Count);
         }
     }
 }

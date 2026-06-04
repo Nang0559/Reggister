@@ -5,79 +5,24 @@ using FVN_REGISTER.Contract.ViewModels;
 using FVN_REGISTER.Contract.ViewModels.OT;
 using FVN_REGISTER.Shared.Utils.Helpers;
 
-namespace FVN_REGISTER.Shared.Services.OT
+namespace FVN_REGISTER.Shared.Services.OTs
 {
     public interface IOTClientService
     {
-        // ===== COMMANDS =====
+        // ── Commands ──
+        Task<ApiResponse<object>> CreateOTRequestAsync(CreateOTRequestModel model, CancellationToken ct = default);
+        Task<ApiResponse<object>> ApproveAsync(OTApproveRequest request, CancellationToken ct = default);
+        Task<ApiResponse<object>> RejectAsync(OTApproveRequest request, CancellationToken ct = default);
+        Task<ApiResponse<object>> CancelAsync(int otRequestId, string? reason, CancellationToken ct = default);
 
-        /// <summary>Tạo đơn OT mới</summary>
-        Task<ApiResponse<object>> CreateOTRequestAsync(
-            CreateOTRequestModel model,
-            CancellationToken ct = default);
-
-        /// <summary>Phê duyệt danh sách đơn OT</summary>
-        Task<ApiResponse<object>> ApproveAsync(
-            OTApproveRequest request,
-            CancellationToken ct = default);
-
-        /// <summary>Từ chối danh sách đơn OT</summary>
-        Task<ApiResponse<object>> RejectAsync(
-            OTApproveRequest request,
-            CancellationToken ct = default);
-
-        /// <summary>Hủy đơn OT</summary>
-        Task<ApiResponse<object>> CancelAsync(
-            int otRequestId,
-            string reason,
-            CancellationToken ct = default);
-
-        // ===== QUERIES =====
-
-        /// <summary>Lấy dữ liệu tổng hợp cho trang tạo đơn OT</summary>
-        Task<ApiResponse<CreateOTRequestModel>> GetCombinedDataAsync(
-            CancellationToken ct = default);
-
-        /// <summary>Lấy số dư giờ OT</summary>
-        Task<ApiResponse<OTBalanceDto>> GetOTBalanceAsync(
-            int year,
-            CancellationToken ct = default);
-
-        /// <summary>Lấy lịch sử đơn OT</summary>
-        Task<ApiResponse<List<OTRequestViewModel>>> GetRecentOTRequestsAsync(
-            int limit = 10,
-            CancellationToken ct = default);
-
-        /// <summary>Lấy chi tiết đơn OT</summary>
-        Task<ApiResponse<OTRequestViewModel>> GetOTDetailAsync(
-            int otRequestId,
-            CancellationToken ct = default);
-
-        /// <summary>Lấy danh sách chờ duyệt</summary>
-        Task<ApiResponse<List<OTRequestViewModel>>> GetPendingApprovalsAsync(
-            int level = 0,
-            CancellationToken ct = default);
-
-        /// <summary>Lấy danh sách OT có phân trang (HR/Admin)</summary>
-        Task<ApiResponse<PaginationResult<OTRequestViewModel>>> GetPagedOTRequestsAsync(
-            string? deptCode,
-            string? status,
-            DateTime? fromDate,
-            DateTime? toDate,
-            int page = 1,
-            int pageSize = 20,
-            CancellationToken ct = default);
-
-        /// <summary>Lấy dữ liệu dashboard OT</summary>
-        Task<ApiResponse<OTDashboardViewModel>> GetOTDashboardAsync(
-            CancellationToken ct = default);
-
-        /// <summary>Validate giờ OT real-time</summary>
-        Task<ApiResponse<OTValidationResultDto>> ValidateOTHoursAsync(
-            string employeeCode,
-            DateTime otDate,
-            decimal hours,
-            string otType,
-            CancellationToken ct = default);
+        // ── Queries ──
+        Task<ApiResponse<CombinedOTViewModel>> GetCombinedDataAsync(CancellationToken ct = default);
+        Task<ApiResponse<OTBalanceDto>> GetOTBalanceAsync(int year, CancellationToken ct = default);
+        Task<ApiResponse<OTRequestViewModel>> GetOTDetailAsync(int otRequestId, CancellationToken ct = default);
+        Task<ApiResponse<List<OTRequestViewModel>>> GetRecentOTRequestsAsync(int limit = 10, CancellationToken ct = default);
+        Task<ApiResponse<List<OTRequestViewModel>>> GetPendingApprovalsAsync(int level = 0, CancellationToken ct = default);
+        Task<ApiResponse<PaginationResult<OTRequestViewModel>>> GetPagedOTRequestsAsync(string? deptCode, string? status, DateTime? fromDate, DateTime? toDate, int page = 1, int pageSize = 20, CancellationToken ct = default);
+        Task<ApiResponse<OTDashboardViewModel>> GetOTDashboardAsync(CancellationToken ct = default);
+        Task<ApiResponse<OTValidationResultDto>> ValidateOTHoursAsync(string employeeCode, DateTime otDate, decimal hours, string otType, CancellationToken ct = default);
     }
 }

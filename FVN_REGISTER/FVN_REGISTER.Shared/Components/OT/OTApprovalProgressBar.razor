@@ -1,0 +1,53 @@
+﻿@* ============================================================
+   OTApprovalProgressBar.razor
+   Nhận List<OTApprovalStep> thay vì các bool rời rạc.
+   Hiển thị 4 chấm tròn tương ứng 4 cấp duyệt.
+   ============================================================ *@
+
+@using FVN_REGISTER.Contract.ViewModels.OT
+
+<MudTooltip Text="@TooltipText" Placement="Placement.Top">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+        @foreach (var step in DisplaySteps)
+        {
+            <div style="
+                    width: 10px; height: 10px;
+                    border-radius: 50%;
+                    background: @GetDotColor(step);
+                    border: 1.5px solid @GetBorderColor(step);
+                    flex-shrink: 0;"
+                 title="@step.LevelName: @step.StatusText">
+            </div>
+        }
+    </MudStack>
+</MudTooltip>
+
+@code {
+    [Parameter] public List<OTApprovalStep> Steps { get; set; } = new();
+
+    // Chỉ hiển thị các bước IsRequired (bỏ GM nếu không cần)
+    private IEnumerable<OTApprovalStep> DisplaySteps =>
+        Steps.Where(s => s.IsRequired || s.IsApproved != null);
+
+    private string TooltipText =>
+        string.Join(" → ", Steps
+            .Where(s => s.IsRequired || s.IsApproved != null)
+            .Select(s => $"{s.LevelName}: {s.StatusText}"));
+
+    private static string GetDotColor(OTApprovalStep step)
+    {
+        if (step.IsSkipped) return "var(--mud-palette-action-disabled)";
+        if (step.IsApproved == true) return "#4CAF50";  // xanh
+        if (step.IsApproved == false) return "#F44336";  // đỏ
+        // null = chờ
+        return step.IsRequired ? "#FF9800" : "transparent"; // cam nếu đang chờ
+    }
+
+    private static string GetBorderColor(OTApprovalStep step)
+    {
+        if (step.IsSkipped) return "var(--mud-palette-action-disabled)";
+        if (step.IsApproved == true) return "#388E3C";
+        if (step.IsApproved == false) return "#C62828";
+        return step.IsRequired ? "#F57C00" : "#BDBDBD";
+    }
+}
