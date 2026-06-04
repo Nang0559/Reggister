@@ -9,27 +9,47 @@ namespace FVN_REGISTER.Contract.Interfaces.OT
 {
     public interface IOTService
     {
-        // Commands
-        Task<ServiceResult<int>> CreateOTAsync(
-            CreateOTRequestModel model, CurrentUser user, CancellationToken ct = default);
+        // ── COMMANDS ──────────────────────────────────────────
+        /// <summary>Tạo đơn OT mới (bao gồm danh sách nhân viên).</summary>
+        Task<ServiceResult<int>> CreateAsync(
+            CreateOTRequestModel model,
+            CurrentUser creator,
+            CancellationToken ct = default);
 
+        /// <summary>Duyệt một hoặc nhiều đơn OT ở cấp level (3|5|6|7).</summary>
         Task<ServiceResult> ApproveAsync(
-            List<int> ids, int level, CurrentUser user, string? comment, CancellationToken ct = default);
+            List<int> ids,
+            int level,
+            CurrentUser approver,
+            string? comment,
+            CancellationToken ct = default);
 
+        /// <summary>Từ chối một hoặc nhiều đơn OT ở cấp level.</summary>
         Task<ServiceResult> RejectAsync(
-            List<int> ids, int level, CurrentUser user, string? comment, CancellationToken ct = default);
+            List<int> ids,
+            int level,
+            CurrentUser approver,
+            string? comment,
+            CancellationToken ct = default);
 
+        /// <summary>Hủy đơn OT (chủ đơn hoặc Admin).</summary>
         Task<ServiceResult> CancelAsync(
-            int id, string? reason, CurrentUser user, CancellationToken ct = default);
+            int id,
+            string reason,
+            CurrentUser actor,
+            CancellationToken ct = default);
 
-        Task<ServiceResult> ValidateAndArchiveAsync(
-            int id, CurrentUser user, string? note, CancellationToken ct = default);
-
-        // Queries
+        // ── QUERIES ───────────────────────────────────────────
+        /// <summary>Chi tiết đơn OT theo Id.</summary>
         Task<ServiceResult<OTRequestViewModel>> GetDetailsAsync(
-            int id, CancellationToken ct = default);
+            int id,
+            CancellationToken ct = default);
 
-        Task<ServiceResult<OTBalanceDto>> GetOTBalanceAsync(
-            string employeeCode, int year, int month, CancellationToken ct = default);
+        /// <summary>Số dư giờ OT của một nhân viên (daily / monthly / yearly).</summary>
+        Task<ServiceResult<OTBalanceDto>> GetBalanceAsync(
+            string employeeCode,
+            int year,
+            int month,
+            CancellationToken ct = default);
     }
 }

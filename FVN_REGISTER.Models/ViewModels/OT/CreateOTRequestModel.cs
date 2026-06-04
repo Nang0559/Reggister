@@ -1,12 +1,8 @@
 ﻿using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Models;
 using FVN_REGISTER.Contract.Utils;
-using System;
-using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace FVN_REGISTER.Contract.ViewModels.OT
 {

@@ -1,86 +1,59 @@
-﻿using FVN_REGISTER.Contract.Dtos.OT;
-using FVN_REGISTER.Contract.Util;
-using FVN_REGISTER.Contract.Utils;
+﻿using FVN_REGISTER.Contract.Dtos;
+using FVN_REGISTER.Contract.Dtos.OT;
+using FVN_REGISTER.Contract.Models;
 using FVN_REGISTER.Contract.ViewModels.OT;
+
 
 
 
 
     namespace FVN_REGISTER.Contract.Interfaces.OT
     {
-        public interface IOTQueryService
-        {
-            // ================= DÀNH CHO NHÂN VIÊN =================
+    public interface IOTQueryService
+    {
+        /// <summary>
+        /// Trả về toàn bộ dữ liệu cần thiết để render trang tạo / sửa đơn OT:
+        /// giới hạn giờ, số dư, danh sách approver, danh sách nhân viên phòng ban.
+        /// </summary>
+        Task<CombinedOTViewModel> GetCombinedDataAsync(
+            string employeeCode,
+            string deptCode,
+            string cvCode,
+            int year,
+            CancellationToken ct = default);
 
-            /// <summary>Lấy dữ liệu tổng hợp để hiển thị trang tạo đơn OT</summary>
-            Task<CreateOTRequestModel> GetCombinedDataAsync(
-                string empCode,
-                string deptCode,
-                string cvCode,
-                CancellationToken ct = default);
+        /// <summary>Danh sách đơn OT chờ duyệt theo email người duyệt (tóm tắt).</summary>
+        Task<List<OTPendingGroup>> GetPendingSummaryAsync(
+            string approverEmail,
+            CancellationToken ct = default);
 
-            /// <summary>Lấy số dư giờ OT của nhân viên (đã dùng / còn lại theo loại)</summary>
-            Task<OTBalanceDto> GetOTBalanceAsync(
-                string employeeCode,
-                int year,
-                CancellationToken ct = default);
+        /// <summary>Danh sách đơn OT chờ duyệt kèm chi tiết request.</summary>
+        Task<List<OTPendingGroup>> GetPendingDetailsAsync(
+            string approverEmail,
+            CancellationToken ct = default);
 
-            /// <summary>Lấy lịch sử đơn OT gần đây</summary>
-            Task<List<OTRequestViewModel>> GetRecentOTRequestsAsync(
-                string employeeCode,
-                int limit = 10,
-                CancellationToken ct = default);
+        /// <summary>Lịch sử đơn OT gần đây của nhân viên.</summary>
+        Task<List<OTRequestViewModel>> GetRecentHistoryAsync(
+            string employeeCode,
+            int limit,
+            CancellationToken ct = default);
 
-            /// <summary>Lấy chi tiết 1 đơn OT</summary>
-            Task<OTRequestViewModel?> GetOTDetailAsync(
-                int otRequestId,
-                CancellationToken ct = default);
+        /// <summary>Validate giờ OT trước khi lưu (daily / monthly / yearly).</summary>
+        Task<OTValidationResultDto> ValidateHoursAsync(
+            CreateOTRequestModel model,
+            CancellationToken ct = default);
 
-            // ================= DÀNH CHO APPROVER =================
+        /// <summary>Danh sách approver theo level và phòng ban.</summary>
+        Task<List<F03OTApprover>> GetApproversAsync(
+            int level,
+            string deptCode,
+            CancellationToken ct = default);
 
-            /// <summary>Lấy danh sách đơn đang chờ duyệt theo email approver</summary>
-            Task<List<OTRequestViewModel>> GetPendingApprovalsAsync(
-                string approverEmail,
-                int level,
-                CancellationToken ct = default);
-
-            /// <summary>Đếm số đơn chờ duyệt (dùng cho widget dashboard)</summary>
-            Task<int> CountPendingApprovalsAsync(
-                string approverEmail,
-                CancellationToken ct = default);
-
-            // ================= DÀNH CHO HR / ADMIN =================
-
-            /// <summary>Lấy danh sách đơn OT có phân trang và lọc</summary>
-            Task<PaginationResult<OTRequestViewModel>> GetPagedOTRequestsAsync(
-                string? deptCode,
-                string? status,
-                DateTime? fromDate,
-                DateTime? toDate,
-                int page,
-                int pageSize,
-                CancellationToken ct = default);
-
-            /// <summary>Lấy dữ liệu dashboard OT (widget counts)</summary>
-            Task<OTDashboardViewModel> GetDashboardAsync(
-                string employeeCode,
-                string deptCode,
-                int? permissionCode,
-                CancellationToken ct = default);
-
-            /// <summary>Kiểm tra validate giờ OT trước khi submit (gọi từ UI real-time)</summary>
-            Task<OTValidationResultDto> ValidateOTHoursAsync(
-                string employeeCode,
-                DateTime otDate,
-                decimal hours,
-                string otType,
-                CancellationToken ct = default);
-
-            /// <summary>Lấy danh sách approver theo phòng ban và cấp</summary>
-            Task<List<OTApprovalStep>> GetApproversAsync(
-                string deptCode,
-                string cvCode,
-                CancellationToken ct = default);
-        }
+        /// <summary>Widget counter cho Dashboard OT (chờ duyệt, tổng giờ OT hôm nay...).</summary>
+        Task<List<WidgetCounterDto>> GetDashboardWidgetsAsync(
+            string approverEmail,
+            string deptCode,
+            CancellationToken ct = default);
     }
+}
 

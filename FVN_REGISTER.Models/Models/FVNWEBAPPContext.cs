@@ -111,8 +111,8 @@ public partial class FVNWEBAPPContext : DbContext
     public virtual DbSet<F03OTLimitRule> F03OTLimitRules { get; set; }
 
     // Views
-    public virtual DbSet<VF03OTRequest> VF03OTRequest { get; set; }
-    public virtual DbSet<VF03OTSummary> VF03OTSummary { get; set; }
+    public virtual DbSet<VF03OTRequest> VF03OTRequests { get; set; }
+    public virtual DbSet<VF03OTSummary> VF03OTSummaries { get; set; }
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
 #warning To protect potentially sensitive information in your connection string, you should move it out of source code. You can avoid scaffolding the connection string by using the Name= syntax to read it from configuration - see https://go.microsoft.com/fwlink/?linkid=2131148. For more guidance on storing connection strings, see https://go.microsoft.com/fwlink/?LinkId=723263.
         => optionsBuilder.UseSqlServer("Data Source=192.168.200.10\\WEBAPPDB;Initial Catalog=FVNWEBAPP;User ID=sa;Password=Fcc@dmin;TrustServerCertificate=True;MultipleActiveResultSets=True");
