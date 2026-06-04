@@ -6,19 +6,39 @@ using System.Threading.Tasks;
 
 namespace FVN_REGISTER.Contract.Models
 {
+  
+
     public partial class F03OTApprover
     {
         public int Id { get; set; }
-        public string DeptCode { get; set; } = null!;
+
+        public string DeptCode { get; set; } = null!;   // "ALL" = áp dụng tất cả phòng ban
+
+        public string? DeptName { get; set; }
+
+        // Cấp duyệt theo flow: 3 | 5 | 6 | 7
         public int ApproveLevel { get; set; }
+
+        // Tên bước cố định: "Sub-leader / Leader", "Ast. Chief / Chief", "A.MG / MG", "GM"
+        public string? LevelName { get; set; }
+
+        // Tên chức danh thực tế từ DB
         public string? RoleName { get; set; }
-        public string? ApproveLevelCode { get; set; }
-        public string ApproveLevelName { get; set; } = null!;
-        public string ApproveLevelEmail { get; set; } = null!;
-        public bool IsActive { get; set; } = true;
-        public int CreatedBy { get; set; } = -1;
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
-        public int ModifiedBy { get; set; } = -1;
-        public DateTime ModifiedAt { get; set; } = DateTime.Now;
+
+        public string ApproverCode { get; set; } = null!;
+
+        public string ApproverName { get; set; } = null!;
+
+        public string ApproverEmail { get; set; } = null!;
+
+        public bool IsActive { get; set; }
+
+        public int CreatedBy { get; set; }
+
+        public DateTime CreatedAt { get; set; }
+
+        public int ModifiedBy { get; set; }
+
+        public DateTime ModifiedAt { get; set; }
     }
 }

@@ -6,58 +6,82 @@ using System.Threading.Tasks;
 
 namespace FVN_REGISTER.Contract.Models
 {
+
+
+    // View: vF03OTRequest
+    // Join F03OTRequest + F03OTEmployee (aggregate) + F03OTApprover
     public partial class VF03OTRequest
     {
-        public int Id { get; set; }
-        public string OTCode { get; set; } = null!;
-        public string DeptCode { get; set; } = null!;
+        public int? Id { get; set; }
+
+        public string? OTCode { get; set; }
+
+        public string? EmployeeCode { get; set; }       // người tạo đơn
+
+        public string? EmployeeName { get; set; }
+
+        public string? CreatedByEmail { get; set; }
+
+        public string? DeptCode { get; set; }
+
         public string? DeptName { get; set; }
-        public DateOnly OTDate { get; set; }
-        public string OTType { get; set; } = null!;
-        public string? StartTimeText { get; set; }
-        public string? EndTimeText { get; set; }
-        public decimal PlannedHours { get; set; }
-        public string? OTReason { get; set; }
-        public string ScopeType { get; set; } = null!;
-        public string RequestStatus { get; set; } = null!;
-        public string? StatusText { get; set; }
-        public string? StatusColor { get; set; }
-        public int EmployeeCount { get; set; }
 
-        public string? Level1ApproveCode { get; set; }
-        public string? Level1ApproveName { get; set; }
-        public string? Level1ApproveEmail { get; set; }
-        public bool? Level1IsApprove { get; set; }
-        public DateTime? Level1ApproveTime { get; set; }
-        public string? Level1Comment { get; set; }
+        public string? ScopeType { get; set; }
 
-        public string? Level2ApproveCode { get; set; }
-        public string? Level2ApproveName { get; set; }
-        public string? Level2ApproveEmail { get; set; }
-        public bool? Level2IsApprove { get; set; }
-        public DateTime? Level2ApproveTime { get; set; }
-        public string? Level2Comment { get; set; }
+        public DateTime OTDate { get; set; }
 
+        public TimeSpan StartTime { get; set; }
+
+        public TimeSpan EndTime { get; set; }
+
+        public decimal? TotalOTHours { get; set; }
+
+        public string? OTTypeCode { get; set; }
+
+        public string? OTTypeName { get; set; }         // computed trong view
+
+        public string? Reason { get; set; }
+
+        public string? RequestStatus { get; set; }
+
+        public int? EmployeeCount { get; set; }         // COUNT từ F03OTEmployee
+
+        // ===== Level 3 =====
+        public string? Level3ApproveEmail { get; set; }
         public string? Level3ApproveCode { get; set; }
         public string? Level3ApproveName { get; set; }
-        public string? Level3ApproveEmail { get; set; }
         public bool? Level3IsApprove { get; set; }
         public DateTime? Level3ApproveTime { get; set; }
         public string? Level3Comment { get; set; }
 
-        public string? Level4ApproveCode { get; set; }
-        public string? Level4ApproveName { get; set; }
-        public string? Level4ApproveEmail { get; set; }
-        public bool? Level4IsApprove { get; set; }
-        public DateTime? Level4ApproveTime { get; set; }
-        public string? Level4Comment { get; set; }
+        // ===== Level 5 =====
+        public string? Level5ApproveEmail { get; set; }
+        public string? Level5ApproveCode { get; set; }
+        public string? Level5ApproveName { get; set; }
+        public bool? Level5IsApprove { get; set; }
+        public DateTime? Level5ApproveTime { get; set; }
+        public string? Level5Comment { get; set; }
 
-        public DateTime? ValidatedAt { get; set; }
-        public DateTime? ArchivedAt { get; set; }
-        public bool IsActive { get; set; }
-        public int CreatedBy { get; set; }
-        public DateTime CreatedAt { get; set; }
-        public int ModifiedBy { get; set; }
-        public DateTime ModifiedAt { get; set; }
+        // ===== Level 6 =====
+        public string? Level6ApproveEmail { get; set; }
+        public string? Level6ApproveCode { get; set; }
+        public string? Level6ApproveName { get; set; }
+        public bool? Level6IsApprove { get; set; }
+        public DateTime? Level6ApproveTime { get; set; }
+        public string? Level6Comment { get; set; }
+
+        // ===== Level 7 =====
+        public string? Level7ApproveEmail { get; set; }
+        public string? Level7ApproveCode { get; set; }
+        public string? Level7ApproveName { get; set; }
+        public bool? Level7IsApprove { get; set; }
+        public DateTime? Level7ApproveTime { get; set; }
+        public string? Level7Comment { get; set; }
+
+        public bool? IsActive { get; set; }
+
+        public DateTime? CreatedAt { get; set; }
+
+        public DateTime? ModifiedAt { get; set; }
     }
 }

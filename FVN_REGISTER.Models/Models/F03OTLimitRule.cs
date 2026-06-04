@@ -6,14 +6,29 @@ using System.Threading.Tasks;
 
 namespace FVN_REGISTER.Contract.Models
 {
+   
+
     public partial class F03OTLimitRule
     {
         public int Id { get; set; }
-        public string RuleType { get; set; } = null!;           // DAILY | MONTHLY | YEARLY | SPECIAL_YEARLY
-        public string? OTType { get; set; }                     // null = áp dụng tất cả
-        public decimal MaxHours { get; set; }
+
+        // "Daily" | "Weekly" | "Yearly" | "Special"
+        // Khớp với OTLimitType constants
+        public string LimitType { get; set; } = null!;
+
+        // Giá trị giới hạn: 4 (daily), 40 (weekly), 200 (yearly), 900 (special)
+        public decimal LimitValue { get; set; }
+
         public string? Description { get; set; }
-        public bool IsActive { get; set; } = true;
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
+
+        public bool IsActive { get; set; }
+
+        public int CreatedBy { get; set; }
+
+        public DateTime CreatedAt { get; set; }
+
+        public int ModifiedBy { get; set; }
+
+        public DateTime ModifiedAt { get; set; }
     }
 }

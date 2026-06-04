@@ -1,4 +1,7 @@
-﻿using System;
+﻿using FVN_REGISTER.Contract.Dtos.OT;
+using FVN_REGISTER.Contract.Models;
+using FVN_REGISTER.Contract.Utils;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -9,14 +12,17 @@ namespace FVN_REGISTER.Contract.ViewModels.OT
 {
     public class CreateOTRequestModel
     {
-        [Required(ErrorMessage = "Chọn bộ phận")]
+        // --- Người tạo ---
+        public string EmployeeCode { get; set; } = string.Empty;
         public string DeptCode { get; set; } = string.Empty;
+        public string CvCode { get; set; } = string.Empty;   // để check HasWorker
 
+        // --- Thông tin OT ---
         [Required(ErrorMessage = "Chọn ngày OT")]
         public DateTime OTDate { get; set; } = DateTime.Today;
 
         [Required(ErrorMessage = "Chọn loại OT")]
-        public string OTType { get; set; } = "WEEKDAY";
+        public string OTTypeCode { get; set; } = OTTypeConst.Weekday;  // khớp với OTTypeConst
 
         [Required(ErrorMessage = "Nhập giờ bắt đầu")]
         public TimeSpan StartTime { get; set; }
@@ -24,36 +30,52 @@ namespace FVN_REGISTER.Contract.ViewModels.OT
         [Required(ErrorMessage = "Nhập giờ kết thúc")]
         public TimeSpan EndTime { get; set; }
 
-        [Range(0.5, 12, ErrorMessage = "Giờ OT phải từ 0.5 đến 12")]
-        public decimal PlannedHours { get; set; }
+        // Tính tự động từ StartTime/EndTime, không cần nhập tay
+        public decimal PlannedHours => EndTime > StartTime
+            ? (decimal)(EndTime - StartTime).TotalHours
+            : 0;
 
         [Required(ErrorMessage = "Nhập lý do OT")]
         [StringLength(500)]
-        public string OTReason { get; set; } = string.Empty;
+        public string Reason { get; set; } = string.Empty;   // đổi từ OTReason → Reason
 
-        public string ScopeType { get; set; } = "SELECTED";
+        // --- Phạm vi áp dụng ---
+        public string ScopeType { get; set; } = "SELECTED";  // SELECTED | DEPARTMENT
 
-        // Danh sách nhân viên được chọn
+        [MinLength(1, ErrorMessage = "Phải có ít nhất 1 nhân viên")]
         public List<OTEmployeeModel> Employees { get; set; } = new();
 
-        // Approvers - tùy theo CVCode và tầng
-        public string? Level1ApproveEmail { get; set; }
-        public string? Level1ApproveCode { get; set; }
-        public string? Level1ApproveName { get; set; }
-
-        public string? Level2ApproveEmail { get; set; }
-        public string? Level2ApproveCode { get; set; }
-        public string? Level2ApproveName { get; set; }
-
+        // --- Approvers (khớp đúng với flow: Bước 3, 5, 6, 7) ---
+        // Bước 3: Sub-leader / Leader
         public string? Level3ApproveEmail { get; set; }
         public string? Level3ApproveCode { get; set; }
         public string? Level3ApproveName { get; set; }
 
-        public string? Level4ApproveEmail { get; set; }
-        public string? Level4ApproveCode { get; set; }
-        public string? Level4ApproveName { get; set; }
+        // Bước 5: Ast. Chief / Chief
+        public string? Level5ApproveEmail { get; set; }
+        public string? Level5ApproveCode { get; set; }
+        public string? Level5ApproveName { get; set; }
 
-        // Helper: có công nhân (CVCode 0003) trong danh sách không
+        // Bước 6: A.MG / MG
+        public string? Level6ApproveEmail { get; set; }
+        public string? Level6ApproveCode { get; set; }
+        public string? Level6ApproveName { get; set; }
+
+        // Bước 7: GM (ngày thường 3 bộ đưa / ngày nhất định)
+        public string? Level7ApproveEmail { get; set; }
+        public string? Level7ApproveCode { get; set; }
+        public string? Level7ApproveName { get; set; }
+
+        // --- Dữ liệu phụ trợ cho UI (load từ GetCombinedDataAsync) ---
+        public List<OTApprovalStep> ApprovalSteps { get; set; } = new();
+        public List<F03OTLimitRule> LimitRules { get; set; } = new();
+        public OTBalanceDto? Balance { get; set; }
+
+        // --- Helpers ---
+        // Công nhân (CVCode 0003) cần đủ 4 bước duyệt
         public bool HasWorker => Employees.Any(e => e.CvCode == "0003");
+
+        // Nhân viên văn phòng chỉ cần từ Bước 5 trở lên
+        public bool RequiresAllLevels => HasWorker;
     }
 }

@@ -10,64 +10,74 @@ namespace FVN_REGISTER.Contract.Models
     public partial class F03OTRequest
     {
         public int Id { get; set; }
+
         public string OTCode { get; set; } = null!;
+
+        public string EmployeeCode { get; set; } = null!;
+
+        public string? CreatedByEmail { get; set; }
+
         public string DeptCode { get; set; } = null!;
-        public DateOnly OTDate { get; set; }
-        public string OTType { get; set; } = "WEEKDAY";         // WEEKDAY | WEEKEND | HOLIDAY
-        public TimeOnly StartTime { get; set; }
-        public TimeOnly EndTime { get; set; }
+
+        public string? ScopeType { get; set; }          // SELECTED | DEPARTMENT
+
+        public DateTime OTDate { get; set; }
+
+        public TimeSpan StartTime { get; set; }
+
+        public TimeSpan EndTime { get; set; }
+
         public decimal PlannedHours { get; set; }
-        public string OTReason { get; set; } = null!;
-        public string ScopeType { get; set; } = "SELECTED";     // DEPT | SELECTED
 
-        // Level 1 - Sub-leader/Leader (bắt buộc với CVCode 0003)
-        public string? Level1ApproveCode { get; set; }
-        public string? Level1ApproveName { get; set; }
-        public string? Level1ApproveEmail { get; set; }
-        public bool? Level1IsApprove { get; set; }
-        public DateTime? Level1ApproveTime { get; set; }
-        public string? Level1Comment { get; set; }
+        public decimal TotalOTHours { get; set; }       // tính sau khi save
 
-        // Level 2 - Ast.Chief / Chief
-        public string? Level2ApproveCode { get; set; }
-        public string? Level2ApproveName { get; set; }
-        public string? Level2ApproveEmail { get; set; }
-        public bool? Level2IsApprove { get; set; }
-        public DateTime? Level2ApproveTime { get; set; }
-        public string? Level2Comment { get; set; }
+        public string OTTypeCode { get; set; } = null!; // WEEKDAY | WEEKEND | HOLIDAY
 
-        // Level 3 - A.MG / MG
+        public string? OTReason { get; set; }
+
+        public string RequestStatus { get; set; } = null!;
+
+        // ===== Level 3: Sub-leader / Leader =====
+        public string? Level3ApproveEmail { get; set; }
         public string? Level3ApproveCode { get; set; }
         public string? Level3ApproveName { get; set; }
-        public string? Level3ApproveEmail { get; set; }
         public bool? Level3IsApprove { get; set; }
         public DateTime? Level3ApproveTime { get; set; }
         public string? Level3Comment { get; set; }
 
-        // Level 4 - GM (ngày thường 3 bộ đưa / ngày nhất định)
-        public string? Level4ApproveCode { get; set; }
-        public string? Level4ApproveName { get; set; }
-        public string? Level4ApproveEmail { get; set; }
-        public bool? Level4IsApprove { get; set; }
-        public DateTime? Level4ApproveTime { get; set; }
-        public string? Level4Comment { get; set; }
+        // ===== Level 5: Ast. Chief / Chief =====
+        public string? Level5ApproveEmail { get; set; }
+        public string? Level5ApproveCode { get; set; }
+        public string? Level5ApproveName { get; set; }
+        public bool? Level5IsApprove { get; set; }
+        public DateTime? Level5ApproveTime { get; set; }
+        public string? Level5Comment { get; set; }
 
-        public string RequestStatus { get; set; } = OTStatus.Pending;
+        // ===== Level 6: A.MG / MG =====
+        public string? Level6ApproveEmail { get; set; }
+        public string? Level6ApproveCode { get; set; }
+        public string? Level6ApproveName { get; set; }
+        public bool? Level6IsApprove { get; set; }
+        public DateTime? Level6ApproveTime { get; set; }
+        public string? Level6Comment { get; set; }
 
-        // Validate + Archive
-        public DateTime? ValidatedAt { get; set; }
-        public int? ValidatedBy { get; set; }
-        public string? ValidationNote { get; set; }
-        public DateTime? ArchivedAt { get; set; }
-        public int? ArchivedBy { get; set; }
+        // ===== Level 7: GM =====
+        public string? Level7ApproveEmail { get; set; }
+        public string? Level7ApproveCode { get; set; }
+        public string? Level7ApproveName { get; set; }
+        public bool? Level7IsApprove { get; set; }
+        public DateTime? Level7ApproveTime { get; set; }
+        public string? Level7Comment { get; set; }
 
-        public bool IsActive { get; set; } = true;
-        public int CreatedBy { get; set; } = -1;
-        public DateTime CreatedAt { get; set; } = DateTime.Now;
-        public int ModifiedBy { get; set; } = -1;
-        public DateTime ModifiedAt { get; set; } = DateTime.Now;
+        // ===== Audit =====
+        public bool? IsActive { get; set; }
+        public int? CreatedBy { get; set; }
+        public DateTime? CreatedAt { get; set; }
+        public int? ModifiedBy { get; set; }
+        public DateTime? ModifiedAt { get; set; }
 
-        // Navigation
-        public virtual ICollection<F03OTEmployee> OTEmployees { get; set; } = new List<F03OTEmployee>();
+        // ===== Navigation =====
+        public virtual ICollection<F03OTEmployee> F03OTEmployees { get; set; }
+            = new List<F03OTEmployee>();
     }
 }

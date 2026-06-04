@@ -1,0 +1,236 @@
+﻿@page "/ot/history"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Contract.Utils
+@using FVN_REGISTER.Shared.Services.OT
+@using FVN_REGISTER.Shared.Utils.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+
+@inject IOTClientService OTService
+@inject ISnackbar Snackbar
+@inject NavigationManager Nav
+@inject IDialogService DialogService
+
+<PageTitle>Lịch sử OT</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h5">
+            <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" />
+            Lịch sử đăng ký OT
+        </MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Quản lý và theo dõi các đơn OT của bạn</MudText>
+    </div>
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="@(() => Nav.NavigateTo("/ot/create"))">
+        Tạo đơn OT
+    </MudButton>
+</MudStack>
+
+@* Filters *@
+<MudPaper Elevation="1" Class="pa-3 mb-4">
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="string" Label="Trạng thái" @bind-Value="_filterStatus"
+                       Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+                <MudSelectItem Value="@((string?)null)">Tất cả</MudSelectItem>
+                <MudSelectItem Value="@OTStatus.Pending">Chờ duyệt</MudSelectItem>
+                <MudSelectItem Value="@OTStatus.Approved">Đã duyệt</MudSelectItem>
+                <MudSelectItem Value="@OTStatus.Rejected">Từ chối</MudSelectItem>
+                <MudSelectItem Value="@OTStatus.Cancelled">Đã hủy</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudDatePicker Label="Từ ngày" @bind-Date="_fromDate"
+                           Variant="Variant.Outlined" Margin="Margin.Dense"
+                           DateFormat="dd/MM/yyyy" Clearable="true" />
+        </MudItem>
+        <MudItem xs="6" sm="3">
+            <MudDatePicker Label="Đến ngày" @bind-Date="_toDate"
+                           Variant="Variant.Outlined" Margin="Margin.Dense"
+                           DateFormat="dd/MM/yyyy" Clearable="true" />
+        </MudItem>
+        <MudItem xs="12" sm="2" Class="d-flex align-center">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       OnClick="LoadData" FullWidth="true"
+                       StartIcon="@Icons.Material.Filled.Search">
+                Tìm kiếm
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@* Table *@
+<MudPaper Elevation="2">
+    <MudTable T="OTRequestViewModel"
+              ServerData="ServerReload"
+              @ref="_table"
+              Dense="true"
+              Hover="true"
+              Loading="_isLoading"
+              LoadingProgressColor="Color.Primary">
+        <HeaderContent>
+            <MudTh><MudTableSortLabel T="OTRequestViewModel" SortLabel="OTDate">Ngày OT</MudTableSortLabel></MudTh>
+            <MudTh>Giờ OT</MudTh>
+            <MudTh>Loại OT</MudTh>
+            <MudTh>Số NV</MudTh>
+            <MudTh>Trạng thái</MudTh>
+            <MudTh>Tiến độ duyệt</MudTh>
+            <MudTh>Thao tác</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Ngày OT">
+                <MudText Typo="Typo.body2"><strong>@context.OTDate.ToString("dd/MM/yyyy")</strong></MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    @context.CreatedAt.ToString("HH:mm dd/MM")
+                </MudText>
+            </MudTd>
+            <MudTd DataLabel="Giờ OT">
+                <MudText Typo="Typo.body2">
+                    @context.StartTime.ToString(@"hh\:mm") – @context.EndTime.ToString(@"hh\:mm")
+                </MudText>
+                <MudChip T="string" Size="Size.Small" Color="Color.Info" Label="true">
+                    @context.TotalOTHours h
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Loại OT">@context.OTTypeName</MudTd>
+            <MudTd DataLabel="Số NV">
+                <MudChip T="string" Size="Size.Small" Color="Color.Default" Label="true">
+                    @(context.Employees?.Count ?? 0) người
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Trạng thái">
+                <MudChip T="string"
+                         Size="Size.Small"
+                         Color="@GetStatusColor(context.RequestStatus)"
+                         Label="true">
+                    @GetStatusText(context.RequestStatus)
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Tiến độ">
+                <ApprovalProgressBar
+                    Level3="@context.Level3IsApprove"
+                    Level5="@context.Level5IsApprove"
+                    Level6="@context.Level6IsApprove"
+                    Level7="@context.Level7IsApprove" />
+            </MudTd>
+            <MudTd>
+                <MudStack Row="true">
+                    <MudIconButton Icon="@Icons.Material.Filled.Visibility"
+                                   Size="Size.Small"
+                                   Title="Xem chi tiết"
+                                   OnClick="@(() => Nav.NavigateTo($"/ot/detail/{context.Id}"))" />
+                    @if (context.RequestStatus == OTStatus.Pending)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Cancel"
+                                       Color="Color.Error"
+                                       Size="Size.Small"
+                                       Title="Hủy đơn"
+                                       OnClick="@(() => CancelOT(context))" />
+                    }
+                </MudStack>
+            </MudTd>
+        </RowTemplate>
+        <PagerContent>
+            <MudTablePager PageSizeOptions="new int[]{10, 20, 50}" />
+        </PagerContent>
+        <NoRecordsContent>
+            <MudText Color="Color.Secondary" Class="pa-4">Không có đơn OT nào.</MudText>
+        </NoRecordsContent>
+    </MudTable>
+</MudPaper>
+
+@code {
+    private MudTable<OTRequestViewModel>? _table;
+    private bool _isLoading = false;
+    private string? _filterStatus;
+    private DateTime? _fromDate;
+    private DateTime? _toDate;
+    private CancellationTokenSource _cts = new();
+
+    private async Task<TableData<OTRequestViewModel>> ServerReload(TableState state, CancellationToken ct)
+    {
+        _isLoading = true;
+        try
+        {
+            var result = await OTService.GetPagedOTRequestsAsync(
+                null,
+                _filterStatus,
+                _fromDate,
+                _toDate,
+                state.Page + 1,
+                state.PageSize,
+                ct);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                return new TableData<OTRequestViewModel>
+                {
+                    Items = result.Data.Data,
+                    TotalItems = result.Data.TotalCount
+                };
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[OT_HISTORY] Load error");
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+        return new TableData<OTRequestViewModel> { Items = new List<OTRequestViewModel>(), TotalItems = 0 };
+    }
+
+    private async Task LoadData() => await _table!.ReloadServerData();
+
+    private async Task CancelOT(OTRequestViewModel ot)
+    {
+        var result = await DialogService.ShowMessageBox(
+            "Xác nhận hủy đơn OT",
+            $"Bạn có chắc muốn hủy đơn OT ngày {ot.OTDate:dd/MM/yyyy}?",
+            yesText: "Hủy đơn", cancelText: "Không");
+
+        if (result == true)
+        {
+            var response = await OTService.CancelAsync(ot.Id, "Người dùng hủy", _cts.Token);
+            if (response.IsSuccess)
+            {
+                Snackbar.Add("Đã hủy đơn OT", Severity.Success);
+                await _table!.ReloadServerData();
+            }
+            else
+            {
+                Snackbar.Add(response.Message ?? "Lỗi hủy đơn", Severity.Error);
+            }
+        }
+    }
+
+    private static Color GetStatusColor(string status) => status switch
+    {
+        "Approved" => Color.Success,
+        "Rejected" => Color.Error,
+        "Cancelled" => Color.Default,
+        _ => Color.Warning
+    };
+
+    private static string GetStatusText(string status) => status switch
+    {
+        "Approved" => "Đã duyệt",
+        "Rejected" => "Từ chối",
+        "Cancelled" => "Đã hủy",
+        "ApprovedLv3" => "Lv3 duyệt",
+        "ApprovedLv5" => "Lv5 duyệt",
+        "ApprovedLv6" => "Lv6 duyệt",
+        _ => "Chờ duyệt"
+    };
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
+}

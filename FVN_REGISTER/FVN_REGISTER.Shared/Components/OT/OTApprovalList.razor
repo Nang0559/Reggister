@@ -1,0 +1,170 @@
+﻿@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Contract.Utils
+
+<MudStack>
+    @if (IsLoading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" />
+    }
+    else if (!Items.Any())
+    {
+        <MudPaper Elevation="0" Class="pa-8 text-center">
+            <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline"
+                     Color="Color.Success" Size="Size.Large" Class="mb-2" />
+            <MudText Color="Color.Secondary">Không có đơn OT nào chờ duyệt.</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        @* Bulk actions *@
+        @if (_selected.Any())
+        {
+            <MudPaper Elevation="1" Class="pa-2 mb-2"
+                      Style="background: var(--mud-palette-primary-lighten); border-radius: 8px;">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                    <MudText Typo="Typo.body2">Đã chọn @_selected.Count đơn</MudText>
+                    <MudStack Row="true">
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.CheckCircle"
+                                   OnClick="BulkApprove">
+                            Duyệt tất cả
+                        </MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Cancel"
+                                   OnClick="BulkReject">
+                            Từ chối tất cả
+                        </MudButton>
+                    </MudStack>
+                </MudStack>
+            </MudPaper>
+        }
+
+        @foreach (var item in Items)
+        {
+            <MudCard Elevation="2" Class="mb-2" Style="border-left: 4px solid @GetStatusBorder(item.RequestStatus);">
+                <MudCardContent>
+                    <MudGrid AlignItems="AlignItems.Center">
+                        <MudItem xs="1">
+                            <MudCheckBox T="bool"
+                                         Value="@_selected.Contains(item.Id)"
+                                         ValueChanged="@(v => ToggleSelect(item.Id, v))" />
+                        </MudItem>
+                        <MudItem xs="11" sm="4">
+                            <MudStack Row="true" AlignItems="AlignItems.Center">
+                                <MudAvatar Color="Color.Primary" Size="Size.Small">
+                                    @item.EmployeeName?.FirstOrDefault()
+                                </MudAvatar>
+                                <div>
+                                    <MudText Typo="Typo.body2"><strong>@item.EmployeeName</strong></MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@item.EmployeeCode — @item.DeptName</MudText>
+                                </div>
+                            </MudStack>
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <MudText Typo="Typo.body2">
+                                <MudIcon Icon="@Icons.Material.Filled.CalendarToday" Size="Size.Small" Class="mr-1" />
+                                <strong>@item.OTDate.ToString("dd/MM/yyyy")</strong>
+                            </MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @item.StartTime.ToString(@"hh\:mm") – @item.EndTime.ToString(@"hh\:mm")
+                                (@item.TotalOTHours h)
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="12" sm="2">
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">Loại</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Label="true">@item.OTTypeName</MudChip>
+                        </MudItem>
+                        <MudItem xs="12" sm="2">
+                            <ApprovalProgressBar
+                                Level3="@item.Level3IsApprove"
+                                Level5="@item.Level5IsApprove"
+                                Level6="@item.Level6IsApprove"
+                                Level7="@item.Level7IsApprove" />
+                        </MudItem>
+                    </MudGrid>
+
+                    @if (!string.IsNullOrEmpty(item.Reason))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
+                            <MudIcon Icon="@Icons.Material.Filled.Notes" Size="Size.Small" Class="mr-1" />
+                            @item.Reason
+                        </MudText>
+                    }
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Visibility"
+                               OnClick="@(() => OnViewDetail.InvokeAsync(item.Id))">
+                        Chi tiết
+                    </MudButton>
+                    <MudSpacer />
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.CheckCircle"
+                               OnClick="@(() => OnApprove.InvokeAsync((item.Id, Level > 0 ? Level : GetCurrentLevel(item))))">
+                        Duyệt
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                               StartIcon="@Icons.Material.Filled.Cancel" Class="ml-2"
+                               OnClick="@(() => OnReject.InvokeAsync((item.Id, Level > 0 ? Level : GetCurrentLevel(item))))">
+                        Từ chối
+                    </MudButton>
+                </MudCardActions>
+            </MudCard>
+        }
+    }
+</MudStack>
+
+@code {
+    [Parameter] public List<OTRequestViewModel> Items { get; set; } = new();
+    [Parameter] public int Level { get; set; } = 0;
+    [Parameter] public bool IsLoading { get; set; }
+    [Parameter] public EventCallback<(int, int)> OnApprove { get; set; }
+    [Parameter] public EventCallback<(int, int)> OnReject { get; set; }
+    [Parameter] public EventCallback<int> OnViewDetail { get; set; }
+
+    private HashSet<int> _selected = new();
+
+    private void ToggleSelect(int id, bool selected)
+    {
+        if (selected) _selected.Add(id);
+        else _selected.Remove(id);
+    }
+
+    private async Task BulkApprove()
+    {
+        foreach (var id in _selected)
+        {
+            var item = Items.FirstOrDefault(x => x.Id == id);
+            if (item != null)
+                await OnApprove.InvokeAsync((id, Level > 0 ? Level : GetCurrentLevel(item)));
+        }
+        _selected.Clear();
+    }
+
+    private async Task BulkReject()
+    {
+        foreach (var id in _selected)
+        {
+            var item = Items.FirstOrDefault(x => x.Id == id);
+            if (item != null)
+                await OnReject.InvokeAsync((id, Level > 0 ? Level : GetCurrentLevel(item)));
+        }
+        _selected.Clear();
+    }
+
+    private static int GetCurrentLevel(OTRequestViewModel x)
+    {
+        if (x.Level3IsApprove == null) return 3;
+        if (x.Level5IsApprove == null) return 5;
+        if (x.Level6IsApprove == null) return 6;
+        return 7;
+    }
+
+    private static string GetStatusBorder(string status) => status switch
+    {
+        "Approved" => "#4CAF50",
+        "Rejected" => "#F44336",
+        "Cancelled" => "#9E9E9E",
+        _ => "#FF9800"
+    };
+}
