@@ -1,11 +1,11 @@
-﻿using FVN_REGISTER.Contract.Interfaces.Repositores;
+using FVN_REGISTER.Contract.Dtos.Leaves;
+using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Core.Configurations;
+using FVN_REGISTER.Core.Logging;
+using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Shared.Handlers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using FVN_REGISTER.Core.Logging;
-using FVN_REGISTER.Contract.ViewModels.Leaves;
-
 
 namespace FVN_REGISTER.Shared.Services.Leaves
 {
@@ -27,38 +27,36 @@ namespace FVN_REGISTER.Shared.Services.Leaves
             _options = options;
         }
 
-        public async Task<ApiResponse<List<LeaveRequestViewModel>>> GetHistoryAsync(
+        public async Task<ApiResponse<PaginationResult<LeaveSummaryDto>>> GetHistoryAsync(
             int? year,
             string? status,
+            int page = 1,
+            int pageSize = 20,
             CancellationToken ct = default)
         {
             try
             {
-                _logger.LogDebugIf(Debug, "[LEAVE_HISTORY_CLIENT] GetHistory start: year={Year}, status={Status}", year, status);
-
-                // 1. Xây dựng URL Endpoint kèm Query String
-                var url = "api/leavedays/history?";
+                var query = new List<string>
+                {
+                    $"page={Math.Max(1, page)}",
+                    $"pageSize={Math.Clamp(pageSize, 1, 100)}"
+                };
 
                 if (year.HasValue)
-                    url += $"year={year.Value}&";
+                    query.Add($"year={year.Value}");
 
-                if (!string.IsNullOrEmpty(status))
-                    url += $"status={Uri.EscapeDataString(status)}&";
+                if (!string.IsNullOrWhiteSpace(status))
+                    query.Add($"status={Uri.EscapeDataString(status)}");
 
-                // Xóa ký tự '&' hoặc '?' thừa ở cuối chuỗi URL
-                url = url.TrimEnd('&').TrimEnd('?');
+                var url = $"api/leavedays/history?{string.Join("&", query)}";
+                _logger.LogDebugIf(Debug, "[LEAVE_HISTORY_CLIENT] GET {Url}", url);
 
-                // 2. Thực hiện gọi HTTP GET tới API
-                var result = await _http.GetAsync<List<LeaveRequestViewModel>>(url, ct);
-
-                _logger.LogDebugIf(Debug, "[LEAVE_HISTORY_CLIENT] GetHistory finished: success={Success}", result.IsSuccess);
-
-                return result;
+                return await _http.GetAsync<PaginationResult<LeaveSummaryDto>>(url, ct);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[LEAVE_HISTORY_CLIENT] GetHistory error");
-                return ApiResponse<List<LeaveRequestViewModel>>.Fail("Không thể tải lịch sử đơn nghỉ phép");
+                return ApiResponse<PaginationResult<LeaveSummaryDto>>.Fail("Không thể tải lịch sử đơn nghỉ phép");
             }
         }
     }
