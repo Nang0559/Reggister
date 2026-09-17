@@ -1,4 +1,5 @@
 using FVN_REGISTER.Core.Entities.Equipment;
+using FVN_REGISTER.Core.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -9,7 +10,7 @@ public sealed class F03EquipmentRequestConfiguration : IEntityTypeConfiguration<
     public void Configure(EntityTypeBuilder<F03EquipmentRequest> b)
     {
         b.ToTable("F03EquipmentRequests"); b.HasKey(x => x.Id);
-        b.Property(x => x.RequestKind).HasConversion<int>(); b.Property(x => x.RequestStatus).HasConversion<int>().HasDefaultValue(Core.Enums.ApprovalStatus.Draft);
+        b.Property(x => x.RequestKind).HasConversion<int>(); b.Property(x => x.RequestStatus).HasConversion<int>().HasDefaultValue(ApprovalStatus.Draft);
         b.Property(x => x.EmployeeCode).HasMaxLength(50).IsRequired(); b.Property(x => x.DeptCode).HasMaxLength(20).IsRequired();
         b.Property(x => x.SelectedApproverCode).HasMaxLength(50).IsRequired(); b.Property(x => x.QrToken).HasMaxLength(128).IsRequired();
         b.Property(x => x.EquipmentName).HasMaxLength(250).IsRequired(); b.Property(x => x.Specification).HasMaxLength(1000);
