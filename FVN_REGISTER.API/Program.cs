@@ -124,7 +124,7 @@ builder.Services.AddScoped<ILeaveTypeManagementService, LeaveTypeManagementServi
 builder.Services.AddScoped<IHistoryHandler, LeaveHistoryHandler>();
 builder.Services.AddScoped<IHistoryHandler, OTHistoryHandler>();
 builder.Services.AddScoped<IHistoryDispatcher, HistoryDispatcher>();
-builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+builder.Services.AddScoped<IEmailTemplateManagementService, EmailTemplateManagementService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IApprovalNotificationService, ApprovalNotificationService>();
 
