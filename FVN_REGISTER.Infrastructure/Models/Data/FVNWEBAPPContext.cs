@@ -40,6 +40,7 @@ public class FVNWEBAPPContext : DbContext
     public DbSet<F03OTLimitRule> OvertimeLimitRules { get; set; }
     public DbSet<F03OTReasonCode> OvertimeReasonCodes { get; set; }
     public DbSet<F03OTType> OTTypes { get; set; }
+    public DbSet<F03TripRequest> TripRequests { get; set; }
     public DbSet<F03StagingTrip> StagingTrips { get; set; }
     public DbSet<F03StagingDepartment> StagingDepartments { get; set; }
     public DbSet<F03StagingEmployee> StagingEmployees { get; set; }
