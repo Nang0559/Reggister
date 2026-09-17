@@ -10,7 +10,7 @@ using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Controllers
 {
-    [Authorize]
+    [Authorize(Policy = "Admin")]
     [ApiController]
     [Route("api/[controller]")]
     public class EmailQueueController : BaseApiController
@@ -31,50 +31,84 @@ namespace FVN_REGISTER.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll(CancellationToken ct)
         {
-            if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
-            return Ok(ApiResponse<List<EmailQueueDto>>.Ok(await _emailService.GetQueueAsync(500, ct)));
+            var result = await _emailService.GetQueueAsync(500, ct);
+
+            return Ok(
+                ApiResponse<List<EmailQueueDto>>.Ok(result));
         }
 
         [HttpPost("{id:int}/retry")]
-        public async Task<IActionResult> Retry(int id, CancellationToken ct)
+        public async Task<IActionResult> Retry(
+            int id,
+            CancellationToken ct)
         {
-            if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
             await _emailService.ResendEmail(id, ct);
-            return Ok(ApiResponse.Ok("Đã đặt lại để gửi."));
+
+            return Ok(
+                ApiResponse.Ok("Đã đặt lại để gửi."));
         }
 
         [HttpPost("retry-batch")]
-        public async Task<IActionResult> RetryBatch([FromBody] BatchIdsRequestDto req, CancellationToken ct)
+        public async Task<IActionResult> RetryBatch(
+            [FromBody] BatchIdsRequestDto req,
+            CancellationToken ct)
         {
-            if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
-            if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Danh sách ID không hợp lệ."));
-            await _emailService.RetryEmailBatchAsync(req.Ids, ct);
-            return Ok(ApiResponse.Ok($"Đã reset {req.Ids.Count} email."));
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        "Danh sách ID không hợp lệ."));
+            }
+
+            await _emailService.RetryEmailBatchAsync(
+                req.Ids,
+                ct);
+
+            return Ok(
+                ApiResponse.Ok(
+                    $"Đã reset {req.Ids.Count} email."));
         }
 
         [HttpPost("{id:int}/cancel")]
-        public async Task<IActionResult> Cancel(int id, CancellationToken ct)
+        public async Task<IActionResult> Cancel(
+            int id,
+            CancellationToken ct)
         {
-            if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
             await _emailService.CancelEmail(id, ct);
-            return Ok(ApiResponse.Ok("Đã hủy email."));
+
+            return Ok(
+                ApiResponse.Ok("Đã hủy email."));
         }
 
         [HttpPost("cancel-batch")]
-        public async Task<IActionResult> CancelBatch([FromBody] BatchIdsRequestDto req, CancellationToken ct)
+        public async Task<IActionResult> CancelBatch(
+            [FromBody] BatchIdsRequestDto req,
+            CancellationToken ct)
         {
-            if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
-            if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Danh sách ID không hợp lệ."));
-            await _emailService.CancelEmailBatchAsync(req.Ids, ct);
-            return Ok(ApiResponse.Ok($"Đã hủy {req.Ids.Count} email."));
+            if (!ModelState.IsValid)
+            {
+                return BadRequest(
+                    ApiResponse<object>.Fail(
+                        "Danh sách ID không hợp lệ."));
+            }
+
+            await _emailService.CancelEmailBatchAsync(
+                req.Ids,
+                ct);
+
+            return Ok(
+                ApiResponse.Ok(
+                    $"Đã hủy {req.Ids.Count} email."));
         }
 
         [HttpPost("trigger")]
-        public async Task<IActionResult> Trigger(CancellationToken ct)
+        public async Task<IActionResult> Trigger(
+            CancellationToken ct)
         {
-            if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
             await _emailService.ProcessQueue(ct);
-            return Ok(ApiResponse.Ok("Queue đã được xử lý."));
+
+            return Ok(
+                ApiResponse.Ok("Queue đã được xử lý."));
         }
     }
 }

@@ -31,10 +31,10 @@ namespace FVN_REGISTER.API.Controllers
             IWebHostEnvironment environment,
             ICurrentUserService currentUser,
             IUserLogService userLog,
-            IMapper mapper,
+           
             ILogger<OTSyncController> logger,
             IOptionsMonitor<AuthDebugOptions> options)
-            : base(currentUser, userLog, mapper, logger, options)
+            : base(currentUser, userLog, logger, options)
         {
             _staging = staging;
             _reconciliation = reconciliation;

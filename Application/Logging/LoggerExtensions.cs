@@ -4,8 +4,8 @@ namespace FVN_REGISTER.Application.Logging;
 
 public static class LoggerExtensions
 {
-    public static void LogDebugIf<T>(
-        this ILogger<T> logger,
+    public static void LogDebugIf(
+        this ILogger logger,
         bool enabled,
         string message,
         params object?[] args)
@@ -14,8 +14,8 @@ public static class LoggerExtensions
             logger.LogDebug(message, args);
     }
 
-    public static void LogInfoIf<T>(
-        this ILogger<T> logger,
+    public static void LogInfoIf(
+        this ILogger logger,
         bool enabled,
         string message,
         params object?[] args)
@@ -24,8 +24,8 @@ public static class LoggerExtensions
             logger.LogInformation(message, args);
     }
 
-    public static void LogWarnIf<T>(
-        this ILogger<T> logger,
+    public static void LogWarnIf(
+        this ILogger logger,
         bool enabled,
         string message,
         params object?[] args)

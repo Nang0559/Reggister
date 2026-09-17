@@ -5,6 +5,8 @@ using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Histories;
 using FVN_REGISTER.Contract.Requests;
 using FVN_REGISTER.Contract.Responses;
+using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Core.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -22,10 +24,9 @@ namespace FVN_REGISTER.API.Controllers
             IHistoryDispatcher dispatcher,
             ICurrentUserService currentUser,
             IUserLogService userLog,
-            IMapper mapper,
             ILogger<HistoryController> logger,
             IOptionsMonitor<AuthDebugOptions> options)
-            : base(currentUser, userLog, mapper, logger, options)
+            : base(currentUser, userLog, logger, options)
         {
             _dispatcher = dispatcher;
         }
@@ -106,22 +107,9 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(result);
         }
 
-        private static bool TryParseRequestKind(string kind, out RequestKind requestKind)
+        private static bool TryParseRequestKind(string kind, out RequestModule requestKind)
         {
-            if (kind.Equals("ot", StringComparison.OrdinalIgnoreCase))
-            {
-                requestKind = RequestKind.OT;
-                return true;
-            }
-
-            if (kind.Equals("leave", StringComparison.OrdinalIgnoreCase))
-            {
-                requestKind = RequestKind.Leave;
-                return true;
-            }
-
-            requestKind = default;
-            return false;
+            return kind.TryToRequestModule(out requestKind);
         }
     }
 }

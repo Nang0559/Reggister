@@ -24,7 +24,6 @@ using FVN_REGISTER.Core.Config;
 
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Infrastructure.Hubs;
-using FVN_REGISTER.Infrastructure.Models.Data;
 using FVN_REGISTER.Infrastructure.Repositories;
 using FVN_REGISTER.Infrastructure.Services.Approvals;
 using FVN_REGISTER.Infrastructure.Services.Auths;
@@ -82,7 +81,7 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSignalR();
-builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
+
 
 // Common / master data
 builder.Services.AddScoped<IEmailService, EmailService>();

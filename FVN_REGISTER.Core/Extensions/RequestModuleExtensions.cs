@@ -45,7 +45,7 @@ namespace FVN_REGISTER.Core.Extensions
         public static bool TryToRequestModule(this string code, out RequestModule module)
         {
             module = ParseCode(code);
-            return code.Equals(module.ToCode(), StringComparison.OrdinalIgnoreCase);
+            return code != null && code.Equals(module.ToCode(), StringComparison.OrdinalIgnoreCase);
         }
     }
 }

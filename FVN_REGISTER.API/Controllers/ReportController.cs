@@ -21,10 +21,10 @@ namespace FVN_REGISTER.API.Controllers
             IReportDispatcher reportDispatcher,
             ICurrentUserService currentUser,
             IUserLogService userLog,
-            IMapper mapper,
+            
             ILogger<ReportController> logger,
             IOptionsMonitor<AuthDebugOptions> options)
-            : base(currentUser, userLog, mapper, logger, options)
+            : base(currentUser, userLog, logger, options)
         {
             _reportDispatcher = reportDispatcher;
         }

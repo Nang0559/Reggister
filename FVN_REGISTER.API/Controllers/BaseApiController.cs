@@ -5,6 +5,7 @@ using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Contract.Utils;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using FVN_REGISTER.Application.Logging;
 
 namespace FVN_REGISTER.API.Controllers
 {

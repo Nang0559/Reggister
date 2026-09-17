@@ -9,7 +9,7 @@ using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Controllers
 {
-    [Authorize]
+    [Authorize(Policy = "Admin")]
     [ApiController]
     [Route("api/[controller]")]
     public class EmailTemplateController : BaseApiController
@@ -30,30 +30,45 @@ namespace FVN_REGISTER.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll(CancellationToken ct)
         {
-            if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
-            return Ok(ApiResponse<List<EmailTemplateDto>>.Ok(await _templateService.GetAllAsync(ct)));
+            return Ok(
+                ApiResponse<List<EmailTemplateDto>>.Ok(
+                    await _templateService.GetAllAsync(ct)));
         }
 
         [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetById(int id, CancellationToken ct)
+        public async Task<IActionResult> GetById(
+            int id,
+            CancellationToken ct)
         {
-            if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
             var item = await _templateService.GetByIdAsync(id, ct);
-            return item == null ? NotFound() : Ok(ApiResponse<EmailTemplateDto>.Ok(item));
+
+            return item == null
+                ? NotFound()
+                : Ok(ApiResponse<EmailTemplateDto>.Ok(item));
         }
 
         [HttpPost("save")]
-        public async Task<IActionResult> Save([FromBody] EmailTemplateDto dto, CancellationToken ct)
+        public async Task<IActionResult> Save(
+            [FromBody] EmailTemplateDto dto,
+            CancellationToken ct)
         {
-            if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
-            return HandleResult(await _templateService.SaveAsync(dto, UserInfo.UserId, ct));
+            return HandleResult(
+                await _templateService.SaveAsync(
+                    dto,
+                    UserInfo!.UserId,
+                    ct));
         }
 
         [HttpPost("{id:int}/toggle")]
-        public async Task<IActionResult> Toggle(int id, CancellationToken ct)
+        public async Task<IActionResult> Toggle(
+            int id,
+            CancellationToken ct)
         {
-            if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
-            return HandleResult(await _templateService.ToggleActiveAsync(id, UserInfo.UserId, ct));
+            return HandleResult(
+                await _templateService.ToggleActiveAsync(
+                    id,
+                    UserInfo!.UserId,
+                    ct));
         }
     }
 }
