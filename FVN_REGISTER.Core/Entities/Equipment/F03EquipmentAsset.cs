@@ -6,7 +6,6 @@ namespace FVN_REGISTER.Core.Entities.Equipment;
 [Table("F03EquipmentAssets")]
 public sealed class F03EquipmentAsset : BaseAuditEntity
 {
-    [Key] public int Id { get; set; }
     [Required, StringLength(30)] public string EquipmentCode { get; set; } = string.Empty;
     [Required, StringLength(250)] public string EquipmentName { get; set; } = string.Empty;
     [StringLength(1000)] public string? Specification { get; set; }
@@ -19,7 +18,6 @@ public sealed class F03EquipmentAsset : BaseAuditEntity
     [StringLength(250)] public string? Location { get; set; }
     [Required, StringLength(128)] public string QrToken { get; set; } = string.Empty;
     public bool IsQrActive { get; set; }
-    public bool IsActive { get; set; } = true;
     [StringLength(1000)] public string? Note { get; set; }
     public virtual ICollection<F03EquipmentRepairHistory> RepairHistory { get; set; } = new List<F03EquipmentRepairHistory>();
     public virtual ICollection<F03EquipmentRequest> Requests { get; set; } = new List<F03EquipmentRequest>();
