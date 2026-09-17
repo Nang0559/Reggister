@@ -1,4 +1,3 @@
-using AutoMapper;
 using FVN_REGISTER.Application.Interfaces.Employees;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Employees;
@@ -16,8 +15,13 @@ namespace FVN_REGISTER.API.Controllers
     {
         private readonly IEmployeeManagementService _service;
 
-        public EmployeeManagementController(IEmployeeManagementService service, ICurrentUserService currentUser, IUserLogService userLog, IMapper mapper, ILogger<EmployeeManagementController> logger, IOptionsMonitor<AuthDebugOptions> options)
-            : base(currentUser, userLog, mapper, logger, options)
+        public EmployeeManagementController(
+            IEmployeeManagementService service,
+            ICurrentUserService currentUser,
+            IUserLogService userLog,
+            ILogger<EmployeeManagementController> logger,
+            IOptionsMonitor<AuthDebugOptions> options)
+            : base(currentUser, userLog, logger, options)
         {
             _service = service;
         }

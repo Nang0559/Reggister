@@ -1,4 +1,3 @@
-using AutoMapper;
 using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Core.Configurations;
@@ -19,17 +18,15 @@ namespace FVN_REGISTER.API.Controllers
             INotificationService notification,
             ICurrentUserService currentUser,
             IUserLogService userLog,
-            IMapper mapper,
             ILogger<NotificationController> logger,
             IOptionsMonitor<AuthDebugOptions> options)
-            : base(currentUser, userLog, mapper, logger, options)
+            : base(currentUser, userLog, logger, options)
         {
             _notification = notification;
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetList(
-            [FromQuery] int page = 1, CancellationToken ct = default)
+        public async Task<IActionResult> GetList([FromQuery] int page = 1, CancellationToken ct = default)
         {
             if (UserInfo == null) return Unauthorized();
             var list = await _notification.GetByUserAsync(UserInfo.UserId, page, 20, ct);
@@ -48,16 +45,14 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> MarkRead(int id, CancellationToken ct = default)
         {
             if (UserInfo == null) return Unauthorized();
-            var result = await _notification.MarkReadAsync(id, UserInfo.UserId, ct);
-            return HandleResult(result);
+            return HandleResult(await _notification.MarkReadAsync(id, UserInfo.UserId, ct));
         }
 
         [HttpPut("read-all")]
         public async Task<IActionResult> MarkAllRead(CancellationToken ct = default)
         {
             if (UserInfo == null) return Unauthorized();
-            var result = await _notification.MarkAllReadAsync(UserInfo.UserId, ct);
-            return HandleResult(result);
+            return HandleResult(await _notification.MarkAllReadAsync(UserInfo.UserId, ct));
         }
     }
 }

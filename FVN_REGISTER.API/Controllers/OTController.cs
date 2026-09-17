@@ -1,4 +1,3 @@
-using AutoMapper;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.Users;
@@ -24,8 +23,15 @@ namespace FVN_REGISTER.API.Controllers
         private readonly IOTQueryService _queryService;
         private readonly IApprovalWorkflowOrchestrator<OTRequestSubject> _workflow;
 
-        public OTController(IOTService otService, IOTQueryService queryService, IApprovalWorkflowOrchestrator<OTRequestSubject> workflow, ICurrentUserService currentUser, IUserLogService userLog, IMapper mapper, ILogger<OTController> logger, IOptionsMonitor<AuthDebugOptions> options)
-            : base(currentUser, userLog, mapper, logger, options)
+        public OTController(
+            IOTService otService,
+            IOTQueryService queryService,
+            IApprovalWorkflowOrchestrator<OTRequestSubject> workflow,
+            ICurrentUserService currentUser,
+            IUserLogService userLog,
+            ILogger<OTController> logger,
+            IOptionsMonitor<AuthDebugOptions> options)
+            : base(currentUser, userLog, logger, options)
         {
             _otService = otService;
             _queryService = queryService;
@@ -109,7 +115,7 @@ namespace FVN_REGISTER.API.Controllers
         [HttpGet("list")]
         public async Task<IActionResult> GetPaged([FromQuery] string? deptCode, [FromQuery] string? status, [FromQuery] DateTime? fromDate, [FromQuery] DateTime? toDate, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
         {
-            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn."));
             ApprovalStatus? parsedStatus = null;
             if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<ApprovalStatus>(status, true, out var statusValue)) parsedStatus = statusValue;
             var data = await _queryService.GetPagedAsync(deptCode, parsedStatus, fromDate, toDate, page, pageSize, ct);
@@ -146,36 +152,46 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpPost("approve")]
-        public async Task<IActionResult> Approve([FromBody] ApprovalCommand request, CancellationToken ct)
+        public async Task<IActionResult> Approve([FromBody] OTApprovalCommandDto request, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (request.Ids == null || request.Ids.Count == 0)
+                return BadRequest(ApiResponse<object>.Fail("Chưa chọn đơn nào."));
             return HandleResult(await _otService.ApproveAsync(request.Ids, request.Level, UserInfo, request.Comment, ct));
         }
 
         [HttpPost("reject")]
-        public async Task<IActionResult> Reject([FromBody] ApprovalCommand request, CancellationToken ct)
+        public async Task<IActionResult> Reject([FromBody] OTApprovalCommandDto request, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (request.Ids == null || request.Ids.Count == 0)
+                return BadRequest(ApiResponse<object>.Fail("Chưa chọn đơn nào."));
             if (string.IsNullOrWhiteSpace(request.Comment)) return BadRequest(ApiResponse<object>.Fail("Lý do từ chối không được để trống."));
-            return HandleResult(await _otService.RejectAsync(request.Ids, request.Level, UserInfo, request.Comment!, ct));
+            return HandleResult(await _otService.RejectAsync(request.Ids, request.Level, UserInfo, request.Comment, ct));
         }
 
         [HttpPost("cancel/{id:int}")]
-        public async Task<IActionResult> Cancel(int id, [FromBody] CancelOTRequest body, CancellationToken ct)
+        public async Task<IActionResult> Cancel(int id, [FromBody] OTCancelRequestDto body, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             return HandleResult(await _otService.CancelAsync(id, body.Reason ?? "Hủy bởi người dùng", UserInfo, ct));
         }
 
         [HttpPost("validate")]
-        public async Task<IActionResult> ValidateHours([FromBody] ValidateOTRequest body, CancellationToken ct)
+        public async Task<IActionResult> ValidateHours([FromBody] OTValidateHoursRequestDto body, CancellationToken ct)
         {
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
+
             var dto = new OTRequestUpsertDto
             {
                 EmployeeCode = body.EmployeeCode,
                 OTDate = body.OTDate,
                 OTTypeCode = body.OTType,
-                Employees = new List<OTEmployeeDto> { new() { EmployeeCode = body.EmployeeCode, OTHours = body.Hours } }
+                Employees = new List<OTEmployeeDto>
+                {
+                    new() { EmployeeCode = body.EmployeeCode, OTHours = body.Hours }
+                }
             };
             return Ok(ApiResponse<OTValidationResultDto>.Ok(await _queryService.ValidateHoursAsync(dto, ct)));
         }
@@ -201,8 +217,4 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(await _otService.UpdateEmployeeOTInfoAsync(id, employees, UserInfo, ct));
         }
     }
-
-    public record ApprovalCommand(List<int> Ids, int Level, string? Comment);
-    public record CancelOTRequest(string? Reason);
-    public record ValidateOTRequest(string EmployeeCode, DateTime OTDate, decimal Hours, string OTType);
 }

@@ -18,7 +18,6 @@ using FVN_REGISTER.Application.Interfaces.UserManagers;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Interfaces.Jobs;
 using FVN_REGISTER.Application.Models.Subjects;
-using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Dtos.OT;
@@ -52,7 +51,6 @@ using FVN_REGISTER.Infrastructure.Services.Statics;
 using FVN_REGISTER.Infrastructure.Services.Users;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
@@ -220,7 +218,6 @@ builder.Services.AddHostedService(sp => sp.GetRequiredService<OTAttendanceStagin
 builder.Services.AddSingleton<IOTWorkerStatus>(sp => sp.GetRequiredService<OTAttendanceStagingWorker>());
 
 var app = builder.Build();
-app.UsePathBase("/api");
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.UseCors("FccCorsPolicy");
 app.UseHttpsRedirection();
