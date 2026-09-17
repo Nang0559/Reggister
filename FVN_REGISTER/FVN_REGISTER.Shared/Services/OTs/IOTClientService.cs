@@ -1,10 +1,6 @@
 ﻿using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.OT;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Contract.Utils;
-using FVN_REGISTER.Contract.ViewModels;
-using FVN_REGISTER.Contract.ViewModels.OT;
-using FVN_REGISTER.Shared.Utils.Helpers;
+
 
 namespace FVN_REGISTER.Shared.Services.OTs
 {

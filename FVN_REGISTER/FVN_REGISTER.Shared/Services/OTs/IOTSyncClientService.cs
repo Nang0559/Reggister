@@ -1,6 +1,7 @@
 ﻿using FVN_REGISTER.Contract.Dtos.Depts;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Interfaces.Repositores;
+using FVN_REGISTER.Contract.Responses;
 using System;
 using System.Collections.Generic;
 using System.Linq;

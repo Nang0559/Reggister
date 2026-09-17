@@ -1,6 +1,7 @@
 using FVN_REGISTER.Contract.Dtos.MasterData;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
+
 using FVN_REGISTER.Contract.Requests.Leaves;
+using FVN_REGISTER.Contract.Responses;
 
 namespace FVN_REGISTER.Shared.Services.Leaves
 {
