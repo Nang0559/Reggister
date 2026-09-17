@@ -1,6 +1,10 @@
+using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.OTTypes;
+using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Application.Logging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Controllers;
 
@@ -22,7 +26,6 @@ public sealed class OTTypeController : BaseApiController
         _service = service;
     }
 
-    /// <summary>Danh mục OT Type active dùng cho form đăng ký OT.</summary>
     [HttpGet("active")]
     public async Task<IActionResult> GetActive(CancellationToken ct)
         => HandleResult(await _service.GetFilteredAsync(true, ct));
