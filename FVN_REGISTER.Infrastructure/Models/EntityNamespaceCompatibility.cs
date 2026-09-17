@@ -1,6 +1,7 @@
 // Compatibility bridge while the Infrastructure project finishes its namespace migration.
 // Canonical entity definitions remain in FVN_REGISTER.Core.Entities.*.
 
+global using FVNWEBAPPContext = FVN_REGISTER.Infrastructure.Models.Data.FVNWEBAPPContext;
 global using F03AppNotification = FVN_REGISTER.Core.Entities.Common.F03AppNotification;
 global using F03Attachment = FVN_REGISTER.Core.Entities.Common.F03Attachment;
 global using F03AuditLog = FVN_REGISTER.Core.Entities.Common.F03AuditLog;
@@ -40,7 +41,6 @@ global using F03UserFunction = FVN_REGISTER.Core.Entities.Security.F03UserFuncti
 global using F03UserSession = FVN_REGISTER.Core.Entities.Security.F03UserSession;
 global using F03StagingTrip = FVN_REGISTER.Core.Entities.Trips.F03StagingTrip;
 
-// Keep old using directives resolvable without creating duplicate entity classes.
 namespace FVN_REGISTER.Infrastructure.Models.Entities { }
 namespace FVN_REGISTER.Infrastructure.Models.Entities.Common { }
 namespace FVN_REGISTER.Infrastructure.Models.Entities.Approvers { }
