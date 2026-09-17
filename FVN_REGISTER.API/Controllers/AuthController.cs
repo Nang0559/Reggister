@@ -5,14 +5,10 @@ using FVN_REGISTER.Contract.Dtos.Requests.Auths;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Requests;
 using FVN_REGISTER.Contract.Utils;
-using FVN_REGISTER.Infrastructure.Hubs;
-using FVN_REGISTER.Infrastructure.Models.Data;
+using FVN_REGISTER.Core.Configurations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.SignalR;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using FVN_REGISTER.Core.Configurations;
 
 namespace FVN_REGISTER.API.Controllers
 {
@@ -21,9 +17,11 @@ namespace FVN_REGISTER.API.Controllers
     public class AuthController : BaseApiController
     {
         private readonly IAuthService _authService;
+        private readonly ISessionService _sessionService;
 
         public AuthController(
             IAuthService authService,
+            ISessionService sessionService,
             ICurrentUserService currentUser,
             IUserLogService userLog,
             IMapper mapper,
@@ -32,6 +30,7 @@ namespace FVN_REGISTER.API.Controllers
             : base(currentUser, userLog, mapper, logger, options)
         {
             _authService = authService;
+            _sessionService = sessionService;
         }
 
         [HttpPost("login")]
@@ -70,8 +69,7 @@ namespace FVN_REGISTER.API.Controllers
             if (string.IsNullOrEmpty(request.RefreshToken))
                 return BadRequest(ApiResponse<object>.Fail("Refresh token không hợp lệ"));
 
-            var result = await _authService.RefreshTokenAsync(
-                request.RefreshToken, ct);
+            var result = await _authService.RefreshTokenAsync(request.RefreshToken, ct);
 
             if (!result.IsSuccess)
                 return Unauthorized(ApiResponse<object>.Fail(
@@ -128,62 +126,39 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(result);
         }
 
-        // NOTE: Session listing still reads the EF model directly in this transitional step.
-        // It is the next extraction target: API -> ISessionService -> Infrastructure repository.
         [HttpGet("sessions")]
-        public async Task<IActionResult> GetSessions(
-            [FromServices] FVNWEBAPPContext db,
-            CancellationToken ct)
+        [Authorize]
+        public async Task<IActionResult> GetSessions(CancellationToken ct)
         {
             if (UserInfo == null)
                 return Unauthorized();
 
-            var sessions = await db.UserSessions
-                .AsNoTracking()
-                .Where(x => x.UserId == UserInfo.UserId && x.IsActive)
-                .Select(x => new
-                {
-                    x.Id,
-                    x.DeviceType,
-                    x.DeviceName,
-                    x.CreatedAt,
-                    x.LastSeenAt,
-                    IsCurrent = x.JwtToken == Request.Headers["Authorization"].ToString().Replace("Bearer ", "")
-                })
-                .OrderByDescending(x => x.LastSeenAt)
-                .ToListAsync(ct);
+            var refreshToken = Request.Headers["X-Refresh-Token"].ToString();
+            var sessions = await _sessionService.GetActiveSessionsAsync(
+                UserInfo.UserId,
+                string.IsNullOrWhiteSpace(refreshToken) ? null : refreshToken,
+                ct);
 
-            return Ok(ApiResponse<object>.Ok(sessions));
+            return Ok(ApiResponse<List<SessionDto>>.Ok(sessions));
         }
 
-        [HttpDelete("sessions/{sessionId}")]
+        [HttpDelete("sessions/{sessionId:int}")]
+        [Authorize]
         public async Task<IActionResult> RevokeSession(
             int sessionId,
-            [FromServices] FVNWEBAPPContext db,
-            [FromServices] ISessionService sessionService,
-            [FromServices] IHubContext<NotificationHub> hubContext,
             CancellationToken ct)
         {
             if (UserInfo == null)
                 return Unauthorized();
 
-            var targetSession = await db.UserSessions
-                .FirstOrDefaultAsync(x =>
-                    x.Id == sessionId &&
-                    x.UserId == UserInfo.UserId &&
-                    x.IsActive,
-                    ct);
+            var result = await _sessionService.RevokeSessionAsync(
+                UserInfo.UserId,
+                sessionId,
+                ct);
 
-            if (targetSession == null)
-                return NotFound(ApiResponse<object>.Fail("Thiết bị không tồn tại hoặc đã đăng xuất."));
-
-            await sessionService.RevokeAsync(targetSession.JwtToken, ct);
-
-            if (!string.IsNullOrEmpty(targetSession.SignalRConnectionId))
-            {
-                await hubContext.Clients.Client(targetSession.SignalRConnectionId)
-                    .SendAsync("ForceLogout", "Thiết bị của bạn đã bị đăng xuất từ xa.", ct);
-            }
+            if (result == null)
+                return NotFound(ApiResponse<object>.Fail(
+                    "Thiết bị không tồn tại hoặc đã đăng xuất."));
 
             return Ok(ApiResponse.Ok("Đã đăng xuất thiết bị thành công."));
         }
