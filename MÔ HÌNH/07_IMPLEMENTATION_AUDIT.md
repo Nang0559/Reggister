@@ -1,6 +1,8 @@
-# 07 — Implementation Audit
+# 07 — Implementation Audit / Completion
 
-> Tài liệu này ghi nhận trạng thái đối chiếu giữa kiến trúc trong `00_INDEX.md` → `06_NOTIFICATION_DIAGRAMS.md` và code thực tế của repository.
+> Đối chiếu implementation thực tế với bộ tài liệu `00_INDEX.md` → `06_NOTIFICATION_DIAGRAMS.md`.
+>
+> **Trạng thái:** kiến trúc API/Application/Infrastructure đã được refactor theo contract hiện tại. Chưa claim build/runtime thành công vì môi trường hiện tại không chạy solution trực tiếp.
 
 ## 1. Kiến trúc mục tiêu
 
@@ -25,103 +27,33 @@ flowchart LR
     INFRA --> HUB
 ```
 
-## 2. Những điểm đã sửa
+## 2. Completed boundaries
 
-### API → Application ports
+### API controllers
 
-`BaseApiController` và `DashboardController` đã chuyển dependency từ `Contract.Interfaces.*` sang `Application.Interfaces.*`.
+Các controller chính đã chuyển khỏi legacy `Contract.Interfaces.*`, EF trực tiếp và Infrastructure implementation:
 
-Đợt refactor controller tiếp theo đã chuyển thêm:
-
-- `ApprovalListController` → `IApprovalInboxService` + `ApprovalActionDto`.
-- `ApproverController` → `IApproverManagementService` + `ApproverDto` + `RequestModule`.
+- `AuthController` → `IAuthService` + `ISessionService`.
+- `ApprovalListController` → `IApprovalInboxService`.
+- `ApproverController` → `IApproverManagementService`.
 - `CommonController` → `IDepartmentLookupService`.
-- `DepartmentManagementController` → `IDepartmentManagementService` + `DepartmentDto/DepartmentUpsertDto`.
+- `DepartmentManagementController` → `IDepartmentManagementService`.
 - `DepartmentStatusController` → `IDepartmentStatusService`.
-- `NotificationController` → `Application.Interfaces.Notifications.INotificationService`.
+- `NotificationController` → `INotificationService`.
+- `EmailQueueController` → `IEmailService`.
+- `EmailTemplateController` → `IEmailTemplateService`.
+- `EmployeeManagementController` → `IEmployeeManagementService`.
+- `HistoryController` → `IHistoryDispatcher`.
+- `LeaveCalendarController` → `ILeaveQueryService`.
+- `LeaveDaysController` → `ILeaveService` + `ILeaveQueryService` + Leave workflow.
+- `LeaveTypeManagementController` → `ILeaveTypeManagementService`.
+- `OTController` → `IOTService` + `IOTQueryService` + OT workflow.
+- `OTSyncController` → `IOTAttendanceStagingService` + `IOTAttendanceReconciliationService` + worker status.
+- `ReportController` → `IReportService` ports.
+- `UserManagementController` → `IUserManagementService`.
+- `DashboardController` → `IDashboardService`.
 
-### Composition Root
-
-`FVN_REGISTER.API/Program.cs` đã được chuẩn hóa theo nguyên tắc:
-
-```mermaid
-flowchart TD
-    P[Program.cs]
-    P --> PORTS[Application Interfaces]
-    P --> ADAPTERS[Infrastructure Implementations]
-    P --> DB[FVNWEBAPPContext]
-    P --> UOW[IUnitOfWork -> UnitOfWork]
-    P --> HUB[Infrastructure.Hubs.NotificationHub]
-```
-
-Các registration mới trong đợt này:
-
-```text
-IDepartmentLookupService -> DepartmentLookupService
-IDepartmentManagementService -> DepartmentManagementService
-IApprovalInboxService -> ApprovalInboxService
-```
-
-### Unit of Work
-
-`IUnitOfWork` được đăng ký tại composition root và dùng cùng scoped `FVNWEBAPPContext` thông qua `DbContext`.
-
-### SignalR
-
-Hub thực tế nằm tại `Infrastructure.Hubs.NotificationHub`; API composition root map trực tiếp hub implementation này.
-
-### Approval contract
-
-`IApprovalEngine<TSubject>` đã loại bỏ nested resolver trùng tên; cross-module resolver là interface cấp Application riêng.
-
-`ApprovalInboxService` cũng đã được đưa về namespace implementation đúng:
-
-```text
-FVN_REGISTER.Infrastructure.Services.Approvals
-```
-
-thay vì namespace cũ `FVN_REGISTER.API.Services.Approvals`.
-
-### Infrastructure SignalR package
-
-Infrastructure dùng ASP.NET Core shared framework thay vì package `Microsoft.AspNetCore.SignalR.Core` phiên bản cũ.
-
-## 3. Các điểm còn phải refactor
-
-### P0 — API Controllers còn dependency legacy
-
-Các controller chưa được chuyển hết vẫn cần audit theo từng contract thực tế, đặc biệt:
-
-- `AuthController`
-- `EmailQueueController`
-- `EmailTemplateController`
-- `EmployeeManagementController`
-- `HistoryController`
-- `LeaveCalendarController`
-- `LeaveDaysController`
-- `LeaveTypeManagementController`
-- `OTController`
-- `OTSyncController`
-- `ReportController`
-- `UserManagementController`
-
-Mục tiêu:
-
-```text
-Controller
-   ↓
-Application.Interfaces
-   ↓
-Infrastructure implementation
-```
-
-Không để controller resolve trực tiếp implementation hoặc contract interface legacy.
-
-### P0 — AuthController còn truy cập DbContext trực tiếp
-
-`AuthController` hiện vẫn có phần quản lý session truy cập `FVNWEBAPPContext` trực tiếp. Đây là bước chuyển tiếp.
-
-Mục tiêu:
+### Auth/session boundary
 
 ```mermaid
 sequenceDiagram
@@ -129,53 +61,97 @@ sequenceDiagram
     participant S as ISessionService
     participant I as SessionService
     participant U as IUnitOfWork
+    participant N as ISessionTerminationNotifier
+    participant H as SignalR Hub
     participant DB as SQL Server
 
-    C->>S: Get/Revoke session
+    C->>S: GetActiveSessions / RevokeSession(userId, sessionId)
     S->>I: Application contract
-    I->>U: Repository<F03UserSession>
-    U->>DB: Query/Update
+    I->>U: F03UserSession repository
+    U->>DB: Query / Update
+    I->>N: NotifyRevoked(connectionId)
+    N->>H: ForceLogout
 ```
 
-Ngoài ra, `RevokeSession` hiện đang truyền giá trị `JwtToken` đã lưu/hash vào `RevokeAsync`, trong khi `ISessionService.RevokeAsync` nhận raw refresh token. Khi tách session boundary phải đổi sang revoke theo `sessionId + userId`, không dùng token hash như raw token.
+`AuthController` không còn nhận `FVNWEBAPPContext`, `IHubContext` hoặc query `UserSessions` trực tiếp. Remote revoke dùng `userId + sessionId`, không truyền token hash như raw refresh token.
 
-### P0 — Department hierarchy contract
+### Approval workflow
 
-`DepartmentManagementController` đã chuyển sang Application service. Endpoint `/tree` hiện tạm trả `DepartmentDto` flat list vì `IDepartmentManagementService` hiện chưa có hierarchy DTO. Đây là điểm cần thiết kế tiếp nếu UI thực sự yêu cầu cây phòng ban.
+```mermaid
+flowchart LR
+    CMD[Leave/OT Command] --> W[ApprovalWorkflowOrchestrator<T>]
+    W --> P[ApprovalProvider<T>]
+    W --> E[ApprovalEngine<T>]
+    E --> SNAP[Immutable Approval Snapshot]
+    E --> HIST[Approval History]
+    E --> N[Approval Notification]
+    INBOX[Approval Inbox] --> W
+    RES[ApprovalEngineResolver] --> E
+```
 
-Không nên đưa `ViewModel` UI cũ vào Application chỉ để giữ tương thích.
+Đã bổ sung implementation/DI cho `ApprovalWorkflowOrchestrator<TSubject>`, `ApprovalEngineResolver`, Leave/OT providers, engines, grouping policy, `IEmployeeUserResolver` và `IApprovalNotificationService`.
 
-### P1 — Approval cross-module resolver
+### Notification boundary
 
-Cần hoàn thiện implementation của `IApprovalEngineResolver` để Dashboard/Approval API không biết engine implementation cụ thể của Leave/OT.
+```mermaid
+flowchart LR
+    WF[Approval Workflow] --> AN[ApprovalNotificationService]
+    AN --> NS[INotificationService]
+    NS --> DB[(F03AppNotification)]
+    NS --> HUB[NotificationHub]
+    SESSION[SessionService] --> PORT[ISessionTerminationNotifier]
+    PORT --> HUB
+```
 
-### P1 — Notification boundary
+Application contracts không expose SignalR `Hub`, `IHubContext` hoặc Infrastructure model.
 
-`NotificationHub` đã nằm ở Infrastructure, nhưng cần tiếp tục kiểm tra mapping `ApproverCode -> UserId` và đảm bảo Application không phụ thuộc SignalR types.
+### OT attendance
 
-### P1 — HRM Sync
+```mermaid
+flowchart TD
+    HRM[HRM] --> STAGE[IOTAttendanceStagingService]
+    STAGE --> TABLE[F03AttendanceStaging]
+    TABLE --> REC[IOTAttendanceReconciliationService]
+    REC --> OT[F03OTEmployee.ActualHours]
+    WORKER[OTAttendanceStagingWorker] --> STAGE
+```
 
-Tiếp tục đối chiếu:
+`OTSyncController` sử dụng staging/reconciliation ports thay cho service legacy.
+
+### Email queue
+
+`EmailQueueController` không truy cập EF. Queue administration đi qua `IEmailService` và `EmailQueueDto`. Application email contract không expose `F03LeaveDay`; approval email dùng `LeaveApprovalEmailDto`.
+
+## 3. Composition root
+
+`FVN_REGISTER.API/Program.cs` là composition root duy nhất cho API.
 
 ```text
-Source Reader
+Application ports
     ↓
-Staging Importer
-    ↓
-Staging
-    ↓
-Sync Job
-    ↓
-Resolver
-    ↓
-Worker
-    ↓
-Management / Review
+Infrastructure adapters
+
+IUnitOfWork              -> UnitOfWork
+DbContext                -> FVNWEBAPPContext
+IAuthService             -> AuthService
+ISessionService          -> SessionService
+IEmployeeUserResolver    -> EmployeeUserResolver
+ILeaveService            -> LeaveService
+ILeaveQueryService       -> LeaveQueryService
+IOTService               -> OTService
+IOTQueryService          -> OTQueryService
+IApprovalProvider<Leave> -> LeaveApprovalProvider
+IApprovalProvider<OT>    -> OTApprovalProvider
+IApprovalEngine<Leave>   -> ApprovalEngine<Leave>
+IApprovalEngine<OT>      -> ApprovalEngine<OT>
+IApprovalWorkflow<Leave> -> ApprovalWorkflowOrchestrator<Leave>
+IApprovalWorkflow<OT>    -> ApprovalWorkflowOrchestrator<OT>
+IApprovalEngineResolver  -> ApprovalEngineResolver
+INotificationService     -> NotificationService
+IApprovalNotification    -> ApprovalNotificationService
 ```
 
-với implementation hiện tại trong `FVN_REGISTER.Infrastructure/Services/HrmSync` và `Application/Interfaces/HrmSync`.
-
-## 4. Quy tắc refactor bắt buộc
+## 4. Architecture rules — final
 
 1. Controller không chứa EF query.
 2. Controller không tham chiếu Infrastructure implementation.
@@ -183,31 +159,47 @@ với implementation hiện tại trong `FVN_REGISTER.Infrastructure/Services/Hr
 4. Application interface không expose `DbContext`, `IQueryable<Entity>`, SignalR `Hub`, hoặc Infrastructure model.
 5. Infrastructure implement Application ports.
 6. Background Worker nằm ở Infrastructure nhưng gọi Application ports.
-7. Dashboard chỉ aggregate qua Application services/providers; không query DB trực tiếp.
-8. Approval snapshot là immutable sau khi submit.
-9. Notification factory là pure logic, không I/O.
-10. Mọi module mới phải plug-in qua interface/provider thay vì sửa orchestrator dùng chung.
+7. Dashboard aggregate qua Application service/provider.
+8. Approval snapshot được ghi khi khởi tạo workflow và dùng làm nguồn bất biến cho các bước duyệt.
+9. Notification factory/policy không thực hiện I/O.
+10. Module mới plug-in qua provider/interface, không sửa engine dùng chung.
+11. Query service chỉ query/read; command service thực hiện mutation.
+12. Controller không tự resolve UserId của người khác; dùng `IEmployeeUserResolver`.
+13. SignalR chỉ xuất hiện ở Infrastructure.
 
-## 5. Trạng thái
+## 5. Remaining verification — không phải architecture TODO
+
+Cần kiểm tra bằng môi trường build/runtime của solution:
+
+- `dotnet restore`.
+- `dotnet build` toàn solution.
+- DI validation khi startup.
+- Integration test Login/Refresh/Logout/Remote revoke.
+- Integration test Leave/OT approval multi-level.
+- SignalR ForceLogout.
+- HRM attendance staging/reconciliation với database thật.
+- Contract compatibility với FE hiện tại.
+
+Nếu build phát hiện lỗi type/namespace do source legacy còn sót, sửa theo nguyên tắc **Application contract trước → Infrastructure adapter sau → API cuối**, không đưa Infrastructure trở lại Controller.
+
+## 6. Status
 
 | Khu vực | Trạng thái |
 |---|---|
-| Project dependency direction | Đang chuẩn hóa |
-| API composition root | Đã chuẩn hóa bước đầu |
-| Base API controller | Đã chuyển sang Application ports |
-| Dashboard controller | Đã chuyển sang Application ports |
-| ApprovalList controller | Đã chuyển |
-| Approver controller | Đã chuyển |
-| Common controller | Đã chuyển |
-| Department management controller | Đã chuyển, hierarchy DTO còn thiếu |
-| Department status controller | Đã chuyển |
-| Notification controller | Đã chuyển |
-| UnitOfWork registration | Đã chuẩn hóa |
-| SignalR Hub location | Đã chuẩn hóa về Infrastructure |
-| Approval interface | Đã dọn duplicate contract |
-| ApprovalInbox namespace | Đã sửa về Infrastructure |
-| Auth session boundary | Còn một bước tách EF khỏi Controller |
-| Toàn bộ Controllers | Chưa hoàn tất |
-| HRM Sync | Chưa hoàn tất audit implementation |
-| Notification | Chưa hoàn tất audit implementation |
-| Dashboard providers | Chưa hoàn tất audit implementation |
+| Project dependency direction | Hoàn tất về mặt kiến trúc |
+| API composition root | Hoàn tất về mặt cấu trúc |
+| Base/Dashboard/Approval controllers | Hoàn tất |
+| Auth/session boundary | Hoàn tất về boundary |
+| Leave controllers | Hoàn tất về boundary |
+| OT controllers | Hoàn tất về boundary |
+| OT staging/reconciliation boundary | Hoàn tất |
+| Notification boundary | Hoàn tất về boundary |
+| Email queue boundary | Hoàn tất về boundary |
+| Employee/user management | Hoàn tất về boundary |
+| Report/history boundary | Hoàn tất về boundary |
+| Approval workflow implementation | Hoàn tất về cấu trúc |
+| Cross-module approval resolver | Hoàn tất |
+| EmployeeCode → UserId resolver | Hoàn tất |
+| SignalR implementation location | Hoàn tất |
+| HRM Sync runtime audit | Cần verification với database thật |
+| Full solution build | Chưa xác nhận trong môi trường hiện tại |
