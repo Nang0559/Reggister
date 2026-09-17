@@ -1,28 +1,17 @@
-﻿using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Shared.Handlers;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.Shared.Services.Approvals
 {
     public class ApprovalListClientService : IApprovalListClientService
     {
         private readonly IHttpClientWithAuth _http;
-        private readonly ILogger<ApprovalListClientService> _logger;
-        private readonly IOptionsMonitor<AuthDebugOptions> _options;
-        private bool Debug => _options.CurrentValue.Enabled;
 
-        public ApprovalListClientService(
-            IHttpClientWithAuth http,
-            ILogger<ApprovalListClientService> logger,
-            IOptionsMonitor<AuthDebugOptions> options)
+        public ApprovalListClientService(IHttpClientWithAuth http)
         {
             _http = http;
-            _logger = logger;
-            _options = options;
         }
 
         public Task<ApiResponse<List<PendingApprovalGroupDto>>> GetPendingAsync(
