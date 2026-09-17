@@ -1,12 +1,9 @@
-﻿@* FVN_REGISTER.Shared/Pages/OT/OTDetailPage.razor *@
 @page "/ot/detail/{Id:int}"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.OT
-@using FVN_REGISTER.Contract.ViewModels.OT
-@using FVN_REGISTER.Contract.Utils
+@using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.OTs
 @using FVN_REGISTER.Shared.Services.Users
-@using FVN_REGISTER.Shared.Utils.Helpers
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IDisposable
@@ -28,391 +25,94 @@ else if (_detail == null)
 }
 else
 {
-    @* ── HEADER ── *@
-    <MudStack Row="true" AlignItems="AlignItems.Center"
-              Justify="Justify.SpaceBetween" Class="mb-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
         <div>
-            <MudText Typo="Typo.h5">
-                <MudIcon Icon="@Icons.Material.Filled.MoreTime" Class="mr-2" />
-                Đơn OT · @_detail.OTCode
-            </MudText>
+            <MudText Typo="Typo.h5">Chi tiết đơn OT #@_detail.Id</MudText>
             <MudText Typo="Typo.body2" Color="Color.Secondary">
-                Ngày @_detail.OTDate.ToString("dd/MM/yyyy") —
-                @_detail.OTTypeName —
-                @_detail.Employees.Count người
+                @_detail.OTDate.ToString("dd/MM/yyyy") — @_detail.OTTypeCode — @_detail.Details.Count người
             </MudText>
         </div>
-        <MudChip T="string"
-                 Color="@GetStatusColor(_detail.RequestStatus)"
-                 Icon="@GetStatusIcon(_detail.RequestStatus)"
-                 Label="true" Size="Size.Medium">
-            @_detail.StatusText
-        </MudChip>
+        <MudChip T="string" Color="@GetStatusColor(_detail.RequestStatus)">@_detail.StatusText</MudChip>
     </MudStack>
 
-    @* ── ALERT AddMe ── *@
-    @if (_addMe && !_alreadyInList)
-    {
-        <MudAlert Severity="Severity.Info" Class="mb-4" ShowCloseIcon="false">
-            <MudStack Row="true" AlignItems="AlignItems.Center"
-                      Justify="Justify.SpaceBetween">
-                <MudText>
-                    Bạn chưa có trong đơn OT này. Bấm <strong>Tham gia</strong> để được thêm vào.
-                </MudText>
-                <MudButton Variant="Variant.Filled"
-                           Color="Color.Primary"
-                           Size="Size.Small"
-                           StartIcon="@Icons.Material.Filled.PersonAdd"
-                           OnClick="JoinOT"
-                           Disabled="_isJoining">
-                    @(_isJoining ? "Đang xử lý..." : "Tham gia đơn OT này")
-                </MudButton>
-            </MudStack>
-        </MudAlert>
-    }
-    else if (_addMe && _alreadyInList)
-    {
-        <MudAlert Severity="Severity.Success" Class="mb-4">
-            Bạn đã có trong đơn OT này.
-        </MudAlert>
-    }
-
     <MudGrid>
-        @* ── LEFT: THÔNG TIN + BẢNG NHÂN VIÊN ── *@
         <MudItem xs="12" md="8">
-
-            @* Thông tin chung *@
             <MudCard Elevation="2" Class="mb-4">
-                <MudCardHeader>
-                    <CardHeaderContent>
-                        <MudText Typo="Typo.subtitle1">Thông tin chung</MudText>
-                    </CardHeaderContent>
-                </MudCardHeader>
+                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1">Thông tin chung</MudText></CardHeaderContent></MudCardHeader>
                 <MudCardContent>
                     <MudSimpleTable Dense="true">
                         <tbody>
-                            <tr>
-                                <td><strong>Mã đơn OT</strong></td>
-                                <td>@_detail.OTCode</td>
-                                <td><strong>Ngày OT</strong></td>
-                                <td>@_detail.OTDate.ToString("dd/MM/yyyy")</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Loại OT</strong></td>
-                                <td>@_detail.OTTypeName</td>
-                                <td><strong>Phòng ban</strong></td>
-                                <td>@(_detail.DeptName ?? _detail.DeptCode)</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Giờ bắt đầu</strong></td>
-                                <td>@_detail.StartTimeText</td>
-                                <td><strong>Giờ kết thúc</strong></td>
-                                <td>@_detail.EndTimeText</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Tổng giờ OT</strong></td>
-                                <td>@_detail.TotalOTHours.ToString("N1") h</td>
-                                <td><strong>Người tạo</strong></td>
-                                <td>@(_detail.EmployeeName ?? _detail.EmployeeCode)</td>
-                            </tr>
-                            <tr>
-                                <td><strong>Hạng mục lý do</strong></td>
-                                <td colspan="3">
-                                    @if (!string.IsNullOrEmpty(_detail.OTReasonCategoryName))
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Label="true" Class="mr-1">
-                                            @_detail.OTReasonCategoryCode
-                                        </MudChip>
-                                        <span>@_detail.OTReasonCategoryName</span>
-                                    }
-                                    @if (!string.IsNullOrEmpty(_detail.Reason))
-                                    {
-                                        <span> — @_detail.Reason</span>
-                                    }
-                                    @if (string.IsNullOrEmpty(_detail.OTReasonCategoryName)
-                                                                    && string.IsNullOrEmpty(_detail.Reason))
-                                    {
-                                        <span>—</span>
-                                    }
-                                </td>
-                            </tr>
+                            <tr><td><strong>Ngày đăng ký</strong></td><td>@_detail.RegisterDate.ToString("dd/MM/yyyy HH:mm")</td></tr>
+                            <tr><td><strong>Ngày OT</strong></td><td>@_detail.OTDate.ToString("dd/MM/yyyy")</td></tr>
+                            <tr><td><strong>Loại OT</strong></td><td>@_detail.OTTypeCode</td></tr>
+                            <tr><td><strong>Người đăng ký</strong></td><td>@_detail.RequesterName (@_detail.RequesterCode)</td></tr>
+                            <tr><td><strong>Phòng ban</strong></td><td>@_detail.DeptName (@_detail.DeptCode)</td></tr>
+                            <tr><td><strong>Tổng giờ OT</strong></td><td>@_detail.TotalOtHours.ToString("N1") h</td></tr>
+                            <tr><td><strong>Mục đích</strong></td><td>@(_detail.OtPurpose ?? "—")</td></tr>
+                            <tr><td><strong>Mô tả</strong></td><td>@(_detail.Description ?? "—")</td></tr>
                         </tbody>
                     </MudSimpleTable>
                 </MudCardContent>
             </MudCard>
 
-            @* Bảng nhân viên *@
-            <MudCard Elevation="2" Class="mb-4">
-                <MudCardHeader>
-                    <CardHeaderContent>
-                        <MudText Typo="Typo.subtitle1">
-                            Danh sách nhân viên OT
-                            <MudChip T="string" Size="Size.Small"
-                                     Color="Color.Primary" Label="true" Class="ml-2">
-                                @_detail.Employees.Count người
-                            </MudChip>
-                        </MudText>
-                    </CardHeaderContent>
-                </MudCardHeader>
+            <MudCard Elevation="2">
+                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1">Danh sách nhân viên OT</MudText></CardHeaderContent></MudCardHeader>
                 <MudCardContent Class="pa-0">
-                    <MudTable Items="_detail.Employees" Dense="true"
-                              Hover="true" Striped="true" Elevation="0">
+                    <MudTable Items="_detail.Details" Dense="true" Hover="true" Striped="true">
                         <HeaderContent>
-                            <MudTh>Họ tên</MudTh>
-                            <MudTh>Hạng mục</MudTh>
-                            <MudTh>Nội dung</MudTh>
-                            <MudTh>Giờ OT</MudTh>
-                            <MudTh>Giờ thực tế</MudTh>
-                            <MudTh>Trạng thái</MudTh>
-                            <MudTh></MudTh>
+                            <MudTh>Nhân viên</MudTh><MudTh>Giờ bắt đầu</MudTh><MudTh>Giờ kết thúc</MudTh>
+                            <MudTh>Giờ OT</MudTh><MudTh>Hạng mục</MudTh><MudTh>Validation</MudTh>
                         </HeaderContent>
                         <RowTemplate>
-                            @{
-                                var canEdit = (_isOwner || IsCurrentUser(context.EmployeeCode))
-                                && _detail!.RequestStatus == OTStatus.Pending;
-                            }
-
                             <MudTd>
-                                <MudText Typo="Typo.body2">
-                                    <strong>@(context.EmployeeName ?? context.EmployeeCode)</strong>
-                                </MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    @context.EmployeeCode
-                                    @if (IsCreator(context.EmployeeCode))
-                                    {
-                                        <MudChip T="string" Size="Size.Small" Color="Color.Info"
-                                                 Label="true" Class="ml-1">Người tạo</MudChip>
-                                    }
-                                </MudText>
+                                <MudText Typo="Typo.body2"><strong>@context.EmployeeName</strong></MudText>
+                                <MudText Typo="Typo.caption">@context.EmployeeCode</MudText>
                             </MudTd>
-
-                            @* ── Hạng mục lý do ── *@
-                            <MudTd Style="min-width:110px;">
-                                @if (canEdit)
-                                {
-                                    <MudSelect T="string"
-                                               Value="@context.OTReasonCategoryCode"
-                                               ValueChanged="@(v => OnReasonCategoryChanged(context, v))"
-                                               Variant="Variant.Text" Margin="Margin.Dense" Dense="true">
-                                        @foreach (var cat in OTReasonCategory.AllItems)
-                                        {
-                                            <MudSelectItem Value="@cat.Code">@cat.Code</MudSelectItem>
-                                        }
-                                    </MudSelect>
-                                }
-                                else
-                                {
-                                    <MudChip T="string" Size="Size.Small" Label="true" Color="Color.Default">
-                                        @context.OTReasonCategoryCode
-                                    </MudChip>
-                                }
-                            </MudTd>
-
-                            @* ── Nội dung cụ thể ── *@
-                            <MudTd Style="min-width:160px;">
-                                @if (canEdit)
-                                {
-                                    <MudTextField T="string"
-                                                  Value="@context.OTReasonDetail"
-                                                  ValueChanged="@(v => OnFieldChanged(context, () => context.OTReasonDetail = v))"
-                                                  Placeholder="Nhập nội dung..."
-                                                  Variant="Variant.Text" Margin="Margin.Dense" Lines="2" />
-                                }
-                                else
-                                {
-                                    <MudText Typo="Typo.caption">@(context.OTReasonDetail ?? "—")</MudText>
-                                }
-                            </MudTd>
-
-                            @* ── Giờ OT (Từ → Đến) ── *@
-                            <MudTd Style="min-width:160px;">
-                                @if (canEdit)
-                                {
-                                    <MudStack Row="true" Spacing="1" AlignItems="AlignItems.Center">
-                                        <MudTimePicker Time="@context.StartTime"
-                                                       TimeChanged="@(v => OnTimeChanged(context, start: v))"
-                                                       Variant="Variant.Text" Margin="Margin.Dense"
-                                                       AmPm="false" Placeholder="--:--"
-                                                       Editable="true"
-                                                       Style="width:90px;" />
-                                        <MudText>→</MudText>
-                                        <MudTimePicker Time="@context.EndTime"
-                                                       TimeChanged="@(v => OnTimeChanged(context, end: v))"
-                                                       Variant="Variant.Text" Margin="Margin.Dense"
-                                                       AmPm="false" Placeholder="--:--"
-                                                       Editable="true"
-                                                       Style="width:90px;" />
-                                    </MudStack>
-                                    <MudText Typo="Typo.caption" Color="Color.Info">
-                                        @context.OTHours.ToString("N1")h
-                                        @if (context.OTRateMultiplier != 1.0m)
-                                        {
-                                            <span> (×@context.OTRateMultiplier.ToString("0.0"))</span>
-                                        }
-                                    </MudText>
-                                }
-                                else
-                                {
-                                    var s = context.StartTime?.ToString(@"hh\:mm") ?? "—";
-                                    var e = context.EndTime?.ToString(@"hh\:mm") ?? "—";
-                                    <MudText Typo="Typo.body2">@s → @e</MudText>
-                                    <MudText Typo="Typo.caption" Color="Color.Info">
-                                        @context.OTHours.ToString("N1")h
-                                    </MudText>
-                                }
-
-                                @if (context.HasAnyWarning)
-                                {
-                                    <MudTooltip Text="@GetWarningText(context)">
-                                        <MudIcon Icon="@Icons.Material.Filled.Warning"
-                                                 Color="Color.Warning" Size="Size.Small" Class="mt-1" />
-                                    </MudTooltip>
-                                }
-                            </MudTd>
-
-                            @* ── Giờ thực tế (luôn read-only) ── *@
+                            <MudTd>@context.StartTime.ToString(@"hh\:mm")</MudTd>
+                            <MudTd>@context.EndTime.ToString(@"hh\:mm")</MudTd>
+                            <MudTd>@context.OTHours.ToString("N1") h</MudTd>
                             <MudTd>
-                                @if (context.ActualHours.HasValue)
-                                {
-                                    var as_ = context.ActualStartTime?.ToString(@"hh\:mm") ?? "—";
-                                    var ae = context.ActualEndTime?.ToString(@"hh\:mm") ?? "—";
-                                    <MudText Typo="Typo.body2" Color="Color.Success">@as_ → @ae</MudText>
-                                    <MudText Typo="Typo.caption" Color="Color.Success">
-                                        @context.ActualHours.Value.ToString("N1")h
-                                    </MudText>
-                                }
-                                else
-                                {
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary" Style="font-style:italic;">
-                                        Chờ chấm công
-                                    </MudText>
-                                }
+                                @context.OTReasonCategoryCode
+                                @if (!string.IsNullOrWhiteSpace(context.OTReasonCategoryName)) { <span> — @context.OTReasonCategoryName</span> }
+                                @if (!string.IsNullOrWhiteSpace(context.OTReasonDetail)) { <div class="mud-text-secondary">@context.OTReasonDetail</div> }
                             </MudTd>
-
-                            @* ── Trạng thái validation ── *@
                             <MudTd>
-                                @if (!string.IsNullOrEmpty(context.ValidationStatus))
-                                {
-                                    <MudTooltip Text="@(context.ValidationMessage ?? context.ValidationStatus)">
-                                        <MudChip T="string" Size="Size.Small" Label="true"
-                                                 Style="@($"background-color:{context.ValidationColorCss}; color:white;")">
-                                            @context.ValidationStatus
-                                        </MudChip>
-                                    </MudTooltip>
-                                }
-                                else
-                                {
-                                    <MudText Typo="Typo.caption" Color="Color.Secondary">—</MudText>
-                                }
-                            </MudTd>
-
-                            @* ── Nút xóa ── *@
-                            <MudTd>
-                                @{
-                                    var canRemove = (_isOwner || IsCurrentUser(context.EmployeeCode))
-                                    && _detail!.RequestStatus == OTStatus.Pending
-                                    && !IsCreator(context.EmployeeCode)
-                                    && _detail.Employees.Count > 1;
-                                }
-                                @if (canRemove)
-                                {
-                                    <MudIconButton Icon="@Icons.Material.Filled.PersonRemove"
-                                                   Color="Color.Error"
-                                                   Size="Size.Small"
-                                                   Title="Xóa khỏi đơn OT"
-                                                   OnClick="@(() => RemoveEmployee(context.EmployeeCode))" />
-                                }
+                                <MudChip T="string" Size="Size.Small" Color="@GetValidationColor(context.ValidationStatus)">
+                                    @context.ValidationStatus
+                                </MudChip>
+                                @if (!string.IsNullOrWhiteSpace(context.ValidationMessage))
+                                { <MudText Typo="Typo.caption">@context.ValidationMessage</MudText> }
                             </MudTd>
                         </RowTemplate>
                     </MudTable>
-
-                    @* ── Nút lưu thay đổi ── *@
-                    @if (_hasChanges)
-                    {
-                        <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
-                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                                       StartIcon="@Icons.Material.Filled.Save"
-                                       OnClick="SaveMyOTInfo"
-                                       Disabled="_isSaving">
-                                @(_isSaving ? "Đang lưu..." : "Lưu thay đổi giờ OT")
-                            </MudButton>
-                        </MudStack>
-                    }
                 </MudCardContent>
             </MudCard>
         </MudItem>
 
-        @* ── RIGHT: TIMELINE DUYỆT ── *@
         <MudItem xs="12" md="4">
             <MudCard Elevation="2" Class="mb-4">
-                <MudCardHeader>
-                    <CardHeaderContent>
-                        <MudText Typo="Typo.subtitle1">
-                            <MudIcon Icon="@Icons.Material.Filled.AccountTree"
-                                     Class="mr-1" />
-                            Luồng phê duyệt
-                        </MudText>
-                    </CardHeaderContent>
-                </MudCardHeader>
+                <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1">Luồng phê duyệt</MudText></CardHeaderContent></MudCardHeader>
                 <MudCardContent>
-                    @if (_detail.ApprovalSteps.Any())
+                    @foreach (var step in _detail.ApprovalSteps.OrderBy(x => x.Level))
                     {
-                        <MudTimeline TimelinePosition="TimelinePosition.Start">
-                            @foreach (var step in _detail.ApprovalSteps
-                                                .Where(s => s.IsRequired || !string.IsNullOrEmpty(s.ApproverEmail))
-                                                .OrderBy(s => s.Level))
-                            {
-                                <MudTimelineItem Color="@GetApproveColor(step.IsApproved)"
-                                                 Icon="@GetApproveIcon(step.IsApproved)"
-                                                 Size="Size.Small">
-                                    <ItemContent>
-                                        <MudText Typo="Typo.body2">
-                                            <strong>Bước @step.Level</strong> — @step.ApproverName
-                                        </MudText>
-                                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                            @step.ApproverEmail
-                                        </MudText>
-                                        @if (step.ApproveTime.HasValue)
-                                        {
-                                            <MudText Typo="Typo.caption">
-                                                @step.ApproveTime.Value.ToString("dd/MM HH:mm")
-                                            </MudText>
-                                        }
-                                        @if (!string.IsNullOrEmpty(step.Comment))
-                                        {
-                                            <MudText Typo="Typo.caption" Color="Color.Warning">
-                                                💬 @step.Comment
-                                            </MudText>
-                                        }
-                                    </ItemContent>
-                                </MudTimelineItem>
-                            }
-                        </MudTimeline>
-                    }
-                    else
-                    {
-                        <MudText Typo="Typo.body2" Color="Color.Secondary">
-                            Chưa có thông tin luồng duyệt.
-                        </MudText>
+                        <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="2" Class="mb-3">
+                            <MudIcon Icon="@GetStepIcon(step.Status)" Color="@GetStepColor(step.Status)" />
+                            <div>
+                                <MudText Typo="Typo.body2"><strong>Cấp @step.Level</strong> — @step.RoleName</MudText>
+                                @if (!string.IsNullOrWhiteSpace(step.ApproverName)) { <MudText Typo="Typo.caption">@step.ApproverName</MudText> }
+                                @if (step.ActionAt.HasValue) { <MudText Typo="Typo.caption">@step.ActionAt.Value.ToString("dd/MM HH:mm")</MudText> }
+                                @if (!string.IsNullOrWhiteSpace(step.Comment)) { <MudText Typo="Typo.caption">@step.Comment</MudText> }
+                            </div>
+                        </MudStack>
                     }
                 </MudCardContent>
             </MudCard>
 
-            @* Nút hành động *@
-            @if (_isOwner && _detail.RequestStatus == OTStatus.Pending)
+            @if (_detail.RequesterCode == CurrentUser.User?.EmployeeCode && !_detail.IsFinished)
             {
-                <MudCard Elevation="2">
-                    <MudCardContent>
-                        <MudButton Variant="Variant.Outlined"
-                                   Color="Color.Error"
-                                   StartIcon="@Icons.Material.Filled.Cancel"
-                                   FullWidth="true"
-                                   OnClick="CancelOT"
-                                   Disabled="_isCancelling">
-                            @(_isCancelling ? "Đang hủy..." : "Hủy đơn OT")
-                        </MudButton>
-                    </MudCardContent>
-                </MudCard>
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" FullWidth="true" OnClick="CancelOT" Disabled="_isCancelling">
+                    @(_isCancelling ? "Đang hủy..." : "Hủy đơn OT")
+                </MudButton>
             }
         </MudItem>
     </MudGrid>
@@ -421,314 +121,76 @@ else
 @code {
     [Parameter] public int Id { get; set; }
 
+    private OTRequestDto? _detail;
     private bool _isLoading = true;
-    private bool _isJoining = false;
-    private bool _isCancelling = false;
-    private bool _addMe = false;
-    private bool _alreadyInList = false;
-    private bool _isOwner = false;
-
-    private OTRequestViewModel? _detail;
+    private bool _isCancelling;
     private readonly CancellationTokenSource _cts = new();
 
-    protected override async Task OnInitializedAsync()
-    {
-        
-        _addMe = ParseAddMeFromQuery();
-
-        await LoadDetail();
-    }
+    protected override async Task OnInitializedAsync() => await LoadDetail();
 
     private async Task LoadDetail()
     {
         _isLoading = true;
         try
         {
-            if (!CurrentUser.IsLoggedIn)
-                await CurrentUser.InitializeAsync();
-
+            if (!CurrentUser.IsLoggedIn) await CurrentUser.InitializeAsync();
             var result = await OTService.GetDetailAsync(Id, _cts.Token);
-            if (result.IsSuccess && result.Data != null)
-            {
-                _detail = result.Data;
-
-                var myCode = CurrentUser.User?.EmployeeCode ?? "";
-
-                _isOwner = string.Equals(
-                    _detail.EmployeeCode, myCode,
-                    StringComparison.OrdinalIgnoreCase);
-
-                _alreadyInList = _detail.Employees
-                    .Any(e => string.Equals(
-                        e.EmployeeCode, myCode,
-                        StringComparison.OrdinalIgnoreCase));
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "Không tải được đơn OT.", Severity.Error);
-            }
+            if (result.IsSuccess) _detail = result.Data;
+            else Snackbar.Add(result.Message ?? "Không tải được đơn OT.", Severity.Error);
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "[OT_DETAIL] Load error Id={Id}", Id);
             Snackbar.Add("Lỗi hệ thống.", Severity.Error);
         }
-        finally
-        {
-            _isLoading = false;
-        }
-    }
-    private bool ParseAddMeFromQuery()
-    {
-        var uri = Nav.ToAbsoluteUri(Nav.Uri);
-        if (string.IsNullOrEmpty(uri.Query)) return false;
-
-        var queryString = uri.Query.TrimStart('?');
-        var pairs = queryString.Split('&', StringSplitOptions.RemoveEmptyEntries);
-
-        foreach (var pair in pairs)
-        {
-            var parts = pair.Split('=', 2);
-            if (parts.Length == 2 &&
-                parts[0].Equals("addMe", StringComparison.OrdinalIgnoreCase) &&
-                Uri.UnescapeDataString(parts[1]).Equals("true", StringComparison.OrdinalIgnoreCase))
-            {
-                return true;
-            }
-        }
-        return false;
-    }
-    // ── Tham gia đơn OT ──────────────────────────────────────────────────────
-    private async Task JoinOT()
-    {
-        if (_detail == null || CurrentUser.User == null) return;
-
-        _isJoining = true;
-        try
-        {
-            var result = await OTService.JoinOTRequestAsync(Id, _cts.Token);
-            if (result.IsSuccess)
-            {
-                Snackbar.Add("Đã thêm bạn vào đơn OT thành công!", Severity.Success);
-                await LoadDetail();
-                _addMe = false;
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "Lỗi tham gia đơn OT.", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[OT_DETAIL] JoinOT error Id={Id}", Id);
-            Snackbar.Add("Lỗi hệ thống.", Severity.Error);
-        }
-        finally
-        {
-            _isJoining = false;
-        }
+        finally { _isLoading = false; }
     }
 
-    // ── Helpers nhận diện người dùng ─────────────────────────────────────────
-    private bool IsCurrentUser(string code) =>
-        string.Equals(code, CurrentUser.User?.EmployeeCode,
-            StringComparison.OrdinalIgnoreCase);
-
-    private bool IsCreator(string code) =>
-        string.Equals(code, _detail?.EmployeeCode,
-            StringComparison.OrdinalIgnoreCase);
-
-    // ── Xóa thành viên ────────────────────────────────────────────────────────
-    private async Task RemoveEmployee(string employeeCode)
-    {
-        if (_detail == null) return;
-
-        try
-        {
-            var result = await OTService.RemoveEmployeeAsync(
-                Id, employeeCode, _cts.Token);
-
-            if (result.IsSuccess)
-            {
-                Snackbar.Add(result.Message ?? "Đã xóa thành viên.", Severity.Success);
-                await LoadDetail();
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "Lỗi xóa thành viên.", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[OT_DETAIL] RemoveEmployee error");
-            Snackbar.Add("Lỗi hệ thống.", Severity.Error);
-        }
-    }
-    private bool _hasChanges = false;
-    private bool _isSaving = false;
-
-    // ── Khi đổi hạng mục lý do ──
-    private void OnReasonCategoryChanged(OTEmployeeModel emp, string value)
-    {
-        emp.OTReasonCategoryCode = value;
-        _hasChanges = true;
-    }
-
-    // ── Khi đổi field chung (text...) ──
-    private void OnFieldChanged(OTEmployeeModel emp, Action setter)
-    {
-        setter();
-        _hasChanges = true;
-    }
-
-    // ── Khi đổi giờ bắt đầu/kết thúc — tính lại OTHours ──
-    private void OnTimeChanged(OTEmployeeModel emp, TimeSpan? start = null, TimeSpan? end = null)
-    {
-        if (start.HasValue) emp.StartTime = start;
-        if (end.HasValue) emp.EndTime = end;
-
-        if (emp.StartTime.HasValue && emp.EndTime.HasValue && emp.EndTime > emp.StartTime)
-        {
-            emp.OTHours = (decimal)(emp.EndTime.Value - emp.StartTime.Value).TotalHours;
-        }
-        else
-        {
-            emp.OTHours = 0;
-        }
-
-        _hasChanges = true;
-    }
-
-    // ── Lưu thay đổi giờ OT của bản thân (hoặc tất cả nếu owner) ──
-    private async Task SaveMyOTInfo()
-    {
-        if (_detail == null) return;
-
-        var myCode = CurrentUser.User?.EmployeeCode ?? "";
-
-        // Nếu owner: gửi toàn bộ danh sách đã sửa
-        // Nếu chỉ là member thường: chỉ gửi info của chính mình
-        var employeesToUpdate = _isOwner
-            ? _detail.Employees
-            : _detail.Employees.Where(e =>
-                string.Equals(e.EmployeeCode, myCode, StringComparison.OrdinalIgnoreCase))
-              .ToList();
-
-        // Validate trước khi gửi
-        var invalid = employeesToUpdate.Where(e =>
-            !e.StartTime.HasValue || !e.EndTime.HasValue || e.EndTime <= e.StartTime).ToList();
-
-        if (invalid.Any())
-        {
-            Snackbar.Add("Vui lòng nhập đầy đủ giờ OT hợp lệ (giờ kết thúc phải sau giờ bắt đầu).", Severity.Warning);
-            return;
-        }
-
-        _isSaving = true;
-        try
-        {
-            var result = await OTService.UpdateEmployeeOTInfoAsync(
-                Id, employeesToUpdate, _cts.Token);
-
-            if (result.IsSuccess)
-            {
-                Snackbar.Add("Đã lưu thay đổi giờ OT.", Severity.Success);
-                _hasChanges = false;
-                await LoadDetail(); // reload để cập nhật validation status từ server
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "Lỗi lưu thay đổi.", Severity.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[OT_DETAIL] SaveMyOTInfo error Id={Id}", Id);
-            Snackbar.Add("Lỗi hệ thống.", Severity.Error);
-        }
-        finally
-        {
-            _isSaving = false;
-        }
-    }
-    // ── Hủy đơn OT ──────────────────────────────────────────────────────────
     private async Task CancelOT()
     {
         if (_detail == null) return;
-
         _isCancelling = true;
         try
         {
             var result = await OTService.CancelAsync(Id, "Hủy từ trang chi tiết", _cts.Token);
-            if (result.IsSuccess)
-            {
-                Snackbar.Add("Đã hủy đơn OT.", Severity.Success);
-                await LoadDetail();
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "Lỗi hủy đơn.", Severity.Error);
-            }
+            Snackbar.Add(result.IsSuccess ? "Đã hủy đơn OT." : result.Message ?? "Lỗi hủy đơn.",
+                result.IsSuccess ? Severity.Success : Severity.Error);
+            if (result.IsSuccess) await LoadDetail();
         }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[OT_DETAIL] CancelOT error Id={Id}", Id);
-        }
-        finally
-        {
-            _isCancelling = false;
-        }
+        finally { _isCancelling = false; }
     }
 
-    // ── Helpers hiển thị ──────────────────────────────────────────────────────
-    private static Color GetStatusColor(string status) => status switch
+    private static Color GetStatusColor(ApprovalStatus status) => status switch
     {
-        OTStatus.Approved => Color.Success,
-        OTStatus.Rejected => Color.Error,
-        OTStatus.Cancelled => Color.Default,
-        OTStatus.ApprovedLv3 => Color.Info,
-        OTStatus.ApprovedLv5 => Color.Info,
-        OTStatus.ApprovedLv6 => Color.Info,
+        ApprovalStatus.Approved => Color.Success,
+        ApprovalStatus.Rejected => Color.Error,
+        ApprovalStatus.Cancelled => Color.Default,
         _ => Color.Warning
     };
 
-    private static string GetStatusIcon(string status) => status switch
+    private static Color GetValidationColor(ValidationStatus status) => status switch
     {
-        OTStatus.Approved => Icons.Material.Filled.CheckCircle,
-        OTStatus.Rejected => Icons.Material.Filled.Cancel,
-        OTStatus.Cancelled => Icons.Material.Filled.RemoveCircle,
-        _ => Icons.Material.Filled.HourglassEmpty
+        ValidationStatus.Valid => Color.Success,
+        ValidationStatus.Warning => Color.Warning,
+        ValidationStatus.Invalid => Color.Error,
+        _ => Color.Default
     };
 
-    private static Color GetApproveColor(bool? isApprove) => isApprove switch
+    private static Color GetStepColor(DecisionType status) => status switch
     {
-        true => Color.Success,
-        false => Color.Error,
-        null => Color.Default
+        DecisionType.Approved => Color.Success,
+        DecisionType.Rejected => Color.Error,
+        DecisionType.Pending => Color.Warning,
+        _ => Color.Default
     };
 
-    private static string GetApproveIcon(bool? isApprove) => isApprove switch
+    private static string GetStepIcon(DecisionType status) => status switch
     {
-        true => Icons.Material.Filled.CheckCircle,
-        false => Icons.Material.Filled.Cancel,
-        null => Icons.Material.Filled.RadioButtonUnchecked
+        DecisionType.Approved => Icons.Material.Filled.CheckCircle,
+        DecisionType.Rejected => Icons.Material.Filled.Cancel,
+        DecisionType.Pending => Icons.Material.Filled.HourglassEmpty,
+        _ => Icons.Material.Filled.RadioButtonUnchecked
     };
 
-    private static string GetWarningText(OTEmployeeModel emp)
-    {
-        var msgs = new List<string>();
-        if (emp.WillExceedDailyLimit)
-            msgs.Add($"Vượt giới hạn ngày ({emp.Balance?.DailyLimit}h)");
-        if (emp.WillExceedMonthlyLimit)
-            msgs.Add($"Vượt giới hạn tháng ({emp.Balance?.MonthlyLimit}h)");
-        if (emp.WillExceedYearlyLimit)
-            msgs.Add($"Vượt giới hạn năm ({emp.Balance?.YearlyLimit}h)");
-        return string.Join(" | ", msgs);
-    }
-
-    public void Dispose()
-    {
-        _cts.Cancel();
-        _cts.Dispose();
-    }
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 }
