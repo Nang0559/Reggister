@@ -1,10 +1,8 @@
-using AutoMapper;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -16,7 +14,6 @@ namespace FVN_REGISTER.API.Controllers
     {
         protected readonly ICurrentUserService _currentUser;
         protected readonly IUserLogService _userLog;
-        protected readonly IMapper _mapper;
         protected readonly ILogger _logger;
         protected readonly IOptionsMonitor<AuthDebugOptions> _options;
 
@@ -29,13 +26,11 @@ namespace FVN_REGISTER.API.Controllers
         protected BaseApiController(
             ICurrentUserService currentUser,
             IUserLogService userLog,
-            IMapper mapper,
             ILogger logger,
             IOptionsMonitor<AuthDebugOptions> options)
         {
             _currentUser = currentUser;
             _userLog = userLog;
-            _mapper = mapper;
             _logger = logger;
             _options = options;
         }
@@ -120,30 +115,8 @@ namespace FVN_REGISTER.API.Controllers
                 await _userLog.UpdateLastSeenAsync(
                     user.UserId,
                     description,
-                    Path
-                );
+                    Path);
             }
-        }
-
-        [HttpGet("test-auth")]
-        [AllowAnonymous]
-        public IActionResult TestAuth()
-        {
-            var user = HttpContext.User;
-
-            _logger.LogDebugIf(Debug,
-                "[AUTH TEST] IsAuth={Auth} | Name={Name}",
-                user.Identity?.IsAuthenticated,
-                user.Identity?.Name);
-
-            return Ok(new
-            {
-                IsAuthenticated = user.Identity?.IsAuthenticated,
-                Name = user.Identity?.Name,
-                AuthenticationType = user.Identity?.AuthenticationType,
-                Claims = user.Claims.Select(c => new { c.Type, c.Value }).ToList(),
-                UserInfoId = UserInfo?.UserId
-            });
         }
     }
 }
