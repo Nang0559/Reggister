@@ -137,6 +137,7 @@ else if (_form != null)
             if (_date.HasValue) _form.OTDate = _date.Value;
             _form.EmployeeCode = CurrentUser.User?.EmployeeCode ?? _form.EmployeeCode;
             _form.DeptCode = CurrentUser.User?.DeptCode ?? _form.DeptCode;
+            _form.PositionCode = CurrentUser.User?.PositionCode ?? _form.PositionCode;
             _form.StartTime = _start ?? TimeSpan.Zero;
             _form.EndTime = _end ?? TimeSpan.Zero;
         }
