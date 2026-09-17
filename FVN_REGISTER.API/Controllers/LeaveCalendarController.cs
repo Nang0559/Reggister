@@ -1,13 +1,10 @@
-﻿using AutoMapper;
+using AutoMapper;
+using FVN_REGISTER.Application.Interfaces.Leaves;
+using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.MasterData;
-using FVN_REGISTER.Contract.Interfaces.Leaves;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Contract.Interfaces.Users;
 using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Logging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Controllers;
@@ -34,10 +31,6 @@ public class LeaveCalendarController : BaseApiController
         _leaveService = leaveService;
     }
 
-    /// <summary>
-    /// Lấy toàn bộ dữ liệu cho trang Đăng ký nghỉ:
-    /// ngày nghỉ CT, lịch cá nhân, loại phép, phép tồn, approvers
-    /// </summary>
     [HttpGet("data")]
     public async Task<IActionResult> GetData(
         [FromQuery] string empCode,
@@ -46,15 +39,12 @@ public class LeaveCalendarController : BaseApiController
         [FromQuery] int year,
         CancellationToken ct)
     {
-        // Nếu empCode trống, lấy từ token
         var effectiveEmpCode = string.IsNullOrEmpty(empCode)
             ? UserInfo?.EmployeeCode ?? ""
             : empCode;
-
         var effectiveDeptCode = string.IsNullOrEmpty(deptCode)
             ? UserInfo?.DeptCode ?? ""
             : deptCode;
-
         var effectiveCvCode = string.IsNullOrEmpty(cvCode)
             ? UserInfo?.CvCode ?? ""
             : cvCode;
@@ -69,14 +59,13 @@ public class LeaveCalendarController : BaseApiController
                 ct);
 
             data.UserLevel = UserInfo?.LevelApprove ?? 0;
-
             await LogActionAsync("Xem lịch đăng ký nghỉ");
-
             return Ok(ApiResponse<SystemMasterDataDto>.Ok(data));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "[CALENDAR] GetData error for EmpCode: {EmpCode}", effectiveEmpCode);
+            _logger.LogError(ex,
+                "[CALENDAR] GetData error for EmpCode: {EmpCode}", effectiveEmpCode);
             return BadRequest(ApiResponse<object>.Fail("Không thể tải dữ liệu lịch"));
         }
     }
