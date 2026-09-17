@@ -1,10 +1,9 @@
-﻿@* LeaveReport.razor *@
+@* Legacy-compatible report page kept for hosts that still reference /report1/leave. *@
 @page "/report1/leave"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Reports
-@using FVN_REGISTER.Contract.Enums
+@using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Pages.Reports
-@using FVN_REGISTER.Shared.Utils.Helpers
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 
@@ -23,11 +22,8 @@
 
 @if (_activeTab == 0)
 {
-    <MudSelect T="int?" Label="Năm"
-               Value="_query.WorkYear"
-               ValueChanged="OnYearChanged"
-               Style="max-width:150px;" Class="mb-2"
-               Dense="true" Variant="Variant.Outlined">
+    <MudSelect T="int?" Label="Năm" Value="_query.WorkYear" ValueChanged="OnYearChanged"
+               Style="max-width:150px;" Class="mb-2" Dense="true" Variant="Variant.Outlined">
         @for (int y = DateTime.Now.Year; y >= 2022; y--)
         {
             <MudSelectItem T="int?" Value="@((int?)y)">@y</MudSelectItem>
@@ -35,9 +31,7 @@
     </MudSelect>
 }
 
-<ReportBase @ref="_baseRef"
-            ReportType="_currentType"
-            Query="_query" />
+<ReportBase @ref="_baseRef" ReportType="_currentType" Query="_query" />
 
 @code {
     private ReportBase? _baseRef;
@@ -54,8 +48,5 @@
         _ => ReportType.LeaveBalance
     };
 
-    private void OnYearChanged(int? value)
-    {
-        _query.WorkYear = value;
-    }
+    private void OnYearChanged(int? value) => _query.WorkYear = value;
 }
