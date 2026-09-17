@@ -35,15 +35,13 @@ namespace FVN_REGISTER.Shared.Services.OTs
             => _http.GetAsync<OTWorkerStatusDto>("api/OTSync/worker-status", ct);
 
         public async Task<ApiResponse<OTReconciliationResultDto>> TriggerWorkerAsync(
+            DateTime date,
             string? deptCode = null,
             CancellationToken ct = default)
         {
             try
             {
-                var url = "api/OTSync/worker-trigger";
-                if (!string.IsNullOrWhiteSpace(deptCode))
-                    url += $"?deptCode={Uri.EscapeDataString(deptCode)}";
-
+                var url = BuildUrl("api/OTSync/worker-trigger", date, deptCode);
                 return await _http.PostAsync<OTReconciliationResultDto>(url, new { }, ct);
             }
             catch
