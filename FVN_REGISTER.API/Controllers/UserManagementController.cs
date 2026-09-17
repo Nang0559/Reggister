@@ -1,6 +1,7 @@
 using FVN_REGISTER.Application.Interfaces.UserManagers;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Usermanagers;
+using FVN_REGISTER.Contract.Requests.Users;
 using FVN_REGISTER.Core.Configurations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -73,7 +74,7 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpPut("{id:int}/reset-password")]
-        public async Task<IActionResult> ResetPassword(int id, [FromBody] ResetPasswordRequest request, CancellationToken ct)
+        public async Task<IActionResult> ResetPassword(int id, [FromBody] ResetPasswordRequestDto request, CancellationToken ct)
         {
             if (UserInfo == null || !UserInfo.IsSuperAdmin()) return Forbid();
             if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
