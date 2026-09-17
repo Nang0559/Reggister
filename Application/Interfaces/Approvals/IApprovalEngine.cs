@@ -11,8 +11,6 @@ namespace FVN_REGISTER.Application.Interfaces.Approvals
     /// </summary>
     public interface IApprovalEngine<TSubject> where TSubject : IApprovalSubject
     {
-        RequestModule Module { get; }
-
         Task InitializeStepsAsync(
             int requestId,
             ApprovalSnapshotDto snapshot,
