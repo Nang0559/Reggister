@@ -10,15 +10,16 @@ using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.OTTypes;
+using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Reports;
 using FVN_REGISTER.Application.Interfaces.Statics;
 using FVN_REGISTER.Application.Interfaces.UserManagers;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Interfaces.Jobs;
+using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Application.Services.Statics;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Maps;
-using FVN_REGISTER.Contract.Models.Subjects;
 using FVN_REGISTER.Contract.ViewModels.Leaves;
 using FVN_REGISTER.Contract.ViewModels.OT;
 using FVN_REGISTER.Core.Config;
@@ -39,6 +40,7 @@ using FVN_REGISTER.Infrastructure.Services.Jobs;
 using FVN_REGISTER.Infrastructure.Services.Leaves;
 using FVN_REGISTER.Infrastructure.Services.Notifications;
 using FVN_REGISTER.Infrastructure.Services.OT;
+using FVN_REGISTER.Infrastructure.Services.OTs;
 using FVN_REGISTER.Infrastructure.Services.Reports;
 using FVN_REGISTER.Infrastructure.Services.Statics;
 using FVN_REGISTER.Infrastructure.Services.Users;
@@ -79,19 +81,15 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddMemoryCache();
-builder.Services.Configure<AuthDebugOptions>(
-    builder.Configuration.GetSection("AuthDebug"));
+builder.Services.Configure<AuthDebugOptions>(builder.Configuration.GetSection("AuthDebug"));
 builder.Services.Configure<AppOptions>(opts =>
 {
     opts.SiteUrl = builder.Configuration["SiteUrl"] ?? "https://localhost:7264";
 });
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<FVNWEBAPPContext>(options =>
-    options.UseSqlServer(connectionString));
-
-builder.Services.AddScoped<DbContext>(sp =>
-    sp.GetRequiredService<FVNWEBAPPContext>());
+builder.Services.AddDbContext<FVNWEBAPPContext>(options => options.UseSqlServer(connectionString));
+builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<FVNWEBAPPContext>());
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 
@@ -99,9 +97,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSignalR();
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
-// =========================================================
-// APPLICATION PORTS -> INFRASTRUCTURE ADAPTERS
-// =========================================================
+// Application ports -> Infrastructure adapters
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<INetworkService, NetworkService>();
 builder.Services.AddScoped<IFileService, FileService>();
@@ -127,7 +123,8 @@ builder.Services.AddScoped<OTQueryService>();
 builder.Services.AddScoped<IOTQueryService, OTQueryService>();
 builder.Services.AddScoped<IOTValidator, OTValidator>();
 builder.Services.AddScoped<IOTService, OTService>();
-builder.Services.AddScoped<IOTSyncService, OTSyncService>();
+builder.Services.AddScoped<IOTAttendanceStagingService, OTAttendanceStagingService>();
+builder.Services.AddScoped<IOTAttendanceReconciliationService, OTAttendanceReconciliationService>();
 builder.Services.AddScoped<IDepartmentStatusService, DepartmentStatusService>();
 builder.Services.AddScoped<IOTTypeManagementService, OTTypeManagementService>();
 
@@ -150,9 +147,18 @@ builder.Services.AddScoped<IHistoryDispatcher, HistoryDispatcher>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
-builder.Services.AddScoped<IApprovalInboxService, ApprovalInboxService>();
+// Approval pipeline: provider -> engine -> workflow boundary
 builder.Services.AddScoped<LeaveApprovalProvider>();
+builder.Services.AddScoped<OTApprovalProvider>();
+builder.Services.AddScoped<IApprovalProvider<LeaveRequestSubject>>(sp => sp.GetRequiredService<LeaveApprovalProvider>());
+builder.Services.AddScoped<IApprovalProvider<OTRequestSubject>>(sp => sp.GetRequiredService<OTApprovalProvider>());
 builder.Services.AddScoped<IApprovalEngine<LeaveRequestSubject>, ApprovalEngine<LeaveRequestSubject>>();
+builder.Services.AddScoped<IApprovalEngine<OTRequestSubject>, ApprovalEngine<OTRequestSubject>>();
+builder.Services.AddScoped<IApprovalWorkflowOrchestrator<LeaveRequestSubject>, ApprovalWorkflowOrchestrator<LeaveRequestSubject>>();
+builder.Services.AddScoped<IApprovalWorkflowOrchestrator<OTRequestSubject>, ApprovalWorkflowOrchestrator<OTRequestSubject>>();
+builder.Services.AddScoped<IApprovalEngineResolver, ApprovalEngineResolver>();
+builder.Services.AddScoped<IApprovalInboxService, ApprovalInboxService>();
+
 builder.Services.AddScoped<IApprovalListDataSource<LeaveRequestViewModel>, LeaveApprovalListDataSource>();
 builder.Services.AddScoped<IApprovalListDataSource<OTRequestViewModel>, OTApprovalListDataSource>();
 builder.Services.AddScoped<ApprovalListService<LeaveRequestViewModel>>();
@@ -173,8 +179,7 @@ builder.Services.AddAuthentication(options =>
         ValidateAudience = true,
         ValidAudience = builder.Configuration["Jwt:Audience"],
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]!)),
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]!)),
         ValidateLifetime = true,
         ClockSkew = TimeSpan.FromMinutes(5),
         NameClaimType = "unique_name",
@@ -186,11 +191,9 @@ builder.Services.AddAuthentication(options =>
         OnMessageReceived = context =>
         {
             var path = context.HttpContext.Request.Path;
-            if (!path.StartsWithSegments("/hubs"))
-                return Task.CompletedTask;
+            if (!path.StartsWithSegments("/hubs")) return Task.CompletedTask;
 
-            var logger = context.HttpContext.RequestServices
-                .GetRequiredService<ILogger<Program>>();
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
             var debug = context.HttpContext.RequestServices
                 .GetRequiredService<IOptionsMonitor<AuthDebugOptions>>()
                 .CurrentValue.Enabled;
@@ -199,9 +202,7 @@ builder.Services.AddAuthentication(options =>
             if (!string.IsNullOrEmpty(qs))
             {
                 context.Token = qs;
-                logger.LogDebugIf(debug,
-                    "[JWT] OnMessageReceived -> token from QS | Path={Path} | Len={Len}",
-                    path, qs.Length);
+                logger.LogDebugIf(debug, "[JWT] OnMessageReceived -> token from QS | Path={Path} | Len={Len}", path, qs.Length);
                 return Task.CompletedTask;
             }
 
@@ -209,61 +210,39 @@ builder.Services.AddAuthentication(options =>
             if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             {
                 context.Token = header["Bearer ".Length..].Trim();
-                logger.LogDebugIf(debug,
-                    "[JWT] OnMessageReceived -> token from Header | Path={Path} | Len={Len}",
-                    path, context.Token.Length);
+                logger.LogDebugIf(debug, "[JWT] OnMessageReceived -> token from Header | Path={Path} | Len={Len}", path, context.Token.Length);
                 return Task.CompletedTask;
             }
 
-            logger.LogWarning(
-                "[JWT] OnMessageReceived -> no token found | Path={Path} | QS_keys={Keys}",
-                path,
-                string.Join(",", context.Request.Query.Keys));
-
+            logger.LogWarning("[JWT] OnMessageReceived -> no token found | Path={Path} | QS_keys={Keys}",
+                path, string.Join(",", context.Request.Query.Keys));
             return Task.CompletedTask;
         },
         OnTokenValidated = context =>
         {
-            var logger = context.HttpContext.RequestServices
-                .GetRequiredService<ILogger<Program>>();
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
             var debug = context.HttpContext.RequestServices
                 .GetRequiredService<IOptionsMonitor<AuthDebugOptions>>()
                 .CurrentValue.Enabled;
-
-            var claims = string.Join(" | ",
-                context.Principal?.Claims.Select(c => $"{c.Type}={c.Value}") ?? []);
-
-            logger.LogDebugIf(debug,
-                "[JWT] TokenValidated | Claims={Claims}", claims);
-
+            var claims = string.Join(" | ", context.Principal?.Claims.Select(c => $"{c.Type}={c.Value}") ?? []);
+            logger.LogDebugIf(debug, "[JWT] TokenValidated | Claims={Claims}", claims);
             return Task.CompletedTask;
         },
         OnAuthenticationFailed = context =>
         {
-            var logger = context.HttpContext.RequestServices
-                .GetRequiredService<ILogger<Program>>();
-
-            logger.LogError(context.Exception,
-                "[JWT] AuthenticationFailed | {ExType}: {ExMsg}",
-                context.Exception.GetType().Name,
-                context.Exception.Message);
-
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+            logger.LogError(context.Exception, "[JWT] AuthenticationFailed | {ExType}: {ExMsg}",
+                context.Exception.GetType().Name, context.Exception.Message);
             return Task.CompletedTask;
         },
         OnChallenge = context =>
         {
-            var logger = context.HttpContext.RequestServices
-                .GetRequiredService<ILogger<Program>>();
+            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
             var debug = context.HttpContext.RequestServices
                 .GetRequiredService<IOptionsMonitor<AuthDebugOptions>>()
                 .CurrentValue.Enabled;
-
-            logger.LogWarnIf(debug,
-                "[JWT] Challenge | Path={Path} | Error={Error} | Desc={Desc}",
-                context.Request.Path,
-                context.Error,
-                context.ErrorDescription);
-
+            logger.LogWarnIf(debug, "[JWT] Challenge | Path={Path} | Error={Error} | Desc={Desc}",
+                context.Request.Path, context.Error, context.ErrorDescription);
             return Task.CompletedTask;
         }
     };
@@ -285,9 +264,7 @@ var appLogger = app.Services.GetRequiredService<ILogger<Program>>();
 var debugOptions = app.Services.GetRequiredService<IOptionsMonitor<AuthDebugOptions>>();
 bool IsDebug() => debugOptions.CurrentValue.Enabled;
 
-appLogger.LogInfoIf(IsDebug(),
-    "[STARTUP] AuthDebug.Enabled={Debug} | Env={Env}",
-    IsDebug(), app.Environment.EnvironmentName);
+appLogger.LogInfoIf(IsDebug(), "[STARTUP] AuthDebug.Enabled={Debug} | Env={Env}", IsDebug(), app.Environment.EnvironmentName);
 
 if (app.Environment.IsDevelopment())
 {
@@ -300,9 +277,7 @@ if (app.Environment.IsDevelopment())
         IOptionsMonitor<AuthDebugOptions> opts) =>
     {
         var debug = opts.CurrentValue.Enabled;
-        logger.LogInfoIf(debug,
-            "[TEST] Creating test notification for UserId={UserId}", userId);
-
+        logger.LogInfoIf(debug, "[TEST] Creating test notification for UserId={UserId}", userId);
         await svc.CreateAsync(new CreateNotificationDto
         {
             UserId = userId,
@@ -311,10 +286,7 @@ if (app.Environment.IsDevelopment())
             Body = "Nội dung test từ server",
             ActionUrl = "/leave/history"
         });
-
-        logger.LogInfoIf(debug,
-            "[TEST] Notification created for UserId={UserId}", userId);
-
+        logger.LogInfoIf(debug, "[TEST] Notification created for UserId={UserId}", userId);
         return Results.Ok(new { message = $"Sent to userId={userId}" });
     });
 }
@@ -323,11 +295,7 @@ app.UseCors("FccCorsPolicy");
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
-
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notification");
-
-appLogger.LogInfoIf(IsDebug(),
-    "[STARTUP] Pipeline ready | Hub=/hubs/notification");
-
+appLogger.LogInfoIf(IsDebug(), "[STARTUP] Pipeline ready | Hub=/hubs/notification");
 app.Run();
