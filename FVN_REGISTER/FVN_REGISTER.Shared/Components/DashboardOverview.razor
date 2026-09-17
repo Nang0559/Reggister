@@ -17,10 +17,7 @@ else
             @foreach (var widget in Data.Widgets)
             {
                 <MudItem xs="6" sm="3">
-                    <MudPaper Class="@($"pa-4 mud-theme-{widget.Color.ToLowerInvariant()}")"
-                              Elevation="4"
-                              Style="height:110px; border-radius:12px; cursor:pointer"
-                              @onclick="@(() => OnWidgetClick(widget.Link))">
+                    <MudPaper Class="@($"pa-4 mud-theme-{widget.Color.ToLowerInvariant()}")" Elevation="4" Style="height:110px; border-radius:12px; cursor:pointer" @onclick="@(() => OnWidgetClick(widget.Link))">
                         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                             <MudStack Spacing="0">
                                 <MudText Typo="Typo.subtitle2" Style="opacity:0.8">@widget.Title</MudText>
@@ -36,12 +33,7 @@ else
 
     @if (Data.PendingApprovals.Any())
     {
-        var pending = Data.PendingApprovals
-            .SelectMany(x => x.Requests)
-            .OrderBy(x => x.FromDate)
-            .Take(8)
-            .ToList();
-
+        var pending = Data.PendingApprovals.SelectMany(x => x.Requests).OrderBy(x => x.FromDate).Take(8).ToList();
         <MudCard Elevation="2" Class="mb-4">
             <MudCardHeader>
                 <CardHeaderContent>
@@ -78,9 +70,7 @@ else
                 <MudCard Elevation="2">
                     <MudCardHeader>
                         <CardHeaderContent><MudText Typo="Typo.subtitle1">Phép của tôi</MudText></CardHeaderContent>
-                        <CardHeaderActions>
-                            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/history/leave"))">Lịch sử</MudButton>
-                        </CardHeaderActions>
+                        <CardHeaderActions><MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/history/leave"))">Lịch sử</MudButton></CardHeaderActions>
                     </MudCardHeader>
                     <MudCardContent>
                         <MudGrid>
@@ -99,9 +89,7 @@ else
                 <MudCard Elevation="2">
                     <MudCardHeader>
                         <CardHeaderContent><MudText Typo="Typo.subtitle1">OT của tôi</MudText></CardHeaderContent>
-                        <CardHeaderActions>
-                            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/history/ot"))">Lịch sử</MudButton>
-                        </CardHeaderActions>
+                        <CardHeaderActions><MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/history/ot"))">Lịch sử</MudButton></CardHeaderActions>
                     </MudCardHeader>
                     <MudCardContent>
                         <MudGrid>
@@ -113,6 +101,55 @@ else
             </MudItem>
         }
     </MudGrid>
+
+    @if (Data.ShowManagerView && Data.DeptWarning != null)
+    {
+        var warning = Data.DeptWarning;
+        <MudCard Elevation="2" Class="mt-4">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.subtitle1">Tình hình phòng ban — @warning.DeptName</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Chỉ hiển thị khi tài khoản có quyền quản lý.</MudText>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                <MudGrid>
+                    <MudItem xs="6" sm="3"><MudText Typo="Typo.caption">Nhân sự</MudText><MudText Typo="Typo.h6">@warning.TotalStaff</MudText></MudItem>
+                    <MudItem xs="6" sm="3"><MudText Typo="Typo.caption">Đang vắng</MudText><MudText Typo="Typo.h6">@warning.CurrentAbsent</MudText></MudItem>
+                    <MudItem xs="6" sm="3"><MudText Typo="Typo.caption">Chờ duyệt</MudText><MudText Typo="Typo.h6">@warning.PendingRequests</MudText></MudItem>
+                    <MudItem xs="6" sm="3"><MudText Typo="Typo.caption">Tỷ lệ vắng</MudText><MudText Typo="Typo.h6">@warning.AbsenceRate.ToString("N1")%</MudText></MudItem>
+                </MudGrid>
+                @if (!string.IsNullOrWhiteSpace(warning.WarningMessage))
+                {
+                    <MudAlert Class="mt-3" Severity="@(warning.IsCritical ? Severity.Warning : Severity.Info)">@warning.WarningMessage</MudAlert>
+                }
+            </MudCardContent>
+        </MudCard>
+    }
+
+    @if (Data.ShowManagerView && Data.DepartmentStatistics.Any())
+    {
+        <MudCard Elevation="2" Class="mt-4">
+            <MudCardHeader>
+                <CardHeaderContent><MudText Typo="Typo.subtitle1">Thống kê nghỉ phép phòng ban</MudText></CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent Class="pa-0">
+                <MudTable Items="Data.DepartmentStatistics" Dense="true" Hover="true">
+                    <HeaderContent>
+                        <MudTh>Phòng ban</MudTh><MudTh>Nhân sự</MudTh><MudTh>Đang có mặt</MudTh><MudTh>Đơn nghỉ</MudTh><MudTh>Chờ duyệt</MudTh><MudTh>Tỷ lệ nghỉ</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.DepartmentName</MudTd>
+                        <MudTd>@context.TotalEmployees</MudTd>
+                        <MudTd>@context.PresentEmployeesCount</MudTd>
+                        <MudTd>@context.TotalLeaveCount</MudTd>
+                        <MudTd>@context.PendingLeaveCount</MudTd>
+                        <MudTd>@context.LeaveRate.ToString("N1")%</MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudCardContent>
+        </MudCard>
+    }
 }
 
 @code {
