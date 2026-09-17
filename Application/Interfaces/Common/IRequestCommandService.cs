@@ -1,5 +1,4 @@
 using FVN_REGISTER.Contract.Dtos.Authentication;
-using FVN_REGISTER.Contract.Dtos.Common;
 using FVN_REGISTER.Contract.Requests.Leaves;
 using FVN_REGISTER.Contract.Utils;
 
