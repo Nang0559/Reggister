@@ -9,7 +9,6 @@ using Microsoft.Extensions.Options;
 namespace FVN_REGISTER.API.Controllers
 {
     [ApiController]
-    [Route("api/[controller]")]
     public abstract class BaseApiController : ControllerBase
     {
         protected readonly ICurrentUserService _currentUser;
@@ -18,9 +17,7 @@ namespace FVN_REGISTER.API.Controllers
         protected readonly IOptionsMonitor<AuthDebugOptions> _options;
 
         protected bool Debug => _options.CurrentValue.Enabled;
-
         protected UserIdentityDto? UserInfo => _currentUser.GetCurrentUser();
-
         protected string Path => HttpContext?.Request?.Path.Value ?? "unknown";
 
         protected BaseApiController(
@@ -39,21 +36,14 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (result == null)
             {
-                _logger.LogWarnIf(Debug,
-                    "[API] Null result at {Path}",
-                    Path);
-
+                _logger.LogWarnIf(Debug, "[API] Null result at {Path}", Path);
                 return NotFound(ApiResponse<T>.Fail("Không tìm thấy phản hồi từ hệ thống."));
             }
 
             var apiResponse = ApiResponse<T>.FromResult(result);
-
             if (result.IsSuccess)
             {
-                _logger.LogDebugIf(Debug,
-                    "[API] Success: {Path}",
-                    Path);
-
+                _logger.LogDebugIf(Debug, "[API] Success: {Path}", Path);
                 return Ok(apiResponse);
             }
 
@@ -61,20 +51,15 @@ namespace FVN_REGISTER.API.Controllers
                 "[API] Failed: {Path} | Message: {Message}",
                 Path,
                 result.Message);
-
             return BadRequest(apiResponse);
         }
 
         protected ActionResult HandleResult(ServiceResult result)
         {
             var apiResponse = ApiResponse<object>.FromResult(result);
-
             if (result.IsSuccess)
             {
-                _logger.LogDebugIf(Debug,
-                    "[API] Success: {Path}",
-                    Path);
-
+                _logger.LogDebugIf(Debug, "[API] Success: {Path}", Path);
                 return Ok(apiResponse);
             }
 
@@ -82,7 +67,6 @@ namespace FVN_REGISTER.API.Controllers
                 "[API] Failed: {Path} | Message: {Message}",
                 Path,
                 result.Message);
-
             return BadRequest(apiResponse);
         }
 
@@ -90,10 +74,7 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (result == null || result.Data == null)
             {
-                _logger.LogWarnIf(Debug,
-                    "[API] Empty pagination result at {Path}",
-                    Path);
-
+                _logger.LogWarnIf(Debug, "[API] Empty pagination result at {Path}", Path);
                 return Ok(ApiResponse<PaginationResult<T>>.Ok(new PaginationResult<T>()));
             }
 
@@ -103,7 +84,6 @@ namespace FVN_REGISTER.API.Controllers
         protected async Task LogActionAsync(string description)
         {
             var user = UserInfo;
-
             _logger.LogDebugIf(Debug,
                 "[USER ACTION] UserId={UserId} | {Desc} | Path={Path}",
                 user?.UserId,
@@ -112,10 +92,7 @@ namespace FVN_REGISTER.API.Controllers
 
             if (user != null)
             {
-                await _userLog.UpdateLastSeenAsync(
-                    user.UserId,
-                    description,
-                    Path);
+                await _userLog.UpdateLastSeenAsync(user.UserId, description, Path);
             }
         }
     }
