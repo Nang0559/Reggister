@@ -158,8 +158,7 @@ namespace FVN_REGISTER.Shared.Services.Users
         {
             try
             {
-                var refreshToken = await _tokenStorage.GetRefreshTokenAsync();
-                var request = new LogoutRequestDto { RefreshToken = refreshToken };
+                var request = new LogoutRequestDto();
                 await _authHttp.PostAsync<object>("api/auth/logout", request, ct);
                 _logger.LogInformation("Logout API called");
             }
