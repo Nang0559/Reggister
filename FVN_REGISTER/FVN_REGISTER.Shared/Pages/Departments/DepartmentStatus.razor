@@ -1,18 +1,11 @@
-﻿@* FVN_REGISTER.Shared/Pages/DepartmentStatus.razor *@
 @page "/leave/department-status"
 @attribute [Authorize]
-@using FVN_REGISTER.Contract.Dtos
 @using FVN_REGISTER.Contract.Dtos.Depts
-@using FVN_REGISTER.Contract.Utils
 @using FVN_REGISTER.Shared.Services.Departments
 @using FVN_REGISTER.Shared.Services.Users
-@using FVN_REGISTER.Shared.Utils.Helpers
-@using FVN_REGISTER.Core.Logging
-@using FVN_REGISTER.Shared.Utils
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IDisposable
-
 
 @inject IDepartmentStatusClientService DeptStatusService
 @inject ICurrentUserClientService CurrentUser
@@ -20,405 +13,97 @@
 
 <PageTitle>Trạng thái hiện diện phòng ban</PageTitle>
 
-@* ═══════════════════════════════════════════════════════
-   TOOLBAR
-═══════════════════════════════════════════════════════ *@
-<MudStack Row="true" AlignItems="AlignItems.Center"
-          Justify="Justify.SpaceBetween" Class="mb-4" Wrap="Wrap.Wrap">
-
-    <MudStack Spacing="0">
-        <MudText Typo="Typo.h5">Trạng thái hiện diện</MudText>
-        <MudText Typo="Typo.caption" Class="mud-text-secondary">
-            Ngày: @_selectedDate.ToString("dd/MM/yyyy")
-            — Cập nhật: @_loadedAt?.ToString("HH:mm:ss")
-        </MudText>
-    </MudStack>
-
-    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center">
-        <MudDatePicker @bind-Date="_datePicker"
-                       Label="Chọn ngày"
-                       Variant="Variant.Outlined"
-                       Margin="Margin.Dense"
-                       DateFormat="dd/MM/yyyy"
-                       MaxDate="DateTime.Today"
-                       Style="width:160px"
-                       PickerVariant="PickerVariant.Dialog" />
-
-        <MudButton Variant="Variant.Filled"
-                   Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.Refresh"
-                   OnClick="LoadAsync"
-                   Disabled="_loading">
-            @(_loading ? "Đang tải..." : "Làm mới")
-        </MudButton>
-    </MudStack>
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4" Wrap="Wrap.Wrap">
+    <div><MudText Typo="Typo.h5">Trạng thái hiện diện</MudText><MudText Typo="Typo.caption">Ngày: @_selectedDate.ToString("dd/MM/yyyy") — Cập nhật: @_loadedAt?.ToString("HH:mm:ss")</MudText></div>
+    <MudStack Row="true" Spacing="2"><MudDatePicker @bind-Date="_datePicker" Label="Chọn ngày" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" MaxDate="DateTime.Today" /><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync" Disabled="_loading">Làm mới</MudButton></MudStack>
 </MudStack>
 
-@* ═══════════════════════════════════════════════════════
-   LOADING
-═══════════════════════════════════════════════════════ *@
-@if (_loading)
-{
-    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-4" />
-}
+@if (_loading) { <MudProgressLinear Indeterminate="true" Class="mb-4" /> }
 
-@* ═══════════════════════════════════════════════════════
-   CHẾ ĐỘ XEM TOÀN CÔNG TY (Admin)
-═══════════════════════════════════════════════════════ *@
 @if (_isAdmin && _allDepts != null)
 {
-    @* Summary cards *@
     <MudGrid Class="mb-4">
-        <MudItem xs="6" sm="3">
-            <MudPaper Class="pa-3 mud-theme-default" Elevation="2">
-                <MudText Typo="Typo.caption">Tổng nhân viên</MudText>
-                <MudText Typo="Typo.h5"><b>@_allDepts.Sum(d => d.TotalEmployees)</b></MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="6" sm="3">
-            <MudPaper Class="pa-3" Elevation="2"
-                      Style="background:#E8F5E9">
-                <MudText Typo="Typo.caption">Có mặt</MudText>
-                <MudText Typo="Typo.h5" Style="color:#4CAF50">
-                    <b>@_allDepts.Sum(d => d.PresentCount)</b>
-                </MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="6" sm="3">
-            <MudPaper Class="pa-3" Elevation="2"
-                      Style="background:#E3F2FD">
-                <MudText Typo="Typo.caption">Nghỉ phép</MudText>
-                <MudText Typo="Typo.h5" Style="color:#2196F3">
-                    <b>@_allDepts.Sum(d => d.OnLeaveCount)</b>
-                </MudText>
-            </MudPaper>
-        </MudItem>
-        <MudItem xs="6" sm="3">
-            <MudPaper Class="pa-3" Elevation="2"
-                      Style="background:#FFEBEE">
-                <MudText Typo="Typo.caption">Vắng không lý do</MudText>
-                <MudText Typo="Typo.h5" Style="color:#F44336">
-                    <b>@_allDepts.Sum(d => d.AbsentNoReasonCount)</b>
-                </MudText>
-            </MudPaper>
-        </MudItem>
+        <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Tổng nhân viên</MudText><MudText Typo="Typo.h5"><b>@_allDepts.Sum(x => x.TotalEmployees)</b></MudText></MudPaper></MudItem>
+        <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Có mặt</MudText><MudText Typo="Typo.h5" Color="Color.Success"><b>@_allDepts.Sum(x => x.PresentCount)</b></MudText></MudPaper></MudItem>
+        <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Nghỉ phép</MudText><MudText Typo="Typo.h5" Color="Color.Info"><b>@_allDepts.Sum(x => x.OnLeaveCount)</b></MudText></MudPaper></MudItem>
+        <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Vắng KLR</MudText><MudText Typo="Typo.h5" Color="Color.Error"><b>@_allDepts.Sum(x => x.AbsentNoReasonCount)</b></MudText></MudPaper></MudItem>
     </MudGrid>
-
-    @* Bảng tổng hợp theo phòng — bấm vào xem chi tiết *@
-    <MudTable Items="_allDepts"
-              Hover="true"
-              Breakpoint="Breakpoint.Sm"
-              Dense="true"
-              Elevation="2"
-              OnRowClick="OnDeptRowClick"
-              T="DepartmentStatusDto"
-              RowClass="cursor-pointer">
-        <HeaderContent>
-            <MudTh>Phòng ban</MudTh>
-            <MudTh Style="text-align:center">Tổng NV</MudTh>
-            <MudTh Style="text-align:center">Có mặt</MudTh>
-            <MudTh Style="text-align:center">Nghỉ phép</MudTh>
-            <MudTh Style="text-align:center">Vắng KLR</MudTh>
-            <MudTh Style="text-align:center">Tỷ lệ vắng</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>
-                <MudText Typo="Typo.body2"><b>@context.DeptName</b></MudText>
-                <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                    @context.DeptCode
-                </MudText>
-            </MudTd>
-            <MudTd Style="text-align:center">@context.TotalEmployees</MudTd>
-            <MudTd Style="text-align:center">
-                <MudChip T="string" Size="Size.Small"
-                         Style="background:#4CAF50;color:white">
-                    @context.PresentCount
-                </MudChip>
-            </MudTd>
-            <MudTd Style="text-align:center">
-                <MudChip T="string" Size="Size.Small"
-                         Style="background:#2196F3;color:white">
-                    @context.OnLeaveCount
-                </MudChip>
-            </MudTd>
-            <MudTd Style="text-align:center">
-                <MudChip T="string" Size="Size.Small"
-                         Style="@($"background:{(context.AbsentNoReasonCount > 0 ? "#F44336" : "#9E9E9E")};color:white")">
-                    @context.AbsentNoReasonCount
-                </MudChip>
-            </MudTd>
-            <MudTd Style="text-align:center">
-                <MudProgressLinear Value="@context.AbsenceRate"
-                                   Max="100"
-                                   Color="@(context.AbsenceRate >= 20
-                                                                          ? Color.Error
-                                                                          : context.AbsenceRate >= 10
-                                                                              ? Color.Warning
-                                                                              : Color.Success)"
-                               Rounded="true"
-                               Size="Size.Medium" />
-            <MudText Typo="Typo.caption">@context.AbsenceRate%</MudText>
-        </MudTd>
-    </RowTemplate>
-</MudTable>
+    <MudTable Items="_allDepts" T="DepartmentStatusDto" Hover="true" Dense="true" OnRowClick="OnDeptRowClick">
+        <HeaderContent><MudTh>Phòng ban</MudTh><MudTh>Tổng NV</MudTh><MudTh>Có mặt</MudTh><MudTh>Nghỉ phép</MudTh><MudTh>Vắng KLR</MudTh><MudTh>Tỷ lệ vắng</MudTh></HeaderContent>
+        <RowTemplate><MudTd><b>@context.DeptName</b><MudText Typo="Typo.caption">@context.DeptCode</MudText></MudTd><MudTd>@context.TotalEmployees</MudTd><MudTd>@context.PresentCount</MudTd><MudTd>@context.OnLeaveCount</MudTd><MudTd>@context.AbsentNoReasonCount</MudTd><MudTd>@context.AbsenceRate.ToString("N1")%</MudTd></RowTemplate>
+        <NoRecordsContent><MudText Class="pa-6">Không có dữ liệu.</MudText></NoRecordsContent>
+    </MudTable>
 }
 
-@* ═══════════════════════════════════════════════════════
-   CHI TIẾT MỘT PHÒNG BAN
-═══════════════════════════════════════════════════════ *@
 @if (_deptDetail != null)
 {
-    <MudDivider Class="my-4" />
-
-    <MudText Typo="Typo.h6" Class="mb-3">
-        Chi tiết: @_deptDetail.DeptName (@_deptDetail.DeptCode)
-    </MudText>
-
-    @* Search + filter *@
-    <MudStack Row="true" Spacing="2" Class="mb-3" Wrap="Wrap.Wrap">
-        <MudTextField @bind-Value="_searchText"
-                      Placeholder="Tìm theo tên / mã NV..."
-                      Adornment="Adornment.Start"
-                      AdornmentIcon="@Icons.Material.Filled.Search"
-                      Variant="Variant.Outlined"
-                      Margin="Margin.Dense"
-                      Immediate="true"
-                      Style="min-width:220px" />
-
-        <MudSelect T="string" @bind-Value="_filterStatus"
-                   Label="Trạng thái"
-                   Variant="Variant.Outlined"
-                   Margin="Margin.Dense"
-                   Style="min-width:160px">
-            <MudSelectItem Value="@("")">Tất cả</MudSelectItem>
-            <MudSelectItem Value="@EmployeeStatusConst.Present">Có mặt</MudSelectItem>
-            <MudSelectItem Value="@EmployeeStatusConst.OnLeave">Nghỉ phép</MudSelectItem>
-            <MudSelectItem Value="@EmployeeStatusConst.Absent">Vắng KLR</MudSelectItem>
-        </MudSelect>
-    </MudStack>
-
-    <MudTable Items="FilteredRows"
-              Hover="true"
-              Dense="true"
-              Breakpoint="Breakpoint.Xs"
-              Elevation="2"
-              T="EmployeeStatusRow">
-        <HeaderContent>
-            <MudTh>Nhân viên</MudTh>
-            <MudTh Style="text-align:center">Trạng thái</MudTh>
-            <MudTh>Giờ vào</MudTh>
-            <MudTh>Loại nghỉ</MudTh>
-            <MudTh>Lý do</MudTh>
-        </HeaderContent>
-        <RowTemplate>
-            <MudTd>
-                <MudStack Spacing="0">
-                    <MudText Typo="Typo.body2"><b>@context.EmployeeName</b></MudText>
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                        @context.EmployeeCode
-                    </MudText>
-                </MudStack>
-            </MudTd>
-            <MudTd Style="text-align:center">
-                <MudChip T="string"
-                         Size="Size.Small"
-                         Style="@($"background:{context.StatusColor};color:white")">
-                    @context.StatusDisplay
-                </MudChip>
-            </MudTd>
-            <MudTd>
-                @if (!string.IsNullOrEmpty(context.CheckInText))
-                {
-                    <MudText Typo="Typo.body2">🕐 @context.CheckInText</MudText>
-                }
-                else
-                {
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">—</MudText>
-                }
-            </MudTd>
-            <MudTd>
-                @if (!string.IsNullOrEmpty(context.LeaveTypeName))
-                {
-                    <MudText Typo="Typo.body2">@context.LeaveTypeName</MudText>
-                }
-                else
-                {
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">—</MudText>
-                }
-            </MudTd>
-            <MudTd>
-                @if (!string.IsNullOrEmpty(context.LeaveReason))
-                {
-                    <MudTooltip Text="@context.LeaveReason">
-                        <MudText Typo="Typo.body2"
-                                 Style="max-width:200px;overflow:hidden;
-                                                text-overflow:ellipsis;white-space:nowrap">
-                            @context.LeaveReason
-                        </MudText>
-                    </MudTooltip>
-                }
-                else
-                {
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary">—</MudText>
-                }
-            </MudTd>
-        </RowTemplate>
-        <NoRecordsContent>
-            <MudText Typo="Typo.body2" Class="pa-4 mud-text-secondary">
-                Không có dữ liệu phù hợp.
-            </MudText>
-        </NoRecordsContent>
+    <MudDivider Class="my-4" /><MudText Typo="Typo.h6" Class="mb-3">Chi tiết: @_deptDetail.DeptName (@_deptDetail.DeptCode)</MudText>
+    <MudStack Row="true" Spacing="2" Class="mb-3"><MudTextField @bind-Value="_searchText" Placeholder="Tìm tên / mã NV..." Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" /><MudSelect T="string" @bind-Value="_filterStatus" Label="Trạng thái" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true"><MudSelectItem Value="PRESENT">Có mặt</MudSelectItem><MudSelectItem Value="ON_LEAVE">Nghỉ phép</MudSelectItem><MudSelectItem Value="ABSENT">Vắng KLR</MudSelectItem></MudSelect></MudStack>
+    <MudTable Items="FilteredRows" T="EmployeeStatusRow" Dense="true" Hover="true">
+        <HeaderContent><MudTh>Nhân viên</MudTh><MudTh>Trạng thái</MudTh><MudTh>Giờ vào</MudTh><MudTh>Loại nghỉ</MudTh><MudTh>Lý do</MudTh></HeaderContent>
+        <RowTemplate><MudTd><b>@context.EmployeeName</b><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd><MudTd><MudChip T="string" Size="Size.Small" Style="@($"background:{context.StatusColor};color:white")">@context.StatusDisplay</MudChip></MudTd><MudTd>@(context.CheckInText ?? "—")</MudTd><MudTd>@(context.LeaveTypeName ?? "—")</MudTd><MudTd>@(context.LeaveReason ?? "—")</MudTd></RowTemplate>
     </MudTable>
 }
 
 @code {
     private bool _loading;
-    private bool _isAdmin;      // SuperAdmin + Admin (1,2)
-    private bool _isApprover;   // Approver + Editor (3,4) — xem phòng mình
-
+    private bool _isAdmin;
     private DateTime? _datePicker = DateTime.Today;
     private DateTime _selectedDate = DateTime.Today;
     private DateTime? _loadedAt;
-
     private List<DepartmentStatusDto>? _allDepts;
     private DepartmentStatusDto? _deptDetail;
-
     private string _searchText = string.Empty;
-    private string _filterStatus = string.Empty;
+    private string? _filterStatus;
+    private readonly CancellationTokenSource _cts = new();
 
-    private CancellationTokenSource _cts = new();
-
-    private IEnumerable<EmployeeStatusRow> FilteredRows =>
-        _deptDetail?.Employees
-            .Where(r =>
-                (string.IsNullOrWhiteSpace(_filterStatus) || r.Status == _filterStatus) &&
-                (string.IsNullOrWhiteSpace(_searchText) ||
-                 r.EmployeeName.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ||
-                 r.EmployeeCode.Contains(_searchText, StringComparison.OrdinalIgnoreCase)))
-        ?? Enumerable.Empty<EmployeeStatusRow>();
+    private IEnumerable<EmployeeStatusRow> FilteredRows => _deptDetail?.Employees.Where(x =>
+        (string.IsNullOrWhiteSpace(_filterStatus) || x.Status == _filterStatus) &&
+        (string.IsNullOrWhiteSpace(_searchText) || x.EmployeeName.Contains(_searchText, StringComparison.OrdinalIgnoreCase) || x.EmployeeCode.Contains(_searchText, StringComparison.OrdinalIgnoreCase))) ?? Enumerable.Empty<EmployeeStatusRow>();
 
     protected override async Task OnInitializedAsync()
     {
-        // ✅ Dùng extension method đã có
-        var perm = CurrentUser.PermissionCode;
-        _isAdmin = perm.IsAdmin();       // 1, 2
-        _isApprover = perm.IsApprover()     // 1, 2, 3, 4
-                   && !perm.IsAdmin();      // nhưng không phải Admin
-
-        Logger.LogDebugIf(Debug,
-            "[DepartmentStatus] perm={Perm} isAdmin={A} isApprover={AP}",
-            perm, _isAdmin, _isApprover);
-
+        _isAdmin = CurrentUser.PermissionCode is 1 or 2;
         await LoadAsync();
     }
 
     private async Task LoadAsync()
     {
-        _loading = true;
-        _selectedDate = _datePicker ?? DateTime.Today;
-
+        _loading = true; _selectedDate = _datePicker ?? DateTime.Today;
         try
         {
             if (_isAdmin)
             {
-                // ── Admin: load tổng hợp toàn công ty ──────────────
-                var result = await DeptStatusService
-                    .GetAllAsync(_selectedDate, _cts.Token);
-
-                if (result.IsSuccess)
-                {
-                    _allDepts = result.Data;
-                    _deptDetail = null;
-
-                    Logger.LogDebugIf(Debug,
-                        "[DepartmentStatus] Loaded {Count} depts",
-                        _allDepts?.Count ?? 0);
-                }
-                else
-                {
-                    Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
-                }
+                var result = await DeptStatusService.GetAllAsync(_selectedDate, _cts.Token);
+                if (result.IsSuccess) { _allDepts = result.Data; _deptDetail = null; } else Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
             }
             else
             {
-                // ── Approver/Editor/User: load thẳng phòng của mình ─
-                var deptCode = CurrentUser.User?.DeptCode;
-
-                if (string.IsNullOrEmpty(deptCode))
-                {
-                    Snackbar.Add("Không xác định được phòng ban.", Severity.Warning);
-                    return;
-                }
-
-                Logger.LogDebugIf(Debug,
-                    "[DepartmentStatus] Loading dept={Dept}", deptCode);
-
-                await LoadDeptDetailAsync(deptCode);
+                var dept = CurrentUser.User?.DeptCode;
+                if (string.IsNullOrWhiteSpace(dept)) { Snackbar.Add("Không xác định được phòng ban.", Severity.Warning); return; }
+                await LoadDeptDetailAsync(dept);
             }
-
             _loadedAt = DateTime.Now;
         }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[DepartmentStatus] LoadAsync error");
-            Snackbar.Add("Lỗi tải dữ liệu.", Severity.Error);
-        }
-        finally
-        {
-            _loading = false;
-        }
+        catch (Exception ex) { Logger.LogError(ex, "[DepartmentStatus] Load error"); Snackbar.Add("Lỗi tải dữ liệu.", Severity.Error); }
+        finally { _loading = false; }
     }
 
     private async Task OnDeptRowClick(TableRowClickEventArgs<DepartmentStatusDto> args)
     {
-        if (args.Item == null) return;
-        await LoadDeptDetailAsync(args.Item.DeptCode);
+        if (args.Item != null) await LoadDeptDetailAsync(args.Item.DeptCode);
     }
 
     private async Task LoadDeptDetailAsync(string deptCode)
     {
         _loading = true;
-        _deptDetail = null; // ✅ Reset trước để trigger re-render
-
         try
         {
-            Logger.LogDebugIf(Debug,
-                "[DepartmentStatus] LoadDetail dept={Dept} date={Date}",
-                deptCode, _selectedDate.ToString("dd/MM/yyyy"));
-
-            var result = await DeptStatusService
-                .GetByDeptAsync(deptCode, _selectedDate, _cts.Token);
-
-            if (result.IsSuccess && result.Data != null)
-            {
-                _deptDetail = result.Data;
-
-                Logger.LogDebugIf(Debug,
-                    "[DepartmentStatus] Detail loaded: {Count} employees | present={P} onLeave={L}",
-                    _deptDetail.Employees?.Count ?? 0,
-                    _deptDetail.PresentCount,
-                    _deptDetail.OnLeaveCount);
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "Lỗi tải chi tiết phòng ban.", Severity.Error);
-            }
+            var result = await DeptStatusService.GetByDeptAsync(deptCode, _selectedDate, _cts.Token);
+            if (result.IsSuccess) _deptDetail = result.Data; else Snackbar.Add(result.Message ?? "Lỗi tải chi tiết.", Severity.Error);
         }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[DepartmentStatus] LoadDeptDetail error dept={Dept}", deptCode);
-            Snackbar.Add("Lỗi hệ thống.", Severity.Error);
-        }
-        finally
-        {
-            _loading = false;
-            StateHasChanged(); // ✅ Đảm bảo UI cập nhật
-        }
+        finally { _loading = false; }
     }
 
-    public void Dispose()
-    {
-        _cts.Cancel();
-        _cts.Dispose();
-    }
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 }
