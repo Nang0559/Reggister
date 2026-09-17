@@ -18,7 +18,6 @@ using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Interfaces.Jobs;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Application.Policies;
-using FVN_REGISTER.Application.Services.Statics;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Maps;
 using FVN_REGISTER.Contract.ViewModels.Leaves;
@@ -63,19 +62,11 @@ var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<stri
     "https://localhost:7135"
 };
 
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy("FccCorsPolicy", policy => policy
-        .WithOrigins(allowedOrigins)
-        .AllowAnyMethod()
-        .AllowAnyHeader()
-        .AllowCredentials());
-});
-
+builder.Services.AddCors(options => options.AddPolicy("FccCorsPolicy", policy => policy
+    .WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader().AllowCredentials()));
 builder.Services.AddMemoryCache();
 builder.Services.Configure<AuthDebugOptions>(builder.Configuration.GetSection("AuthDebug"));
-builder.Services.Configure<AppOptions>(opts =>
-    opts.SiteUrl = builder.Configuration["SiteUrl"] ?? "https://localhost:7264");
+builder.Services.Configure<AppOptions>(opts => opts.SiteUrl = builder.Configuration["SiteUrl"] ?? "https://localhost:7264");
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<FVNWEBAPPContext>(options => options.UseSqlServer(connectionString));
@@ -86,7 +77,7 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddSignalR();
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
-// Common
+// Common / master data
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<INetworkService, NetworkService>();
 builder.Services.AddScoped<IFileService, FileService>();
@@ -124,6 +115,7 @@ builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IUserLogService, UserLogService>();
+builder.Services.AddScoped<IEmployeeUserResolver, EmployeeUserResolver>();
 builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<ISessionTerminationNotifier, SignalRSessionTerminationNotifier>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
@@ -137,6 +129,7 @@ builder.Services.AddScoped<IHistoryHandler, OTHistoryHandler>();
 builder.Services.AddScoped<IHistoryDispatcher, HistoryDispatcher>();
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
+builder.Services.AddScoped<IApprovalNotificationService, ApprovalNotificationService>();
 
 // Approval: provider -> engine -> workflow -> cross-module inbox/resolver
 builder.Services.AddScoped<LeaveApprovalProvider>();
@@ -181,21 +174,13 @@ builder.Services.AddAuthentication(options =>
     {
         OnMessageReceived = context =>
         {
-            var path = context.HttpContext.Request.Path;
-            if (!path.StartsWithSegments("/hubs")) return Task.CompletedTask;
-            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            var debug = context.HttpContext.RequestServices.GetRequiredService<IOptionsMonitor<AuthDebugOptions>>().CurrentValue.Enabled;
+            if (!context.HttpContext.Request.Path.StartsWithSegments("/hubs")) return Task.CompletedTask;
             var qs = context.Request.Query["access_token"].ToString();
             if (!string.IsNullOrEmpty(qs)) { context.Token = qs; return Task.CompletedTask; }
             var header = context.Request.Headers["Authorization"].ToString();
-            if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
-            {
-                context.Token = header["Bearer ".Length..].Trim();
-                logger.LogDebugIf(debug, "[JWT] Hub token from Authorization header | Len={Len}", context.Token.Length);
-            }
+            if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) context.Token = header["Bearer ".Length..].Trim();
             return Task.CompletedTask;
         },
-        OnTokenValidated = context => Task.CompletedTask,
         OnAuthenticationFailed = context =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
