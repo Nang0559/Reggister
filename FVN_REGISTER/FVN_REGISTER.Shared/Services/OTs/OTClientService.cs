@@ -1,5 +1,6 @@
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Approvals;
+using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Dtos.OTTypeDtos;
 using FVN_REGISTER.Contract.Requests.OT;
@@ -51,6 +52,9 @@ public sealed class OTClientService : IOTClientService
 
     public Task<ApiResponse<List<OTTypeDto>>> GetActiveOTTypesAsync(CancellationToken ct = default)
         => _http.GetAsync<List<OTTypeDto>>("api/OTType/active", ct);
+
+    public Task<ApiResponse<List<ApprovalStepSnapshotDto>>> PreviewApprovalAsync(OTRequestUpsertDto request, CancellationToken ct = default)
+        => _http.PostAsync<List<ApprovalStepSnapshotDto>>($"{Base}/preview", request, ct);
 
     public Task<ApiResponse<OTBalanceDto>> GetOTBalanceAsync(int year, CancellationToken ct = default)
         => _http.GetAsync<OTBalanceDto>($"{Base}/balance/{year}", ct);
