@@ -115,6 +115,9 @@ builder.Services.AddScoped<IDepartmentStatusService, DepartmentStatusService>();
 builder.Services.AddScoped<IOTTypeManagementService, OTTypeManagementService>();
 builder.Services.AddScoped<IOTEscalationService, OTEscalationService>();
 
+// Trip / Business travel
+builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Trips.ITripService, FVN_REGISTER.Infrastructure.Services.Trips.TripService>();
+
 // Auth / users
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -139,12 +142,16 @@ builder.Services.AddScoped<IApprovalNotificationService, ApprovalNotificationSer
 // Approval: provider -> engine -> workflow -> cross-module inbox/resolver
 builder.Services.AddScoped<LeaveApprovalProvider>();
 builder.Services.AddScoped<OTApprovalProvider>();
+builder.Services.AddScoped<TripApprovalProvider>();
 builder.Services.AddScoped<IApprovalProvider<LeaveRequestSubject>>(sp => sp.GetRequiredService<LeaveApprovalProvider>());
 builder.Services.AddScoped<IApprovalProvider<OTRequestSubject>>(sp => sp.GetRequiredService<OTApprovalProvider>());
+builder.Services.AddScoped<IApprovalProvider<FVN_REGISTER.Application.Models.Subjects.TripRequestSubject>>(sp => sp.GetRequiredService<TripApprovalProvider>());
 builder.Services.AddScoped<IApprovalEngine<LeaveRequestSubject>, ApprovalEngine<LeaveRequestSubject>>();
 builder.Services.AddScoped<IApprovalEngine<OTRequestSubject>, ApprovalEngine<OTRequestSubject>>();
+builder.Services.AddScoped<IApprovalEngine<FVN_REGISTER.Application.Models.Subjects.TripRequestSubject>, ApprovalEngine<FVN_REGISTER.Application.Models.Subjects.TripRequestSubject>>();
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<LeaveRequestSubject>, ApprovalWorkflowOrchestrator<LeaveRequestSubject>>();
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<OTRequestSubject>, ApprovalWorkflowOrchestrator<OTRequestSubject>>();
+builder.Services.AddScoped<IApprovalWorkflowOrchestrator<FVN_REGISTER.Application.Models.Subjects.TripRequestSubject>, ApprovalWorkflowOrchestrator<FVN_REGISTER.Application.Models.Subjects.TripRequestSubject>>();
 builder.Services.AddScoped<IApprovalEngineResolver, ApprovalEngineResolver>();
 builder.Services.AddScoped<IApprovalGroupingPolicy, ApprovalGroupingPolicy>();
 builder.Services.AddScoped<IApprovalInboxService, ApprovalInboxService>();
