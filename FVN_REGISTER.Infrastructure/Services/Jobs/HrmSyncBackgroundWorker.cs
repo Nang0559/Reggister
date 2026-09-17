@@ -4,19 +4,12 @@ using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Infrastructure.Services.Jobs
 {
-    /// <summary>
-    /// Daily HRM synchronization pipeline:
-    /// Source Reader -> Staging Importer -> Staging -> Sync Job -> Domain tables.
-    /// The worker only orchestrates Application ports; all I/O remains in Infrastructure adapters.
-    /// </summary>
     public sealed class HrmSyncBackgroundWorker : BackgroundService
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<HrmSyncBackgroundWorker> _logger;
 
-        public HrmSyncBackgroundWorker(
-            IServiceScopeFactory scopeFactory,
-            ILogger<HrmSyncBackgroundWorker> logger)
+        public HrmSyncBackgroundWorker(IServiceScopeFactory scopeFactory, ILogger<HrmSyncBackgroundWorker> logger)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
@@ -26,9 +19,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
         {
             while (!stoppingToken.IsCancellationRequested)
             {
-                var delay = DelayUntilNextRun(DateTime.Now, hour: 2, minute: 0);
-                await Task.Delay(delay, stoppingToken);
-
+                await Task.Delay(DelayUntilNextRun(DateTime.Now, 2, 0), stoppingToken);
                 if (stoppingToken.IsCancellationRequested) break;
 
                 try
@@ -65,13 +56,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
             {
                 ct.ThrowIfCancellationRequested();
                 var result = await job.RunAsync(ct);
-                _logger.LogInformation(
-                    "[HRM-SYNC] {EntityType}: Success={Success} Message={Message}",
-                    job.EntityType, result.Success, result.Message);
+                _logger.LogInformation("[HRM-SYNC] {EntityType}: Success={Success} Summary={Summary}", job.EntityType, result.Success, result.Summary);
 
                 if (!result.Success && job.IsBlockingDependency)
-                    throw new InvalidOperationException(
-                        $"HRM sync job '{job.EntityType}' failed and is a blocking dependency: {result.Message}");
+                    throw new InvalidOperationException($"HRM sync job '{job.EntityType}' failed and is a blocking dependency: {result.Summary}");
             }
         }
 
