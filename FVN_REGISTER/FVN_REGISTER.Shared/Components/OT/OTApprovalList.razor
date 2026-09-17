@@ -3,6 +3,7 @@
 
 @inject IApprovalListClientService ApprovalService
 @inject ISnackbar Snackbar
+@inject IDialogService DialogService
 
 <MudStack>
     @if (IsLoading)
@@ -29,16 +30,10 @@
                             <MudText Typo="Typo.caption" Color="Color.Secondary">@item.EmployeeCode — @item.DeptName</MudText>
                         </MudItem>
                         <MudItem xs="12" sm="3">
-                            <MudText Typo="Typo.body2">
-                                @if (item.FromDate.HasValue) { @item.FromDate.Value.ToString("dd/MM/yyyy") }
-                            </MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                @item.TotalUnits.ToString("N1") @item.UnitDisplay
-                            </MudText>
+                            <MudText Typo="Typo.body2">@(item.FromDate?.ToString("dd/MM/yyyy") ?? "—")</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@item.TotalUnits.ToString("N1") @item.UnitDisplay</MudText>
                         </MudItem>
-                        <MudItem xs="12" sm="3">
-                            <OTApprovalProgressBar Steps="@item.ApprovalSteps" />
-                        </MudItem>
+                        <MudItem xs="12" sm="3"><OTApprovalProgressBar Steps="@item.ApprovalSteps" /></MudItem>
                         <MudItem xs="12" sm="2" Class="d-flex justify-end">
                             <MudStack Row="true" Spacing="1">
                                 <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Visibility" OnClick="@(() => OnViewDetail.InvokeAsync(item.RequestId))">Chi tiết</MudButton>
@@ -70,10 +65,8 @@
         _busy = true;
         try
         {
-            var result = await ApprovalService.ApproveAsync(
-                new List<int> { item.RequestId }, item.Kind,
-                Level > 0 ? Level : item.CurrentApprovalLevel,
-                null);
+            var result = await ApprovalService.ApproveAsync(new List<int> { item.RequestId }, item.Kind,
+                Level > 0 ? Level : item.CurrentApprovalLevel, null);
             Snackbar.Add(result.IsSuccess ? "Đã duyệt thành công." : result.Message ?? "Duyệt thất bại.",
                 result.IsSuccess ? Severity.Success : Severity.Error);
             if (result.IsSuccess) await OnRefresh.InvokeAsync();
@@ -83,17 +76,13 @@
 
     private async Task Reject(PendingApprovalItemDto item)
     {
-        var confirmed = await DialogService.ShowMessageBoxAsync(
-            "Từ chối đơn", "Bạn có chắc muốn từ chối đơn này?", yesText: "Từ chối", cancelText: "Hủy");
+        var confirmed = await DialogService.ShowMessageBoxAsync("Từ chối đơn", "Bạn có chắc muốn từ chối đơn này?", yesText: "Từ chối", cancelText: "Hủy");
         if (confirmed != true) return;
-
         _busy = true;
         try
         {
-            var result = await ApprovalService.RejectAsync(
-                new List<int> { item.RequestId }, item.Kind,
-                Level > 0 ? Level : item.CurrentApprovalLevel,
-                "Từ chối từ danh sách OT");
+            var result = await ApprovalService.RejectAsync(new List<int> { item.RequestId }, item.Kind,
+                Level > 0 ? Level : item.CurrentApprovalLevel, "Từ chối từ danh sách OT");
             Snackbar.Add(result.IsSuccess ? "Đã từ chối." : result.Message ?? "Từ chối thất bại.",
                 result.IsSuccess ? Severity.Success : Severity.Error);
             if (result.IsSuccess) await OnRefresh.InvokeAsync();
