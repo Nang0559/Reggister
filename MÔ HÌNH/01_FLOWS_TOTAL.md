@@ -6,19 +6,24 @@ Tài liệu này là bản Markdown chuẩn hóa của `FolowsTotal.txt`, mô t�
 
 ## 2. Sơ đồ tổng thể
 
-```text
-[D1] HRM Master Data Sync
-          │
-          ▼
-[D2] Leave / OT Request + Approval
-          │
-          ├──────────────► [D4] Notification Pipeline
-          │
-          ▼
-[D3] OT Attendance Reconciliation
-          │
-          ▼
-[D5] Dashboard Aggregation
+```mermaid
+flowchart TB
+    HRM[(HRM Master Data / Attendance)]
+    D1[D1 HRM Master Data Sync]
+    D2[D2 Leave / OT Request + Approval]
+    D3[D3 OT Attendance Reconciliation]
+    D4[D4 Notification Pipeline]
+    D5[D5 Dashboard Aggregation]
+    UI[Blazor UI]
+
+    HRM --> D1
+    D1 --> D2
+    D2 --> D3
+    D2 --> D4
+    D2 --> D5
+    D3 --> D5
+    D4 --> UI
+    D5 --> UI
 ```
 
 - **D1** cung cấp Employee / Department / Position / LeaveType / OTType sạch cho hệ thống.
@@ -27,48 +32,59 @@ Tài liệu này là bản Markdown chuẩn hóa của `FolowsTotal.txt`, mô t�
 - **D4** phát notification cho approver/employee khi workflow có thay đổi.
 - **D5** tổng hợp widgets và pending approvals để hiển thị dashboard.
 
-## 3. Nguyên tắc kiến trúc xuyên suốt
+## 3. Sơ đồ deployment logic
 
-### 3.1 Dependency direction
+```mermaid
+flowchart LR
+    subgraph Presentation
+        Browser[Browser / Blazor]
+    end
+    subgraph APIHost[API Host]
+        Controllers[API Controllers]
+        Hubs[SignalR Hub]
+    end
+    subgraph Application
+        Orchestrators[Orchestrators]
+        Workflows[Approval Dispatcher / Handlers]
+        Contracts[Interfaces / DTO / Subject]
+        Policies[Policies / Factories]
+    end
+    subgraph Infrastructure
+        Services[Service Implementations]
+        Workers[Background Workers]
+        Persistence[EF Core / UoW / SQL]
+    end
+    subgraph External
+        HRM[(HRM DB)]
+    end
 
-```text
-Contract / Application
-        ▲
-        │ contracts, interfaces, DTOs
-Infrastructure
+    Browser --> Controllers
+    Browser <--> Hubs
+    Controllers --> Orchestrators
+    Orchestrators --> Workflows
+    Orchestrators --> Policies
+    Orchestrators --> Contracts
+    Orchestrators --> Services
+    Services --> Persistence
+    Workers --> Services
+    Workers --> HRM
+    Persistence --> HRM
+    Services --> Hubs
 ```
-
-Chiều phụ thuộc được kiểm soát: Application không phụ thuộc implementation của Infrastructure.
-
-### 3.2 Không truy cập DbContext từ Orchestrator
-
-Orchestrator chỉ điều phối use-case thông qua application interfaces/service contracts. EF Core, SQL, SignalR và các implementation cụ thể thuộc Infrastructure.
-
-### 3.3 Entity không được lộ qua Application contract
-
-Application/Interfaces trao đổi bằng DTO, response và Subject; EF entity không trở thành contract cho UI/client.
-
-### 3.4 Open/Closed cho module
-
-Thêm module mới (ví dụ Trip) phải ưu tiên:
-
-1. thêm implementation mới;
-2. đăng ký DI;
-3. không sửa orchestrator/worker/dispatcher dùng chung.
 
 ## 4. D1 — HRM Master Data Sync
 
-```text
-HRM DB
-  ├─ Trigger ───────────────┐
-  └─ IHrmStagingImporter ───┤
-                            ▼
-                 F03StagingXxx
-                            ▼
-                 HrmSyncJob<TStaging,TEntity>
-                            ▼
-                 F03Department / Position /
-                 LeaveType / OTType / Employee
+```mermaid
+flowchart LR
+    HRM[(HRM DB)] --> T[Trigger]
+    HRM --> I[IHrmStagingImporter]
+    T --> S[F03StagingXxx]
+    I --> W[HrmImportWorker]
+    W --> S
+    S --> J[HrmSyncJob<TStaging,TEntity>]
+    J --> E[(F03 Department / Position / Employee / LeaveType / OTType)]
+    DP[Department + Position] --> J
+    J --> E
 ```
 
 Các domain sync dùng chung staging và generic sync job. Thứ tự dependency bắt buộc: **Department và Position trước Employee**.
@@ -77,18 +93,38 @@ Các domain sync dùng chung staging và generic sync job. Thứ tự dependency
 
 ### Request flow
 
-```text
-CreateAsync
-  → ValidateAsync
-  → PersistNewRequestAsync
-  → BuildContext
-  → ApprovalWorkflow.InitApprovalAsync
-  → MarkPendingAsync
+```mermaid
+sequenceDiagram
+    participant UI as Blazor UI
+    participant O as Leave/OT Orchestrator
+    participant R as Request Service
+    participant W as Approval Workflow
+    participant DB as Persistence
+
+    UI->>O: Create / Submit
+    O->>R: Validate + Persist request
+    R->>W: Build approval context
+    W->>DB: Persist approval snapshot
+    W-->>O: Pending state
+    O-->>UI: Request response
 ```
 
 `LeaveOrchestrator` và `OTOrchestrator` là domain facade mỏng trên generic request/approval infrastructure.
 
 ### Approval workflow — 5 bước bất biến
+
+```mermaid
+stateDiagram-v2
+    [*] --> Preview
+    Preview --> Submit
+    Submit --> Pending
+    Pending --> Approved
+    Pending --> Rejected
+    Approved --> ReadBack
+    Rejected --> ReadBack
+    ReadBack --> Reminder
+    Reminder --> [*]
+```
 
 | Bước | Ý nghĩa | Persistence |
 |---|---|---|
@@ -100,60 +136,111 @@ CreateAsync
 
 ### Approve đa module
 
-```text
-ApprovalsController
-  → IApprovalWorkflowDispatcher
-  → IApprovalActionHandler
-  → ApprovalWorkflowOrchestrator<TSubject>
+```mermaid
+flowchart LR
+    C[ApprovalsController] --> D[IApprovalWorkflowDispatcher]
+    D --> H[IApprovalActionHandler]
+    H --> O[ApprovalWorkflowOrchestrator<TSubject>]
+    O --> N[IApprovalNotificationService]
 ```
 
 Một endpoint chung xử lý nhiều module; dispatcher/handler route tới workflow tương ứng.
 
 ## 6. D3 — OT Attendance Reconciliation
 
-```text
-HRM Attendance
-   → usp_SyncAttendanceStaging
-   → F03AttendanceStaging
-   → IOTAttendanceStagingService
-   → IOTAttendanceReconciliationService
-   → usp_SyncOTActualHours
-   → F03OTEmployee.ActualHours
+```mermaid
+flowchart LR
+    HRM[(HRM Attendance)] --> P1[usp_SyncAttendanceStaging]
+    P1 --> S[F03AttendanceStaging]
+    S --> ST[IOTAttendanceStagingService]
+    ST --> RC[IOTAttendanceReconciliationService]
+    RC --> P2[usp_SyncOTActualHours]
+    P2 --> OT[(F03OTEmployee ActualHours / Start / End)]
+    ADMIN[Admin command] --> RC
 ```
 
 Đây là **command-with-result** vì reconciliation có ghi dữ liệu. UI chỉ thực hiện khi Admin chủ động bấm "Đối chiếu"; không gọi trong lifecycle render/timer.
 
 ## 7. D4 — Notification Pipeline
 
-```text
-ApprovalWorkflowOrchestrator
-  → IApprovalNotificationService
-  → ApprovalNotificationService
-  → INotificationFactory
-  → INotificationService
-  → F03AppNotification + SignalR
-  → NotificationClientService
+```mermaid
+flowchart LR
+    W[ApprovalWorkflowOrchestrator] --> A[IApprovalNotificationService]
+    A --> S[ApprovalNotificationService]
+    S --> F[INotificationFactory]
+    F --> N[Notification DTO]
+    S --> NS[INotificationService]
+    NS --> DB[(F03AppNotification)]
+    NS --> HUB[SignalR NotificationHub]
+    HUB --> C[NotificationClientService]
+    C --> UI[Blazor UI]
 ```
 
 Factory chỉ chứa logic dựng notification; persistence và realtime thuộc Infrastructure.
 
 ## 8. D5 — Dashboard Aggregation
 
-```text
-DashboardPage
-  → DashboardClientService
-  → DashboardController
-  → DashboardOrchestrator
-       ├─ Pending approvals
-       ├─ IModuleDashboardProvider (collection)
-       └─ DashboardWidgetPolicy
-  → DashboardResponse
-  → Blazor UI
+```mermaid
+flowchart LR
+    UI[Dashboard Page] --> CS[DashboardClientService]
+    CS --> API[DashboardController]
+    API --> O[DashboardOrchestrator]
+    O --> AP[Pending approvals]
+    O --> P[IModuleDashboardProvider collection]
+    P --> L[Leave Provider]
+    P --> OT[OT Provider]
+    P --> T[Trip Provider - future]
+    O --> POL[DashboardWidgetPolicy]
+    AP --> R[DashboardResponse]
+    L --> R
+    OT --> R
+    T --> R
+    POL --> R
+    R --> UI
 ```
 
 Mỗi module đóng góp dữ liệu qua `IModuleDashboardProvider`; thêm module không yêu cầu sửa `DashboardOrchestrator`.
 
-## 9. Namespace convention
+## 9. Nguyên tắc kiến trúc xuyên suốt
+
+### 9.1 Dependency direction
+
+```mermaid
+flowchart BT
+    Core[Core / Domain]
+    Contract[Contract / DTO]
+    Application[Application / Interfaces]
+    Infrastructure[Infrastructure / Implementations]
+
+    Core --> Contract
+    Contract --> Application
+    Application --> Infrastructure
+```
+
+Chiều phụ thuộc được kiểm soát: Application không phụ thuộc implementation của Infrastructure.
+
+### 9.2 Không truy cập DbContext từ Orchestrator
+
+Orchestrator chỉ điều phối use-case thông qua application interfaces/service contracts. EF Core, SQL, SignalR và các implementation cụ thể thuộc Infrastructure.
+
+### 9.3 Entity không được lộ qua Application contract
+
+Application/Interfaces trao đổi bằng DTO, response và Subject; EF entity không trở thành contract cho UI/client.
+
+### 9.4 Open/Closed cho module
+
+```mermaid
+flowchart LR
+    O[Shared Orchestrator] --> C[IModule contract]
+    C --> A[Leave implementation]
+    C --> B[OT implementation]
+    C --> X[Trip implementation]
+    X --> DI[DI registration]
+```
+
+Thêm module mới phải ưu tiên thêm implementation + DI, không sửa orchestrator/worker/dispatcher dùng chung.
+
+## 10. Namespace convention
 
 | Thành phần | Vị trí |
 |---|---|
@@ -171,7 +258,7 @@ Mỗi module đóng góp dữ liệu qua `IModuleDashboardProvider`; thêm modul
 | Controller | `API/Controllers` |
 | Blazor | `Shared/Pages`, `Shared/Services/{Domain}` |
 
-## 10. Các điểm còn tồn đọng
+## 11. Các điểm còn tồn đọng
 
 - Xác nhận logic `HrmSyncResult.Success`.
 - Xác nhận `IHrmStagingEntity.Id` dùng làm tiebreaker.
