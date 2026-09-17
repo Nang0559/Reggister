@@ -1,11 +1,9 @@
-﻿using AutoMapper;
-using FVN_REGISTER.Contract.Interfaces.Companies;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Contract.Interfaces.Users;
-using FVN_REGISTER.Contract.ViewModels.Departments;
+using AutoMapper;
+using FVN_REGISTER.Application.Interfaces.Companies;
+using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Contract.Dtos.Depts;
 using FVN_REGISTER.Core.Configurations;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -16,10 +14,10 @@ namespace FVN_REGISTER.API.Controllers
     [Route("api/admin/departments")]
     public class DepartmentManagementController : BaseApiController
     {
-        private readonly IDepartmentService _departmentService;
+        private readonly IDepartmentManagementService _departmentService;
 
         public DepartmentManagementController(
-            IDepartmentService departmentService,
+            IDepartmentManagementService departmentService,
             ICurrentUserService currentUser,
             IUserLogService userLog,
             IMapper mapper,
@@ -31,82 +29,95 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         // GET api/admin/departments/tree
+        // The current application contract exposes a flat master-data DTO.
+        // Keep the route for compatibility until a dedicated hierarchy DTO is introduced.
         [HttpGet("tree")]
         public async Task<IActionResult> GetTree(CancellationToken ct)
         {
-            var data = await _departmentService.GetTreeAsync(ct);
+            var result = await _departmentService.GetAllAsync(ct);
             await LogActionAsync("Xem cây quản lý Bộ phận");
-            return Ok(ApiResponse<DepartmentTreeViewModel>.Ok(data));
+            return HandleResult(result);
         }
 
         // GET api/admin/departments?isActive=true
         [HttpGet]
-        public async Task<IActionResult> GetList([FromQuery] bool? isActive, CancellationToken ct)
+        public async Task<IActionResult> GetList(
+            [FromQuery] bool? isActive,
+            CancellationToken ct)
         {
-            var data = await _departmentService.GetListAsync(isActive, ct);
-            return Ok(ApiResponse<List<DepartmentItemViewModel>>.Ok(data));
+            var result = await _departmentService.GetFilteredAsync(isActive, ct);
+            return HandleResult(result);
         }
 
         // GET api/admin/departments/5
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id, CancellationToken ct)
         {
-            var data = await _departmentService.GetByIdAsync(id, ct);
-            if (data == null)
-                return NotFound(ApiResponse<object>.Fail("Không tìm thấy bộ phận."));
-
-            return Ok(ApiResponse<DepartmentEditViewModel>.Ok(data));
+            var result = await _departmentService.GetByIdAsync(id, ct);
+            return HandleResult(result);
         }
 
         // POST api/admin/departments
         [HttpPost]
-        public async Task<ActionResult> Create([FromBody] DepartmentEditViewModel model, CancellationToken ct)
+        public async Task<IActionResult> Create(
+            [FromBody] DepartmentUpsertDto model,
+            CancellationToken ct)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
 
-            var result = await _departmentService.CreateAsync(model, UserInfo?.UserId ?? -1, ct);
+            if (UserInfo == null)
+                return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+
+            var result = await _departmentService.CreateAsync(
+                model, UserInfo.UserId, ct);
 
             await LogActionAsync($"Thêm bộ phận: {model.DeptCode}");
-
             return HandleResult(result);
         }
 
-        // PUT api/admin/departments
-        [HttpPut]
-        public async Task<ActionResult> Update([FromBody] DepartmentEditViewModel model, CancellationToken ct)
+        // PUT api/admin/departments/5
+        [HttpPut("{id:int}")]
+        public async Task<IActionResult> Update(
+            int id,
+            [FromBody] DepartmentUpsertDto model,
+            CancellationToken ct)
         {
             if (!ModelState.IsValid)
                 return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
 
-            var result = await _departmentService.UpdateAsync(model, UserInfo?.UserId ?? -1, ct);
+            if (UserInfo == null)
+                return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+
+            model.Id = id;
+            var result = await _departmentService.UpdateAsync(
+                model, UserInfo.UserId, ct);
 
             await LogActionAsync($"Cập nhật bộ phận: {model.DeptCode}");
-
             return HandleResult(result);
         }
 
         // PATCH api/admin/departments/5/toggle
         [HttpPatch("{id:int}/toggle")]
-        public async Task<ActionResult> Toggle(int id, CancellationToken ct)
+        public async Task<IActionResult> Toggle(int id, CancellationToken ct)
         {
-            var result = await _departmentService.ToggleAsync(id, UserInfo?.UserId ?? -1, ct);
+            if (UserInfo == null)
+                return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+
+            var result = await _departmentService.ToggleActiveAsync(
+                id, UserInfo.UserId, ct);
 
             await LogActionAsync($"Đổi trạng thái bộ phận ID: {id}");
-
             return HandleResult(result);
         }
 
         // DELETE api/admin/departments/5
         [HttpDelete("{id:int}")]
-        public async Task<ActionResult> Delete(int id, CancellationToken ct)
+        public async Task<IActionResult> Delete(int id, CancellationToken ct)
         {
             var result = await _departmentService.DeleteAsync(id, ct);
-
             await LogActionAsync($"Xóa bộ phận ID: {id}");
-
             return HandleResult(result);
         }
-    
     }
 }
