@@ -1,11 +1,10 @@
-﻿using AutoMapper;
-using FVN_REGISTER.Contract.Interfaces.Approvals;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Contract.Interfaces.Users;
-using FVN_REGISTER.Contract.ViewModels.Approvals;
+using AutoMapper;
+using FVN_REGISTER.Application.Interfaces.Approvals;
+using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Core.Configurations;
+using FVN_REGISTER.Core.Enums;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -38,15 +37,15 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(result);
         }
 
-        // ← THÊM requestType vào query string
         [HttpGet("list")]
         public async Task<IActionResult> GetList(
             [FromQuery] string? deptCode,
             [FromQuery] int? level,
-            [FromQuery] string? requestType,  // ← THÊM
+            [FromQuery] RequestModule? requestType,
             CancellationToken ct)
         {
-            var result = await _approverService.GetListAsync(deptCode, level, requestType, ct);
+            var result = await _approverService.GetListAsync(
+                deptCode, level, requestType, ct);
             return HandleResult(result);
         }
 
@@ -68,7 +67,7 @@ namespace FVN_REGISTER.API.Controllers
 
         [HttpPost]
         public async Task<IActionResult> Create(
-            [FromBody] ApproverViewModel model,
+            [FromBody] ApproverDto model,
             CancellationToken ct)
         {
             if (!ModelState.IsValid)
@@ -79,14 +78,14 @@ namespace FVN_REGISTER.API.Controllers
 
             var result = await _approverService.CreateAsync(model, UserInfo.UserId, ct);
             await LogActionAsync(
-                $"Thêm Approver: {model.ApproveLevelName} - Dept: {model.ApproveForDeptCode}");
+                $"Thêm Approver: {model.ApproverName} - Dept: {model.ApproveForDeptCode}");
             return HandleResult(result);
         }
 
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(
             int id,
-            [FromBody] ApproverViewModel model,
+            [FromBody] ApproverDto model,
             CancellationToken ct)
         {
             if (!ModelState.IsValid)
