@@ -10,20 +10,20 @@ namespace FVN_REGISTER.Shared.Services.Leaves
             bool? isActive = null,
             CancellationToken ct = default);
 
-        Task<ApiResponse<LeaveTypeDto>> CreateAsync(
+        Task<ApiResponse<object>> CreateAsync(
             LeaveTypeUpsertDto model,
             CancellationToken ct = default);
 
-        Task<ApiResponse<LeaveTypeDto>> UpdateAsync(
+        Task<ApiResponse<object>> UpdateAsync(
             int id,
             LeaveTypeUpsertDto model,
             CancellationToken ct = default);
 
-        Task<ApiResponse<bool>> ToggleAsync(
+        Task<ApiResponse<object>> ToggleAsync(
             int id,
             CancellationToken ct = default);
 
-        Task<ApiResponse<bool>> DeleteAsync(
+        Task<ApiResponse<object>> DeleteAsync(
             int id,
             CancellationToken ct = default);
     }
