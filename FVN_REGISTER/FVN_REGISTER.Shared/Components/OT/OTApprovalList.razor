@@ -1,9 +1,7 @@
-﻿@using FVN_REGISTER.Contract.ViewModels
-@using FVN_REGISTER.Contract.ViewModels.OT
-@using FVN_REGISTER.Contract.Utils
-@using FVN_REGISTER.Shared.Services.OTs
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Shared.Services.Approvals
 
-@inject IOTClientService OTClient
+@inject IApprovalListClientService ApprovalService
 @inject ISnackbar Snackbar
 
 <MudStack>
@@ -14,433 +12,92 @@
     else if (!Items.Any())
     {
         <MudPaper Elevation="0" Class="pa-8 text-center">
-            <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline"
-                     Color="Color.Success" Size="Size.Large" Class="mb-2" />
+            <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success" Size="Size.Large" Class="mb-2" />
             <MudText Color="Color.Secondary">Không có đơn OT nào chờ duyệt.</MudText>
         </MudPaper>
     }
     else
     {
-        @* ── Bulk action bar ── *@
-        @if (_selected.Any())
-        {
-            <MudPaper Elevation="1" Class="pa-2 mb-2"
-                      Style="background: var(--mud-palette-primary-lighten); border-radius: 8px;">
-                <MudStack Row="true" AlignItems="AlignItems.Center"
-                          Justify="Justify.SpaceBetween">
-                    <MudText Typo="Typo.body2">
-                        Đã chọn <strong>@_selected.Count</strong> đơn
-                    </MudText>
-                    <MudStack Row="true" Spacing="1">
-                        <MudButton Variant="Variant.Filled" Color="Color.Success"
-                                   Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.CheckCircle"
-                                   Disabled="_isBusy"
-                                   OnClick="BulkApprove">
-                            Duyệt tất cả
-                        </MudButton>
-                        <MudButton Variant="Variant.Filled" Color="Color.Error"
-                                   Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.Cancel"
-                                   Disabled="_isBusy"
-                                   OnClick="() => _showBulkRejectDialog = true">
-                            Từ chối tất cả
-                        </MudButton>
-                    </MudStack>
-                </MudStack>
-            </MudPaper>
-        }
-
-        @* ── Danh sách đơn ── *@
         @foreach (var item in Items)
         {
-            var step = GetCurrentStep(item);
-            var level = Level > 0 ? Level : (step?.Level ?? 3);
-
-            <MudCard Elevation="2" Class="mb-2"
-                     Style="@($"border-left: 4px solid {OTStatus.GetColor(item.RequestStatus)};")">
-                <MudCardContent Class="pb-1">
+            var level = Level > 0 ? Level : item.CurrentApprovalLevel;
+            <MudCard Elevation="2" Class="mb-2">
+                <MudCardContent>
                     <MudGrid AlignItems="AlignItems.Center">
-
-                        @* Checkbox *@
-                        <MudItem xs="1">
-                            <MudCheckBox T="bool"
-                                         Value="@_selected.Contains(item.Id)"
-                                         ValueChanged="@(v => ToggleSelect(item.Id, v))" />
+                        <MudItem xs="12" sm="4">
+                            <MudText Typo="Typo.body2"><strong>@item.EmployeeName</strong></MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@item.EmployeeCode — @item.DeptName</MudText>
                         </MudItem>
-
-                        @* Nhân viên *@
-                        <MudItem xs="11" sm="4">
-                            <MudStack Row="true" AlignItems="AlignItems.Center"
-                                      Spacing="2">
-                                <MudAvatar Color="Color.Primary" Size="Size.Small">
-                                    @(item.EmployeeName?.FirstOrDefault().ToString()
-                                                                ?? "?")
-                        </MudAvatar>
-                        <div>
-                            <MudText Typo="Typo.body2">
-                                <strong>@item.EmployeeName</strong>
-                            </MudText>
-                            <MudText Typo="Typo.caption"
-                                     Color="Color.Secondary">
-                                @item.EmployeeCode — @item.DeptName
-                            </MudText>
-                        </div>
-                    </MudStack>
-                </MudItem>
-
-                        @* Ngày & giờ OT *@
                         <MudItem xs="12" sm="3">
-                            <MudStack Spacing="0">
-                                <MudText Typo="Typo.body2">
-                                    <MudIcon Icon="@Icons.Material.Filled.CalendarToday"
-                                             Size="Size.Small" Class="mr-1" />
-                                    <strong>
-                                        @item.OTDate.ToString("dd/MM/yyyy")
-                                    </strong>
-                                </MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    @* Dùng computed property từ ViewModel *@
-                                    @item.StartTimeText – @item.EndTimeText
-                                    (@item.TotalOTHours.ToString("0.##") h)
-                                </MudText>
-                        @if (item.EmployeeCount > 1)
+                            <MudText Typo="Typo.body2">
+                                @if (item.FromDate.HasValue) { @item.FromDate.Value.ToString("dd/MM/yyyy") }
+                            </MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @item.TotalUnits.ToString("N1") @item.UnitDisplay
+                            </MudText>
+                        </MudItem>
+                        <MudItem xs="12" sm="3">
+                            <OTApprovalProgressBar Steps="@item.ApprovalSteps" />
+                        </MudItem>
+                        <MudItem xs="12" sm="2" Class="d-flex justify-end">
+                            <MudStack Row="true" Spacing="1">
+                                <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Visibility" OnClick="@(() => OnViewDetail.InvokeAsync(item.RequestId))">Chi tiết</MudButton>
+                                @if (item.CanApprove)
                                 {
-                                    <MudText Typo="Typo.caption" Color="Color.Info">
-                                        <MudIcon Icon="@Icons.Material.Filled.Group"
-                                                 Size="Size.Small" Class="mr-1" />
-                                        @item.EmployeeCount nhân viên
-                                    </MudText>
+                                    <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" Disabled="_busy" OnClick="@(() => Approve(item))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" Disabled="_busy" OnClick="@(() => Reject(item))" />
                                 }
                             </MudStack>
                         </MudItem>
-
-                        @* Loại OT *@
-                        <MudItem xs="12" sm="2">
-                            <MudStack Spacing="0">
-                                <MudText Typo="Typo.caption"
-                                         Color="Color.Secondary">Loại OT</MudText>
-                                <MudChip T="string" Size="Size.Small"
-                                         Color="@GetOTTypeColor(item.OTTypeCode)"
-                                         Label="true">
-                                    @item.OTTypeName
-                                </MudChip>
-                            </MudStack>
-                        </MudItem>
-
-                        @* Progress 4 bước duyệt *@
-                        <MudItem xs="12" sm="2">
-                            <OTApprovalProgressBar Steps="@item.ApprovalSteps" />
-                        </MudItem>
                     </MudGrid>
-
-                    @* Lý do OT *@
-                    @if (!string.IsNullOrWhiteSpace(item.Reason))
-                    {
-                        <MudText Typo="Typo.caption" Color="Color.Secondary"
-                                 Class="mt-1 ml-1">
-                            <MudIcon Icon="@Icons.Material.Filled.Notes"
-                                     Size="Size.Small" Class="mr-1" />
-                            @item.Reason
-                        </MudText>
-                    }
-
-                    @* Người đang chờ duyệt (step hiện tại) *@
-                    @if (step != null)
-                    {
-                        <MudText Typo="Typo.caption" Color="Color.Warning"
-                                 Class="mt-1 ml-1">
-                            <MudIcon Icon="@Icons.Material.Filled.HourglassEmpty"
-                                     Size="Size.Small" Class="mr-1" />
-                            Chờ: @step.LevelName
-                            @if (!string.IsNullOrEmpty(step.ApproverName))
-                            {
-                                <span> — @step.ApproverName</span>
-                            }
-                        </MudText>
-                    }
                 </MudCardContent>
-
-                <MudCardActions>
-                    <MudButton Size="Size.Small"
-                               StartIcon="@Icons.Material.Filled.Visibility"
-                               OnClick="@(() => OnViewDetail.InvokeAsync(item.Id))">
-                        Chi tiết
-                    </MudButton>
-                    <MudSpacer />
-                    <MudButton Variant="Variant.Filled" Color="Color.Success"
-                               Size="Size.Small"
-                               StartIcon="@Icons.Material.Filled.CheckCircle"
-                               Disabled="_isBusy"
-                               OnClick="@(() => HandleApprove(item.Id, level))">
-                        Duyệt
-                    </MudButton>
-                    <MudButton Variant="Variant.Outlined" Color="Color.Error"
-                               Size="Size.Small"
-                               StartIcon="@Icons.Material.Filled.Cancel"
-                               Class="ml-2"
-                               Disabled="_isBusy"
-                               OnClick="@(() => OpenRejectDialog(item.Id, level))">
-                        Từ chối
-                    </MudButton>
-                </MudCardActions>
             </MudCard>
         }
     }
 </MudStack>
 
-@* ── Dialog nhập lý do từ chối (single) ── *@
-<MudDialog @bind-IsVisible="_showRejectDialog" Options="_dialogOptions">
-    <TitleContent>
-        <MudText Typo="Typo.h6">
-            <MudIcon Icon="@Icons.Material.Filled.Cancel"
-                     Color="Color.Error" Class="mr-2" />
-            Lý do từ chối
-        </MudText>
-    </TitleContent>
-    <DialogContent>
-        <MudTextField @bind-Value="_rejectComment"
-                      Label="Nhập lý do từ chối (*)"
-                      Lines="3"
-                      Variant="Variant.Outlined"
-                      Required="true"
-                      Counter="200"
-                      MaxLength="200" />
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="@(() => _showRejectDialog = false)">Hủy</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Error"
-                   Disabled="@(string.IsNullOrWhiteSpace(_rejectComment) || _isBusy)"
-                   OnClick="ConfirmReject">
-            Xác nhận từ chối
-        </MudButton>
-    </DialogActions>
-</MudDialog>
-
-@* ── Dialog nhập lý do từ chối (bulk) ── *@
-<MudDialog @bind-IsVisible="_showBulkRejectDialog" Options="_dialogOptions">
-    <TitleContent>
-        <MudText Typo="Typo.h6">
-            <MudIcon Icon="@Icons.Material.Filled.Cancel"
-                     Color="Color.Error" Class="mr-2" />
-            Từ chối @_selected.Count đơn
-        </MudText>
-    </TitleContent>
-    <DialogContent>
-        <MudTextField @bind-Value="_rejectComment"
-                      Label="Lý do từ chối (*)"
-                      Lines="3"
-                      Variant="Variant.Outlined"
-                      Required="true"
-                      Counter="200"
-                      MaxLength="200" />
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="@(() => _showBulkRejectDialog = false)">Hủy</MudButton>
-        <MudButton Variant="Variant.Filled" Color="Color.Error"
-                   Disabled="@(string.IsNullOrWhiteSpace(_rejectComment) || _isBusy)"
-                   OnClick="BulkReject">
-            Xác nhận từ chối tất cả
-        </MudButton>
-    </DialogActions>
-</MudDialog>
-
 @code {
-    // ── Parameters ─────────────────────────────────────────────
-    [Parameter] public List<OTRequestViewModel> Items { get; set; } = new();
-
-    /// <summary>
-    /// Cấp duyệt cố định của trang (0 = tự động từ trạng thái đơn).
-    /// </summary>
-    [Parameter] public int Level { get; set; } = 0;
-
+    [Parameter] public List<PendingApprovalItemDto> Items { get; set; } = new();
+    [Parameter] public int Level { get; set; }
     [Parameter] public bool IsLoading { get; set; }
-
-    /// <summary>Callback sau khi duyệt/từ chối thành công → parent reload.</summary>
     [Parameter] public EventCallback OnRefresh { get; set; }
-
-    /// <summary>Callback mở dialog chi tiết.</summary>
     [Parameter] public EventCallback<int> OnViewDetail { get; set; }
 
-    // ── State ───────────────────────────────────────────────────
-    private HashSet<int> _selected = new();
-    private bool _isBusy;
+    private bool _busy;
 
-    // Reject dialog
-    private bool _showRejectDialog;
-    private bool _showBulkRejectDialog;
-    private string _rejectComment = string.Empty;
-    private int _pendingRejectId;
-    private int _pendingRejectLevel;
-
-    private static readonly DialogOptions _dialogOptions = new()
+    private async Task Approve(PendingApprovalItemDto item)
     {
-        MaxWidth = MaxWidth.Small,
-        FullWidth = true,
-        CloseOnEscapeKey = true
-    };
-
-    // ── Selection ───────────────────────────────────────────────
-    private void ToggleSelect(int id, bool selected)
-    {
-        if (selected) _selected.Add(id);
-        else _selected.Remove(id);
-    }
-
-    // ── Approve (single) ────────────────────────────────────────
-    private async Task HandleApprove(int id, int level)
-    {
-        _isBusy = true;
+        _busy = true;
         try
         {
-            var req = new OTApproveRequest
-            {
-                Ids = new List<int> { id },
-                Level = level,
-                Comment = null
-            };
-            var result = await OTClient.ApproveAsync(req);
-
-            if (result.IsSuccess)
-            {
-                Snackbar.Add("Đã duyệt thành công.", Severity.Success);
-                await OnRefresh.InvokeAsync();
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "Duyệt thất bại.", Severity.Error);
-            }
+            var result = await ApprovalService.ApproveAsync(
+                new List<int> { item.RequestId }, item.Kind,
+                Level > 0 ? Level : item.CurrentApprovalLevel,
+                null);
+            Snackbar.Add(result.IsSuccess ? "Đã duyệt thành công." : result.Message ?? "Duyệt thất bại.",
+                result.IsSuccess ? Severity.Success : Severity.Error);
+            if (result.IsSuccess) await OnRefresh.InvokeAsync();
         }
-        finally { _isBusy = false; }
+        finally { _busy = false; }
     }
 
-    // ── Reject (single — mở dialog) ─────────────────────────────
-    private void OpenRejectDialog(int id, int level)
+    private async Task Reject(PendingApprovalItemDto item)
     {
-        _pendingRejectId = id;
-        _pendingRejectLevel = level;
-        _rejectComment = string.Empty;
-        _showRejectDialog = true;
-    }
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Từ chối đơn", "Bạn có chắc muốn từ chối đơn này?", yesText: "Từ chối", cancelText: "Hủy");
+        if (confirmed != true) return;
 
-    private async Task ConfirmReject()
-    {
-        if (string.IsNullOrWhiteSpace(_rejectComment)) return;
-
-        _isBusy = true;
+        _busy = true;
         try
         {
-            var req = new OTApproveRequest
-            {
-                Ids = new List<int> { _pendingRejectId },
-                Level = _pendingRejectLevel,
-                Comment = _rejectComment
-            };
-            var result = await OTClient.RejectAsync(req);
-
-            _showRejectDialog = false;
-
-            if (result.IsSuccess)
-            {
-                Snackbar.Add("Đã từ chối.", Severity.Info);
-                await OnRefresh.InvokeAsync();
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "Từ chối thất bại.", Severity.Error);
-            }
+            var result = await ApprovalService.RejectAsync(
+                new List<int> { item.RequestId }, item.Kind,
+                Level > 0 ? Level : item.CurrentApprovalLevel,
+                "Từ chối từ danh sách OT");
+            Snackbar.Add(result.IsSuccess ? "Đã từ chối." : result.Message ?? "Từ chối thất bại.",
+                result.IsSuccess ? Severity.Success : Severity.Error);
+            if (result.IsSuccess) await OnRefresh.InvokeAsync();
         }
-        finally { _isBusy = false; }
+        finally { _busy = false; }
     }
-
-    // ── Bulk Approve ────────────────────────────────────────────
-    private async Task BulkApprove()
-    {
-        if (!_selected.Any()) return;
-        _isBusy = true;
-        try
-        {
-            // Nhóm các id theo level để gửi 1 request mỗi level
-            var groups = _selected
-                .Select(id => Items.FirstOrDefault(x => x.Id == id))
-                .Where(x => x != null)
-                .GroupBy(x => Level > 0 ? Level : GetCurrentLevel(x!));
-
-            foreach (var g in groups)
-            {
-                var req = new OTApproveRequest
-                {
-                    Ids = g.Select(x => x!.Id).ToList(),
-                    Level = g.Key,
-                    Comment = null
-                };
-                var result = await OTClient.ApproveAsync(req);
-                if (!result.IsSuccess)
-                    Snackbar.Add(result.Message ?? "Lỗi khi duyệt.", Severity.Warning);
-            }
-
-            Snackbar.Add($"Đã duyệt {_selected.Count} đơn.", Severity.Success);
-            _selected.Clear();
-            await OnRefresh.InvokeAsync();
-        }
-        finally { _isBusy = false; }
-    }
-
-    // ── Bulk Reject ─────────────────────────────────────────────
-    private async Task BulkReject()
-    {
-        if (!_selected.Any() || string.IsNullOrWhiteSpace(_rejectComment)) return;
-        _isBusy = true;
-        try
-        {
-            var groups = _selected
-                .Select(id => Items.FirstOrDefault(x => x.Id == id))
-                .Where(x => x != null)
-                .GroupBy(x => Level > 0 ? Level : GetCurrentLevel(x!));
-
-            foreach (var g in groups)
-            {
-                var req = new OTApproveRequest
-                {
-                    Ids = g.Select(x => x!.Id).ToList(),
-                    Level = g.Key,
-                    Comment = _rejectComment
-                };
-                var result = await OTClient.RejectAsync(req);
-                if (!result.IsSuccess)
-                    Snackbar.Add(result.Message ?? "Lỗi khi từ chối.", Severity.Warning);
-            }
-
-            Snackbar.Add($"Đã từ chối {_selected.Count} đơn.", Severity.Info);
-            _selected.Clear();
-            _showBulkRejectDialog = false;
-            _rejectComment = string.Empty;
-            await OnRefresh.InvokeAsync();
-        }
-        finally { _isBusy = false; }
-    }
-
-    // ── Helpers ─────────────────────────────────────────────────
-
-    /// <summary>
-    /// Lấy bước đang chờ duyệt (IsApproved == null && IsRequired && !IsSkipped).
-    /// </summary>
-    private static OTApprovalStep? GetCurrentStep(OTRequestViewModel item) =>
-        item.ApprovalSteps.FirstOrDefault(s =>
-            s.IsRequired && !s.IsSkipped && s.IsApproved == null);
-
-    /// <summary>
-    /// Suy ra level từ ApprovalSteps thay vì đọc trực tiếp Level3IsApprove/...
-    /// </summary>
-    private static int GetCurrentLevel(OTRequestViewModel item) =>
-        GetCurrentStep(item)?.Level ?? 3;
-
-    private static Color GetOTTypeColor(string typeCode) => typeCode switch
-    {
-        "WEEKDAY" => Color.Default,
-        "WEEKEND" => Color.Warning,
-        "HOLIDAY" => Color.Error,
-        "TET" => Color.Secondary,
-        _ => Color.Info
-    };
 }
