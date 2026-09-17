@@ -1,6 +1,6 @@
-﻿using FVN_REGISTER.Contract.Dtos.Approvals;
+﻿using FVN_REGISTER.Application.Configuration;
+using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Responses;
-using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Shared.Handlers;
 using Microsoft.Extensions.Logging;

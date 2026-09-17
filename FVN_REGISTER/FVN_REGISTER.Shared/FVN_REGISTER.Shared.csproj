@@ -7,6 +7,11 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Utils\Extentions\OTSyncSituationExtensions.cs" />
+    <Compile Remove="Utils\Extentions\OTUnconfirmedUIExtensions.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
     <SupportedPlatform Include="browser" />
   </ItemGroup>
 
@@ -21,6 +26,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\Application\FVN_REGISTER.Application.csproj" />
     <ProjectReference Include="..\..\FVN_REGISTER.Models\FVN_REGISTER.Contract.csproj" />
   </ItemGroup>
 

@@ -1,5 +1,6 @@
 ﻿using FVN_REGISTER.Contract.Dtos.Reports;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
+
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Shared.Handlers;
 
 
