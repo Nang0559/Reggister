@@ -37,6 +37,18 @@ The Shared UI does not depend on legacy ViewModels or persistence entities.
 - `FVN_REGISTER.Shared/Dialogs/LeaveDetailDialog.razor`
 - `FVN_REGISTER.API/Controllers/LeaveTypeManagementController.cs`
 
+## OT query-service cleanup
+
+`FVN_REGISTER.Infrastructure/Services/OT/OTQueryService.cs` was aligned with the current `BaseRequestQueryService` contract instead of preserving the removed legacy override surface. The service now:
+
+- uses the current generic ordering `summary / balance / detail / request DTO`;
+- supplies the shared approval-history, attachment and current-user dependencies;
+- implements `Module => RequestModule.Overtime`;
+- leaves approval-step and attachment enrichment to the shared base service;
+- keeps OT-specific EF projections and validation in Infrastructure.
+
+The obsolete OT-specific `AttachDetails`, `AttachApprovalSteps`, and `GetApprovalStepsAsync` overrides were removed.
+
 ## New/current contracts
 
 - `FVN_REGISTER.Models/Dtos/Leaves/LeaveCalendarEventDto.cs`
