@@ -1,10 +1,9 @@
-﻿using AutoMapper;
-using FVN_REGISTER.Contract.Interfaces.Leaves;
-using FVN_REGISTER.Contract.Interfaces.Users;
+using AutoMapper;
+using FVN_REGISTER.Application.Interfaces.Leaves;
+using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.ViewModels.Leaves;
 using FVN_REGISTER.Core.Configurations;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -29,8 +28,6 @@ namespace FVN_REGISTER.API.Controllers
             _leaveTypeService = leaveTypeService;
         }
 
-        // ── GET: api/LeaveType ───────────────────────────────────
-        /// <summary>Lấy toàn bộ hình thức nghỉ (phẳng, đã sort).</summary>
         [HttpGet]
         public async Task<IActionResult> GetAll(CancellationToken ct)
         {
@@ -38,8 +35,6 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(result);
         }
 
-        // ── GET: api/LeaveType/filter ────────────────────────────
-        /// <summary>Lấy danh sách với bộ lọc tuỳ chọn.</summary>
         [HttpGet("filter")]
         public async Task<IActionResult> GetFiltered(
             [FromQuery] bool? tinhPhep,
@@ -50,7 +45,6 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(result);
         }
 
-        // ── POST: api/LeaveType ──────────────────────────────────
         [HttpPost]
         public async Task<IActionResult> Create(
             [FromBody] LeaveTypeUpsertModel model,
@@ -58,7 +52,6 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-
             if (UserInfo == null)
                 return Unauthorized();
 
@@ -67,7 +60,6 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(result);
         }
 
-        // ── PUT: api/LeaveType/{id} ──────────────────────────────
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(
             int id,
@@ -76,7 +68,6 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (!ModelState.IsValid)
                 return BadRequest(ModelState);
-
             if (UserInfo == null)
                 return Unauthorized();
 
@@ -86,7 +77,6 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(result);
         }
 
-        // ── PATCH: api/LeaveType/{id}/toggle ────────────────────
         [HttpPatch("{id:int}/toggle")]
         public async Task<IActionResult> Toggle(int id, CancellationToken ct)
         {
@@ -98,7 +88,6 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(result);
         }
 
-        // ── DELETE: api/LeaveType/{id} ───────────────────────────
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id, CancellationToken ct)
         {
