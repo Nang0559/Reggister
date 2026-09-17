@@ -54,7 +54,7 @@ JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 var builder = WebApplication.CreateBuilder(args);
 
 // =========================================================
-// 1. CORS — SignalR bắt buộc WithOrigins + AllowCredentials
+// 1. CORS
 // =========================================================
 var allowedOrigins = builder.Configuration
     .GetSection("AllowedOrigins")
@@ -96,7 +96,6 @@ var connectionString = builder.Configuration.GetConnectionString("DefaultConnect
 builder.Services.AddDbContext<FVNWEBAPPContext>(options =>
     options.UseSqlServer(connectionString));
 
-// UnitOfWork is an Application port implemented by Infrastructure.
 builder.Services.AddScoped<DbContext>(sp =>
     sp.GetRequiredService<FVNWEBAPPContext>());
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -114,6 +113,10 @@ builder.Services.AddScoped<INetworkService, NetworkService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IWorkingDayService, WorkingDayService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
+
+// Common / master-data lookups
+builder.Services.AddScoped<IDepartmentLookupService, DepartmentLookupService>();
+builder.Services.AddScoped<IDepartmentManagementService, DepartmentManagementService>();
 
 // Dashboard/Application orchestration
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
@@ -149,7 +152,6 @@ builder.Services.AddScoped<IApproverManagementService, ApproverManagementService
 
 // Employees / company master data
 builder.Services.AddScoped<IEmployeeManagementService, EmployeeManagementService>();
-builder.Services.AddScoped<IDepartmentService, DepartmentManagementService>();
 builder.Services.AddScoped<ILeaveTypeManagementService, LeaveTypeManagementService>();
 
 // History
@@ -164,6 +166,7 @@ builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
 // Approval pipeline
+builder.Services.AddScoped<IApprovalInboxService, ApprovalInboxService>();
 builder.Services.AddScoped<LeaveApprovalProvider>();
 builder.Services.AddScoped<IApprovalEngine<LeaveRequestSubject>, ApprovalEngine<LeaveRequestSubject>>();
 builder.Services.AddScoped<IApprovalListDataSource<LeaveRequestViewModel>, LeaveApprovalListDataSource>();
