@@ -1,4 +1,4 @@
-﻿using FVN_REGISTER.Application.Interfaces.Approvals;
+using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Statics;
 using FVN_REGISTER.Application.Policies;
@@ -7,22 +7,14 @@ using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Dashboard;
 using FVN_REGISTER.Contract.Responses;
-using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Enums;
-using FVN_REGISTER.Core.Utils;
-
 
 namespace FVN_REGISTER.Application.Orchestrators
 {
     /// <summary>
-    /// Nơi DUY NHẤT lắp ráp Dashboard tổng. Không biết chi tiết nghiệp vụ của từng module -
-    /// chỉ biết lặp qua IModuleDashboardProvider, gọi IApprovalInboxService lấy pending
-    /// đa module, rồi nhờ DashboardWidgetPolicy sắp xếp. Thêm module mới KHÔNG sửa file này.
-    /// </summary>
-    /// <summary>
-    /// Nơi DUY NHẤT lắp ráp Dashboard tổng. Không biết chi tiết nghiệp vụ của từng module -
-    /// chỉ biết lặp qua IModuleDashboardProvider, gọi IApprovalInboxService lấy pending
-    /// đa module, rồi nhờ DashboardWidgetPolicy sắp xếp. Thêm module mới KHÔNG sửa file này.
+    /// Application-level composition of dashboard contributions and approval inbox data.
+    /// It does not know about EF, DbContext or Infrastructure implementations.
     /// </summary>
     public class DashboardOrchestrator : IDashboardOrchestrator
     {
@@ -37,7 +29,8 @@ namespace FVN_REGISTER.Application.Orchestrators
             _approvalInbox = approvalInbox;
         }
 
-        public async Task<ServiceResult<DashboardResponse>> BuildAsync(UserIdentityDto user, CancellationToken ct = default)
+        public async Task<ServiceResult<DashboardResponse>> BuildAsync(
+            UserIdentityDto user, CancellationToken ct = default)
         {
             try
             {
@@ -69,7 +62,6 @@ namespace FVN_REGISTER.Application.Orchestrators
 
                 response.Widgets = DashboardWidgetPolicy.Arrange(user, rawWidgets);
 
-                // Chỉ hiện pending inbox cho người có quyền duyệt — tránh gọi thừa cho nhân viên thường
                 if (response.ShowManagerView)
                 {
                     var pendingResult = await _approvalInbox.GetPendingAsync(user, ct);
