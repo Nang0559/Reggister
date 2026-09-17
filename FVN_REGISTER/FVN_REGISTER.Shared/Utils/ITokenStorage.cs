@@ -7,6 +7,6 @@ namespace FVN_REGISTER.Shared.Utils
         Task SetTokenAsync(string token);
         Task<string?> GetTokenAsync();
         Task RemoveTokenAsync();
-  
+        void MarkJsReady();
     }
 }

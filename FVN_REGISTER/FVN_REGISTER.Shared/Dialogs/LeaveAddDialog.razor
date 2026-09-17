@@ -1,4 +1,5 @@
 ﻿@* File: LeaveAddDialog.razor *@
+@using FVN_REGISTER.Contract.Dtos.MasterData
 @using FVN_REGISTER.Contract.Models
 @using FVN_REGISTER.Contract.ViewModels
 @using FVN_REGISTER.Shared.Services.Leaves
@@ -294,7 +295,7 @@
 @code {
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
 
-    [Parameter] public CombinedHolidaysViewModel Model { get; set; } = default!;
+    [Parameter] public SystemMasterDataDto Model { get; set; } = default!;
     [Parameter] public string? DefaultStart { get; set; }
     [Parameter] public string? DefaultEnd { get; set; }
     [Parameter] public int SelectedYear { get; set; } = DateTime.Now.Year;
@@ -460,7 +461,7 @@
     // ─── Submit ──────────────────────────────────────────
     private async Task Submit()
     {
-        await _form.Validate();
+        await _form.ValidateAsync();
         if (!_formValid) return;
 
         if (!_details.Any())

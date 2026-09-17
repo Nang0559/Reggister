@@ -1,6 +1,8 @@
-﻿using FVN_REGISTER.Contract.Interfaces.Infrastructure;
+﻿
 
-namespace FVN_REGISTER.API.Middlewares
+using FVN_REGISTER.Application.Interfaces.Infrastructure;
+
+namespace FVN_REGISTER.Infrastructure.Middlewares
 {
     public class JwtMiddleware
     {

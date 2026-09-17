@@ -1,21 +1,24 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+	<PropertyGroup>
+		<TargetFramework>net9.0</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
 
-  <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
-  </PropertyGroup>
+		<!-- ★ THÊM 3 DÒNG NÀY ★ -->
+		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
+		<SelfContained>true</SelfContained>
+		<PublishSingleFile>false</PublishSingleFile>
+	</PropertyGroup>
 
-  <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0" />
-    <PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.5" />
-    <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
-  </ItemGroup>
+	<ItemGroup>
+		<PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0" />
+		<PackageReference Include="Microsoft.AspNetCore.OpenApi" Version="9.0.5" />
+		<PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+	</ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\FVN_REGISTER.Core\FVN_REGISTER.Core.csproj" />
-    <ProjectReference Include="..\FVN_REGISTER.Infrastructure\FVN_REGISTER.Infrastructure.csproj" />
-    <ProjectReference Include="..\FVN_REGISTER.Models\FVN_REGISTER.Contract.csproj" />
-  </ItemGroup>
-
+	<ItemGroup>
+		<ProjectReference Include="..\FVN_REGISTER.Core\FVN_REGISTER.Core.csproj" />
+		<ProjectReference Include="..\FVN_REGISTER.Infrastructure\FVN_REGISTER.Infrastructure.csproj" />
+		<ProjectReference Include="..\FVN_REGISTER.Models\FVN_REGISTER.Contract.csproj" />
+	</ItemGroup>
 </Project>

@@ -1,0 +1,171 @@
+﻿@* OTReport.razor *@
+@page "/report/ot"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Reports
+@using FVN_REGISTER.Contract.Enums
+@using FVN_REGISTER.Shared.Pages.Reports
+@using FVN_REGISTER.Shared.Services.Leaves
+@using FVN_REGISTER.Shared.Utils.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IReportClientService ReportService
+
+<MudText Typo="Typo.h5" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.AccessTime" Class="mr-2" />
+    Báo cáo tăng ca (OT)
+</MudText>
+
+<MudTabs ActivePanelIndex="_activeTab"
+         ActivePanelIndexChanged="OnTabChanged"
+         Color="Color.Primary" Rounded="true" Class="mb-4">
+    <MudTabPanel Text="Theo phòng ban" />
+    <MudTabPanel Text="Theo nhân viên" />
+    <MudTabPanel Text="Chi tiết phiếu" />
+    <MudTabPanel Text="Trạng thái duyệt" />
+    <MudTabPanel Text="Tích lũy giờ OT" />
+</MudTabs>
+
+<ReportBase @ref="_baseRef" ReportType="_currentType" Query="_query">
+    <AdditionalFilters>
+
+        @* Tab 0,1,3: filter phòng ban *@
+        @if (_activeTab == 0 || _activeTab == 1 || _activeTab == 3)
+        {
+            <MudItem xs="12" sm="3">
+                <MudSelect T="string" Label="Phòng ban"
+                           @bind-Value="_query.DeptCode"
+                           Margin="Margin.Dense" Variant="Variant.Outlined"
+                           Clearable="true">
+                    <MudSelectItem T="string" Value="@(null)">-- Tất cả --</MudSelectItem>
+                    @foreach (var dept in _departments ?? new())
+                    {
+                        <MudSelectItem T="string" Value="@dept.Key">@dept.Value</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        }
+
+        @* Tab 1,2: filter nhân viên *@
+        @if (_activeTab == 1 || _activeTab == 2)
+        {
+            <MudItem xs="12" sm="3">
+                <MudAutocomplete T="KeyValuePair<string,string>"
+                                 Label="Nhân viên"
+                                 Value="@_selectedEmployee"
+                                 ValueChanged="OnEmployeeChanged"
+                                 SearchFunc="SearchEmployees"
+                                 ToStringFunc="@(e => e.Value)"
+                                 Clearable="true"
+                                 Margin="Margin.Dense"
+                                 Variant="Variant.Outlined"
+                                 ResetValueOnEmptyText="true"
+                                 CoerceText="true" />
+            </MudItem>
+        }
+
+        @* Tab 4: filter năm (tích lũy giờ OT) *@
+        @if (_activeTab == 4)
+        {
+            <MudItem xs="12" sm="3">
+                <MudSelect T="int?" Label="Năm"
+                           @bind-Value="_query.WorkYear"
+                           Margin="Margin.Dense" Variant="Variant.Outlined">
+                    @for (int y = DateTime.Now.Year; y >= 2022; y--)
+                    {
+                        var yr = y;
+                        <MudSelectItem T="int?" Value="@((int?)yr)">@yr</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+
+            @* Filter phòng ban vẫn có ở tab này *@
+            <MudItem xs="12" sm="3">
+                <MudSelect T="string" Label="Phòng ban"
+                           @bind-Value="_query.DeptCode"
+                           Margin="Margin.Dense" Variant="Variant.Outlined"
+                           Clearable="true">
+                    <MudSelectItem T="string" Value="@(null)">-- Tất cả --</MudSelectItem>
+                    @foreach (var dept in _departments ?? new())
+                    {
+                        <MudSelectItem T="string" Value="@dept.Key">@dept.Value</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+        }
+
+    </AdditionalFilters>
+</ReportBase>
+
+@code {
+    private ReportBase? _baseRef;
+    private ReportQueryDto _query = new()
+    {
+        FromDate = new DateTime(DateTime.Now.Year, 1, 1),
+        ToDate = DateTime.Now,
+        IncludeChart = true
+    };
+    private int _activeTab;
+    private List<KeyValuePair<string, string>>? _departments;
+    private KeyValuePair<string, string> _selectedEmployee;
+
+    private ReportType _currentType => _activeTab switch
+    {
+        0 => ReportType.OTSummaryByDept,
+        1 => ReportType.OTSummaryByEmployee,
+        2 => ReportType.OTDetail,
+        3 => ReportType.OTApprovalStatus,
+        4 => ReportType.OTLimitUsage,
+        _ => ReportType.OTSummaryByDept
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var res = await ReportService.GetLookupDepartmentsAsync();
+        if (res.IsSuccess) _departments = res.Data;
+    }
+
+    private async Task<IEnumerable<KeyValuePair<string, string>>> SearchEmployees(
+        string value, CancellationToken token)
+    {
+        var res = await ReportService.SearchLookupEmployeesAsync(value ?? "", token);
+        return res.IsSuccess && res.Data != null
+            ? res.Data
+            : Array.Empty<KeyValuePair<string, string>>();
+    }
+
+    private void OnEmployeeChanged(KeyValuePair<string, string> emp)
+    {
+        _selectedEmployee = emp;
+        _query.EmployeeCode = !string.IsNullOrEmpty(emp.Key) ? emp.Key : null;
+    }
+
+    private async Task OnTabChanged(int index)
+    {
+        _activeTab = index;
+        _query.DeptCode = null;
+        _query.EmployeeCode = null;
+        _selectedEmployee = default;
+
+        if (_activeTab == 4) // Tích lũy — dùng WorkYear
+        {
+            _query.WorkYear = DateTime.Now.Year;
+            _query.FromDate = null;
+            _query.ToDate = null;
+        }
+        else
+        {
+            _query.WorkYear = null;
+            _query.FromDate = new DateTime(DateTime.Now.Year, 1, 1);
+            _query.ToDate = DateTime.Now;
+            _query.GroupBy = _activeTab switch
+            {
+                0 => "dept",
+                1 => "employee",
+                _ => null
+            };
+        }
+
+        await Task.Delay(50);
+        if (_baseRef != null) await _baseRef.LoadReport();
+    }
+}

@@ -1,0 +1,115 @@
+﻿@* ─────────────────────────────────────────────────────────────────────────────
+   File: FVN_REGISTER.Shared/Dialogs/LeaveTypes/LeaveTypeDetailDialog.razor
+   Dialog xem nhanh thông tin hình thức nghỉ
+───────────────────────────────────────────────────────────────────────────── *@
+@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Contract.ViewModels.Leaves
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Info" Color="Color.Info" />
+            <MudText Typo="Typo.h6">Chi tiết hình thức nghỉ</MudText>
+        </MudStack>
+    </TitleContent>
+
+    <DialogContent>
+        @if (Item == null)
+        {
+            <MudText Color="Color.Secondary">Không có dữ liệu.</MudText>
+        }
+        else
+        {
+            <MudGrid Spacing="3">
+
+                @* Mã + Tên *@
+                <MudItem xs="4">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Mã</MudText>
+                    <MudText Typo="Typo.body1" Style="font-weight:700; font-family:monospace">
+                        @Item.LeaveTypeCode
+                    </MudText>
+                </MudItem>
+                <MudItem xs="8">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Tên</MudText>
+                    <MudText Typo="Typo.body1" Style="font-weight:600">@Item.LeaveTypeName</MudText>
+                </MudItem>
+
+                @* Tên tiếng Anh *@
+                @if (!string.IsNullOrEmpty(Item.LeaveTypeName2))
+                {
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Tên tiếng Anh</MudText>
+                        <MudText Typo="Typo.body2">@Item.LeaveTypeName2</MudText>
+                    </MudItem>
+                }
+
+                @* Mã HRM *@
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Mã HRM</MudText>
+                    <MudText Typo="Typo.body2">
+                        @(string.IsNullOrEmpty(Item.HrmCode) ? "—" : Item.HrmCode)
+                    </MudText>
+                </MudItem>
+
+                @* Tính phép *@
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Tính phép năm</MudText>
+                    <MudChip T="string"
+                             Color="@(Item.TinhPhep == true ? Color.Warning : Color.Default)"
+                             Size="Size.Small"
+                             Class="mt-1">
+                        @Item.TinhPhepText
+                    </MudChip>
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudDivider />
+                </MudItem>
+
+                @* Trạng thái *@
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Trạng thái</MudText>
+                    <MudChip T="string"
+                             Color="@(Item.IsActive ? Color.Success : Color.Error)"
+                             Size="Size.Small"
+                             Class="mt-1">
+                        @Item.StatusText
+                    </MudChip>
+                </MudItem>
+
+                @* Ngày cập nhật *@
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Cập nhật lần cuối</MudText>
+                    <MudText Typo="Typo.body2">
+                        @(Item.ModifiedAt?.ToString("dd/MM/yyyy HH:mm") ?? "—")
+                    </MudText>
+                </MudItem>
+
+                @* Ngày tạo *@
+                <MudItem xs="6">
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Ngày tạo</MudText>
+                    <MudText Typo="Typo.body2">
+                        @(Item.CreatedAt?.ToString("dd/MM/yyyy HH:mm") ?? "—")
+                    </MudText>
+                </MudItem>
+
+            </MudGrid>
+        }
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   OnClick="Close">
+            Đóng
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public LeaveTypeFlatViewModel? Item { get; set; }
+
+    private void Close() => MudDialog.Close();
+}

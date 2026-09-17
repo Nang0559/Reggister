@@ -1,0 +1,83 @@
+﻿@* FVN_REGISTER.Shared/Components/Approvals/RejectDialog.razor *@
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@inject MudBlazor.IDialogService DialogService
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" />
+            <MudText Typo="Typo.h6">
+                @(IsBatchMode
+                                ? $"Từ chối {Items.Count} đơn"
+                                : "Từ chối đơn")
+            </MudText>
+        </MudStack>
+    </TitleContent>
+
+    <DialogContent>
+        @if (IsBatchMode)
+        {
+            <MudAlert Severity="Severity.Warning" Class="mb-3">
+                Bạn đang từ chối <b>@Items.Count</b> đơn cùng một lý do.
+            </MudAlert>
+        }
+        else if (Items.Count == 1)
+        {
+            var item = Items[0];
+            <MudPaper Elevation="0" Class="pa-3 mb-3"
+                      Style="background:var(--mud-palette-background-grey)">
+                <MudText Typo="Typo.body2">
+                    <b>@item.EmployeeName</b> (@item.EmployeeCode)
+                </MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                    @item.KindDisplay
+                    — @item.FromDate.ToString("dd/MM/yyyy")
+                    @if (item.FromDate.Date != item.ToDate.Date)
+                    {
+                        @(" → ")
+                        @item.ToDate.ToString("dd/MM/yyyy")
+                    }
+                    — @item.TotalUnits @item.UnitDisplay
+                </MudText>
+            </MudPaper>
+        }
+
+        <MudTextField @bind-Value="_comment"
+                      Label="Lý do từ chối (*)"
+                      Variant="Variant.Outlined"
+                      Lines="4"
+                      Required="true"
+                      RequiredError="Vui lòng nhập lý do từ chối"
+                      Placeholder="Nhập lý do từ chối chi tiết..."
+                      Immediate="true"
+                      Counter="500"
+                      MaxLength="500" />
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Hủy bỏ</MudButton>
+        <MudButton Color="Color.Error" Variant="Variant.Filled"
+                   StartIcon="@Icons.Material.Filled.Cancel"
+                   OnClick="Confirm"
+                   Disabled="@string.IsNullOrWhiteSpace(_comment)">
+            Xác nhận từ chối
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public List<PendingApprovalItemDto> Items { get; set; } = new();
+    [Parameter] public bool IsBatchMode { get; set; }
+
+    private string _comment = string.Empty;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private void Confirm()
+    {
+        if (string.IsNullOrWhiteSpace(_comment)) return;
+        MudDialog.Close(DialogResult.Ok(_comment));
+    }
+}

@@ -1,0 +1,75 @@
+════════════════════════════════════════════════════════════════════════
+ PIPELINE A — HRM MASTER DATA SYNC (LeaveType/OTType/Department/Position/Employee)
+ Đặc điểm: dữ liệu ít thay đổi, cần lịch sử Insert/Update/Delete rõ ràng
+════════════════════════════════════════════════════════════════════════
+
+HRM DB (nguồn — [HRM].[dbo].[tblXxx])
+        │                                    │
+   (A) trigger tự động                (B) IHrmStagingImporter
+   (real-time, bảng có quyền              (bảng không trigger được / cần backfill)
+    đặt trigger)                                │
+        │                          HrmImportWorker (poll theo lịch, VD 1h)
+        │                                    │ IHrmSourceReader<TSourceRow>.ReadAllAsync()
+        │                                    │   → SqlHrmSourceReaderBase (Dapper,
+        │                                    │      cross-DB three-part name [HRM].[dbo].X)
+        │                                    │ diff key với bảng đích (TEntity)
+        │                                    │ → ghi Action=Update/Delete
+        └──────────────────┬─────────────────┘
+                            ▼
+           F03StagingLeaveType / F03StagingOTType / F03StagingDepartment /
+           F03StagingPosition / F03StagingEmployee
+              ◄── điểm hội tụ DUY NHẤT, HrmSyncJob không biết/không cần biết
+                  staging đến từ trigger hay Importer
+                            │
+                            ▼
+              HrmSyncJob<TStaging,TEntity>   (HrmSyncWorker poll 30s
+                                               HOẶC admin bấm SyncNowAsync qua
+                                               IHrmSyncJobResolver)
+              — thứ tự bắt buộc: Department, Position TRƯỚC Employee (FK constraint)
+                            ▼
+        F03Department / F03Position / F03LeaveType / F03OTType / F03Employee
+                            ▲
+                            │ CRUD thủ công, tách biệt hoàn toàn khỏi sync
+              XxxManagementService (Application layer)
+                            ▲
+                Xxx.razor (Blazor Admin UI)
+
+
+════════════════════════════════════════════════════════════════════════
+ PIPELINE B — OT ATTENDANCE RECONCILIATION (chấm công thực tế ↔ đơn OT)
+ Đặc điểm: dữ liệu giao dịch HÀNG NGÀY, KHÔNG dùng IHrmStagingEntity/HrmChangeAction,
+ cơ chế hoàn toàn khác Pipeline A — KHÔNG được nhầm lẫn 2 pipeline này.
+════════════════════════════════════════════════════════════════════════
+
+HRM DB (chấm công — fn_OTActualCheckInOut / bảng chấm công gốc)
+                            │
+                            │ usp_SyncAttendanceStaging (SQL proc, KHÔNG qua .NET diff)
+                            ▼
+              F03AttendanceStaging   (staging RIÊNG của domain Attendance,
+                                       KHÔNG liên quan F03StagingXxx của Pipeline A)
+                            │
+        IOTAttendanceStagingService.SyncAttendanceStagingAsync(workDate)
+        IOTAttendanceStagingService.IsStagingReadyAsync(workDate)
+                            │
+                            ▼
+        IOTAttendanceReconciliationService.ReconcileActualHoursAsync(date, deptCode)
+              → EXEC usp_SyncOTActualHours  (Command-with-Result:
+                   1. UPDATE F03OTEmployee.ActualHours/ActualStartTime/ActualEndTime
+                   2. SELECT báo cáo đối chiếu → OTReconciliationResultDto)
+              ⚠️ KHÔNG gọi method này như 1 query thuần — mỗi lần gọi đều GHI dữ liệu.
+                            ▼
+              F03OTEmployee.ActualHours (đã cập nhật)
+                            │
+                            ▼
+        OTReconciliationResultDto → OTAttendanceReconcilePage.razor
+              (admin xem báo cáo, bấm nút "Đối chiếu" chủ động — KHÔNG tự động
+               gọi lại khi component render/refresh)
+
+
+════════════════════════════════════════════════════════════════════════
+ SHARED / CROSS-CUTTING (không thuộc riêng pipeline nào)
+════════════════════════════════════════════════════════════════════════
+
+IDepartmentLookupService.GetActiveDepartmentsAsync()
+    — dùng chung bởi Leave, OT, Trip, Dashboard — tách khỏi OTAttendanceReconciliationService
+      (trước đây bị đặt nhầm chỗ trong OTSyncService)

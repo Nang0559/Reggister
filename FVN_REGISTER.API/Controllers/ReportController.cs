@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using FVN_REGISTER.Contract.Dtos.Reports;
+using FVN_REGISTER.Contract.Enums;
 using FVN_REGISTER.Contract.Interfaces.Reports;
 using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Contract.Interfaces.Users;

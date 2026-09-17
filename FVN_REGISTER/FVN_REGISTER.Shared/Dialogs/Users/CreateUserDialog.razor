@@ -1,0 +1,83 @@
+﻿@* ═══════════════════════════════════════════════════════════
+   FILE: FVN_REGISTER.Shared/Components/Dialogs/CreateUserDialog.razor
+   MudBlazor v9 — dialog tách thành component riêng
+═══════════════════════════════════════════════════════════ *@
+@using FVN_REGISTER.Contract.Dtos.Requests
+@using FVN_REGISTER.Contract.Dtos.Requests.Users
+@using FVN_REGISTER.Contract.Dtos.Usermanagers
+@using FVN_REGISTER.Contract.Requests.Users
+@inject MudBlazor.IDialogService DialogService
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.PersonAdd" Class="mr-2" />
+            Tạo tài khoản mới
+        </MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudGrid>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="Request.UserName"
+                              Label="Tên đăng nhập (*)"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Required="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="Request.Password"
+                              Label="Mật khẩu (*)"
+                              InputType="InputType.Password"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense"
+                              Required="true" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="Request.EmployeeCode"
+                              Label="Mã nhân viên"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudTextField @bind-Value="Request.DeptCode"
+                              Label="Mã phòng ban"
+                              Variant="Variant.Outlined"
+                              Margin="Margin.Dense" />
+            </MudItem>
+            <MudItem xs="12">
+                <MudSelect T="int" @bind-Value="Request.PermissionCode"
+                           Label="Quyền (*)"
+                           Variant="Variant.Outlined"
+                           Margin="Margin.Dense">
+                    <MudSelectItem Value="2">Administrator</MudSelectItem>
+                    <MudSelectItem Value="4">Approver</MudSelectItem>
+                    <MudSelectItem Value="5">User</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+        </MudGrid>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Hủy</MudButton>
+        <MudButton OnClick="Submit"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   Disabled="@(!IsValid)">
+            Tạo tài khoản
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public CreateUserRequest Request { get; set; } = new();
+
+    private bool IsValid =>
+        !string.IsNullOrWhiteSpace(Request.UserName) &&
+        !string.IsNullOrWhiteSpace(Request.Password);
+
+    private void Submit() => MudDialog.Close(DialogResult.Ok(Request));
+    private void Cancel() => MudDialog.Cancel();
+}

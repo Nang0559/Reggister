@@ -1,10 +1,11 @@
 ﻿using AutoMapper;
 using FVN_REGISTER.API.Hubs;
+using FVN_REGISTER.Contract.Dtos.Requests.Auths;
 using FVN_REGISTER.Contract.Interfaces.Auths;
 using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Contract.Interfaces.Users;
-using FVN_REGISTER.Contract.Models;
-using FVN_REGISTER.Contract.ViewModels;
+using FVN_REGISTER.Contract.Models.Data;
+using FVN_REGISTER.Contract.Requests;
 using FVN_REGISTER.Core.Configurations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -36,7 +37,7 @@ namespace FVN_REGISTER.API.Controllers
         [HttpPost("login")]
         [AllowAnonymous]
         public async Task<IActionResult> Login(
-            [FromBody] LoginViewModel model,
+            [FromBody] LoginRequestDto model,
             CancellationToken ct)
         {
             if (!ModelState.IsValid)
@@ -59,7 +60,7 @@ namespace FVN_REGISTER.API.Controllers
 
             return HandleResult(result);
         }
-
+       
         // ─── REFRESH TOKEN ───────────────────────────────────
         [HttpPost("refresh")]                              // ✅ THÊM MỚI
         [AllowAnonymous]
@@ -95,7 +96,7 @@ namespace FVN_REGISTER.API.Controllers
         [HttpPut("profile-update")]
         [Authorize]
         public async Task<IActionResult> UpdateProfile(
-            [FromBody] UpdateProfileRequest request,
+            [FromBody] UpdateProfileCommandDto request,
             CancellationToken ct)
         {
             if (UserInfo == null)

@@ -1,6 +1,6 @@
-﻿using FVN_REGISTER.Contract.Interfaces.Repositores;
+﻿using FVN_REGISTER.Contract.Dtos.Authentication;
+using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Contract.Util;
-using FVN_REGISTER.Contract.ViewModels;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Shared.Handlers;
@@ -45,7 +45,7 @@ namespace FVN_REGISTER.Shared.Services.Users
         }
 
         // ================= LOGIN =================
-        public async Task<ApiResponse<UserSessionDto>> Login(
+        public async Task<ApiResponse<AuthResultDto>> Login(
             string username,
             string password,
             CancellationToken ct = default)
@@ -59,7 +59,7 @@ namespace FVN_REGISTER.Shared.Services.Users
                 }, ct);
 
                 var result = await response.Content
-                    .ReadFromJsonAsync<ApiResponse<UserSessionDto>>(cancellationToken: ct);
+                    .ReadFromJsonAsync<ApiResponse<AuthResultDto>>(cancellationToken: ct);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -89,26 +89,26 @@ namespace FVN_REGISTER.Shared.Services.Users
                     username,
                     result?.Message);
 
-                return result ?? ApiResponse<UserSessionDto>.Fail("Sai tài khoản hoặc mật khẩu.");
+                return result ?? ApiResponse<AuthResultDto>.Fail("Sai tài khoản hoặc mật khẩu.");
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Login exception: {User}", username);
-                return ApiResponse<UserSessionDto>.Fail("Không thể kết nối server.");
+                return ApiResponse<AuthResultDto>.Fail("Không thể kết nối server.");
             }
         }
 
         // ================= PROFILE =================
-        public async Task<ApiResponse<UserSessionDto>> GetProfileAsync(CancellationToken ct = default)
+        public async Task<ApiResponse<AuthResultDto>> GetProfileAsync(CancellationToken ct = default)
         {
             try
             {
-                return await _authHttp.GetAsync<UserSessionDto>("api/auth/profile", ct);
+                return await _authHttp.GetAsync<AuthResultDto>("api/auth/profile", ct);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "GetProfile failed");
-                return ApiResponse<UserSessionDto>.Fail("Lỗi lấy thông tin người dùng.");
+                return ApiResponse<AuthResultDto>.Fail("Lỗi lấy thông tin người dùng.");
             }
         }
 

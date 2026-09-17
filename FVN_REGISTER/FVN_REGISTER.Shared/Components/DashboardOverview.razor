@@ -1,4 +1,5 @@
 ﻿@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Contract.ViewModels.Leaves
 
 @if (Data == null)
 {
@@ -43,13 +44,13 @@ else
                 </MudPaper>
             </MudItem>
 
-            @* Thêm các Card khác tương tự nếu cần... *@
+            @* Thêm các Card khác n... *@
         }
     </MudGrid>
 }
 
 @code {
-    [Parameter] public DashboardViewModel? Data { get; set; }
+    [Parameter] public LeaveDashboardViewModel? Data { get; set; }
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
     private void OnWidgetClick(string? link)

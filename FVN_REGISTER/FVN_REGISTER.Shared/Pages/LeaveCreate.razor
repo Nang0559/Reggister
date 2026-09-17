@@ -1,12 +1,14 @@
 ﻿@page "/leave/create"
 @attribute [Authorize]
 @namespace FVN_REGISTER.Shared.Pages
-@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Contract.Dtos.MasterData
 @using FVN_REGISTER.Contract.Models
+@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Core.Logging
+@using FVN_REGISTER.Shared.Components.Leaves
 @using FVN_REGISTER.Shared.Services.Leaves
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils.Helpers
-@using FVN_REGISTER.Core.Logging
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IAsyncDisposable
@@ -98,7 +100,8 @@ else
 
             <MudPaper Class="pa-3 d-none d-lg-block" Elevation="1"
                       Style="max-height: 520px; overflow-y: auto;">
-                <LeaveListSection Items="@LeaveDaysFiltered" OnView="OpenDetailDialog" />
+                <LeaveListSection Items="@LeaveDaysFiltered"
+                                  OnView="@(item => OpenDetailDialog(item))" />
             </MudPaper>
 
         </MudItem>
@@ -120,13 +123,17 @@ else
                     <MudChip T="string" Size="Size.Small" Style="background:#dc3545; color:#fff;">Từ chối</MudChip>
                 </MudStack>
 
-                <div @ref="_calendarRef" id="leave-calendar" style="min-height: 450px;"></div>
+                
+                <div @ref="_calendarRef" id="leave-calendar"
+                     style="min-height: 450px; touch-action: manipulation; user-select: none; -webkit-user-select: none;">
+                </div>
             </MudPaper>
         </MudItem>
 
         <MudItem xs="12" Class="d-lg-none">
             <MudPaper Class="pa-3" Elevation="1">
-                <LeaveListSection Items="@LeaveDaysFiltered" OnView="OpenDetailDialog" />
+                <LeaveListSection Items="@LeaveDaysFiltered"
+                                  OnView="@(item => OpenDetailDialog(item))" />
             </MudPaper>
         </MudItem>
 
@@ -134,7 +141,7 @@ else
 }
 
 @code {
-    private List<HolidayViewModel> LeaveDaysFiltered => _model?.LeaveDays
+    private List<CalendarEventDto> LeaveDaysFiltered => _model?.LeaveDays
         .Where(x => !string.IsNullOrEmpty(x.Start) &&
                     DateTime.TryParse(x.Start, out var d) &&
                     d.Year == _selectedYear)

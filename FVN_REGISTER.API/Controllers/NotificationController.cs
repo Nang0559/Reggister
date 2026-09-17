@@ -29,42 +29,37 @@ namespace FVN_REGISTER.API.Controllers
             _notification = notification;
         }
 
-        /// <summary>Lấy danh sách thông báo (dùng cho panel khi bấm bell)</summary>
         [HttpGet]
-        public async Task<IActionResult> GetList([FromQuery] int page = 1, CancellationToken ct = default)
+        public async Task<IActionResult> GetList(
+            [FromQuery] int page = 1, CancellationToken ct = default)
         {
             if (UserInfo == null) return Unauthorized();
-
             var list = await _notification.GetByUserAsync(UserInfo.UserId, page, 20, ct);
             return Ok(ApiResponse<object>.Ok(list));
         }
 
-        /// <summary>Lấy số thông báo chưa đọc (dùng cho badge)</summary>
         [HttpGet("unread-count")]
         public async Task<IActionResult> GetUnreadCount(CancellationToken ct = default)
         {
             if (UserInfo == null) return Unauthorized();
-
             var count = await _notification.GetUnreadCountAsync(UserInfo.UserId, ct);
             return Ok(ApiResponse<object>.Ok(new { count }));
         }
 
-        /// <summary>Đánh dấu đã đọc một thông báo</summary>
-        [HttpPatch("{id}/read")]
+        // ✅ Đổi [HttpPatch] → [HttpPut] để dùng được IHttpClientWithAuth.PutAsync
+        [HttpPut("{id}/read")]
         public async Task<IActionResult> MarkRead(int id, CancellationToken ct = default)
         {
             if (UserInfo == null) return Unauthorized();
-
             var result = await _notification.MarkReadAsync(id, UserInfo.UserId, ct);
             return HandleResult(result);
         }
 
-        /// <summary>Đánh dấu tất cả đã đọc</summary>
-        [HttpPatch("read-all")]
+        // ✅ Đổi [HttpPatch] → [HttpPut]
+        [HttpPut("read-all")]
         public async Task<IActionResult> MarkAllRead(CancellationToken ct = default)
         {
             if (UserInfo == null) return Unauthorized();
-
             var result = await _notification.MarkAllReadAsync(UserInfo.UserId, ct);
             return HandleResult(result);
         }

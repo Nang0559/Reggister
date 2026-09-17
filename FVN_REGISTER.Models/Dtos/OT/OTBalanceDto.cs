@@ -16,17 +16,24 @@ namespace FVN_REGISTER.Contract.Dtos.OT
         // Theo ngày
         public decimal UsedHoursToday { get; set; }
         public decimal DailyLimit { get; set; } = 4m;
+        public decimal DailyRemainingHours => DailyLimit - UsedHoursToday;       // thêm mới
+        public double DailyUsedPercent =>                                          // thêm mới
+            DailyLimit == 0 ? 0 : (double)(UsedHoursToday / DailyLimit * 100);
 
         // Theo tháng
         public decimal UsedHoursThisMonth { get; set; }
         public decimal MonthlyLimit { get; set; } = 40m;
         public decimal RemainingMonthly => MonthlyLimit - UsedHoursThisMonth;
+        public double MonthlyUsedPercent =>
+        MonthlyLimit == 0 ? 0 : (double)(UsedHoursThisMonth / MonthlyLimit * 100);
+       
 
         // Theo năm
         public decimal UsedHoursThisYear { get; set; }
-        public decimal UsedHours => UsedHoursThisYear; // 👈 alias cho OTCreate.razor dùng _model.Balance.UsedHours
         public decimal YearlyLimit { get; set; } = 200m; // 900 nếu đặc biệt
         public decimal RemainingYearly => YearlyLimit - UsedHoursThisYear;
+        public double YearlyUsedPercent =>
+      YearlyLimit == 0 ? 0 : (double)(UsedHoursThisYear / YearlyLimit * 100);
 
         // Cảnh báo
         public bool IsNearDailyLimit => (DailyLimit - UsedHoursToday) <= 1;
@@ -36,10 +43,7 @@ namespace FVN_REGISTER.Contract.Dtos.OT
         public bool ExceedsMonthlyLimit => UsedHoursThisMonth > MonthlyLimit;
         public bool ExceedsYearlyLimit => UsedHoursThisYear > YearlyLimit;
 
-        // Helper tính % cho MudProgressLinear
-        public double YearlyUsedPercent =>
-            YearlyLimit == 0 ? 0 : (double)(UsedHoursThisYear / YearlyLimit * 100);
-        public double MonthlyUsedPercent =>
-            MonthlyLimit == 0 ? 0 : (double)(UsedHoursThisMonth / MonthlyLimit * 100);
+     
+       
     }
 }

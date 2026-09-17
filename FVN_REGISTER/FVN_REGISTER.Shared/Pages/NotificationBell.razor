@@ -2,7 +2,9 @@
 @* Đặt vào MainLayout.razor, cạnh menu user *@
 
 @using FVN_REGISTER.Contract.Dtos
+@using FVN_REGISTER.Contract.Dtos.Notifications
 @using FVN_REGISTER.Shared.Services.Leaves
+@using FVN_REGISTER.Shared.Services.Notifications
 @using FVN_REGISTER.Shared.Utils
 @using Microsoft.AspNetCore.SignalR.Client
 @using MudBlazor
@@ -10,6 +12,7 @@
 @inject ITokenStorage TokenStorage
 @inject NavigationManager Nav
 @implements IAsyncDisposable
+@inject IConfiguration Configuration
 
 <div style="position: relative; display: inline-flex;">
 
@@ -235,10 +238,13 @@
     /// </summary>
     private string GetApiBaseUrl()
     {
-        // Nếu Blazor Web và API cùng origin (reverse proxy), dùng NavigationManager
-        // Nếu khác origin, thay bằng URL cố định, ví dụ: "https://localhost:7135"
-        var uri = new Uri(Nav.BaseUri);
-        return $"{uri.Scheme}://{uri.Host}:{uri.Port}";
+        var baseUrl = Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7135/";
+
+        // Bỏ "/api/" ở cuối nếu có → lấy root URL
+        // "https://dangkyphep.fcc-vn.com.vn/api/" → "https://dangkyphep.fcc-vn.com.vn"
+        // "https://localhost:7135/"               → "https://localhost:7135"
+        var uri = new Uri(baseUrl);
+        return $"{uri.Scheme}://{uri.Host}{(uri.IsDefaultPort ? "" : $":{uri.Port}")}";
     }
 
     private async Task TogglePanel()

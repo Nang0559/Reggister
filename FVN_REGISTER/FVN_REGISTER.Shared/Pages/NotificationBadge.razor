@@ -1,12 +1,13 @@
 ﻿@* FVN_REGISTER.Shared/Components/NotificationBadge.razor *@
 @using FVN_REGISTER.Contract.Dtos
-@using FVN_REGISTER.Shared.Utils
+@using FVN_REGISTER.Contract.Dtos.Notifications
 @using FVN_REGISTER.Core.Configurations
 @using FVN_REGISTER.Core.Logging
-@using Microsoft.AspNetCore.SignalR.Client
-@using Microsoft.AspNetCore.Components.Authorization
-@using Microsoft.Extensions.Options
 @using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Utils
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.SignalR.Client
+@using Microsoft.Extensions.Options
 
 @inject ITokenStorage TokenStorage
 @inject AuthenticationStateProvider AuthStateProvider
@@ -95,6 +96,7 @@
 
 @code {
     [Parameter] public string DeviceId { get; set; } = string.Empty;
+    private string _lastDeviceId = string.Empty;
 
     private HubConnection? _hub;
     private int _unreadCount;
@@ -108,21 +110,26 @@
 
     // ─── Lifecycle ───────────────────────────────────────────────
 
-    protected override async Task OnAfterRenderAsync(bool firstRender)
+    
+    protected override async Task OnParametersSetAsync()
     {
-        if (!firstRender || _hub != null || _isDisposed) return;
+        // Chỉ init khi DeviceId thực sự có giá trị VÀ chưa init lần nào
+        // hoặc DeviceId vừa thay đổi từ "" sang có giá trị
+        if (string.IsNullOrEmpty(DeviceId)) return;
+        if (DeviceId == _lastDeviceId) return;      // ← tránh init lại nhiều lần
+        if (_hub != null) return;                   // ← đã init rồi, bỏ qua
+
+        _lastDeviceId = DeviceId;
 
         var token = await WaitForTokenAsync();
         if (string.IsNullOrEmpty(token))
         {
-            // Warn vì không có token là bất thường sau khi đã login
             Logger.LogWarning("[BADGE] No token after retries, skip hub init");
             return;
         }
 
         await InitHubAsync(token);
     }
-
     // ─── Token ───────────────────────────────────────────────────
 
     private async Task<string?> WaitForTokenAsync(int maxRetries = 5)

@@ -1,0 +1,343 @@
+═══════════════════════════════════════════════════════════════════════════
+ SƠ ĐỒ TỔNG HỢP CHUẨN — FVN_REGISTER — BẢN CHỐT D1 → D5
+═══════════════════════════════════════════════════════════════════════════
+
+  [D1] HRM Master Data Sync ──► cung cấp Employee/Dept/Position/LeaveType/
+                                 OTType sạch cho toàn hệ thống
+                                        │
+                                        ▼
+  [D2] Leave/OT Request + Approval ──► sinh F03LeaveDay/F03OTRequest
+       (5-bước bất biến: Preview→Submit→Approve/Reject→Đọc lại→Reminder)
+                    │
+                    │ trigger mỗi khi có step mới / duyệt xong
+                    ▼
+  [D4] Notification Pipeline ──► đẩy realtime cho approver/employee
+                    │
+  [D3] OT Attendance Reconciliation ──► ĐỌC F03OTRequest/F03OTEmployee
+       (chỉ chạy khi Admin bấm nút, KHÔNG tự động)   đã Approved, GHI ĐÈ
+                                                       ActualHours
+                    │
+                    ▼
+  [D5] Dashboard Aggregation ──► gộp Widgets + PendingApprovals từ
+       (đọc, không ghi)          D1(gián tiếp)/D2/D3
+
+  NGUYÊN TẮC XUYÊN SUỐT:
+    Contract/Application (interface, DTO)  ←  Infrastructure (EF, SQL, SignalR)
+    KHÔNG có chiều ngược lại. Orchestrator KHÔNG BAO GIỜ đụng DbContext.
+    Entity KHÔNG BAO GIỜ lộ ra khỏi Application/Interfaces — chỉ DTO/Subject.
+    Thêm module mới (Trip...) KHÔNG được sửa Orchestrator/Worker/Dispatcher
+    có sẵn — chỉ thêm 1 class mới + 1 dòng đăng ký DI.
+
+
+═══════════════════════════════════════════════════════════════════════════
+ [D1] HRM MASTER DATA SYNC
+═══════════════════════════════════════════════════════════════════════════
+
+HRM DB (nguồn)
+    │                                    │
+(A) trigger tự động                (B) IHrmStagingImporter
+    (bảng có quyền đặt trigger)         (bảng không trigger được / backfill)
+    │                                    │
+    │                          HrmImportWorker (poll theo lịch)
+    │                                    │ IHrmSourceReader<TSourceRow>.ReadAllAsync()
+    │                                    │ diff key với bảng đích → Action=Update/Delete
+    └──────────────┬─────────────────────┘
+                   ▼
+    F03StagingEmployee / F03StagingDepartment / F03StagingPosition /
+    F03StagingLeaveType / F03StagingOTType
+       (implement IHrmStagingEntity : IStagingData
+        — IsProcessed, ErrorMessage, CreatedAt, CreatedBy, EntityKey, Action)
+                   │
+                   ▼
+    HrmSyncJob<TStaging,TEntity>  [Application/Services/Common — abstract, generic]
+       (HrmSyncWorker poll 30s HOẶC admin bấm SyncNowAsync qua IHrmSyncJobResolver)
+       — dedupe theo EntityKey (lấy dòng mới nhất trong batch, dòng cũ "superseded")
+       — domain override: LoadExistingEntitiesAsync / MapToNewEntity /
+                           ApplyUpdate / ApplyDelete
+       — thứ tự bắt buộc: Department, Position TRƯỚC Employee (FK)
+                   │
+                   ├─ EmployeeHrmSyncJob    [Infrastructure/Services/Employees]
+                   ├─ DepartmentHrmSyncJob  [Infrastructure/Services/Companies]
+                   ├─ PositionHrmSyncJob    [Infrastructure/Services/HR]
+                   ├─ LeaveTypeHrmSyncJob   [Infrastructure/Services/Leaves]
+                   └─ OTTypeHrmSyncJob      [Infrastructure/Services/OT]
+                   ▼
+    IUnitOfWork → F03Employee/F03Department/F03Position/F03LeaveType/F03OTType
+                   ▲
+                   │ CRUD thủ công, TÁCH BIỆT hoàn toàn khỏi sync
+    XxxManagementService (Application) — vd LeaveTypeManagementService
+       CreateAsync/UpdateAsync/ToggleAsync/DeleteAsync (validate + audit UI)
+       SyncNowAsync(ct) → gọi LẠI CHÍNH LeaveTypeHrmSyncJob.RunAsync()
+                          (KHÔNG dùng cơ chế IHrmSyncEngine riêng — đã bỏ)
+                   ▲
+    Xxx.razor (Blazor Admin UI)
+
+  HrmSyncWorker [Infrastructure/Services/Common] — BackgroundService DUY NHẤT
+       GetServices<IHrmSyncJob>() → RunAsync() từng job, log HrmSyncResult
+
+
+═══════════════════════════════════════════════════════════════════════════
+ [D2] LEAVE/OT REQUEST + APPROVAL
+═══════════════════════════════════════════════════════════════════════════
+
+LeaveOrchestrator / OTOrchestrator   [Application/Orchestrators]
+  (marker interface kế thừa IRequestOrchestrator<TSubject,TUpsertDto,
+   TRequestDto,TDetailDto,TSummaryDto,TBalanceDto> — implement DUY NHẤT
+   bởi RequestOrchestrator<...> generic, class con chỉ có constructor)
+
+  CreateAsync: ValidateAsync → PersistNewRequestAsync (ghi F03LeaveDay/
+               F03OTRequest + Detail) → BuildContext → ApprovalWorkflow
+               .InitApprovalAsync → MarkPendingAsync
+  CancelAsync: domain-specific, chặn nếu đã có cấp duyệt xử lý trừ Admin
+  ApproveAsync/RejectAsync/GetMyPendingAsync: kế thừa từ
+               BaseApprovalFacadeService<TSubject> — KHÔNG viết lại
+
+BaseRequestService<TSubject,TUpsertDto>  [Application/Common — abstract]
+  extends BaseApprovalFacadeService<TSubject> : IApprovalFacade
+  domain (LeaveService/OTService) chỉ override 4 hook:
+    ValidateAsync / PersistNewRequestAsync / BuildContext / MarkPendingAsync
+
+BaseRequestQueryService<TRequestDto,TDetailDto,TSummaryDto,TBalanceDto>
+  [Application/Common — abstract]
+  domain (LeaveQueryService/OTQueryService) override 4 hook:
+    LoadDetailsAsync / LoadRecentAsync / LoadBalanceAsync / LoadHistoryAsync
+  → dùng VF03LeaveRequest/VF03OTRequest/VF03phepTon (view pre-join HRM)
+
+─────────────────────────────────────────────────────────────────────────
+ APPROVAL WORKFLOW — 5 BƯỚC BẤT BIẾN (nguồn sự thật duy nhất)
+─────────────────────────────────────────────────────────────────────────
+
+BƯỚC 1 — PREVIEW (chưa có RequestId, dùng cho form tạo đơn)
+  ApprovalRoleResolver.GetLeaveSteps()/GetOTSteps()
+      → IEnumerable<(F03Approver Approver, bool Required)>
+  ApprovalSubjectMapper.BuildStepDtos(resolvedSteps)   [Application — THUẦN DTO]
+      → List<ApprovalStepSnapshotDto>
+  IApprovalProvider<TSubject>.BuildHierarchyAsync(ctx,ct)
+      → trả cho FE preview — CHƯA PERSIST
+
+BƯỚC 2 — SUBMIT (RequestId đã có — gọi từ XxxOrchestrator.CreateAsync)
+  IApprovalProvider<TSubject>.BuildSnapshotAsync(subject,ctx,ct)
+      → ApprovalSnapshotDto(RequestId, ModuleName, CapturedAt, Steps)  ◄── record vị trí, đã xác nhận
+  IApprovalEngine<TSubject>.InitializeStepsAsync(requestId,snapshotDto,ct)
+      [Infrastructure]
+      → ApprovalSnapshotEntityMapper.ToEntity(requestId, dto)  [Infrastructure — MỚI]
+           RequestType = dto.ModuleName
+           Steps: F03ApprovalStepSnapshot { Level, RoleName, ApproverCode,
+                    ApproverName, ApproverEmail ◄── CỘT MỚI cần migration,
+                    IsRequired }
+      → PERSIST 1 LẦN DUY NHẤT — KHÔNG BAO GIỜ SỬA SAU
+      → Engine.GetNextStepAsync → IApprovalNotificationService
+        .NotifyNewRequestAsync   ── nối [D4]
+
+BƯỚC 3 — APPROVE/REJECT (ghi History, KHÔNG đụng Snapshot)
+  IApprovalEngine<TSubject>.ProcessDecisionAsync(action,ct)
+      → Add F03ApprovalHistory { RequestId, RequestType, Level,
+             StepId (= F03ApprovalStepSnapshot.Id, KHÔNG PHẢI Level),
+             Decision, ApproverCode, ApproverName, Comment, ActionAt,
+             IsOverriddenByAdmin, OverriddenByName, OverriddenAt }
+      → APPEND-ONLY, NGUỒN SỰ THẬT DUY NHẤT "ai đã duyệt gì"
+      → ApplyOverallStatusAsync (Provider ghi RequestStatus lên
+        F03LeaveDay/F03OTRequest) → NotifyStepCompletedAsync  ── nối [D4]
+      → TODO còn treo: rule chặn Admin override (ApproverRole check)
+
+BƯỚC 4 — ĐỌC LẠI (tính lại mỗi lần, KHÔNG cache Calculated)
+  ApprovalStepMapper.MapToCalculatedList(snapshot.Steps, histories)
+      → List<ApprovalStepCalculatedDto>
+  ApprovalStepMapper.ComputeOverallStatus(steps) → ApprovalStatus
+  → dùng bởi: BaseRequestQueryService.LoadDetailsAsync,
+              ApprovalListService<TDto>, IApprovalInboxService
+
+BƯỚC 5 — REMINDER (state vận hành riêng)
+  F03ApprovalReminderLog { RequestType, RequestId, Level, SentAt }  [MỚI —
+      cần migration] → ghi bởi ApprovalEscalationService<TSubject>
+      sau khi SendPendingRemindersAsync thành công, tránh nhắc trùng
+      trong cùng ngày
+
+─────────────────────────────────────────────────────────────────────────
+ APPROVE ĐA MODULE (trang /approvals chung)
+─────────────────────────────────────────────────────────────────────────
+
+ApprovalsController [API — DUY NHẤT, không LeaveController/OTController
+                      Approve riêng]
+        ▼
+IApprovalWorkflowDispatcher [Application/Interfaces/Approvals]
+   implement: ApprovalWorkflowDispatcher [Application/Dispatchers]
+   Resolve(action.Kind) → đúng IApprovalActionHandler
+        ▼
+IApprovalActionHandler [Application/Interfaces/Approvals]
+   implement: ApprovalActionHandler<TSubject> — 1 class, N instance DI
+   bọc IApprovalWorkflowOrchestrator<TSubject> — BƯỚC 3
+   GetAllPendingAsync(): lặp mọi handler đã đăng ký, gộp → thay thế
+        IApprovalInboxService cũ (gộp làm 1, không tách riêng nữa)
+
+
+═══════════════════════════════════════════════════════════════════════════
+ [D3] OT ATTENDANCE RECONCILIATION
+═══════════════════════════════════════════════════════════════════════════
+
+HRM DB (chấm công gốc) ──usp_SyncAttendanceStaging──► F03AttendanceStaging
+    (staging RIÊNG, KHÔNG chung với F03StagingXxx của D1)
+        │
+        ├─ IOTAttendanceStagingService  [Application/Interfaces/OT] — GHI thuần
+        │     implement: OTAttendanceStagingService [Infrastructure/Services/OT]
+        │     SyncAttendanceStagingAsync(workDate,ct) → int (EXEC proc)
+        │     IsStagingReadyAsync(workDate,ct) → bool
+        │
+        └─ IOTAttendanceReconciliationService [Application/Interfaces/OT]
+              — COMMAND-WITH-RESULT (không phải Query thuần)
+              implement: OTAttendanceReconciliationService
+              ReconcileActualHoursAsync(date,deptCode,ct):
+                1. tự gọi Staging.IsStagingReadyAsync — self-healing nếu
+                   chưa sẵn sàng, tự SyncAttendanceStagingAsync trước
+                2. EXEC usp_SyncOTActualHours
+                   → UPDATE F03OTEmployee.ActualHours/ActualStartTime/
+                     ActualEndTime
+                3. SELECT báo cáo → OTReconciliationResultDto
+                   { List<OTReconciliationItemDto>: Status (enum
+                     OTReconciliationStatus), ValidationStatus (enum
+                     OTHourValidationStatus) }
+        │
+        ▼
+OTOrchestrator.ReconcileActualHoursAsync(date,deptCode,ct)
+        │  bọc ServiceResult<OTReconciliationResultDto>, KHÔNG thêm logic
+        ▼
+OTAttendanceReconcilePage.razor
+        ⚠️ CHỈ gọi khi Admin bấm "Đối chiếu ngay" — TUYỆT ĐỐI KHÔNG trong
+           OnInitializedAsync/timer — mỗi lần gọi ĐỀU GHI dữ liệu
+
+OTAttendanceStagingWorker [Infrastructure/Jobs] — BackgroundService riêng,
+    chạy đêm (00:30), CHỈ gọi IOTAttendanceStagingService — KHÔNG BAO GIỜ
+    tự động gọi Reconciliation (đúng nguyên tắc "chủ động, không tự động")
+
+  ĐÃ XÓA (dead code, thay thế bởi 2 service trên):
+    IOTSyncService / OTSyncService (gộp lẫn Ghi+Đọc, vi phạm CQRS)
+    OTUnconfirmedDto / OTUnconfirmedResult (trùng OTReconciliationItemDto)
+    OtHoursCheckStatus / OtSyncSituation (trùng OTHourValidationStatus/
+                                            OTReconciliationStatus)
+
+IDepartmentLookupService [Application/Interfaces/Common] — SHARED, tách
+    khỏi OTAttendanceReconciliationService (trước đây đặt nhầm chỗ)
+    GetActiveDepartmentsAsync() → List<DeptOption>
+    dùng chung bởi Leave, OT, Trip, Dashboard
+
+
+═══════════════════════════════════════════════════════════════════════════
+ [D4] NOTIFICATION PIPELINE
+═══════════════════════════════════════════════════════════════════════════
+
+ApprovalWorkflowOrchestrator<TSubject>  [Application/Orchestrators]
+        │  gọi ở BƯỚC 2 (step mới) và BƯỚC 3 (duyệt xong) của D2
+        ▼
+IApprovalNotificationService  [Application/Interfaces/Approvals]
+        ▼ implement
+ApprovalNotificationService  [Infrastructure/Services/Approvals]
+        │  1. INotificationFactory → build Title/Body/ActionUrl
+        │  2. INotificationService.CreateAsync(dto,ct) → NotificationDto
+        ▼
+INotificationFactory / NotificationFactory  [Application/Factories — THUẦN LOGIC]
+        ▼
+INotificationService  [Application/Interfaces/Notifications]
+        CreateAsync(CreateNotificationDto,ct)     → Task<NotificationDto>  (đã sửa từ entity)
+        GetByUserAsync(userId,page,pageSize,ct)   → List<NotificationDto>
+        GetUnreadCountAsync(userId,ct)             → int
+        MarkReadAsync(notificationId,userId,ct)    → ServiceResult
+        MarkAllReadAsync(userId,ct)                 → ServiceResult
+        ▼ implement
+NotificationService  [Infrastructure/Services/Notifications]
+        │  1. lưu F03AppNotification qua IUnitOfWork, map → NotificationDto
+        │  2. IHubContext<NotificationHub>.Clients.User(...).SendAsync(...)
+        ▼
+NotificationHub (SignalR)  [Infrastructure/Hubs]
+        ▼
+NotificationClientService (Blazor)  [Shared/Services/Notifications]
+        ▼
+NotificationActionUIExtensions  [Shared/Utils]
+
+  ⚠️ TODO còn treo: resolve ApproverCode → UserId cho kênh in-app
+     (NotifyApproverInAppAsync cần approverUserId:int, ApprovalStepDto
+     chỉ có ApproverCode:string) — đề xuất thêm IUserService
+     .GetUserIdByEmployeeCodeAsync(employeeCode,ct), chưa code hoá
+
+
+═══════════════════════════════════════════════════════════════════════════
+ [D5] DASHBOARD AGGREGATION
+═══════════════════════════════════════════════════════════════════════════
+
+DashboardPage.razor (Home.razor)  [Blazor/Pages]
+        ▼
+IDashboardClientService / DashboardClientService  [Shared/Services/Dashboards]
+        │  HTTP GET api/dashboard
+        ▼
+DashboardController  [API]
+        ▼
+IDashboardOrchestrator / DashboardOrchestrator  [Application/Orchestrators]
+        │  1. IApprovalActionHandler.GetAllPendingAsync (D2 — ĐÃ gộp đa
+        │     module qua Dispatcher, KHÔNG tự query lại)
+        │  2. foreach IModuleDashboardProvider → GetContributionAsync(user,ct)
+        │     (đăng ký DI dạng collection — thêm module KHÔNG sửa Orchestrator)
+        │  3. ép kiểu Detail bằng "is" pattern + log warning nếu sai kiểu
+        │     (KHÔNG dùng "as" trực tiếp — tránh fail silent)
+        │  4. DashboardWidgetPolicy.Arrange(user, rawWidgets) — THUẦN LOGIC
+        ▼
+IModuleDashboardProvider  [Application/Interfaces/Dashboards]
+    GetContributionAsync(user,ct) : Task<ModuleDashboardContribution>
+ModuleDashboardContribution  [Application/Dtos/Dashboards]
+    Module: RequestModule / Widgets: List<WidgetCounterDto> / Detail: object?
+        │  implement bởi
+        ├─ LeaveDashboardProvider  [Infrastructure/Services/Dashboards]
+        │     → ILeaveQueryService
+        ├─ OTDashboardProvider     [Infrastructure/Services/Dashboards]
+        │     → IOTQueryService
+        └─ TripDashboardProvider   [CHƯA build]
+        ▼
+DashboardResponse (Contract/Responses)
+        ▼
+DashboardOverview.razor / UserDashboard.razor
+
+
+═══════════════════════════════════════════════════════════════════════════
+ BẢNG QUY ƯỚC NAMESPACE — ÁP DỤNG CHO MỌI DOMAIN
+═══════════════════════════════════════════════════════════════════════════
+
+  Interface nghiệp vụ (IXxxService)         │ Application/Interfaces/{Domain}
+  Orchestrator (điều phối, KHÔNG đụng DB)   │ Application/Orchestrators
+  Dispatcher (route non-generic → generic)  │ Application/Dispatchers
+  Policy/Factory (thuần logic, không I/O)   │ Application/Policies | Factories
+  Subject dùng làm generic TSubject         │ Application/Models/Subjects
+  DTO thuần (request/response/summary)      │ Contract/Dtos/{Domain}
+  Response tổng hợp trả client              │ Contract/Responses
+  Entity EF Core                            │ Core/Entities/{Domain}
+  Implementation thật (EF/SQL/SignalR)      │ Infrastructure/Services/{Domain}
+  Hub SignalR                               │ Infrastructure/Hubs
+  Background Worker/Job                     │ Infrastructure/Jobs
+  Controller                                │ API/Controllers
+  Blazor Page/ClientService                 │ Shared/Pages | Shared/Services/{Domain}
+
+  Project Reference (bắt buộc):
+    Core        → (không gì)
+    Contract    → Core
+    Application → Core, Contract
+    Infrastructure → Core, Contract, Application
+    Web/Blazor(Shared) → Core, Contract, Application (KHÔNG Infrastructure)
+
+
+═══════════════════════════════════════════════════════════════════════════
+ DANH SÁCH "CẦN XÁC NHẬN" CÒN TỒN ĐỌNG (chưa giải quyết)
+═══════════════════════════════════════════════════════════════════════════
+
+  [D1] HrmSyncResult.Success — logic tính cụ thể (Errors.Count==0?)
+  [D1] IHrmStagingEntity.Id  — dùng làm tiebreaker dedupe, xác nhận tồn tại
+  [D1] SyncSourceTags enum order (Hrm=0 hay Manual=0) — rủi ro default sai
+  [D1] F03SyncReviewFlag.IsResolved/ResolvedAt/ResolvedBy — chưa xác nhận
+  [D1] F03LeaveType/F03OTType — có IsActive từ BaseAuditEntity (đã chốt),
+       nhưng field Name2/HRMCode cho F03OTType — xác nhận đúng cấu trúc
+  [D2] Migration: thêm cột ApproverEmail vào F03ApprovalStepSnapshot;
+       tạo bảng mới F03ApprovalReminderLog
+  [D2] Admin override duyệt thay — rule chặn theo ApproverRole (Admin/
+       SuperAdmin) chưa code hoá, vẫn là TODO trong ProcessDecisionAsync
+  [D2] F03ApprovalStep (bảng cũ, Obsolete) — lộ trình 3 giai đoạn gỡ bỏ
+       chưa nêu chi tiết mốc thời gian/điều kiện chuyển hẳn
+  [D4] Resolve ApproverCode → UserId cho kênh in-app — chưa code hoá
+  [D5] ContributionDto (ModuleDashboardContribution) ép kiểu Detail —
+       đã chốt hướng "is" pattern, nhưng chưa viết code cụ thể trong
+       DashboardOrchestrator

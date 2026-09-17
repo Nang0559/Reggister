@@ -1,0 +1,155 @@
+﻿@* File: FVN_REGISTER.Shared/Pages/Admin/EmployeeOtDetailDialog.razor *@
+@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Shared.Services.Employees
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.AccessTime" Color="Color.Warning" />
+            <MudText Typo="Typo.h6">
+                OT chi tiết — @Employee?.EmployeeName (@Employee?.EmployeeCode)
+            </MudText>
+        </MudStack>
+    </TitleContent>
+
+    <DialogContent>
+        @if (_isLoading)
+        {
+            <MudStack AlignItems="AlignItems.Center" Class="pa-6">
+                <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+                <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                    Đang tải dữ liệu OT...
+                </MudText>
+            </MudStack>
+        }
+        else if (_summary != null)
+        {
+            @* Tổng năm *@
+            <MudGrid Class="mb-4">
+                <MudItem xs="6" sm="3">
+                    <MudPaper Elevation="2" Class="pa-3 text-center"
+                              Style="border-radius:10px">
+                        <MudText Typo="Typo.h5" Style="font-weight:700"
+                                 Color="Color.Warning">
+                            @_summary.TotalHours.ToString("N1")
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Tổng giờ OT @_summary.Year
+                        </MudText>
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="6" sm="3">
+                    <MudPaper Elevation="2" Class="pa-3 text-center"
+                              Style="border-radius:10px">
+                        <MudText Typo="Typo.h5" Style="font-weight:700"
+                                 Color="Color.Info">
+                            @_summary.TotalDays
+                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">
+                            Số ngày OT
+                        </MudText>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+
+            @* Bảng theo tháng *@
+            <MudTable Items="_summary.Monthly"
+                      Dense="true"
+                      Striped="true"
+                      Hover="true"
+                      Style="border-radius:10px; overflow:hidden">
+                <HeaderContent>
+                    <MudTh>Tháng</MudTh>
+                    <MudTh Style="text-align:right">Số ngày</MudTh>
+                    <MudTh Style="text-align:right">Số giờ</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>
+                        <MudText Typo="Typo.body2">
+                            Tháng @context.Month
+                        </MudText>
+                    </MudTd>
+                    <MudTd Style="text-align:right">
+                        <MudText Typo="Typo.body2">@context.Days</MudText>
+                    </MudTd>
+                    <MudTd Style="text-align:right">
+                        <MudText Typo="Typo.body2" Style="font-weight:600">
+                            @context.Hours.ToString("N1") h
+                        </MudText>
+                    </MudTd>
+                </RowTemplate>
+                <NoRecordsContent>
+                    <MudStack AlignItems="AlignItems.Center" Class="pa-6">
+                        <MudIcon Icon="@Icons.Material.Filled.EventBusy"
+                                 Size="Size.Large" Color="Color.Secondary" />
+                        <MudText Color="Color.Secondary">
+                            Chưa có dữ liệu OT năm @_summary.Year
+                        </MudText>
+                    </MudStack>
+                </NoRecordsContent>
+                <FooterContent>
+                    @if (_summary.Monthly.Any())
+                    {
+                        <MudTFootRow>
+                            <MudTd><MudText Style="font-weight:700">Tổng cộng</MudText></MudTd>
+                            <MudTd Style="text-align:right">
+                                <MudText Style="font-weight:700">@_summary.TotalDays</MudText>
+                            </MudTd>
+                            <MudTd Style="text-align:right">
+                                <MudText Style="font-weight:700; color:#FF8F00">
+                                    @_summary.TotalHours.ToString("N1") h
+                                </MudText>
+                            </MudTd>
+                        </MudTFootRow>
+                    }
+                </FooterContent>
+            </MudTable>
+        }
+        else
+        {
+            <MudAlert Severity="Severity.Info">
+                Không có dữ liệu OT cho nhân viên này.
+            </MudAlert>
+        }
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Close" Variant="Variant.Filled" Color="Color.Default">
+            Đóng
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Inject] private IEmployeeManagementClientService EmployeeService { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    [Parameter] public EmployeeCardViewModel? Employee { get; set; }
+
+    private bool _isLoading = true;
+    private EmployeeOtSummaryViewModel? _summary;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (Employee == null)
+        {
+            _isLoading = false;
+            return;
+        }
+
+        var result = await EmployeeService.GetOtSummaryAsync(
+            Employee.EmployeeCode, DateTime.Now.Year);
+
+        if (result.IsSuccess)
+            _summary = result.Data;
+        else
+            Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu OT", Severity.Warning);
+
+        _isLoading = false;
+    }
+
+    private void Close() => MudDialog.Close();
+}

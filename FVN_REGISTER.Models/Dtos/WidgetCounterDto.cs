@@ -13,5 +13,8 @@ namespace FVN_REGISTER.Contract.Dtos
         public string Icon { get; set; } = string.Empty;  // MudBlazor Icon (e.g., Icons.Material.Filled.HourglassEmpty)
         public string Color { get; set; } = "primary";    // Màu sắc (Success, Error, Info...)
         public string? Link { get; set; }                 // Bấm vào thì nhảy đi đâu (e.g., "/leaves/pending")
+        public int? ChangePercent { get; set; } // Ví dụ: +10 (%)
+        public string? TrendText { get; set; }  // Ví dụ: "So với tháng trước"
+        public bool IsPersonal { get; set; } = true;
     }
 }

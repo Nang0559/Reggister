@@ -1,0 +1,194 @@
+﻿@* File: FVN_REGISTER.Shared/Pages/Admin/ApproverEditDialog.razor *@
+@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Contract.ViewModels.Approvals
+@using FVN_REGISTER.Contract.ViewModels.Departments
+@using FVN_REGISTER.Shared.Services.Approvals
+
+<MudDialog>
+    <TitleContent>
+        <MudStack Row="true" AlignItems="AlignItems.Center">
+            <MudIcon Icon="@(Model.Id == 0 ? Icons.Material.Filled.PersonAdd : Icons.Material.Filled.Edit)"
+                     Color="Color.Primary" />
+            <MudText Typo="Typo.h6">
+                @(Model.Id == 0 ? "Thêm Approver mới" : "Chỉnh sửa Approver")
+            </MudText>
+        </MudStack>
+    </TitleContent>
+
+    <DialogContent>
+        <MudForm @ref="_form" Class="pt-2">
+            <MudGrid>
+                @* Bộ phận *@
+                <MudItem xs="12">
+                    <MudSelect T="string"
+                               Label="Bộ phận (*)"
+                               Value="Model.DeptCode"
+                               ValueChanged="OnDeptChanged"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Disabled="LockDept"
+                               Required="true"
+                               RequiredError="Chọn bộ phận">
+                        @foreach (var dept in Departments)
+                        {
+                            <MudSelectItem Value="@dept.DeptCode">@dept.DeptName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @* Cấp duyệt *@
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int"
+                               Label="Cấp duyệt (*)"
+                               @bind-Value="Model.ApproveLevel"
+                               Variant="Variant.Outlined"
+                               Required="true">
+                        <MudSelectItem Value="1">Cấp 1 - Sub Leader/Leader</MudSelectItem>
+                        <MudSelectItem Value="2">Cấp 2 - Ast.Chift/Chift</MudSelectItem>
+                        <MudSelectItem Value="3">Cấp 3 - AMG/MG</MudSelectItem>
+                        <MudSelectItem Value="4">Cấp 4 - BGĐ</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                @* Trạng thái *@
+                <MudItem xs="12" sm="6">
+                    <MudSwitch T="bool"
+                               @bind-Value="Model.IsActive"
+                               Label="@(Model.IsActive ? "Đang hoạt động" : "Vô hiệu hóa")"
+                               Color="Color.Success"
+                               Class="mt-3" />
+                </MudItem>
+
+                @* Chọn nhân viên *@
+                <MudItem xs="12">
+                    <MudSelect T="string"
+                               Label="Chọn nhân viên (*)"
+                               Value="Model.ApproveLevelCode"
+                               ValueChanged="OnEmployeeSelected"
+                               Variant="Variant.Outlined"
+                               Required="true"
+                               RequiredError="Chọn nhân viên"
+                               Disabled="_employees.Count == 0"
+                               HelperText="@(_employees.Count == 0 ? "Chọn bộ phận trước" : $"{_employees.Count} nhân viên")">
+                        @foreach (var emp in _employees)
+                        {
+                            <MudSelectItem Value="@emp.EmployeeCode">
+                                @emp.EmployeeCode - @emp.EmployeeName
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                @* Tên hiển thị *@
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="Họ tên (*)"
+                                  @bind-Value="Model.ApproveLevelName"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="Nhập họ tên" />
+                </MudItem>
+
+                @* Email *@
+                <MudItem xs="12" sm="6">
+                    <MudTextField Label="Email (*)"
+                                  @bind-Value="Model.ApproveLevelEmail"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  RequiredError="Nhập email"
+                                  InputType="InputType.Email" />
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Hủy</MudButton>
+        <MudButton Color="Color.Primary"
+                   Variant="Variant.Filled"
+                   OnClick="Submit"
+                   Disabled="_isSaving">
+            @(_isSaving ? "Đang lưu..." : (Model.Id == 0 ? "Thêm mới" : "Lưu thay đổi"))
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Inject] private IApproverClientService ApproverService { get; set; } = default!;
+    [Inject] private ISnackbar Snackbar { get; set; } = default!;
+
+    [Parameter] public ApproverViewModel Model { get; set; } = new() { IsActive = true };
+    [Parameter] public List<DepartmentViewModel> Departments { get; set; } = new();
+    [Parameter] public bool LockDept { get; set; } = false;
+
+    private MudForm _form = default!;
+    private bool _isSaving = false;
+    private List<EmployeeSelectViewModel> _employees = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Nếu đã có DeptCode (trường hợp Sửa hoặc Thêm theo bộ phận cụ thể) -> nạp sẵn danh sách NV
+        if (!string.IsNullOrEmpty(Model.DeptCode))
+            await LoadEmployeesForDept(Model.DeptCode);
+    }
+
+    private async Task LoadEmployeesForDept(string deptCode)
+    {
+        _employees = new();
+        if (string.IsNullOrEmpty(deptCode)) return;
+
+        var result = await ApproverService.GetEmployeesAsync(deptCode);
+        if (result.IsSuccess && result.Data != null)
+            _employees = result.Data;
+    }
+
+    private async Task OnDeptChanged(string value)
+    {
+        Model.DeptCode = value;
+        // Reset lựa chọn nhân viên vì bộ phận đã thay đổi
+        Model.ApproveLevelCode = null;
+        Model.ApproveLevelName = "";
+        Model.ApproveLevelEmail = "";
+        await LoadEmployeesForDept(value);
+    }
+
+    private void OnEmployeeSelected(string empCode)
+    {
+        Model.ApproveLevelCode = empCode;
+        var emp = _employees.FirstOrDefault(e => e.EmployeeCode == empCode);
+        if (emp == null) return;
+        Model.ApproveLevelName = emp.EmployeeName;
+        Model.ApproveLevelEmail = emp.EmailAddress;
+    }
+
+    private async Task Submit()
+    {
+        await _form.ValidateAsync();
+        if (!_form.IsValid) return;
+
+        _isSaving = true;
+        try
+        {
+            var result = Model.Id == 0
+                ? await ApproverService.CreateAsync(Model)
+                : await ApproverService.UpdateAsync(Model.Id, Model);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Thành công!", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "Có lỗi xảy ra", Severity.Error);
+            }
+        }
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

@@ -1,0 +1,27 @@
+ApprovalWorkflowOrchestrator<TSubject>  (Application)
+        │  gọi khi có step mới / duyệt xong
+        ▼
+IApprovalNotificationService            (Application/Interfaces/Approvals)
+        │  implement bởi
+        ▼
+ApprovalNotificationService             (Infrastructure/Services/Approvals)
+        │  1. gọi INotificationFactory để build Title/Body/ActionUrl
+        │  2. gọi INotificationService để lưu DB + đẩy realtime
+        ▼
+INotificationFactory + NotificationFactory   (Application/Factories — thuần logic, không I/O)
+        │
+        ▼
+INotificationService                    (đổi namespace, xem bên dưới)
+        │  implement bởi
+        ▼
+NotificationService                     (Infrastructure/Services/Notifications)
+        │  1. lưu F03AppNotification qua IUnitOfWork
+        │  2. IHubContext<NotificationHub>.Clients.User(...).SendAsync(...) để đẩy realtime
+        ▼
+NotificationHub (SignalR)                (Infrastructure/Hubs — KHÔNG đặt ở API)
+        │  client kết nối tới hub
+        ▼
+NotificationClientService (Blazor)        (Shared/Services/Notifications — không phải /Leaves)
+        │  hiển thị
+        ▼
+NotificationActionUIExtensions            (Shared/Utils — map Enum -> icon/màu hiển thị)

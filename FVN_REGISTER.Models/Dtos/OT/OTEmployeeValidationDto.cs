@@ -1,8 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using FVN_REGISTER.Core.Enums;
+
 
 namespace FVN_REGISTER.Contract.Dtos.OT
 {
@@ -12,7 +9,7 @@ namespace FVN_REGISTER.Contract.Dtos.OT
         public string? EmployeeName { get; set; }     // thêm — hiển thị trên UI
 
         // OTQueryService dùng ViolationType, CurrentUsed, Limit, Requested
-        public string ViolationType { get; set; } = string.Empty;  // "Daily"|"Weekly"|"Yearly"
+        public OTLimitType ViolationType { get; set; } 
         public decimal CurrentUsed { get; set; }
         public decimal Limit { get; set; }
         public decimal Requested { get; set; }

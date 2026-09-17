@@ -1,11 +1,10 @@
-﻿using FVN_REGISTER.Contract.ViewModels;
-
+﻿using FVN_REGISTER.Contract.Dtos.Authentication;
 
 namespace FVN_REGISTER.Shared.Services.Users
 {
     public interface ICurrentUserClientService
     {
-        UserSessionDto? User { get; }
+        AuthResultDto? User { get; }
         bool IsLoggedIn => User != null;
         int? PermissionCode => User?.PermissionCode;
 

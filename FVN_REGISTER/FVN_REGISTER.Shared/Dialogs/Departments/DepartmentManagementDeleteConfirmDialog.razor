@@ -1,0 +1,38 @@
+﻿@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Contract.ViewModels.Departments
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6" Color="Color.Error">
+            <MudIcon Icon="@Icons.Material.Filled.WarningAmber" Class="mr-2" />
+            Xác nhận xóa
+        </MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudText>
+            Bạn có chắc muốn xóa bộ phận
+            <strong>@Department?.DeptName</strong> (@Department?.DeptCode)?
+        </MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+            Hành động này không thể hoàn tác.
+        </MudText>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+        <MudButton Color="Color.Error" Variant="Variant.Filled" OnClick="Confirm">
+            Xóa
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    [Parameter] public DepartmentItemViewModel? Department { get; set; }
+
+    private void Confirm() => MudDialog.Close(DialogResult.Ok(true));
+
+    private void Cancel() => MudDialog.Cancel();
+}

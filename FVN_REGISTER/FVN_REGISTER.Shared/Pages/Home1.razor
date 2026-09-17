@@ -1,13 +1,14 @@
 ﻿@page "/home1"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Contract.ViewModels.Leaves
+@using FVN_REGISTER.Core.Logging
 @using FVN_REGISTER.Shared.Components
 @using FVN_REGISTER.Shared.Services.Dashboards
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils.Helpers
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components.Authorization
-@using FVN_REGISTER.Core.Logging
 @inherits AppComponentBase
 @implements IDisposable
 
@@ -34,7 +35,7 @@ else
 }
 
 @code {
-    private DashboardViewModel? _model;
+    private LeaveDashboardViewModel? _model;
     private bool _isLoading = true;
     private CancellationTokenSource _cts = new();
 

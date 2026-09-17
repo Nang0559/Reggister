@@ -1,31 +1,44 @@
 ﻿using FVN_REGISTER.API.Hubs;
-using FVN_REGISTER.API.Repositories;
+using FVN_REGISTER.API.Services.Approvals;
 using FVN_REGISTER.API.Services.Auths;
+using FVN_REGISTER.API.Services.Companies;
 using FVN_REGISTER.API.Services.Emails;
-using FVN_REGISTER.API.Services.Escalations;
+using FVN_REGISTER.API.Services.Employees;
+using FVN_REGISTER.API.Services.Histories;
 using FVN_REGISTER.API.Services.Leaves;
-using FVN_REGISTER.API.Services.Leaves.FVN_REGISTER.API.Services.Leaves;
 using FVN_REGISTER.API.Services.Notifications;
 using FVN_REGISTER.API.Services.OT;
 using FVN_REGISTER.API.Services.Reports;
 using FVN_REGISTER.API.Services.Statics;
 using FVN_REGISTER.API.Services.Users;
 using FVN_REGISTER.Contract.Dtos;
+using FVN_REGISTER.Contract.Interfaces.Approvals;
 using FVN_REGISTER.Contract.Interfaces.Auths;
+using FVN_REGISTER.Contract.Interfaces.Common;
+using FVN_REGISTER.Contract.Interfaces.Companies;
 using FVN_REGISTER.Contract.Interfaces.Emails;
+using FVN_REGISTER.Contract.Interfaces.EmailTemplates;
+using FVN_REGISTER.Contract.Interfaces.Employees;
+using FVN_REGISTER.Contract.Interfaces.Histories;
 using FVN_REGISTER.Contract.Interfaces.Leaves;
 using FVN_REGISTER.Contract.Interfaces.OT;
 using FVN_REGISTER.Contract.Interfaces.Reports;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Contract.Interfaces.Statics;
+using FVN_REGISTER.Contract.Interfaces.UserManagers;
 using FVN_REGISTER.Contract.Interfaces.Users;
 using FVN_REGISTER.Contract.Maps;
-using FVN_REGISTER.Contract.Models;
+using FVN_REGISTER.Contract.Models.Data;
+using FVN_REGISTER.Contract.Models.Subjects;
 using FVN_REGISTER.Contract.Utils;
+using FVN_REGISTER.Contract.ViewModels.Leaves;
+using FVN_REGISTER.Contract.ViewModels.OT;
+using FVN_REGISTER.Core.Config;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Infrastructure.Repositories;
+using FVN_REGISTER.Infrastructure.Services.Companies;
+using FVN_REGISTER.Infrastructure.Services.Jobs;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -45,11 +58,14 @@ var allowedOrigins = builder.Configuration
     .Get<string[]>()
     ?? new[]
     {
-        "https://localhost:7264",  // Blazor Web HTTPS
-        "http://localhost:5120",   // Blazor Web HTTP
-        "http://localhost:5017",   // API HTTP
-        "https://localhost:7135"   // API HTTPS
+        "https://localhost:7264",
+        "http://localhost:5120",
+        "http://localhost:5017",
+        "https://localhost:7135"
     };
+
+// ── Log origins khi startup ──
+Console.WriteLine($"[STARTUP] CORS AllowedOrigins: {string.Join(", ", allowedOrigins)}");
 
 builder.Services.AddCors(options =>
 {
@@ -59,9 +75,11 @@ builder.Services.AddCors(options =>
             .WithOrigins(allowedOrigins)
             .AllowAnyMethod()
             .AllowAnyHeader()
-            .AllowCredentials(); // Bắt buộc cho SignalR WebSocket
+            .AllowCredentials(); // Bắt buộc cho SignalR
     });
 });
+
+
 
 // =========================================================
 // 2. INFRASTRUCTURE
@@ -70,7 +88,10 @@ builder.Services.AddMemoryCache();
 
 builder.Services.Configure<AuthDebugOptions>(
     builder.Configuration.GetSection("AuthDebug"));
-
+builder.Services.Configure<AppOptions>(opts =>
+{
+    opts.SiteUrl = builder.Configuration["SiteUrl"] ?? "https://localhost:7264";
+});
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<FVNWEBAPPContext>(options =>
     options.UseSqlServer(connectionString));
@@ -93,18 +114,21 @@ builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 // Business
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
-builder.Services.AddScoped<ILeaveRepository, LeaveRepository>();
 builder.Services.AddScoped<ILeaveQueryService, LeaveQueryService>();
 builder.Services.AddScoped<IEscalationRuleService, EscalationRuleService>();
 builder.Services.AddScoped<ILeaveValidator, LeaveValidator>();
-builder.Services.AddScoped<ILeaveNotificationService, LeaveNotificationService>();
+
 builder.Services.AddScoped<ILeaveEscalationService, LeaveEscalationService>();
 builder.Services.AddScoped<ILeaveService, LeaveService>();
 builder.Services.AddScoped<IReportService, LeaveReportService>();
-builder.Services.AddScoped<IOTNotificationService, OTNotificationService>();
+builder.Services.AddScoped<IReportService, OTReportService>();
+builder.Services.AddScoped<IReportDispatcher, ReportDispatcher>();
+
+builder.Services.AddScoped<OTQueryService>();
 builder.Services.AddScoped<IOTQueryService, OTQueryService>();
 builder.Services.AddScoped<IOTValidator, OTValidator>();
 builder.Services.AddScoped<IOTService, OTService>();
+
 // User & Auth
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
@@ -113,7 +137,35 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IUserLogService, UserLogService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
+builder.Services.AddScoped<IUserManagementService, UserManagementService>();
+builder.Services.AddScoped<IApproverManagementService, ApproverManagementService>();
+// OT Sync
+builder.Services.AddScoped<IOTSyncService, OTSyncService>();
+// Thêm vào phần Business services
+builder.Services.AddScoped<IDepartmentStatusService, DepartmentStatusService>();
+// Employeess
+builder.Services.AddScoped<IEmployeeManagementService, EmployeeManagementService>();
+//History
+// Program.cs
+builder.Services.AddScoped<IHistoryHandler, LeaveHistoryHandler>();
+builder.Services.AddScoped<IHistoryHandler, OTHistoryHandler>();
+builder.Services.AddScoped<IHistoryDispatcher, HistoryDispatcher>();
+// Emails
+builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
+// department 
+builder.Services.AddScoped<IDepartmentService, DepartmentManagementService>();
+// levevtypes
+builder.Services.AddScoped<ILeaveTypeManagementService, LeaveTypeManagementService>();
+//Approver
+builder.Services.AddScoped<LeaveApprovalProvider>();
+builder.Services.AddScoped<IApprovalEngine<LeaveRequestSubject>, ApprovalEngine<LeaveRequestSubject>>();
+builder.Services.AddScoped<IApprovalListDataSource<LeaveRequestViewModel>, LeaveApprovalListDataSource>();
+builder.Services.AddScoped<IApprovalListDataSource<OTRequestViewModel>, OTApprovalListDataSource>();
 
+builder.Services.AddScoped<ApprovalListService<LeaveRequestViewModel>>();
+builder.Services.AddScoped<ApprovalListService<OTRequestViewModel>>();
+//OT services 
+builder.Services.AddScoped<IOTTypeService, OTTypeManagementService>();
 // =========================================================
 // 4. AUTHENTICATION / JWT
 // =========================================================
@@ -245,13 +297,16 @@ builder.Services.AddControllers();
 // =========================================================
 builder.Services.AddHostedService<EmailBackgroundWorker>();
 builder.Services.AddHostedService<EscalationBackgroundWorker>();
+builder.Services.AddSingleton<OTAttendanceStagingWorker>();
+builder.Services.AddHostedService(sp => sp.GetRequiredService<OTAttendanceStagingWorker>());
+builder.Services.AddSingleton<IOTWorkerStatus>(sp => sp.GetRequiredService<OTAttendanceStagingWorker>());
 builder.Services.AddOpenApi();
 
 // =========================================================
 // 6. BUILD & PIPELINE
 // =========================================================
 var app = builder.Build();
-
+app.UsePathBase("/api");
 // Lấy logger + debug flag sau khi build xong
 var appLogger = app.Services.GetRequiredService<ILogger<Program>>();
 var debugOptions = app.Services.GetRequiredService<IOptionsMonitor<AuthDebugOptions>>();

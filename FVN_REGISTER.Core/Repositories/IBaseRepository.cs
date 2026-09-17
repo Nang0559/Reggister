@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿
 
 namespace FVN_REGISTER.Core.Repositories
 {
@@ -20,6 +16,6 @@ namespace FVN_REGISTER.Core.Repositories
 
         void Remove(TEntity entity);
 
-        Task<int> SaveChangesAsync(CancellationToken ct = default);
+   
     }
 }

@@ -6,6 +6,7 @@ window.leaveCalendar = (function () {
     let _calendar = null;
     let _dotNetRef = null;
     let _holidayDates = [];
+    let _selectGuard = false; // ✅ Tránh dateClick + select gọi 2 lần
 
     // ─── Helpers ───────────────────────────────────────────
     function isWeekend(date) {
@@ -18,14 +19,12 @@ window.leaveCalendar = (function () {
     }
 
     function toDateStr(date) {
-        // Chuyển Date object → "yyyy-MM-dd" theo local time (tránh UTC offset lệch ngày)
         const y = date.getFullYear();
         const m = String(date.getMonth() + 1).padStart(2, '0');
         const d = String(date.getDate()).padStart(2, '0');
         return `${y}-${m}-${d}`;
     }
 
-    // Kiểm tra range có hợp lệ không (không phải toàn cuối tuần/lễ)
     function hasValidDayInRange(startDate, endDate) {
         const d = new Date(startDate);
         while (d < endDate) {
@@ -36,23 +35,45 @@ window.leaveCalendar = (function () {
         return false;
     }
 
+    function isMobileDevice() {
+        return window.innerWidth < 768
+            || 'ontouchstart' in window
+            || navigator.maxTouchPoints > 0;
+    }
+
+    function invokeSelect(startStr, endStr) {
+        if (_selectGuard) return;
+        _selectGuard = true;
+
+        if (_dotNetRef) {
+            _dotNetRef.invokeMethodAsync('OnRangeSelect', startStr, endStr)
+                .catch(err => console.error('[leaveCalendar] OnRangeSelect error:', err));
+        }
+
+        // Reset guard sau 600ms (đủ để bỏ qua event trùng lặp)
+        setTimeout(() => { _selectGuard = false; }, 600);
+    }
+
     // ─── Init ──────────────────────────────────────────────
     function init(element, dotNetRef, events, holidayDates) {
         _dotNetRef = dotNetRef;
         _holidayDates = holidayDates || [];
+        _selectGuard = false;
 
         if (_calendar) {
             _calendar.destroy();
             _calendar = null;
         }
 
+        const mobile = isMobileDevice();
+
         _calendar = new FullCalendar.Calendar(element, {
-            initialView: 'dayGridMonth',
+            initialView: 'dayGridMonth', // ✅ Luôn dùng dayGridMonth (listMonth không hỗ trợ select)
             locale: 'vi',
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
-                right: 'dayGridMonth,listMonth'
+                right: mobile ? 'dayGridMonth' : 'dayGridMonth,listMonth'
             },
             buttonText: {
                 today: 'Hôm nay',
@@ -61,9 +82,12 @@ window.leaveCalendar = (function () {
             },
             height: 'auto',
 
+            // ✅ MOBILE TOUCH CONFIG
             selectable: true,
             selectMirror: true,
             unselectAuto: true,
+            longPressDelay: mobile ? 400 : 0,       // Giữ ngón tay 400ms để bắt đầu select
+            selectLongPressDelay: mobile ? 400 : 0, // Riêng cho select gesture
 
             selectAllow: function (selectInfo) {
                 return hasValidDayInRange(selectInfo.start, selectInfo.end);
@@ -71,7 +95,7 @@ window.leaveCalendar = (function () {
 
             events: events,
 
-            // ✅ Chỉ dùng select, BỎ dateClick để tránh gọi 2 lần
+            // ✅ select: xử lý kéo chọn range (desktop) + long-press drag (mobile)
             select: function (info) {
                 const startStr = toDateStr(info.start);
 
@@ -79,34 +103,35 @@ window.leaveCalendar = (function () {
                 endExclusive.setDate(endExclusive.getDate() - 1);
                 const endStr = toDateStr(endExclusive);
 
-                if (_dotNetRef) {
-                    _dotNetRef.invokeMethodAsync('OnRangeSelect', startStr, endStr)
-                        .catch(err => console.error('[leaveCalendar] OnRangeSelect error:', err));
-                }
-
+                invokeSelect(startStr, endStr);
                 _calendar.unselect();
             },
 
-            // ✅ BỎ dateClick — select đã xử lý cả click 1 ngày
+            // ✅ dateClick: fallback cho mobile single-tap (tap nhanh không trigger select)
+            dateClick: function (info) {
+                invokeSelect(info.dateStr, info.dateStr);
+            },
 
             eventClick: function (info) {
                 info.jsEvent.stopPropagation();
+                // ✅ Ngăn eventClick trigger dateClick/select bên dưới
+                _selectGuard = true;
+                setTimeout(() => { _selectGuard = false; }, 600);
 
-                const detailId = info.event.id;                                    // DetailId → cancel ngày này
-                const leaveId = info.event.extendedProps?.inforregister ?? '';     // LeaveId → cancel cả đơn
+                const detailId = info.event.id;
+                const leaveId = info.event.extendedProps?.inforregister ?? '';
                 const status = info.event.extendedProps?.APstatus
                     ?? info.event.extendedProps?.status ?? '';
-                const startDate = info.event.startStr;                             // Ngày của detail này
+                const startDate = info.event.startStr;
 
                 if (_dotNetRef) {
                     _dotNetRef.invokeMethodAsync(
                         'OnEventClick',
-                        String(detailId),   // ← DetailId
-                        String(leaveId),    // ← LeaveId (thêm mới)
+                        String(detailId),
+                        String(leaveId),
                         String(status),
-                        String(startDate)   // ← Ngày cụ thể (thêm mới)
-                    )
-                        .catch(err => console.error('[leaveCalendar] OnEventClick error:', err));
+                        String(startDate)
+                    ).catch(err => console.error('[leaveCalendar] OnEventClick error:', err));
                 }
             },
 
@@ -126,7 +151,6 @@ window.leaveCalendar = (function () {
             eventContent: function (arg) {
                 const status = arg.event.extendedProps?.status ?? '';
                 const title = arg.event.title;
-
                 const icons = {
                     'Approved': '✓',
                     'Rejected': '✗',
@@ -136,12 +160,11 @@ window.leaveCalendar = (function () {
                     'Holiday': '🏖',
                 };
                 const icon = icons[status] || '';
-
                 return {
                     html: `<div class="fc-event-custom" title="${status}">
-                           <span class="fc-event-icon">${icon}</span>
-                           <span class="fc-event-label">${title}</span>
-                       </div>`
+                               <span class="fc-event-icon">${icon}</span>
+                               <span class="fc-event-label">${title}</span>
+                           </div>`
                 };
             }
         });
@@ -149,14 +172,14 @@ window.leaveCalendar = (function () {
         _calendar.render();
     }
 
-    // ─── Cập nhật events sau khi submit ────────────────────
+    // ─── Cập nhật events ───────────────────────────────────
     function updateEvents(newEvents) {
         if (!_calendar) return;
         _calendar.getEvents().forEach(e => e.remove());
         newEvents.forEach(e => _calendar.addEvent(e));
     }
 
-    // ─── Cập nhật danh sách ngày lễ (đổi năm) ─────────────
+    // ─── Cập nhật ngày lễ ──────────────────────────────────
     function updateHolidays(newHolidays) {
         _holidayDates = newHolidays || [];
         if (_calendar) _calendar.render();
@@ -170,6 +193,7 @@ window.leaveCalendar = (function () {
         }
         _dotNetRef = null;
         _holidayDates = [];
+        _selectGuard = false;
     }
 
     return { init, updateEvents, updateHolidays, destroy };

@@ -1,6 +1,6 @@
 ﻿
 
-namespace FVN_REGISTER.Contract.Utils
+namespace FVN_REGISTER.Core.Utils
 {
     public class PaginationResult<T>
     {

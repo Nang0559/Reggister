@@ -1,4 +1,4 @@
-﻿using FVN_REGISTER.Contract.ViewModels;
+﻿using FVN_REGISTER.Contract.Dtos.Authentication;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
@@ -13,7 +13,7 @@ namespace FVN_REGISTER.API.Attributes
         {
             // Trong Web API, chúng ta lấy thông tin user từ HttpContext.Items 
             // (Thường được set bởi JwtMiddleware hoặc SessionMiddleware)
-            var user = context.HttpContext.Items["User"] as UserSessionDto;
+            var user = context.HttpContext.Items["User"] as AuthResultDto;
 
             // 1. Kiểm tra đăng nhập
             if (RequireLogin && user == null)

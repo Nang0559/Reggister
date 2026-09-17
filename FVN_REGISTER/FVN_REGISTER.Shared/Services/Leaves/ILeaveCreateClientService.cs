@@ -1,4 +1,5 @@
-﻿using FVN_REGISTER.Contract.Interfaces.Repositores;
+﻿using FVN_REGISTER.Contract.Dtos.MasterData;
+using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Contract.ViewModels;
 
 
@@ -6,7 +7,7 @@ namespace FVN_REGISTER.Shared.Services.Leaves
 {
     public interface ILeaveCreateClientService
     {
-        Task<ApiResponse<CombinedHolidaysViewModel>> GetCombinedDataAsync(
+        Task<ApiResponse<SystemMasterDataDto>> GetCombinedDataAsync(
             string empCode,
             string deptCode,
             string cvCode,

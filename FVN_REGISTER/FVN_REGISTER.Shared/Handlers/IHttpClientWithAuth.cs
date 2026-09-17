@@ -1,5 +1,6 @@
 ﻿using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Shared.Utils.Helpers;
+using FVN_REGISTER.Contract.Utils;
+
 
 
 namespace FVN_REGISTER.Shared.Handlers
@@ -12,6 +13,7 @@ namespace FVN_REGISTER.Shared.Handlers
         Task<ApiResponse<T>> PostAsync<T>(string url, object data, CancellationToken ct = default);
         Task<ApiResponse<T>> PutAsync<T>(string url, object data, CancellationToken ct = default);
         Task<ApiResponse<T>> DeleteAsync<T>(string url, CancellationToken ct = default);
+        Task<ApiResponse<T>> PatchAsync<T>(string url, object data, CancellationToken ct = default);
 
         // Hỗ trợ phân trang đặc thù của FCC
         Task<ApiResponse<PaginationResult<T>>> GetPagedAsync<T>(string url, CancellationToken ct = default);

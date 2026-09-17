@@ -1,0 +1,192 @@
+════════════════════════════════════════════════════════════════════════
+ TẦNG 1 — NGUỒN DỮ LIỆU HRM (2 pipeline độc lập)
+════════════════════════════════════════════════════════════════════════
+
+PIPELINE A (Trigger — Employee, real-time)          PIPELINE B (Poll theo lịch — LeaveType/OTType/Dept/Position)
+        │                                                    │
+   HRM Trigger ghi thẳng                              IHrmSourceReader<TSourceRow>
+   → F03StagingEmployee                                  .ReadAllAsync(ct) : List<TSourceRow>
+        │                                                    │
+        │                                              HrmStagingImporterBase<TSourceRow,TStaging,TEntity>
+        │                                                : IHrmStagingImporter<TStaging>, IHrmStagingImporter
+        │                                                ★ EntityType : string
+        │                                                ★ ImportAsync(asOfDate, ct) : Task<int>
+        │                                                  - dọn stalePending (!IsProcessed) cùng loại trước khi ghi mới
+        │                                                  - ghi Action=Update cho mọi source row
+        │                                                  - diff existingKeySet vs sourceKeys → Action=Delete cho key mất
+        │                                                  - guard: bỏ qua Delete nếu missingKeys > 50% existingKeySet
+        │                                                ○ GetSourceKey(row) : string            [abstract, hook]
+        │                                                ○ GetEntityKeySelector() : Expr<TEntity,string> [abstract, hook]
+        │                                                ○ MapToStaging(row) : TStaging          [abstract, hook]
+        │                                                ○ BuildDeleteStaging(key) : TStaging     [abstract, hook]
+        ▼                                                    ▼
+════════════════════════════════════════════════════════════════════════
+ TẦNG 2 — STAGING TABLE (điểm hội tụ, HrmSyncJob không phân biệt nguồn)
+════════════════════════════════════════════════════════════════════════
+
+IHrmStagingEntity (interface chung mọi F03StagingXxx)
+        ★ Id            [CẦN XÁC NHẬN — dùng làm tiebreaker khi CreatedAt trùng]
+        ★ EntityKey      : string
+        ★ Action         : HrmChangeAction (Insert/Update/Delete)
+        ★ IsProcessed    : bool
+        ★ ErrorMessage   : string?
+        ★ CreatedAt      : DateTime
+        ★ CreatedBy      : string
+
+════════════════════════════════════════════════════════════════════════
+ TẦNG 3 — SYNC JOB (đọc staging → ghi entity đích, dùng chung mọi domain)
+════════════════════════════════════════════════════════════════════════
+
+IHrmSyncJob                                          HrmSyncResult
+        ★ EntityType : string                                ★ TotalSource : int
+        ★ SyncOrder : int = 0            [MỚI]                ★ Added : int
+        ★ IsBlockingDependency : bool = false [MỚI]           ★ Updated : int
+        ★ RunAsync(ct) : Task<HrmSyncResult>                  ★ Deactivated : int
+                                                                ★ Unchanged : int
+HrmSyncJob<TStaging,TEntity> : IHrmSyncJob                    ★ Superseded : int        [MỚI — cần thêm]
+        ★ SyncOrder = 0 (virtual)                             ★ Errors : List<string>
+        ★ IsBlockingDependency = false (virtual)               ★ Success : bool          [CẦN XÁC NHẬN field/logic]
+        ★ RunAsync(ct):                                        ★ Summary : string
+          1. pending = staging.Where(!IsProcessed).OrderBy(CreatedAt)
+          2. group by EntityKey
+          3. latest = mỗi nhóm lấy OrderByDescending(CreatedAt)
+                       .ThenByDescending(Id).First()   [SỬA — thêm tiebreaker Id]
+          4. superseded = phần còn lại mỗi nhóm → IsProcessed=true,
+                          ErrorMessage="Superseded by newer change"
+          5. LoadExistingEntitiesAsync(keys) → Dictionary<key,TEntity>
+          6. foreach latest: switch(Action)
+             - Delete → ApplyDelete(entity) nếu tồn tại
+             - Insert/Update → entity null? MapToNewEntity : ApplyUpdate
+             - try/catch riêng từng dòng → ghi staging.ErrorMessage, result.Errors
+          7. AfterBatchAsync(batchContext, ct)  [virtual, no-op mặc định]
+          8. SaveChangesAsync — BỌC try/catch [SỬA — nếu throw, cả batch
+             rollback ngầm, phải reset result về trạng thái lỗi, KHÔNG để
+             exception thoát ra ngoài RunAsync]
+        ○ LoadExistingEntitiesAsync(keys,ct)      [abstract, hook]
+        ○ MapToNewEntity(staging)                 [abstract, hook]
+        ○ ApplyUpdate(entity,staging) : bool       [abstract, hook — true nếu có đổi]
+        ○ ApplyDelete(entity) : bool                [abstract, hook — true nếu có đổi]
+        ○ AfterBatchAsync(batchContext,ct)          [virtual, hook — ghi F03SyncReviewFlag]
+
+Domain job cụ thể (ví dụ PositionHrmSyncJob):
+        ★ EntityType => "Position"
+        ★ IsBlockingDependency => true    [Department/Position — Employee phụ thuộc FK]
+        - MapToNewEntity: set LastModifiedSource = SyncSourceTags.Hrm
+        - ApplyUpdate: so field, nếu đổi → LastModifiedSource=Hrm;
+                       TÁCH RIÊNG 2 case: đổi tên vs reactivate (SỬA — tránh
+                       message sai ngữ nghĩa khi chỉ IsActive đổi)
+        - ApplyDelete: IsActive=false, LastModifiedSource=Hrm, track deletedButReferenced
+        - AfterBatchAsync: ghi F03SyncReviewFlag cho
+          (a) ManualEditOverwrittenByHrm
+          (b) ManualDeactivationOverwrittenByHrm  [MỚI — case Toggle bị ghi đè]
+          (c) DeactivatedButStillReferenced
+
+════════════════════════════════════════════════════════════════════════
+ TẦNG 4 — RESOLVER (điều phối đa domain, dùng bởi cả Worker lẫn Admin UI)
+════════════════════════════════════════════════════════════════════════
+
+IHrmSyncJobResolver                                  IHrmStagingImporterResolver
+        ★ Resolve(entityType) : IHrmSyncJob                  ★ Resolve(entityType) : IHrmStagingImporter
+        ★ GetAll() : IReadOnlyList<IHrmSyncJob>               ★ GetAll() : IReadOnlyList<IHrmStagingImporter>
+          - PHẢI OrderBy(j => j.SyncOrder)  [SỬA — bắt buộc,
+            nếu không thứ tự phụ thuộc DI registration order]
+
+Implementation:
+        - Dictionary<string EntityType, T> build từ IEnumerable<T> (DI)
+        - Resolve() throw nếu không tìm thấy EntityType
+
+════════════════════════════════════════════════════════════════════════
+ TẦNG 5 — WORKER (background, chạy tất cả theo lịch)
+════════════════════════════════════════════════════════════════════════
+
+HrmImportWorker (poll ~1h)                            HrmSyncWorker (poll 30s)
+        - resolver = IHrmStagingImporterResolver               - resolver = IHrmSyncJobResolver   [SỬA — hiện đang
+        - foreach importer in resolver.GetAll()                  dùng sai: GetServices<IHrmSyncJob>() bỏ qua Resolver]
+          → ImportAsync(asOfDate, ct)                         - foreach job in resolver.GetAll()  [đã theo SyncOrder]
+        - lỗi 1 importer KHÔNG chặn importer khác                → RunAsync(ct)
+                                                                   → nếu !Success && IsBlockingDependency
+                                                                     → BREAK, dừng chuỗi còn lại  [SỬA — hiện chưa có]
+                                                                   → catch riêng, log, không throw ra ngoài loop
+
+════════════════════════════════════════════════════════════════════════
+ TẦNG 6 — MANAGEMENT SERVICE (CRUD Admin + Sync theo yêu cầu, per-domain)
+════════════════════════════════════════════════════════════════════════
+
+CodeKeyedManagementService<TEntity,TKey,TDto,TUpsertDto>
+    : BaseService<CodeKeyedManagementService<...>>
+        Uow : IUnitOfWork
+        ★ EntityLabel : string                          [abstract]
+        — Field access hooks: GetCode/GetIsActive/SetIsActive/TouchModified
+        — Mapping hooks: ToDto/ToNewEntity/ApplyUpsert
+        — Expression hooks: KeyEqualsExpr/KeyNotEqualsExpr/CodeEqualsExpr
+        — ApplyActiveFilter/ApplyDefaultOrder/IsInUseAsync
+
+        GetAllAsync() / GetFilteredCoreAsync() / GetByIdAsync()
+        CreateAsync(model,userId,ct):
+          - check trùng code
+          - entity = ToNewEntity(...)
+          - entity.LastModifiedSource = Manual   [SỬA — thêm ở BASE, lưới an
+            toàn dù Mapper con có set hay không]
+          - AddAsync + SaveChanges
+        UpdateAsync(model,userId,ct):
+          - check trùng code (trừ chính nó)
+          - IsInUseAsync guard khi đổi code
+          - ApplyUpsert(...)
+          - entity.LastModifiedSource = Manual   [ĐÃ CÓ SẴN — đúng]
+        ToggleActiveAsync(key,userId,ct):
+          - SetIsActive(!current); TouchModified(...)
+          - entity.LastModifiedSource = Manual   [SỬA — BUG THẬT, đang THIẾU
+            dòng này → HrmSyncJob không biết Admin vừa can thiệp, có thể tự
+            động ghi đè lại mà KHÔNG sinh F03SyncReviewFlag cảnh báo]
+        DeleteAsync(key,ct):
+          - chặn nếu entity.LastModifiedSource == Hrm
+          - chặn nếu IsInUseAsync
+
+        SyncNowAsync(ct)  [tuỳ chọn — nút Admin "Đồng bộ ngay" 1 domain]:
+          - job = IHrmSyncJobResolver.Resolve(EntityType)
+          - return job.RunAsync(ct)
+
+Domain cụ thể (PositionManagementService):
+        - ủy quyền 100% mapping sang PositionMapper (ToDto/ToEntity/ApplyTo)
+        - PositionMapper.ToEntity: LastModifiedSource=Manual  [ĐÃ ĐÚNG]
+        - PositionMapper.ApplyTo: KHÔNG set LastModifiedSource
+          → an toàn vì UpdateAsync (base) set ngay sau đó
+        - IsInUseAsync: check F03Employee.PositionCode == entity.PositionCode
+        - GetFilteredAsync(isApprove, isActive, ct): thêm điều kiện IsApprove
+
+════════════════════════════════════════════════════════════════════════
+ CỜ ĐÁNH DẤU NGUỒN — chạy xuyên suốt mọi tầng, quyết định quyền ghi đè
+════════════════════════════════════════════════════════════════════════
+
+enum SyncSourceTags { Hrm, Manual }
+        ★ THỨ TỰ KHAI BÁO — CẦN XÁC NHẬN GẤP: nếu Hrm = 0 (mặc định), bất kỳ
+          entity nào bị tạo mà QUÊN set field này sẽ mặc định mang giá trị
+          Hrm → bị DeleteAsync chặn xóa oan dù chưa từng đồng bộ.
+          Khuyến nghị: Manual nên là giá trị mặc định an toàn hơn, hoặc
+          đảm bảo MỌI nơi tạo entity (Mapper + base CreateAsync) đều set
+          tường minh (đã áp dụng — nhưng vẫn nên xác nhận thứ tự enum).
+
+Quy tắc bất biến cần giữ xuyên suốt:
+  - Ghi bởi HrmSyncJob        → LastModifiedSource = Hrm
+  - Ghi bởi Admin (Create/Update/Toggle qua Management Service) → Manual
+  - DeleteAsync chỉ cho phép khi LastModifiedSource == Manual
+  - HrmSyncJob.ApplyUpdate PHẢI so sánh wasManuallyEdited TRƯỚC khi ghi đè,
+    và AfterBatchAsync PHẢI cảnh báo F03SyncReviewFlag nếu ghi đè giá trị
+    Admin từng chỉnh tay
+
+════════════════════════════════════════════════════════════════════════
+ HÀNG ĐỢI CẢNH BÁO (dùng chung mọi domain)
+════════════════════════════════════════════════════════════════════════
+
+F03SyncReviewFlag
+        ★ EntityType : string
+        ★ EntityKey : string
+        ★ FlagType : string     (ManualEditOverwrittenByHrm /
+                                  ManualDeactivationOverwrittenByHrm /
+                                  DeactivatedButStillReferenced)
+        ★ Message : string
+        ★ [CẦN XÁC NHẬN] IsResolved/ResolvedAt/ResolvedBy — dùng bởi
+          IHrmSyncReviewQueryService.ResolveAsync
+
+IHrmSyncReviewQueryService
+        GetUnresolvedAsync / CountUnresolvedAsync / ResolveAsync / ResolveByEntityAsync

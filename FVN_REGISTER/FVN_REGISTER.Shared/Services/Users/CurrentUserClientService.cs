@@ -1,5 +1,5 @@
-﻿using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Contract.ViewModels;
+﻿using FVN_REGISTER.Contract.Dtos.Authentication;
+using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Shared.Handlers;
@@ -23,7 +23,7 @@ namespace FVN_REGISTER.Shared.Services.Users
 
         private bool Debug => _options.CurrentValue.Enabled;
 
-        public UserSessionDto? User { get; private set; }
+        public AuthResultDto? User { get; private set; }
         public bool IsLoggedIn => User != null;
 
         public CurrentUserClientService(
@@ -84,7 +84,7 @@ namespace FVN_REGISTER.Shared.Services.Users
                 _logger.LogDebugIf(Debug, "[CurrentUser] Fetching profile...");
 
                 // API call
-                var result = await _authClient.GetAsync<UserSessionDto>("api/auth/profile");
+                var result = await _authClient.GetAsync<AuthResultDto>("api/auth/profile");
 
                 if (result.IsSuccess && result.Data != null)
                 {

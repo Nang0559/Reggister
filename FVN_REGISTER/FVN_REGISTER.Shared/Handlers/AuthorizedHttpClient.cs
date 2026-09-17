@@ -1,15 +1,10 @@
 ﻿using FVN_REGISTER.Contract.Interfaces.Repositores;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
-using FVN_REGISTER.Shared.Utils;
-using FVN_REGISTER.Shared.Utils.Helpers;
-using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.AspNetCore.Http;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net;
-using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -71,8 +66,8 @@ namespace FVN_REGISTER.Shared.Handlers
 
         // ================= RESPONSE HANDLE =================
         private async Task<ApiResponse<T>> HandleResponseAsync<T>(
-            HttpResponseMessage response,
-            string url)
+    HttpResponseMessage response,
+    string url)
         {
             var content = await response.Content.ReadAsStringAsync();
 
@@ -85,11 +80,21 @@ namespace FVN_REGISTER.Shared.Handlers
                     url,
                     (int)response.StatusCode);
 
+                // 🔥 FIX: Thử parse ApiResponse để lấy message từ server
+                var errorResponse = TryDeserialize<ApiResponse<T>>(content);
+                if (errorResponse != null && !string.IsNullOrEmpty(errorResponse.Message))
+                {
+                    errorResponse.IsSuccess = false;
+                    errorResponse.StatusCode = (int)response.StatusCode;
+                    errorResponse.IsUnauthorized = isAuthError;
+                    return errorResponse;
+                }
+
                 return new ApiResponse<T>
                 {
                     IsSuccess = false,
                     StatusCode = (int)response.StatusCode,
-                    Message = content,
+                    Message = content, // fallback raw content
                     IsUnauthorized = isAuthError
                 };
             }
@@ -110,13 +115,10 @@ namespace FVN_REGISTER.Shared.Handlers
                 return ApiResponse<T>.Ok(raw);
             }
 
-            _logger.LogWarnIf(Debug,
-                "[HTTP] Parse failed: {Url}",
-                url);
-
+            _logger.LogWarnIf(Debug, "[HTTP] Parse failed: {Url}", url);
             return ApiResponse<T>.Fail("Invalid response format.");
         }
-
+      
         private static T? TryDeserialize<T>(string json)
         {
             try
@@ -130,7 +132,8 @@ namespace FVN_REGISTER.Shared.Handlers
         }
 
         // ================= METHODS =================
-
+        public Task<ApiResponse<T>> PatchAsync<T>(string url, object data, CancellationToken ct = default)
+        => SendAsync<T>(c => _httpClient.PatchAsJsonAsync(url, data, c), url, ct);
         public Task<ApiResponse<T>> GetAsync<T>(string url, CancellationToken ct = default)
             => SendAsync<T>(c => _httpClient.GetAsync(url, c), url, ct);
 

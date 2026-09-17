@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿
 
 namespace FVN_REGISTER.Core.Repositories
 {
@@ -12,7 +8,17 @@ namespace FVN_REGISTER.Core.Repositories
 
         Task<int> SaveChangesAsync(CancellationToken ct = default);
 
-        Task BeginTransactionAsync(CancellationToken ct = default);
+        Task<IUowTransaction> BeginTransactionAsync(CancellationToken ct = default);
+        Task CommitAsync(CancellationToken ct = default);
+        Task RollbackAsync(CancellationToken ct = default);
+        Task<List<TResult>> SqlQueryRawAsync<TResult>(
+          string sql, CancellationToken ct = default, params object[] parameters)
+          where TResult : class;
+
+        void SetCommandTimeout(int seconds);
+    }
+    public interface IUowTransaction : IAsyncDisposable
+    {
         Task CommitAsync(CancellationToken ct = default);
         Task RollbackAsync(CancellationToken ct = default);
     }

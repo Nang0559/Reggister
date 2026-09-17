@@ -1,5 +1,5 @@
 ﻿using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Contract.ViewModels;
+using FVN_REGISTER.Contract.ViewModels.Leaves;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Shared.Handlers;
@@ -28,14 +28,14 @@ namespace FVN_REGISTER.Shared.Services.Dashboards
         }
 
         // ================= GET DASHBOARD =================
-        public async Task<ApiResponse<DashboardViewModel>> GetDashboardDataAsync(CancellationToken ct = default)
+        public async Task<ApiResponse<LeaveDashboardViewModel>> GetDashboardDataAsync(CancellationToken ct = default)
         {
             try
             {
                 // Thêm "Debug" vào tham số thứ nhất
                 _logger.LogDebugIf(Debug, "[DASHBOARD] Fetch start");
 
-                var result = await _http.GetAsync<DashboardViewModel>("api/Dashboard", ct);
+                var result = await _http.GetAsync<LeaveDashboardViewModel>("api/Dashboard", ct);
 
                 if (result.IsSuccess)
                 {
@@ -52,7 +52,7 @@ namespace FVN_REGISTER.Shared.Services.Dashboards
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[DASHBOARD] Exception while fetching data");
-                return ApiResponse<DashboardViewModel>.Fail("Không thể tải dashboard.");
+                return ApiResponse<LeaveDashboardViewModel>.Fail("Không thể tải dashboard.");
             }
         }
     }

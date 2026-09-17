@@ -1,9 +1,8 @@
 ﻿using AutoMapper;
+using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Contract.Interfaces.Users;
-using FVN_REGISTER.Contract.Util;
 using FVN_REGISTER.Contract.Utils;
-using FVN_REGISTER.Contract.ViewModels;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
 using Microsoft.AspNetCore.Authorization;
@@ -24,7 +23,7 @@ namespace FVN_REGISTER.API.Controllers
 
         protected bool Debug => _options.CurrentValue.Enabled;
 
-        protected CurrentUser? UserInfo => _currentUser.GetCurrentUser();
+        protected UserIdentityDto? UserInfo => _currentUser.GetCurrentUser();
 
         protected string Path => HttpContext?.Request?.Path.Value ?? "unknown";
 

@@ -1,0 +1,55 @@
+﻿@using FVN_REGISTER.Contract.Dtos.MasterData
+@using FVN_REGISTER.Contract.Utils
+@using FVN_REGISTER.Contract.ViewModels
+
+<MudText Typo="Typo.subtitle2" Class="mb-2">
+    <MudIcon Icon="@Icons.Material.Filled.ListAlt" Size="Size.Small" Class="mr-1" />
+    Danh sách đơn nghỉ (@Items.Count)
+</MudText>
+
+@if (!Items.Any())
+{
+    <MudAlert Severity="Severity.Info" Dense="true">Chưa có đơn nghỉ nào.</MudAlert>
+}
+else
+{
+    <MudList T="HolidayViewModel" Dense="true" DisablePadding="true">
+        @foreach (var item in Items)
+        {
+            var status = item.ExtendedProps?.APstatus ?? item.Status ?? "";
+            var color = status switch
+            {
+                "Approved" => Color.Success,
+                "Rejected" => Color.Error,
+                "ApprovedLv1" => Color.Info,
+                "ApprovedLv2" => Color.Info,
+                _ => Color.Warning
+            };
+            var statusText = LeaveStatus.GetDisplayName(status);
+
+            <MudListItem T="HolidayViewModel" Dense="true" Class="pa-1"
+                         OnClick="@(() => OnView.InvokeAsync(item))">
+                <MudPaper Elevation="0" Class="pa-2 mb-1" Style="border-left: 3px solid var(--mud-palette-primary);">
+                    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                        <div>
+                            <MudText Typo="Typo.body2">
+                                @item.Start → @item.End
+                            </MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                @(item.ExtendedProps?.description ?? item.Title)
+                            </MudText>
+                        </div>
+                        <MudChip T="string" Size="Size.Small" Color="@color" Label="true">
+                            @statusText
+                        </MudChip>
+                    </MudStack>
+                </MudPaper>
+            </MudListItem>
+        }
+    </MudList>
+}
+
+@code {
+    [Parameter] public List<CalendarEventDto> Items { get; set; } = new();
+    [Parameter] public EventCallback<CalendarEventDto> OnView { get; set; }
+}

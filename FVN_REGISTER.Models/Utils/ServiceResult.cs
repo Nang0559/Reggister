@@ -1,6 +1,6 @@
 ﻿
 
-namespace FVN_REGISTER.Contract.Util
+namespace FVN_REGISTER.Core.Utils
 {
     public class ServiceResult
     {

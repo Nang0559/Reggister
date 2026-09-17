@@ -1,4 +1,6 @@
 ﻿@page "/profile"
+@using FVN_REGISTER.Contract.Dtos.Authentication
+@using FVN_REGISTER.Contract.Dtos.Usermanagers
 @using FVN_REGISTER.Contract.Interfaces.Repositores
 @using FVN_REGISTER.Contract.ViewModels
 @using FVN_REGISTER.Shared.Handlers
@@ -45,14 +47,14 @@
 </MudGrid>
 
 @code {
-    private UserSessionDto _model = new();
+    private AuthResultDto _model = new();
     private bool _isSaving = false;
 
     protected override async Task OnInitializedAsync()
     {
         // 1. SỬA ĐƯỜNG DẪN: Phải có "auth" nếu Server đặt Route là api/auth
         // 2. NHẬN DỮ LIỆU: GetAsync đã trả về ApiResponse<UserSessionDto> rồi
-        var response = await _http.GetAsync<UserSessionDto>("api/auth/profile");
+        var response = await _http.GetAsync<AuthResultDto>("api/auth/profile");
 
         if (response.IsSuccess && response.Data != null)
         {

@@ -2,20 +2,14 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace FVN_REGISTER.Infrastructure.Repositories
 {
     public class UnitOfWork : IUnitOfWork
     {
         private readonly DbContext _context;
-        private IDbContextTransaction? _transaction;
         private readonly IServiceProvider _provider;
-        // cache repository để tránh new nhiều lần
         private readonly Dictionary<Type, object> _repositories = new();
 
         public UnitOfWork(DbContext context, IServiceProvider provider)
@@ -28,8 +22,8 @@ namespace FVN_REGISTER.Infrastructure.Repositories
         {
             var type = typeof(T);
 
-            if (_repositories.ContainsKey(type))
-                return (IBaseRepository<T>)_repositories[type];
+            if (_repositories.TryGetValue(type, out var cached))
+                return (IBaseRepository<T>)cached;
 
             var repo = _provider.GetRequiredService<IBaseRepository<T>>();
             _repositories[type] = repo;
@@ -41,47 +35,46 @@ namespace FVN_REGISTER.Infrastructure.Repositories
             => await _context.SaveChangesAsync(ct);
 
         // ================= TRANSACTION =================
-
-        public async Task BeginTransactionAsync(CancellationToken ct = default)
+        // SỬA: trả về IUowTransaction thay vì void — mỗi lần gọi tạo 1 transaction MỚI,
+        // không dùng field dùng chung như bản cũ (tránh 2 luồng đè transaction của nhau
+        // khi UnitOfWork bị resolve theo Scoped nhưng có 2 nhánh code cùng gọi BeginTransactionAsync).
+        public async Task<IUowTransaction> BeginTransactionAsync(CancellationToken ct = default)
         {
-            if (_transaction != null) return;
-
-            _transaction = await _context.Database.BeginTransactionAsync(ct);
+            var transaction = await _context.Database.BeginTransactionAsync(ct);
+            return new UowTransaction(transaction);
         }
 
+        // Giữ lại 2 method này cho tương thích ngược nếu nơi khác đang gọi trực tiếp
+        // _uow.CommitAsync()/_uow.RollbackAsync() mà KHÔNG qua BeginTransactionAsync trả về ở trên.
+        // Best practice: nên dùng "await using var tx = await BeginTransactionAsync(...)" thay vì 2 hàm này.
         public async Task CommitAsync(CancellationToken ct = default)
         {
-            try
-            {
-                await _context.SaveChangesAsync(ct);
+            await _context.SaveChangesAsync(ct);
 
-                if (_transaction != null)
-                    await _transaction.CommitAsync(ct);
-            }
-            catch
-            {
-                await RollbackAsync(ct);
-                throw;
-            }
-            finally
-            {
-                if (_transaction != null)
-                {
-                    await _transaction.DisposeAsync();
-                    _transaction = null;
-                }
-            }
+            var currentTransaction = _context.Database.CurrentTransaction;
+            if (currentTransaction != null)
+                await currentTransaction.CommitAsync(ct);
         }
 
         public async Task RollbackAsync(CancellationToken ct = default)
         {
-            if (_transaction != null)
-            {
-                await _transaction.RollbackAsync(ct);
-                await _transaction.DisposeAsync();
-                _transaction = null;
-            }
+            var currentTransaction = _context.Database.CurrentTransaction;
+            if (currentTransaction != null)
+                await currentTransaction.RollbackAsync(ct);
         }
+
+        // ================= RAW SQL / STORED PROCEDURE =================
+        public async Task<List<TResult>> SqlQueryRawAsync<TResult>(
+            string sql, CancellationToken ct = default, params object[] parameters)
+            where TResult : class
+        {
+            return await _context.Database
+                .SqlQueryRaw<TResult>(sql, parameters)
+                .ToListAsync(ct);
+        }
+
+        public void SetCommandTimeout(int seconds)
+            => _context.Database.SetCommandTimeout(seconds);
 
         public void Dispose()
         {

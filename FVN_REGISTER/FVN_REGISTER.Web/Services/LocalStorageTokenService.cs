@@ -20,7 +20,13 @@ namespace FVN_REGISTER.Web.Services
             // 🔥 CHỐT CHẶN: Dùng static để tất cả các Instance (Handler, AuthProvider, v.v.) 
             // đều nhìn thấy cùng một giá trị Token trong RAM của Server Circuit.
             private static string? _staticCachedToken;
+            private bool _jsReady = false;
 
+            public void MarkJsReady()
+            {
+                _jsReady = true;
+                if (_debug) _logger.LogInformation("[TokenService:{Id}] JS marked as ready", InstanceId);
+            }
             public string InstanceId { get; } = Guid.NewGuid().ToString()[..8];
 
             public LocalStorageTokenService(
@@ -101,6 +107,7 @@ namespace FVN_REGISTER.Web.Services
                     _logger?.LogWarning("[TokenService:{Id}] RemoveTokenAsync error", InstanceId);
                 }
             }
+
         }
     }
 }

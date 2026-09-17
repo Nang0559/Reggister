@@ -1,6 +1,6 @@
 ﻿
+using FVN_REGISTER.Contract.Dtos.MasterData;
 using FVN_REGISTER.Contract.Models;
-using FVN_REGISTER.Contract.ViewModels;
 using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Shared.Dialogs;
 using FVN_REGISTER.Shared.Services.Leaves;
@@ -13,7 +13,7 @@ namespace FVN_REGISTER.Shared.Pages;
 
 public partial class LeaveCreate : IAsyncDisposable
 {
-    private CombinedHolidaysViewModel? _model;
+    private SystemMasterDataDto? _model;
     private bool _isLoading = true;
     private int _selectedYear = DateTime.Now.Year;
 
@@ -210,7 +210,7 @@ public partial class LeaveCreate : IAsyncDisposable
             new DialogOptions { MaxWidth = MaxWidth.Large, FullWidth = true, CloseOnEscapeKey = true });
     }
 
-    private async Task OpenDetailDialog(HolidayViewModel item, int detailId = 0)
+    private async Task OpenDetailDialog(CalendarEventDto item, int detailId = 0)
     {
         var parameters = new DialogParameters
         {

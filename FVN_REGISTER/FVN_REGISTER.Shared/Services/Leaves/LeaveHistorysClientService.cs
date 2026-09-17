@@ -1,10 +1,10 @@
 ﻿using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Contract.ViewModels;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Shared.Handlers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using FVN_REGISTER.Core.Logging;
+using FVN_REGISTER.Contract.ViewModels.Leaves;
 
 
 namespace FVN_REGISTER.Shared.Services.Leaves
@@ -27,7 +27,7 @@ namespace FVN_REGISTER.Shared.Services.Leaves
             _options = options;
         }
 
-        public async Task<ApiResponse<List<LeaveDaysViewModel>>> GetHistoryAsync(
+        public async Task<ApiResponse<List<LeaveRequestViewModel>>> GetHistoryAsync(
             int? year,
             string? status,
             CancellationToken ct = default)
@@ -49,7 +49,7 @@ namespace FVN_REGISTER.Shared.Services.Leaves
                 url = url.TrimEnd('&').TrimEnd('?');
 
                 // 2. Thực hiện gọi HTTP GET tới API
-                var result = await _http.GetAsync<List<LeaveDaysViewModel>>(url, ct);
+                var result = await _http.GetAsync<List<LeaveRequestViewModel>>(url, ct);
 
                 _logger.LogDebugIf(Debug, "[LEAVE_HISTORY_CLIENT] GetHistory finished: success={Success}", result.IsSuccess);
 
@@ -58,7 +58,7 @@ namespace FVN_REGISTER.Shared.Services.Leaves
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[LEAVE_HISTORY_CLIENT] GetHistory error");
-                return ApiResponse<List<LeaveDaysViewModel>>.Fail("Không thể tải lịch sử đơn nghỉ phép");
+                return ApiResponse<List<LeaveRequestViewModel>>.Fail("Không thể tải lịch sử đơn nghỉ phép");
             }
         }
     }

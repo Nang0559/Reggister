@@ -1,8 +1,8 @@
 ﻿using AutoMapper;
+using FVN_REGISTER.Contract.Dtos.MasterData;
 using FVN_REGISTER.Contract.Interfaces.Leaves;
 using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Contract.Interfaces.Users;
-using FVN_REGISTER.Contract.ViewModels;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
 using Microsoft.AspNetCore.Authorization;
@@ -72,7 +72,7 @@ public class LeaveCalendarController : BaseApiController
 
             await LogActionAsync("Xem lịch đăng ký nghỉ");
 
-            return Ok(ApiResponse<CombinedHolidaysViewModel>.Ok(data));
+            return Ok(ApiResponse<SystemMasterDataDto>.Ok(data));
         }
         catch (Exception ex)
         {

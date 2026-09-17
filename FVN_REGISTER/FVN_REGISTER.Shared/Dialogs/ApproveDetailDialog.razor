@@ -1,4 +1,7 @@
-﻿@using FVN_REGISTER.Contract.ViewModels
+﻿@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Contract.ViewModels.Leaves
+@using FVN_REGISTER.Shared.Services.Approvals
 @using FVN_REGISTER.Shared.Services.Leaves
 <MudDialog>
     <TitleContent>
@@ -46,12 +49,12 @@
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
-    [Parameter] public LeaveDaysViewModel Item { get; set; } = default!;
+    [Parameter] public LeaveRequestViewModel Item { get; set; } = default!;
     [Parameter] public int Level { get; set; }
+    [Parameter] public RequestKind Kind { get; set; } = RequestKind.Leave; // 🔥 THÊM
     [Parameter] public EventCallback OnApproved { get; set; }
     [Parameter] public EventCallback OnRejected { get; set; }
-
-    [Inject] IApproveClientService ApproveService { get; set; } = default!;
+    [Inject] IApprovalListClientService ApproveService { get; set; } = default!;
     [Inject] ISnackbar Snackbar { get; set; } = default!;
 
     private string _comment = "";
@@ -60,8 +63,12 @@
     private async Task Approve()
     {
         _isBusy = true;
+        // 🔥 SỬA: thêm Kind vào đúng signature mới
         var result = await ApproveService.ApproveAsync(
-            new List<int> { Item.Id }, Level, _comment);
+            new List<int> { Item.Id },
+            Kind,
+            Level,
+            _comment);
 
         if (result.IsSuccess)
         {
@@ -76,8 +83,12 @@
     private async Task Reject()
     {
         _isBusy = true;
+        // 🔥 SỬA: thêm Kind vào đúng signature mới
         var result = await ApproveService.RejectAsync(
-            new List<int> { Item.Id }, Level, _comment);
+            new List<int> { Item.Id },
+            Kind,
+            Level,
+            _comment);
 
         if (result.IsSuccess)
         {

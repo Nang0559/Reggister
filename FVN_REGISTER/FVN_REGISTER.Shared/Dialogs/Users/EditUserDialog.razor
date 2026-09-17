@@ -1,0 +1,57 @@
+﻿@* ═══════════════════════════════════════════════════════════
+   FILE: FVN_REGISTER.Shared/Components/Dialogs/EditUserDialog.razor
+═══════════════════════════════════════════════════════════ *@
+@using FVN_REGISTER.Contract.Dtos.Usermanagers
+
+<MudDialog>
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" />
+            Sửa quyền: <b>@Request.UserName</b>
+        </MudText>
+    </TitleContent>
+
+    <DialogContent>
+        <MudSelect T="int" @bind-Value="Request.PermissionCode"
+                   Label="Quyền (*)"
+                   Variant="Variant.Outlined"
+                   Margin="Margin.Dense">
+            <MudSelectItem Value="2">Administrator</MudSelectItem>
+            <MudSelectItem Value="4">Approver</MudSelectItem>
+            <MudSelectItem Value="5">User</MudSelectItem>
+        </MudSelect>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Cancel" Variant="Variant.Text">Hủy</MudButton>
+        <MudButton OnClick="Submit"
+                   Variant="Variant.Filled"
+                   Color="Color.Primary">
+            Lưu thay đổi
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
+
+    // Request kèm UserName để hiển thị tiêu đề
+    [Parameter] public EditUserDialogModel Request { get; set; } = new();
+
+    private void Submit() => MudDialog.Close(DialogResult.Ok(Request));
+    private void Cancel() => MudDialog.Cancel();
+
+    public class EditUserDialogModel
+    {
+        public int IdUser { get; set; }
+        public string UserName { get; set; } = string.Empty;
+        public int PermissionCode { get; set; }
+        public string? DeptCode { get; set; }
+    }
+}
+
+
+@* ═══════════════════════════════════════════════════════════
+   FILE: FVN_REGISTER.Shared/Components/Dialogs/ResetPasswordDialog.razor
+═══════════════════════════════════════════════════════════ *@
+@* Chú ý: tách thành file riêng trong thực tế *@

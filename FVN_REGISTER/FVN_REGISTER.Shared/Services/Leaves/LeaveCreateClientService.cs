@@ -1,4 +1,5 @@
-﻿using FVN_REGISTER.Contract.Interfaces.Repositores;
+﻿using FVN_REGISTER.Contract.Dtos.MasterData;
+using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Contract.ViewModels;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
@@ -26,7 +27,7 @@ namespace FVN_REGISTER.Shared.Services.Leaves
             _options = options;
         }
 
-        public async Task<ApiResponse<CombinedHolidaysViewModel>> GetCombinedDataAsync(
+        public async Task<ApiResponse<SystemMasterDataDto>> GetCombinedDataAsync(
             string empCode,
             string deptCode,
             string cvCode,
@@ -42,7 +43,7 @@ namespace FVN_REGISTER.Shared.Services.Leaves
                           $"&cvCode={Uri.EscapeDataString(cvCode)}" +
                           $"&year={year}";
 
-                var result = await _http.GetAsync<CombinedHolidaysViewModel>(url, ct);
+                var result = await _http.GetAsync<SystemMasterDataDto>(url, ct);
 
                 _logger.LogDebugIf(Debug, "[LEAVE_CLIENT] GetCombinedData ok={Ok}", result.IsSuccess);
 
@@ -51,7 +52,7 @@ namespace FVN_REGISTER.Shared.Services.Leaves
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[LEAVE_CLIENT] GetCombinedData error");
-                return ApiResponse<CombinedHolidaysViewModel>.Fail("Không thể tải dữ liệu lịch");
+                return ApiResponse<SystemMasterDataDto>.Fail("Không thể tải dữ liệu lịch");
             }
         }
 

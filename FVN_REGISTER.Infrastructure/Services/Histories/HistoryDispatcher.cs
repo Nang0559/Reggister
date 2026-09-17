@@ -1,0 +1,39 @@
+﻿using FVN_REGISTER.Contract.Dtos.Approvals;
+using FVN_REGISTER.Contract.Dtos.Authentication;
+using FVN_REGISTER.Contract.Dtos.Histories;
+using FVN_REGISTER.Contract.Interfaces.Approvals;
+using FVN_REGISTER.Contract.Interfaces.Histories;
+using FVN_REGISTER.Contract.Utils;
+
+namespace FVN_REGISTER.API.Services.Histories
+{
+    public class HistoryDispatcher : IHistoryDispatcher
+    {
+        private readonly IEnumerable<IHistoryHandler> _handlers;
+
+        public HistoryDispatcher(IEnumerable<IHistoryHandler> handlers)
+        {
+            _handlers = handlers;
+        }
+
+        private IHistoryHandler Resolve(string kind)
+            => _handlers.FirstOrDefault(h => h.Kind == kind)
+               ?? throw new NotSupportedException($"No handler for kind: {kind}");
+
+        public Task<ServiceResult<PaginationResult<HistoryItemDto>>> GetHistoryAsync(
+            HistoryFilterDto filter, UserIdentityDto user, CancellationToken ct)
+            => Resolve(filter.Kind).GetHistoryAsync(filter, user, ct);
+
+        public Task<ServiceResult<HistoryItemDetailDto>> GetDetailAsync(
+            string kind, int id, UserIdentityDto user, CancellationToken ct)
+            => Resolve(kind).GetDetailAsync(id, user, ct);
+
+        public Task<ServiceResult<BalanceSummaryDto>> GetBalanceAsync(
+            string kind, int year, UserIdentityDto user, CancellationToken ct)
+            => Resolve(kind).GetBalanceAsync(year, user, ct);
+
+        public Task<ServiceResult> CancelAsync(
+            string kind, int id, string reason, UserIdentityDto user, CancellationToken ct)
+            => Resolve(kind).CancelAsync(id, reason, user, ct);
+    }
+}

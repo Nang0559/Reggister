@@ -1,4 +1,4 @@
-﻿@* File: FVN_REGISTER/FVN_REGISTER.Shared/Layout/MainLayout.razor *@
+﻿@* File: FVN_REGISTER.Shared/Layout/MainLayout.razor *@
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils
 @using FVN_REGISTER.Shared.Utils.Helpers
@@ -13,7 +13,7 @@
 @inject CustomAuthStateProvider _authStateProvider
 
 <MudLayout>
-    <MudPopoverProvider />
+    @* <MudPopoverProvider /> *@
 
     @if (_isLoading)
     {
@@ -23,10 +23,8 @@
     }
     else
     {
-        @* ===== APP BAR: luôn hiển thị ===== *@
         <MudAppBar Elevation="1" Color="Color.Primary">
 
-            @* Nút menu: CHỈ hiện với Approver / Admin *@
             @if (!_isNormalUser)
             {
                 <MudIconButton Icon="@Icons.Material.Filled.Menu"
@@ -35,7 +33,6 @@
             }
             else
             {
-                @* Nhân viên: hiện logo thay vì nút menu *@
                 <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing"
                          Style="margin-right: 8px;" />
             }
@@ -46,7 +43,9 @@
 
             <MudSpacer />
 
-            @* ===== USER MENU: luôn hiển thị ===== *@
+            @* ✅ NotificationBell — không cần DeviceId *@
+            <NotificationBell />
+
             <MudMenu Label="@(_user.User?.FullName ?? "Nhân viên FCC")"
                      Variant="Variant.Text"
                      Color="Color.Inherit"
@@ -71,7 +70,6 @@
                         </MudStack>
                     </div>
                     <MudDivider />
-
                     <MudMenuItem Icon="@Icons.Material.Filled.PersonOutline"
                                  OnClick="@(() => _nav.NavigateTo("/profile"))">
                         Hồ sơ của tôi
@@ -80,8 +78,6 @@
                                  OnClick="@(() => _nav.NavigateTo("/change-password"))">
                         Đổi mật khẩu
                     </MudMenuItem>
-
-                    @* Nhân viên thường: thêm các lối tắt trong menu *@
                     @if (_isNormalUser)
                     {
                         <MudDivider />
@@ -94,7 +90,6 @@
                             Lịch sử đơn của tôi
                         </MudMenuItem>
                     }
-
                     <MudDivider />
                     <MudMenuItem Icon="@Icons.Material.Filled.Logout"
                                  IconColor="Color.Error"
@@ -106,18 +101,15 @@
 
         </MudAppBar>
 
-        @* ===== SIDEBAR: CHỈ hiện với Approver / Admin ===== *@
         @if (!_isNormalUser)
         {
-            <MudDrawer @bind-Open ="_drawerOpen" Elevation="1">
+            <MudDrawer @bind-Open="_drawerOpen" Elevation="1">
                 <NavMenu />
             </MudDrawer>
         }
 
-        @* ===== MAIN CONTENT ===== *@
         <MudMainContent>
-            <MudContainer MaxWidth="@(_isNormalUser? MaxWidth.ExtraLarge: MaxWidth.ExtraLarge)"
-                          Class="my-4">
+            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">
                 @Body
             </MudContainer>
         </MudMainContent>
@@ -134,23 +126,17 @@
         try
         {
             _isLoading = true;
-            Logger.LogInfoIf(Debug, "[{Component}] Starting initialization...", ComponentName);
-
             var authState = await _authStateProvider.GetAuthenticationStateAsync();
             if (authState.User.Identity is not { IsAuthenticated: true })
             {
-                Logger.LogWarnIf(Debug, "[{Component}] Not authenticated, redirecting...", ComponentName);
                 _nav.NavigateTo("/login");
                 return;
             }
 
             await _user.InitializeAsync();
+            _isNormalUser = _user.User?.PermissionCode.IsNormalUser() ?? true;
 
-@* Xác định role ngay trong layout để ẩn/hiện sidebar *@
-            _isNormalUser = UserRoleHelper.IsNormalUser(_user.User?.PermissionCode);
-
-            Logger.LogInfoIf(Debug,
-                "[{Component}] Init done. User={UserId}, IsNormalUser={Flag}",
+            Logger.LogInfoIf(Debug, "[{Component}] Init done. User={UserId}, IsNormalUser={Flag}",
                 ComponentName, _user.User?.UserId, _isNormalUser);
         }
         catch (Exception ex)
@@ -165,12 +151,10 @@
 
     private async Task HandleLogout()
     {
-        Logger.LogInfoIf(Debug, "[{Component}] Logout requested", ComponentName);
         await _authService.Logout();
         _nav.NavigateTo("/login", forceLoad: false);
     }
 
     void DrawerToggle() => _drawerOpen = !_drawerOpen;
-
     public void Dispose() { }
 }
