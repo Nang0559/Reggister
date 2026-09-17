@@ -57,7 +57,7 @@
             if (result.IsSuccess && result.Data != null)
             {
                 _allPending = result.Data.SelectMany(x => x.Requests)
-                    .Where(x => x.Kind == RequestModule.OT)
+                    .Where(x => x.Kind == RequestModule.Overtime)
                     .ToList();
             }
             else
