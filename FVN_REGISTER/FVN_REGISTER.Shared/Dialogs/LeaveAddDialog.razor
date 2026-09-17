@@ -13,8 +13,12 @@
     <DialogContent>
         <MudForm @ref="_form">
             <MudGrid Spacing="2">
-                <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_startDate" Label="Từ ngày *" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
-                <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_endDate" Label="Đến ngày *" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_startDate" @bind-Date:after="RebuildDetails" Label="Từ ngày *" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_endDate" @bind-Date:after="RebuildDetails" Label="Đến ngày *" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                </MudItem>
             </MudGrid>
 
             <MudTextField @bind-Value="_reason" Label="Lý do nghỉ *" Lines="3" Required="true" RequiredError="Vui lòng nhập lý do" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
