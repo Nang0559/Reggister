@@ -1,4 +1,4 @@
-﻿using FVN_REGISTER.Application.Interfaces.Histories;
+using FVN_REGISTER.Application.Interfaces.Histories;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Histories;
@@ -7,7 +7,7 @@ using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace FVN_REGISTER.API.Services.Histories
+namespace FVN_REGISTER.Infrastructure.Services.Histories
 {
     public abstract class BaseHistoryHandler<TRequest> : IHistoryHandler
          where TRequest : class, IHistoryRequestEntity
@@ -30,17 +30,9 @@ namespace FVN_REGISTER.API.Services.Histories
         public abstract Task<ServiceResult<BalanceSummaryDto>> GetBalanceAsync(
             int year, UserIdentityDto user, CancellationToken ct);
 
-        // ── Danh sách trạng thái còn "đang xử lý" (chưa kết thúc) theo domain.
-        //    Mỗi domain override để CancelAsync chung biết domain mình
-        //    chấp nhận hủy ở những status nào.
         protected abstract string[] ActiveStatuses { get; }
-
-        // ── Trạng thái dùng để set khi hủy (LeaveStatus.Cancel / OTStatus.Cancelled).
         protected abstract string CancelledStatus { get; }
 
-        // ══════════════════════════════════════════════════════════════════
-        // CancelAsync — LOGIC CHUNG, dùng TRequest qua DbSet<TRequest>
-        // ══════════════════════════════════════════════════════════════════
         public virtual async Task<ServiceResult> CancelAsync(
             int id, string reason, UserIdentityDto user, CancellationToken ct)
         {
@@ -77,13 +69,8 @@ namespace FVN_REGISTER.API.Services.Histories
             return ServiceResult.Ok("Đã hủy đơn thành công.");
         }
 
-        // EF Core không cho dùng x.Id trực tiếp khi TRequest chỉ biết qua interface
-        // (interface property không dịch được sang SQL qua LINQ thông thường nếu
-        // EF cố gắng truy cập qua interface). Giải pháp: dùng EF.Property hoặc
-        // để mỗi handler cung cấp predicate cụ thể bằng entity thật.
         protected abstract System.Linq.Expressions.Expression<Func<TRequest, bool>> BuildIdPredicate(int id);
 
-        // ── Helper: query steps cho 1 request ────────────────────────────────
         protected async Task<List<ApprovalStepDto>> GetApprovalStepsAsync(
             int requestId, CancellationToken ct)
         {
@@ -95,7 +82,6 @@ namespace FVN_REGISTER.API.Services.Histories
                 .ToListAsync(ct);
         }
 
-        // ── Helper: batch load steps cho nhiều request ──
         protected async Task<Dictionary<int, List<ApprovalStepDto>>> GetApprovalStepsMapAsync(
             List<int> requestIds, CancellationToken ct)
         {
@@ -130,7 +116,6 @@ namespace FVN_REGISTER.API.Services.Histories
             OverriddenAt = s.OverriddenAt
         };
 
-        // ── Helper: kiểm tra quyền cancel ────────────────────────────────────
         protected static bool CanUserCancel(string ownerEmployeeCode, UserIdentityDto user)
             => ownerEmployeeCode == user.EmployeeCode
             || user.IsAdmin()
