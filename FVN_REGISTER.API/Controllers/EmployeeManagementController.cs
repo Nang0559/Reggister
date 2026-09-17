@@ -1,7 +1,7 @@
 using AutoMapper;
 using FVN_REGISTER.Application.Interfaces.Employees;
 using FVN_REGISTER.Application.Interfaces.Users;
-using FVN_REGISTER.Contract.ViewModels;
+using FVN_REGISTER.Contract.Dtos.Employees;
 using FVN_REGISTER.Core.Configurations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,57 +16,26 @@ namespace FVN_REGISTER.API.Controllers
     {
         private readonly IEmployeeManagementService _service;
 
-        public EmployeeManagementController(
-            IEmployeeManagementService service,
-            ICurrentUserService currentUser,
-            IUserLogService userLog,
-            IMapper mapper,
-            ILogger<EmployeeManagementController> logger,
-            IOptionsMonitor<AuthDebugOptions> options)
+        public EmployeeManagementController(IEmployeeManagementService service, ICurrentUserService currentUser, IUserLogService userLog, IMapper mapper, ILogger<EmployeeManagementController> logger, IOptionsMonitor<AuthDebugOptions> options)
             : base(currentUser, userLog, mapper, logger, options)
         {
             _service = service;
         }
 
         [HttpGet("tree")]
-        public async Task<IActionResult> GetTree(
-            [FromQuery] string? searchTerm,
-            [FromQuery] string? deptCode,
-            CancellationToken ct)
-        {
-            var result = await _service.GetTreeAsync(searchTerm, deptCode, ct);
-            return HandleResult(result);
-        }
+        public async Task<IActionResult> GetTree([FromQuery] string? searchTerm, [FromQuery] string? deptCode, CancellationToken ct)
+            => HandleResult(await _service.GetTreeAsync(searchTerm, deptCode, ct));
 
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id, CancellationToken ct)
-        {
-            var result = await _service.GetByIdAsync(id, ct);
-            return HandleResult(result);
-        }
-
-        [HttpGet("cv-list")]
-        public async Task<IActionResult> GetCvList(CancellationToken ct)
-        {
-            var result = await _service.GetCvListAsync(ct);
-            return HandleResult(result);
-        }
+            => HandleResult(await _service.GetByIdAsync(id, ct));
 
         [HttpGet("ot-summary/{employeeCode}")]
-        public async Task<IActionResult> GetOtSummary(
-            string employeeCode,
-            [FromQuery] int? year,
-            CancellationToken ct)
-        {
-            var result = await _service.GetOtSummaryAsync(
-                employeeCode, year ?? DateTime.Now.Year, ct);
-            return HandleResult(result);
-        }
+        public async Task<IActionResult> GetOtSummary(string employeeCode, [FromQuery] int? year, CancellationToken ct)
+            => HandleResult(await _service.GetOtSummaryAsync(employeeCode, year ?? DateTime.Now.Year, ct));
 
         [HttpPost]
-        public async Task<IActionResult> Create(
-            [FromBody] EmployeeFormViewModel model,
-            CancellationToken ct)
+        public async Task<IActionResult> Create([FromBody] EmployeeUpsertDto model, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
             var result = await _service.CreateAsync(model, UserInfo.UserId, ct);
@@ -75,10 +44,7 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(
-            int id,
-            [FromBody] EmployeeFormViewModel model,
-            CancellationToken ct)
+        public async Task<IActionResult> Update(int id, [FromBody] EmployeeUpsertDto model, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
             model.Id = id;
@@ -91,17 +57,14 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> Toggle(int id, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
-            var result = await _service.ToggleActiveAsync(id, UserInfo.UserId, ct);
-            return HandleResult(result);
+            return HandleResult(await _service.ToggleActiveAsync(id, UserInfo.UserId, ct));
         }
 
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
-            var result = await _service.DeleteAsync(id, UserInfo.UserId, ct);
-            await LogActionAsync($"Xóa nhân viên ID: {id}");
-            return HandleResult(result);
+            return HandleResult(await _service.DeleteAsync(id, UserInfo.UserId, ct));
         }
     }
 }
