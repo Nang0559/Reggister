@@ -1,8 +1,8 @@
-﻿using FVN_REGISTER.Application.Services.Common;
-using FVN_REGISTER.Core.Configurations;
+﻿using FVN_REGISTER.Application.Configuration;
+using FVN_REGISTER.Application.Logging;
+using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities;
-using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Core.Utils;
 using Microsoft.EntityFrameworkCore;
@@ -38,43 +38,30 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
         }
 
         protected abstract string EntityLabel { get; }
-
-        // ===== Field access (derived class implement) =====
         protected abstract string GetCode(TEntity entity);
         protected abstract bool GetIsActive(TEntity entity);
         protected abstract void SetIsActive(TEntity entity, bool value);
         protected abstract void TouchModified(TEntity entity, int currentUserId);
-
         protected abstract TKey GetUpsertKey(TUpsertDto model);
         protected abstract string GetUpsertCode(TUpsertDto model);
-
-        // ===== Mapping (derived ủy quyền sang XxxMapper) =====
         protected abstract TDto ToDto(TEntity entity);
         protected abstract TEntity ToNewEntity(TUpsertDto model, int currentUserId);
         protected abstract void ApplyUpsert(TEntity entity, TUpsertDto model, int currentUserId);
-
-        // ===== Expression cho EF Core dịch sang SQL =====
         protected abstract Expression<Func<TEntity, bool>> KeyEqualsExpr(TKey key);
         protected abstract Expression<Func<TEntity, bool>> KeyNotEqualsExpr(TKey key);
         protected abstract Expression<Func<TEntity, bool>> CodeEqualsExpr(string code);
-
         protected abstract IQueryable<TEntity> ApplyActiveFilter(IQueryable<TEntity> query, bool isActive);
         protected abstract Task<bool> IsInUseAsync(TEntity entity, CancellationToken ct);
 
         protected virtual IOrderedQueryable<TEntity> ApplyDefaultOrder(IQueryable<TEntity> query)
             => query.OrderBy(x => GetCode(x));
 
-        // ===== CRUD dùng chung =====
-
         public async Task<ServiceResult<List<TDto>>> GetAllAsync(CancellationToken ct = default)
         {
             try
             {
                 Logger.LogDebugIf(Debug, "[{Label}] GetAll", EntityLabel);
-
-                var data = await ApplyDefaultOrder(Uow.Repository<TEntity>().Query().AsNoTracking())
-                    .ToListAsync(ct);
-
+                var data = await ApplyDefaultOrder(Uow.Repository<TEntity>().Query().AsNoTracking()).ToListAsync(ct);
                 return ServiceResult<List<TDto>>.Ok(data.Select(ToDto).ToList());
             }
             catch (Exception ex)
@@ -92,17 +79,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
             try
             {
                 Logger.LogDebugIf(Debug, "[{Label}] GetFiltered isActive={A}", EntityLabel, isActive);
-
                 var query = Uow.Repository<TEntity>().Query().AsNoTracking();
-
-                if (isActive.HasValue)
-                    query = ApplyActiveFilter(query, isActive.Value);
-
-                if (extraFilter != null)
-                    query = extraFilter(query);
-
+                if (isActive.HasValue) query = ApplyActiveFilter(query, isActive.Value);
+                if (extraFilter != null) query = extraFilter(query);
                 var data = await ApplyDefaultOrder(query).ToListAsync(ct);
-
                 return ServiceResult<List<TDto>>.Ok(data.Select(ToDto).ToList());
             }
             catch (Exception ex)
@@ -116,13 +96,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
         {
             try
             {
-                var entity = await Uow.Repository<TEntity>().Query()
-                    .AsNoTracking()
+                var entity = await Uow.Repository<TEntity>().Query().AsNoTracking()
                     .FirstOrDefaultAsync(KeyEqualsExpr(key), ct);
-
-                if (entity == null)
-                    return ServiceResult<TDto>.Fail($"Không tìm thấy {EntityLabel}.");
-
+                if (entity == null) return ServiceResult<TDto>.Fail($"Không tìm thấy {EntityLabel}.");
                 return ServiceResult<TDto>.Ok(ToDto(entity));
             }
             catch (Exception ex)
@@ -132,25 +108,17 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
             }
         }
 
-        public async Task<ServiceResult> CreateAsync(
-            TUpsertDto model, int currentUserId, CancellationToken ct = default)
+        public async Task<ServiceResult> CreateAsync(TUpsertDto model, int currentUserId, CancellationToken ct = default)
         {
             try
             {
                 var code = GetUpsertCode(model);
                 Logger.LogDebugIf(Debug, "[{Label}] Create: {Code}", EntityLabel, code);
-
-                var exists = await Uow.Repository<TEntity>().Query()
-                    .AnyAsync(CodeEqualsExpr(code), ct);
-
-                if (exists)
-                    return ServiceResult.Fail($"Mã '{code}' đã tồn tại.");
-
+                var exists = await Uow.Repository<TEntity>().Query().AnyAsync(CodeEqualsExpr(code), ct);
+                if (exists) return ServiceResult.Fail($"Mã '{code}' đã tồn tại.");
                 var entity = ToNewEntity(model, currentUserId);
-
                 await Uow.Repository<TEntity>().AddAsync(entity, ct);
                 await Uow.SaveChangesAsync(ct);
-
                 Logger.LogInfoIf(Debug, "[{Label}] Created: {Code}", EntityLabel, code);
                 return ServiceResult.Ok($"Đã thêm {EntityLabel} thành công.");
             }
@@ -161,41 +129,25 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
             }
         }
 
-        public async Task<ServiceResult> UpdateAsync(
-            TUpsertDto model, int currentUserId, CancellationToken ct = default)
+        public async Task<ServiceResult> UpdateAsync(TUpsertDto model, int currentUserId, CancellationToken ct = default)
         {
             try
             {
                 var key = GetUpsertKey(model);
                 var code = GetUpsertCode(model);
-
                 Logger.LogDebugIf(Debug, "[{Label}] Update: {Key}", EntityLabel, key);
-
-                var entity = await Uow.Repository<TEntity>().Query()
-                    .FirstOrDefaultAsync(KeyEqualsExpr(key), ct);
-
-                if (entity == null)
-                    return ServiceResult.Fail($"Không tìm thấy {EntityLabel}.");
-
+                var entity = await Uow.Repository<TEntity>().Query().FirstOrDefaultAsync(KeyEqualsExpr(key), ct);
+                if (entity == null) return ServiceResult.Fail($"Không tìm thấy {EntityLabel}.");
                 var currentCode = GetCode(entity);
-
                 var codeExists = await Uow.Repository<TEntity>().Query()
-                    .Where(CodeEqualsExpr(code))
-                    .Where(KeyNotEqualsExpr(key))
-                    .AnyAsync(ct);
-
-                if (codeExists)
-                    return ServiceResult.Fail($"Mã '{code}' đã được dùng bởi {EntityLabel} khác.");
-
+                    .Where(CodeEqualsExpr(code)).Where(KeyNotEqualsExpr(key)).AnyAsync(ct);
+                if (codeExists) return ServiceResult.Fail($"Mã '{code}' đã được dùng bởi {EntityLabel} khác.");
                 bool codeChanged = currentCode != code;
                 if (codeChanged && await IsInUseAsync(entity, ct))
-                    return ServiceResult.Fail(
-                        $"Không thể đổi mã khi {EntityLabel} đang được liên kết ở nơi khác.");
-
+                    return ServiceResult.Fail($"Không thể đổi mã khi {EntityLabel} đang được liên kết ở nơi khác.");
                 ApplyUpsert(entity, model, currentUserId);
                 entity.LastModifiedSource = SyncSourceTags.Manual;
                 await Uow.SaveChangesAsync(ct);
-
                 Logger.LogInfoIf(Debug, "[{Label}] Updated: {Key}", EntityLabel, key);
                 return ServiceResult.Ok($"Đã cập nhật {EntityLabel}.");
             }
@@ -206,26 +158,19 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
             }
         }
 
-        public async Task<ServiceResult> ToggleActiveAsync(
-            TKey key, int currentUserId, CancellationToken ct = default)
+        public async Task<ServiceResult> ToggleActiveAsync(TKey key, int currentUserId, CancellationToken ct = default)
         {
             try
             {
-                var entity = await Uow.Repository<TEntity>().Query()
-                    .FirstOrDefaultAsync(KeyEqualsExpr(key), ct);
-
-                if (entity == null)
-                    return ServiceResult.Fail($"Không tìm thấy {EntityLabel}.");
-
+                var entity = await Uow.Repository<TEntity>().Query().FirstOrDefaultAsync(KeyEqualsExpr(key), ct);
+                if (entity == null) return ServiceResult.Fail($"Không tìm thấy {EntityLabel}.");
                 var newValue = !GetIsActive(entity);
                 SetIsActive(entity, newValue);
                 TouchModified(entity, currentUserId);
                 entity.LastModifiedSource = SyncSourceTags.Manual;
                 await Uow.SaveChangesAsync(ct);
-
                 var action = newValue ? "kích hoạt" : "tạm dừng";
                 Logger.LogInfoIf(Debug, "[{Label}] Toggled {Key} -> {Action}", EntityLabel, key, action);
-
                 return ServiceResult.Ok($"Đã {action} {EntityLabel}.");
             }
             catch (Exception ex)
@@ -239,28 +184,14 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
         {
             try
             {
-                var entity = await Uow.Repository<TEntity>().Query()
-                    .FirstOrDefaultAsync(KeyEqualsExpr(key), ct);
-
-                if (entity == null)
-                    return ServiceResult.Fail($"Không tìm thấy {EntityLabel}.");
-
-                // Entity đến từ HRM sync -> xóa cứng vô nghĩa, sẽ bị HrmSyncJob tự tạo lại
-                // ở lần chạy kế tiếp nếu vẫn còn tồn tại ở nguồn. Bắt buộc dùng ToggleActiveAsync
-                // (soft-delete) thay vì DeleteAsync cho nhóm entity này.
+                var entity = await Uow.Repository<TEntity>().Query().FirstOrDefaultAsync(KeyEqualsExpr(key), ct);
+                if (entity == null) return ServiceResult.Fail($"Không tìm thấy {EntityLabel}.");
                 if (entity.LastModifiedSource == SyncSourceTags.Hrm)
-                    return ServiceResult.Fail(
-                        $"{EntityLabel} này được đồng bộ từ HRM, không thể xóa cứng. " +
-                        "Hãy dùng chức năng 'Tạm dừng' thay vì xóa.");
-
+                    return ServiceResult.Fail($"{EntityLabel} này được đồng bộ từ HRM, không thể xóa cứng. Hãy dùng chức năng 'Tạm dừng' thay vì xóa.");
                 if (await IsInUseAsync(entity, ct))
-                    return ServiceResult.Fail(
-                        $"Không thể xóa: {EntityLabel} này đang được liên kết. " +
-                        "Hãy dùng 'Tạm dừng' thay vì xóa.");
-
+                    return ServiceResult.Fail($"Không thể xóa: {EntityLabel} này đang được liên kết. Hãy dùng 'Tạm dừng' thay vì xóa.");
                 Uow.Repository<TEntity>().Remove(entity);
                 await Uow.SaveChangesAsync(ct);
-
                 Logger.LogInfoIf(Debug, "[{Label}] Deleted: {Key}", EntityLabel, key);
                 return ServiceResult.Ok($"Đã xóa {EntityLabel}.");
             }
@@ -271,5 +202,4 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
             }
         }
     }
-
 }
