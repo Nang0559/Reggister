@@ -47,32 +47,38 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpPost("{id:int}/cancel")]
-        public async Task<IActionResult> Cancel(int id, [FromBody] CancelLeaveBody body, CancellationToken ct)
+        public async Task<IActionResult> Cancel(int id, [FromBody] LeaveCancelRequestDto body, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
+            if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
             return HandleResult(await _leaveService.CancelAsync(id, body.Reason, UserInfo, ct));
         }
 
         [HttpPost("cancel-detail/{detailId:int}")]
-        public async Task<IActionResult> CancelDetail(int detailId, [FromBody] CancelDetailRequest request, CancellationToken ct)
+        public async Task<IActionResult> CancelDetail(int detailId, [FromBody] LeaveDetailCancelRequestDto request, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
+            if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
             return HandleResult(await _leaveService.CancelDetailAsync(detailId, request.Reason, UserInfo, ct));
         }
 
         [HttpPost("approve")]
-        public async Task<IActionResult> Approve([FromBody] LeaveApprovalCommand request, CancellationToken ct)
+        public async Task<IActionResult> Approve([FromBody] LeaveApprovalCommandDto request, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
+            if (request.Ids == null || request.Ids.Count == 0)
+                return BadRequest(ApiResponse<object>.Fail("Chưa chọn đơn nào."));
             return HandleResult(await _leaveService.ApproveAsync(request.Ids, request.Level, UserInfo, request.Comment, ct));
         }
 
         [HttpPost("reject")]
-        public async Task<IActionResult> Reject([FromBody] LeaveApprovalCommand request, CancellationToken ct)
+        public async Task<IActionResult> Reject([FromBody] LeaveApprovalCommandDto request, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
+            if (request.Ids == null || request.Ids.Count == 0)
+                return BadRequest(ApiResponse<object>.Fail("Chưa chọn đơn nào."));
             if (string.IsNullOrWhiteSpace(request.Comment)) return BadRequest(ApiResponse<object>.Fail("Lý do từ chối không được để trống."));
-            return HandleResult(await _leaveService.RejectAsync(request.Ids, request.Level, UserInfo, request.Comment!, ct));
+            return HandleResult(await _leaveService.RejectAsync(request.Ids, request.Level, UserInfo, request.Comment, ct));
         }
 
         [HttpGet("pending")]
@@ -120,8 +126,4 @@ namespace FVN_REGISTER.API.Controllers
             return Ok(ApiResponse<List<LeaveSummaryDto>>.Ok(await _queryService.GetRecentSummaryAsync(UserInfo.EmployeeCode, limit, ct)));
         }
     }
-
-    public record LeaveApprovalCommand(List<int> Ids, int Level, string? Comment);
-    public record CancelLeaveBody(string Reason);
-    public class CancelDetailRequest { public string Reason { get; set; } = ""; }
 }
