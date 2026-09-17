@@ -81,6 +81,7 @@ public class FVNWEBAPPContext : DbContext
     public DbSet<VF03LeaveBalance> VF03LeaveBalances { get; set; }
     public DbSet<VF03user> VF03Users { get; set; }
     public DbSet<VwCurrentlyPresentEmployee> VwCurrentlyPresentEmployees { get; set; }
+    public DbSet<VwShiftCheckInOut> VwShiftCheckInOuts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
