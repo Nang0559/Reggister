@@ -2,7 +2,6 @@
 @using FVN_REGISTER.Contract.Dtos
 @using FVN_REGISTER.Contract.Dtos.Approvals
 @using FVN_REGISTER.Contract.Dtos.Histories
-@using FVN_REGISTER.Contract.Utils
 @using FVN_REGISTER.Shared.Components.OT
 @using FVN_REGISTER.Shared.Dialogs.Leaves
 @using FVN_REGISTER.Shared.Services.Histories
@@ -11,14 +10,11 @@
 @inherits AppComponentBase
 @implements IDisposable
 @inject IHistoryClientService HistoryService
-@inject ICurrentUserClientService CurrentUser
 @inject ISnackbar Snackbar
 @inject IDialogService Dialog
 @inject NavigationManager Nav
 
-@* Header *@
-<MudStack Row="true" AlignItems="AlignItems.Center"
-          Justify="Justify.SpaceBetween" Class="mb-4">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
     <div>
         <MudText Typo="Typo.h5">
             <MudIcon Icon="@Icons.Material.Filled.History" Class="mr-2" />
@@ -27,73 +23,34 @@
     </div>
     <MudButton Variant="Variant.Filled" Color="Color.Primary"
                StartIcon="@Icons.Material.Filled.Add"
-               OnClick="@(() => Nav.NavigateTo(
-                   Kind == RequestKind.Leave ? "/leave/create" : "/ot/create"))">
+               OnClick="@(() => Nav.NavigateTo(Kind == RequestKind.Leave ? "/leave/create" : "/ot/create"))">
         @(Kind == RequestKind.Leave ? "Tạo đơn nghỉ" : "Tạo đơn OT")
     </MudButton>
 </MudStack>
 
-@* Balance Cards *@
 @if (_balance != null)
 {
     <MudGrid Class="mb-4">
         @if (Kind == RequestKind.Leave)
         {
-            <MudItem xs="6" sm="3">
-                <MudPaper Class="pa-4" Elevation="2">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">TỔNG PHÉP</MudText>
-                    <MudText Typo="Typo.h5">@_balance.Entitled?.ToString("N1")</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="6" sm="3">
-                <MudPaper Class="pa-4" Elevation="2">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">ĐÃ DÙNG</MudText>
-                    <MudText Typo="Typo.h5" Color="Color.Warning">@_balance.Used?.ToString("N1")</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="6" sm="3">
-                <MudPaper Class="pa-4" Elevation="2">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">CÒN LẠI</MudText>
-                    <MudText Typo="Typo.h5" Color="Color.Success">@_balance.Remaining?.ToString("N1")</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="6" sm="3">
-                <MudPaper Class="pa-4" Elevation="2">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">CHỜ DUYỆT</MudText>
-                    <MudText Typo="Typo.h5" Color="Color.Error">@_balance.PendingCount</MudText>
-                </MudPaper>
-            </MudItem>
+            <MudItem xs="6" sm="3"><MudPaper Class="pa-4" Elevation="2"><MudText Typo="Typo.caption" Color="Color.Secondary">TỔNG PHÉP</MudText><MudText Typo="Typo.h5">@_balance.Entitled?.ToString("N1")</MudText></MudPaper></MudItem>
+            <MudItem xs="6" sm="3"><MudPaper Class="pa-4" Elevation="2"><MudText Typo="Typo.caption" Color="Color.Secondary">ĐÃ DÙNG</MudText><MudText Typo="Typo.h5" Color="Color.Warning">@_balance.Used?.ToString("N1")</MudText></MudPaper></MudItem>
+            <MudItem xs="6" sm="3"><MudPaper Class="pa-4" Elevation="2"><MudText Typo="Typo.caption" Color="Color.Secondary">CÒN LẠI</MudText><MudText Typo="Typo.h5" Color="Color.Success">@_balance.Remaining?.ToString("N1")</MudText></MudPaper></MudItem>
+            <MudItem xs="6" sm="3"><MudPaper Class="pa-4" Elevation="2"><MudText Typo="Typo.caption" Color="Color.Secondary">CHỜ DUYỆT</MudText><MudText Typo="Typo.h5" Color="Color.Error">@_balance.PendingCount</MudText></MudPaper></MudItem>
         }
         else
         {
-            <MudItem xs="6" sm="4">
-                <MudPaper Class="pa-4" Elevation="2">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">TỔNG GIỜ OT</MudText>
-                    <MudText Typo="Typo.h5">@_balance.TotalOTHours?.ToString("N1") h</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="6" sm="4">
-                <MudPaper Class="pa-4" Elevation="2">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">ĐÃ DUYỆT</MudText>
-                    <MudText Typo="Typo.h5" Color="Color.Success">@_balance.ApprovedOTHours?.ToString("N1") h</MudText>
-                </MudPaper>
-            </MudItem>
-            <MudItem xs="6" sm="4">
-                <MudPaper Class="pa-4" Elevation="2">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">CHỜ DUYỆT</MudText>
-                    <MudText Typo="Typo.h5" Color="Color.Warning">@_balance.PendingCount đơn</MudText>
-                </MudPaper>
-            </MudItem>
+            <MudItem xs="6" sm="4"><MudPaper Class="pa-4" Elevation="2"><MudText Typo="Typo.caption" Color="Color.Secondary">TỔNG GIỜ OT</MudText><MudText Typo="Typo.h5">@_balance.TotalOTHours?.ToString("N1") h</MudText></MudPaper></MudItem>
+            <MudItem xs="6" sm="4"><MudPaper Class="pa-4" Elevation="2"><MudText Typo="Typo.caption" Color="Color.Secondary">ĐÃ DUYỆT</MudText><MudText Typo="Typo.h5" Color="Color.Success">@_balance.ApprovedOTHours?.ToString("N1") h</MudText></MudPaper></MudItem>
+            <MudItem xs="6" sm="4"><MudPaper Class="pa-4" Elevation="2"><MudText Typo="Typo.caption" Color="Color.Secondary">CHỜ DUYỆT</MudText><MudText Typo="Typo.h5" Color="Color.Warning">@_balance.PendingCount đơn</MudText></MudPaper></MudItem>
         }
     </MudGrid>
 }
 
-@* Filter *@
 <MudPaper Elevation="1" Class="pa-3 mb-4">
     <MudGrid>
         <MudItem xs="12" sm="3">
-            <MudSelect T="int?" Label="Năm" @bind-Value="_filter.Year"
-                       Variant="Variant.Outlined" Margin="Margin.Dense">
+            <MudSelect T="int?" Label="Năm" @bind-Value="_filter.Year" Variant="Variant.Outlined" Margin="Margin.Dense">
                 @foreach (var y in _years)
                 {
                     <MudSelectItem T="int?" Value="@((int?)y)">@y</MudSelectItem>
@@ -101,8 +58,7 @@
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="3">
-            <MudSelect T="string" Label="Trạng thái" @bind-Value="_filter.Status"
-                       Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+            <MudSelect T="string" Label="Trạng thái" @bind-Value="_filter.Status" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
                 @if (Kind == RequestKind.Leave)
                 {
                     <MudSelectItem Value="@LeaveStatus.Pending">Chờ duyệt</MudSelectItem>
@@ -119,49 +75,24 @@
                 }
             </MudSelect>
         </MudItem>
-        <MudItem xs="6" sm="2">
-            <MudDatePicker Label="Từ ngày" @bind-Date="_fromDate"
-                           Variant="Variant.Outlined" Margin="Margin.Dense"
-                           DateFormat="dd/MM/yyyy" Clearable="true" />
-        </MudItem>
-        <MudItem xs="6" sm="2">
-            <MudDatePicker Label="Đến ngày" @bind-Date="_toDate"
-                           Variant="Variant.Outlined" Margin="Margin.Dense"
-                           DateFormat="dd/MM/yyyy" Clearable="true" />
-        </MudItem>
-        <MudItem xs="12" sm="2" Class="d-flex align-center gap-2">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                       FullWidth="true" OnClick="LoadData">Tìm kiếm</MudButton>
-        </MudItem>
+        <MudItem xs="6" sm="2"><MudDatePicker Label="Từ ngày" @bind-Date="_fromDate" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" Clearable="true" /></MudItem>
+        <MudItem xs="6" sm="2"><MudDatePicker Label="Đến ngày" @bind-Date="_toDate" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" Clearable="true" /></MudItem>
+        <MudItem xs="12" sm="2" Class="d-flex align-center gap-2"><MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" OnClick="LoadData">Tìm kiếm</MudButton></MudItem>
     </MudGrid>
 </MudPaper>
 
-@* Table *@
 <MudPaper Elevation="2">
-    <MudTable T="HistoryItemDto"
-              ServerData="ServerReload"
-              @ref="_table"
-              Dense="true" Hover="true"
-              Loading="_isLoading">
+    <MudTable T="HistoryItemDto" ServerData="ServerReload" @ref="_table" Dense="true" Hover="true" Loading="_isLoading">
         <HeaderContent>
             @if (Kind == RequestKind.Leave)
             {
-                <MudTh>Ngày gửi</MudTh>
-                <MudTh>Từ ngày</MudTh>
-                <MudTh>Đến ngày</MudTh>
-                <MudTh>Số ngày</MudTh>
+                <MudTh>Ngày gửi</MudTh><MudTh>Từ ngày</MudTh><MudTh>Đến ngày</MudTh><MudTh>Số ngày</MudTh>
             }
             else
             {
-                <MudTh>Ngày OT</MudTh>
-                <MudTh>Tổng giờ</MudTh>
-                <MudTh>Loại OT</MudTh>
-                <MudTh>Số NV</MudTh>
+                <MudTh>Ngày OT</MudTh><MudTh>Tổng giờ</MudTh><MudTh>Loại OT</MudTh><MudTh>Số NV</MudTh>
             }
-            <MudTh>Lý do</MudTh>
-            <MudTh>Trạng thái</MudTh>
-            <MudTh>Tiến độ duyệt</MudTh>
-            <MudTh>Thao tác</MudTh>
+            <MudTh>Lý do</MudTh><MudTh>Trạng thái</MudTh><MudTh>Tiến độ duyệt</MudTh><MudTh>Thao tác</MudTh>
         </HeaderContent>
         <RowTemplate>
             @if (Kind == RequestKind.Leave)
@@ -169,69 +100,35 @@
                 <MudTd>@context.SubmittedAt.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd><strong>@context.StartDate?.ToString("dd/MM/yyyy")</strong></MudTd>
                 <MudTd>@context.EndDate?.ToString("dd/MM/yyyy")</MudTd>
-                <MudTd>
-                    <MudChip T="string" Size="Size.Small" Color="Color.Info">
-                        @context.TotalDay?.ToString("N1") ngày
-                    </MudChip>
-                </MudTd>
+                <MudTd><MudChip T="string" Size="Size.Small" Color="Color.Info">@context.TotalDay?.ToString("N1") ngày</MudChip></MudTd>
             }
             else
             {
                 <MudTd><strong>@context.OTDate?.ToString("dd/MM/yyyy")</strong></MudTd>
-                <MudTd>
-                    <MudChip T="string" Size="Size.Small" Color="Color.Info">
-                        @context.TotalOTHours?.ToString("N1") h
-                    </MudChip>
-                </MudTd>
-                <MudTd>@context.OTTypeName</MudTd>
-                <MudTd>@context.EmployeeCount người</MudTd>
+                <MudTd><MudChip T="string" Size="Size.Small" Color="Color.Info">@context.TotalOTHours?.ToString("N1") h</MudChip></MudTd>
+                <MudTd>@context.OTTypeName</MudTd><MudTd>@context.EmployeeCount người</MudTd>
             }
             <MudTd>
-                <MudText Typo="Typo.body2"
-                         Style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"
-                         Title="@context.Reason">
+                <MudText Typo="Typo.body2" Style="max-width:160px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" Title="@context.Reason">
                     @(context.Reason?.Length > 30 ? context.Reason[..30] + "..." : context.Reason ?? "—")
                 </MudText>
             </MudTd>
-            <MudTd>
-                <MudChip T="string" Size="Size.Small"
-                         Style="@($"background:{context.StatusColor};color:#fff;")">
-                    @context.StatusDisplay
-                </MudChip>
-            </MudTd>
-            <MudTd>
-                <OTApprovalProgressBar Steps="@context.ApprovalSteps" />
-            </MudTd>
+            <MudTd><MudChip T="string" Size="Size.Small" Style="@($"background:{context.StatusColor};color:#fff;")">@context.StatusDisplay</MudChip></MudTd>
+            <MudTd><OTApprovalProgressBar Steps="@context.ApprovalSteps" /></MudTd>
             <MudTd>
                 <MudStack Row="true" Spacing="0">
-                    <MudIconButton Icon="@Icons.Material.Filled.Visibility"
-                                   Size="Size.Small"
-                                   OnClick="@(() => OpenDetail(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="@(() => OpenDetail(context))" />
                     @if (context.CanCancel)
                     {
-                        <MudIconButton Icon="@Icons.Material.Filled.Cancel"
-                                       Color="Color.Error" Size="Size.Small"
-                                       OnClick="@(() => ConfirmCancel(context))" />
+                        <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" OnClick="@(() => ConfirmCancel(context))" />
                     }
                 </MudStack>
             </MudTd>
         </RowTemplate>
-        <PagerContent>
-            <MudTablePager PageSizeOptions="new int[]{10,20,50}" />
-        </PagerContent>
-        <NoRecordsContent>
-            <MudText Color="Color.Secondary" Class="pa-4">Không có dữ liệu.</MudText>
-        </NoRecordsContent>
+        <PagerContent><MudTablePager PageSizeOptions="new int[]{10,20,50}" /></PagerContent>
+        <NoRecordsContent><MudText Color="Color.Secondary" Class="pa-4">Không có dữ liệu.</MudText></NoRecordsContent>
     </MudTable>
 </MudPaper>
-
-@* Detail Dialog *@
-@if (_detail != null)
-{
-    <MudDialog @bind-IsVisible="_showDetail" ...>
-        ...
-    </MudDialog>
-}
 
 @code {
     [Parameter] public RequestKind Kind { get; set; } = RequestKind.Leave;
@@ -239,11 +136,8 @@
     private MudTable<HistoryItemDto>? _table;
     private bool _isLoading;
     private BalanceSummaryDto? _balance;
-    private ApprovalItemDetailDto? _detail;
-    private bool _showDetail;
     private readonly CancellationTokenSource _cts = new();
-
-    private List<int> _years = Enumerable.Range(DateTime.Now.Year - 3, 5).Reverse().ToList();
+    private readonly List<int> _years = Enumerable.Range(DateTime.Now.Year - 3, 5).Reverse().ToList();
 
     private HistoryFilterDto _filter = new()
     {
@@ -260,8 +154,7 @@
         await LoadBalance();
     }
 
-    private async Task<TableData<HistoryItemDto>> ServerReload(
-        TableState state, CancellationToken ct)
+    private async Task<TableData<HistoryItemDto>> ServerReload(TableState state, CancellationToken ct)
     {
         _isLoading = true;
         try
@@ -273,11 +166,7 @@
 
             var result = await HistoryService.GetHistoryAsync(_filter, ct);
             if (result.IsSuccess && result.Data != null)
-                return new TableData<HistoryItemDto>
-                {
-                    Items = result.Data.Data,
-                    TotalItems = result.Data.TotalCount
-                };
+                return new TableData<HistoryItemDto> { Items = result.Data.Data, TotalItems = result.Data.TotalCount };
 
             Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu.", Severity.Warning);
         }
@@ -296,59 +185,63 @@
         if (result.IsSuccess) _balance = result.Data;
     }
 
-    private async Task LoadData() => await _table!.ReloadServerData();
+    private async Task LoadData()
+    {
+        if (_table != null)
+            await _table.ReloadServerData();
+    }
 
-   private async Task OpenDetail(HistoryItemDto item)
+    private async Task OpenDetail(HistoryItemDto item)
+    {
+        try
         {
-            try
+            var result = await HistoryService.GetDetailAsync(Kind, item.Id);
+            if (result.IsSuccess && result.Data != null)
             {
-                var result = await HistoryService.GetDetailAsync(Kind, item.Id);
-
-                if (result.IsSuccess && result.Data != null)
+                var parameters = new DialogParameters<RequestDetailDialog>
                 {
-                    var parameters = new DialogParameters<RequestDetailDialog>
-                    {
-                        { x => x.Detail, result.Data }
-                    };
-
-                    var options = new DialogOptions
-                    {
-                        MaxWidth = MaxWidth.Medium,
-                        FullWidth = true,
-                        CloseOnEscapeKey = true
-                    };
-
-                    await Dialog.ShowAsync<RequestDetailDialog>("Chi tiết yêu cầu", parameters, options);
-                }
-                else
+                    { x => x.Detail, result.Data }
+                };
+                var options = new DialogOptions
                 {
-                    Snackbar.Add(result.Message ?? "Lỗi tải chi tiết.", Severity.Error);
-                }
+                    MaxWidth = MaxWidth.Medium,
+                    FullWidth = true,
+                    CloseOnEscapeKey = true
+                };
+                await Dialog.ShowAsync<RequestDetailDialog>("Chi tiết yêu cầu", parameters, options);
             }
-            catch (Exception ex)
+            else
             {
-                Logger.LogError(ex, "[History] OpenDetail error");
-                Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+                Snackbar.Add(result.Message ?? "Lỗi tải chi tiết.", Severity.Error);
             }
         }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[History] OpenDetail error");
+            Snackbar.Add($"Lỗi: {ex.Message}", Severity.Error);
+        }
+    }
 
     private async Task ConfirmCancel(HistoryItemDto item)
     {
-        var confirmed = await Dialog.ShowMessageBoxAsync(
-            "Xác nhận hủy",
-            $"Hủy đơn #{item.Id}?",
-            yesText: "Hủy đơn", cancelText: "Không");
-
+        var confirmed = await Dialog.ShowMessageBoxAsync("Xác nhận hủy", $"Hủy đơn #{item.Id}?", yesText: "Hủy đơn", cancelText: "Không");
         if (confirmed != true) return;
 
         var result = await HistoryService.CancelAsync(Kind, item.Id, "Người dùng hủy");
         if (result.IsSuccess)
         {
             Snackbar.Add("Đã hủy thành công.", Severity.Success);
-            await _table!.ReloadServerData();
+            if (_table != null) await _table.ReloadServerData();
         }
-        else Snackbar.Add(result.Message ?? "Lỗi hủy.", Severity.Error);
+        else
+        {
+            Snackbar.Add(result.Message ?? "Lỗi hủy.", Severity.Error);
+        }
     }
 
-    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
 }
