@@ -1,4 +1,3 @@
-using AutoMapper;
 using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Depts;
@@ -20,10 +19,9 @@ namespace FVN_REGISTER.API.Controllers
             IDepartmentLookupService departmentLookup,
             ICurrentUserService currentUser,
             IUserLogService userLog,
-            IMapper mapper,
             ILogger<CommonController> logger,
             IOptionsMonitor<AuthDebugOptions> options)
-            : base(currentUser, userLog, mapper, logger, options)
+            : base(currentUser, userLog, logger, options)
         {
             _departmentLookup = departmentLookup;
         }
