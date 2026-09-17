@@ -1,17 +1,15 @@
-﻿
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Common;
+using FVN_REGISTER.Application.Interfaces.Histories;
 using FVN_REGISTER.Application.Interfaces.OT;
+using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Maps;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos;
-using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Contract.Dtos.LimitRuleDtos;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Requests.OT;
-using FVN_REGISTER.Core.Entities.Approvers;
-using FVN_REGISTER.Core.Entities.Common;
 using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Entities.OT;
 using FVN_REGISTER.Core.Entities.Views;
@@ -23,26 +21,23 @@ using Microsoft.EntityFrameworkCore;
 namespace FVN_REGISTER.Infrastructure.Services.OT
 {
     public class OTQueryService
-     : BaseRequestQueryService<OTRequestDto, OTEmployeeDto, OTSummaryDto, OTBalanceDto>,
-       IOTQueryService
+        : BaseRequestQueryService<OTSummaryDto, OTBalanceDto, OTEmployeeDto, OTRequestDto>,
+          IOTQueryService
     {
-        private readonly IAttachmentService _attachmentService;
         private readonly IApprovalProvider<OTRequestSubject> _approvalProvider;
+
+        protected override RequestModule Module => RequestModule.Overtime;
 
         public OTQueryService(
             IUnitOfWork uow,
+            IApprovalHistoryService historyService,
             IAttachmentService attachmentService,
-            IApprovalProvider<OTRequestSubject> approvalProvider) : base(uow)
+            ICurrentUserService currentUserService,
+            IApprovalProvider<OTRequestSubject> approvalProvider)
+            : base(uow, historyService, attachmentService, currentUserService)
         {
-            _attachmentService = attachmentService;
             _approvalProvider = approvalProvider;
         }
-
-        protected override RequestModule RequestType => RequestModule.Overtime;
-
-        // ═══════════════════════════════════════════════════════════════
-        // KHUNG FULL DETAILS (base class gọi lại các hàm này)
-        // ═══════════════════════════════════════════════════════════════
 
         protected override async Task<OTRequestDto?> GetHeaderByIdAsync(int requestId, CancellationToken ct)
         {
@@ -50,7 +45,8 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct);
 
-            if (entity == null) return null;
+            if (entity == null)
+                return null;
 
             var requester = await Uow.Repository<VF03employee>().Query()
                 .AsNoTracking()
@@ -64,12 +60,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                     .FirstOrDefaultAsync(d => d.DeptCode == entity.DeptCode, ct);
             }
 
-            var dto = OTMapper.ToDto(entity, requester, department);
-
-            // THÊM: enrich attachment — khớp đúng pattern LeaveQueryService.GetHeaderByIdAsync
-            await _attachmentService.EnrichAsync(new[] { dto }, RequestType, ct);
-
-            return dto;
+            return OTMapper.ToDto(entity, requester, department);
         }
 
         protected override async Task<List<OTEmployeeDto>> GetDetailsByIdAsync(int requestId, CancellationToken ct)
@@ -82,55 +73,29 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             return employees.Select(OTMapper.ToEmployeeDto).ToList();
         }
 
-        protected override void AttachDetails(OTRequestDto dto, List<OTEmployeeDto> details)
-            => dto.Details = details;
-
-        protected override void AttachApprovalSteps(OTRequestDto dto, List<ApprovalStepCalculatedDto> steps)
-            => dto.ApprovalSteps = steps;
-
-        protected override async Task<List<ApprovalStepCalculatedDto>> GetApprovalStepsAsync(
-            int requestId, CancellationToken ct)
-        {
-            var snapshot = await Uow.Repository<F03ApprovalSnapshot>().Query()
-                .Include(s => s.Steps)
-                .FirstOrDefaultAsync(s => s.RequestId == requestId && s.RequestType == RequestType, ct);
-
-            if (snapshot == null) return new();
-
-            var histories = await Uow.Repository<F03ApprovalHistory>().Query()
-                .Where(h => h.RequestId == requestId && h.RequestType == RequestType)
-                .ToListAsync(ct);
-
-            return ApprovalStepMapper.MapToCalculatedList(snapshot.Steps, histories);
-        }
-
-        // ═══════════════════════════════════════════════════════════════
-        // IRequestQueryService<OTSummaryDto, OTBalanceDto, OTRequestDto>
-        // ═══════════════════════════════════════════════════════════════
-
         public override async Task<List<WidgetCounterDto>> GetMyWidgetsAsync(
             string employeeCode, CancellationToken ct = default)
         {
             var pendingCount = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
                 .CountAsync(x => x.EmployeeCode == employeeCode
-                               && x.IsActive == true
-                               && (x.RequestStatus == ApprovalStatus.Pending || x.RequestStatus == ApprovalStatus.InProgress), ct);
+                    && x.IsActive == true
+                    && (x.RequestStatus == ApprovalStatus.Pending || x.RequestStatus == ApprovalStatus.InProgress), ct);
 
             var hoursThisMonth = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
                 .Where(x => x.EmployeeCode == employeeCode
-                         && x.IsActive == true
-                         && x.RequestStatus == ApprovalStatus.Approved
-                         && x.OTDate.Month == DateTime.Now.Month
-                         && x.OTDate.Year == DateTime.Now.Year)
+                    && x.IsActive == true
+                    && x.RequestStatus == ApprovalStatus.Approved
+                    && x.OTDate.Month == DateTime.Now.Month
+                    && x.OTDate.Year == DateTime.Now.Year)
                 .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
 
             return new List<WidgetCounterDto>
-        {
-            new() { Title = "Đơn OT chờ duyệt", Value = pendingCount.ToString(), Icon = "PendingActions", Color = "Warning", Link = "/ot/history" },
-            new() { Title = "Giờ OT tháng này", Value = hoursThisMonth.ToString("0.#"), Icon = "AccessTime", Color = "Info", Link = "/ot/history" }
-        };
+            {
+                new() { Title = "Đơn OT chờ duyệt", Value = pendingCount.ToString(), Icon = "PendingActions", Color = "Warning", Link = "/ot/history" },
+                new() { Title = "Giờ OT tháng này", Value = hoursThisMonth.ToString("0.#"), Icon = "AccessTime", Color = "Info", Link = "/ot/history" }
+            };
         }
 
         public override async Task<List<OTSummaryDto>> GetRecentSummaryAsync(
@@ -168,7 +133,6 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 query = query.Where(x => x.OTDate <= toDate.Value.Date);
 
             var totalCount = await query.CountAsync(ct);
-
             var items = await query
                 .OrderByDescending(x => x.OTDate)
                 .ThenByDescending(x => x.CreatedAt)
@@ -176,9 +140,8 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .Take(pageSize)
                 .ToListAsync(ct);
 
-            var dtos = items.Select(MapToSummary).ToList();
-
-            return new PaginationResult<OTSummaryDto>(dtos, totalCount, page, pageSize);
+            return new PaginationResult<OTSummaryDto>(
+                items.Select(MapToSummary).ToList(), totalCount, page, pageSize);
         }
 
         public override async Task<List<OTRequestDto>> GetDeptByDateAsync(
@@ -187,25 +150,19 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             var data = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
                 .Where(x => x.IsActive == true
-                         && x.DeptCode == deptCode
-                         && x.OTDate.Date == date.Date
-                         && x.RequestStatus != ApprovalStatus.Cancelled
-                         && x.RequestStatus != ApprovalStatus.Rejected)
+                    && x.DeptCode == deptCode
+                    && x.OTDate.Date == date.Date
+                    && x.RequestStatus != ApprovalStatus.Cancelled
+                    && x.RequestStatus != ApprovalStatus.Rejected)
                 .OrderByDescending(x => x.CreatedAt)
                 .ToListAsync(ct);
 
             return data.Select(x => OTMapper.ToDto(x)).ToList();
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // ĐẶC THÙ OT — không có ở base
-        // ═══════════════════════════════════════════════════════════════
-
         public async Task<OTCombinedDataDto> GetCombinedDataAsync(
             string employeeCode, string deptCode, int year, int month, CancellationToken ct = default)
         {
-            var today = DateTime.Today;
-
             var deptEmployees = await GetDeptEmployeesAsync(deptCode, ct);
             var balance = await GetBalanceAsync(employeeCode, year, month, ct);
             var recent = await GetRecentSummaryAsync(employeeCode, 5, ct);
@@ -215,40 +172,38 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .Where(x => x.IsActive == true)
                 .ToListAsync(ct);
 
+            var today = DateTime.Today;
             var todayOT = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
                 .Where(x => x.IsActive == true
-                         && x.DeptCode == deptCode
-                         && x.OTDate.Date == today
-                         && x.RequestStatus != ApprovalStatus.Cancelled
-                         && x.RequestStatus != ApprovalStatus.Rejected)
+                    && x.DeptCode == deptCode
+                    && x.OTDate.Date == today
+                    && x.RequestStatus != ApprovalStatus.Cancelled
+                    && x.RequestStatus != ApprovalStatus.Rejected)
                 .OrderByDescending(x => x.CreatedAt)
                 .Take(10)
                 .ToListAsync(ct);
 
-            // SỬA: lấy PositionCode thật của người tạo — cần cho ApprovalBuildContext.ForOT
             var positionCode = await Uow.Repository<F03Employee>().Query()
                 .AsNoTracking()
                 .Where(x => x.EmployeeCode == employeeCode)
                 .Select(x => x.PositionCode)
-                .FirstOrDefaultAsync(ct) ?? "";
+                .FirstOrDefaultAsync(ct) ?? string.Empty;
 
-            // SỬA: gọi thật _approvalProvider.BuildHierarchyAsync thay vì để rỗng —
-            // khớp đúng pattern LeaveQueryService.GetCombinedDataAsync
-            var ctx = ApprovalBuildContext.ForOT(
+            var approvalContext = ApprovalBuildContext.ForOT(
                 employeeCode: employeeCode,
                 deptCode: deptCode,
                 positionCode: positionCode,
-                totalOTHours: 0,           // preview ban đầu, chưa biết tổng giờ — FE gọi lại khi đổi giờ
-                otTypeCode: "WEEKDAY");           // preview ban đầu, chưa chọn loại OT
+                totalOTHours: 0,
+                otTypeCode: "WEEKDAY");
 
-            var snapshotSteps = await _approvalProvider.BuildHierarchyAsync(ctx, ct);
+            var snapshotSteps = await _approvalProvider.BuildHierarchyAsync(approvalContext, ct);
 
             return new OTCombinedDataDto
             {
                 OTForm = new OTRequestUpsertDto { DeptCode = deptCode, ScopeType = "SELECTED" },
                 DeptEmployees = deptEmployees,
-                ApprovalSteps = snapshotSteps,   // SỬA: dữ liệu thật thay vì new List<>()
+                ApprovalSteps = snapshotSteps,
                 Balance = balance,
                 LimitRules = limits.Select(r => new OTLimitRuleDto
                 {
@@ -272,7 +227,6 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             foreach (var emp in model.Employees)
             {
                 var balance = await GetBalanceAsync(emp.EmployeeCode, model.OTDate.Year, model.OTDate.Month, ct);
-
                 CheckLimit(result, emp, OTLimitType.Daily, balance.UsedHoursToday, balance.DailyLimit, emp.OTHours);
                 CheckLimit(result, emp, OTLimitType.Monthly, balance.UsedHoursThisMonth, balance.MonthlyLimit, emp.OTHours);
                 CheckLimit(result, emp, OTLimitType.Yearly, balance.UsedHoursThisYear, balance.YearlyLimit, emp.OTHours);
@@ -283,7 +237,6 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
 
             result.IsValid = result.Errors.Count == 0;
             result.Message = result.IsValid ? "Hợp lệ." : "Có nhân viên vượt giới hạn giờ OT.";
-
             return result;
         }
 
@@ -312,7 +265,6 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             string employeeCode, int year, int month, CancellationToken ct = default)
         {
             var today = DateTime.Today;
-
             var emp = await Uow.Repository<F03Employee>().Query()
                 .AsNoTracking()
                 .Where(e => e.EmployeeCode == employeeCode)
@@ -321,27 +273,21 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
 
             var usedToday = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
-                .Where(x => x.EmployeeCode == employeeCode
-                         && x.IsActive == true
-                         && x.RequestStatus == ApprovalStatus.Approved
-                         && x.OTDate.Date == today)
+                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
+                    && x.RequestStatus == ApprovalStatus.Approved && x.OTDate.Date == today)
                 .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
 
             var usedThisMonth = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
-                .Where(x => x.EmployeeCode == employeeCode
-                         && x.IsActive == true
-                         && x.RequestStatus == ApprovalStatus.Approved
-                         && x.OTDate.Year == year
-                         && x.OTDate.Month == month)
+                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
+                    && x.RequestStatus == ApprovalStatus.Approved
+                    && x.OTDate.Year == year && x.OTDate.Month == month)
                 .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
 
             var usedThisYear = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
-                .Where(x => x.EmployeeCode == employeeCode
-                         && x.IsActive == true
-                         && x.RequestStatus == ApprovalStatus.Approved
-                         && x.OTDate.Year == year)
+                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
+                    && x.RequestStatus == ApprovalStatus.Approved && x.OTDate.Year == year)
                 .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
 
             var dto = new OTBalanceDto
@@ -355,11 +301,14 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 UsedHoursThisYear = usedThisYear
             };
 
+            if (emp == null)
+                return dto;
+
             var rules = await Uow.Repository<F03OTLimitRule>().Query()
                 .AsNoTracking()
-                .Where(r => r.IsActive == true &&
-                            (r.PositionCode == emp!.PositionCode || r.DeptCode == emp.DeptCode ||
-                             (r.PositionCode == null && r.DeptCode == null)))
+                .Where(r => r.IsActive == true
+                    && (r.PositionCode == emp.PositionCode || r.DeptCode == emp.DeptCode
+                        || (r.PositionCode == null && r.DeptCode == null)))
                 .ToListAsync(ct);
 
             var dailyRule = rules.FirstOrDefault(r => r.LimitType == OTLimitType.Daily);
@@ -399,74 +348,53 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .Select(e => e.DeptCode)
                 .FirstOrDefaultAsync(ct) ?? string.Empty;
         }
+
         public async Task<List<OTBalanceDto>> GetDeptNearLimitAsync(
-    string deptCode, int year, int month, CancellationToken ct = default)
+            string deptCode, int year, int month, CancellationToken ct = default)
         {
             var today = DateTime.Today;
-
-            // 1. Lấy toàn bộ nhân viên active trong phòng ban — 1 query
             var employees = await Uow.Repository<F03Employee>().Query()
                 .AsNoTracking()
                 .Where(e => e.DeptCode == deptCode && e.IsActive == true)
                 .Select(e => new { e.EmployeeCode, e.EmployeeName, e.PositionCode })
                 .ToListAsync(ct);
 
-            if (employees.Count == 0) return new List<OTBalanceDto>();
+            if (employees.Count == 0)
+                return new List<OTBalanceDto>();
 
             var empCodes = employees.Select(e => e.EmployeeCode).ToList();
-
-            // 2. Lấy TOÀN BỘ giờ OT đã Approved trong NĂM cho cả phòng ban — 1 query duy nhất,
-            // group theo (EmployeeCode, Date) để sau đó tự tính Today/Month/Year in-memory
-            // thay vì 3 query SumAsync riêng cho từng loại như GetBalanceAsync cũ.
             var otRecords = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
                 .Where(x => empCodes.Contains(x.EmployeeCode)
-                         && x.IsActive == true
-                         && x.RequestStatus == ApprovalStatus.Approved
-                         && x.OTDate.Year == year)
+                    && x.IsActive == true
+                    && x.RequestStatus == ApprovalStatus.Approved
+                    && x.OTDate.Year == year)
                 .Select(x => new { x.EmployeeCode, x.OTDate, x.TotalOTHours })
                 .ToListAsync(ct);
 
-            // 3. Lấy toàn bộ limit rule liên quan — 1 query (đã có sẵn pattern này ở GetBalanceAsync)
             var positionCodes = employees.Select(e => e.PositionCode).Distinct().ToList();
-
             var rules = await Uow.Repository<F03OTLimitRule>().Query()
                 .AsNoTracking()
-                .Where(r => r.IsActive == true &&
-                            (positionCodes.Contains(r.PositionCode) || r.DeptCode == deptCode ||
-                             (r.PositionCode == null && r.DeptCode == null)))
+                .Where(r => r.IsActive == true
+                    && (positionCodes.Contains(r.PositionCode) || r.DeptCode == deptCode
+                        || (r.PositionCode == null && r.DeptCode == null)))
                 .ToListAsync(ct);
 
-            // 4. Tính toán in-memory cho từng nhân viên — KHÔNG query lại DB trong vòng lặp
             var result = new List<OTBalanceDto>();
-
             foreach (var emp in employees)
             {
                 var empRecords = otRecords.Where(r => r.EmployeeCode == emp.EmployeeCode).ToList();
-
-                var usedToday = empRecords
-                    .Where(r => r.OTDate.Date == today)
-                    .Sum(r => r.TotalOTHours ?? 0);
-
-                var usedThisMonth = empRecords
-                    .Where(r => r.OTDate.Month == month)
-                    .Sum(r => r.TotalOTHours ?? 0);
-
-                var usedThisYear = empRecords.Sum(r => r.TotalOTHours ?? 0);
-
                 var dto = new OTBalanceDto
                 {
                     EmployeeCode = emp.EmployeeCode,
                     EmployeeName = emp.EmployeeName,
                     Year = year,
                     Month = month,
-                    UsedHoursToday = usedToday,
-                    UsedHoursThisMonth = usedThisMonth,
-                    UsedHoursThisYear = usedThisYear
+                    UsedHoursToday = empRecords.Where(r => r.OTDate.Date == today).Sum(r => r.TotalOTHours ?? 0),
+                    UsedHoursThisMonth = empRecords.Where(r => r.OTDate.Month == month).Sum(r => r.TotalOTHours ?? 0),
+                    UsedHoursThisYear = empRecords.Sum(r => r.TotalOTHours ?? 0)
                 };
 
-                // Ưu tiên rule theo PositionCode, fallback DeptCode, fallback rule mặc định —
-                // khớp đúng logic ResolveRule trong GetBalanceAsync gốc.
                 var dailyRule = ResolveRule(rules, emp.PositionCode, deptCode, OTLimitType.Daily);
                 var monthlyRule = ResolveRule(rules, emp.PositionCode, deptCode, OTLimitType.Monthly);
                 var yearlyRule = ResolveRule(rules, emp.PositionCode, deptCode, OTLimitType.Yearly);
@@ -489,7 +417,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 ?? rules.FirstOrDefault(r => r.LimitType == type && r.DeptCode == deptCode)
                 ?? rules.FirstOrDefault(r => r.LimitType == type && r.PositionCode == null && r.DeptCode == null);
         }
-        // ── helper nội bộ ──
+
         private static OTSummaryDto MapToSummary(VF03OTRequest x) => new()
         {
             Id = x.Id ?? 0,
