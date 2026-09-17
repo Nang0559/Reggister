@@ -4,15 +4,13 @@ using FVN_REGISTER.Application.Interfaces.Histories;
 using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Maps;
+using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Approvals;
-
 using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Dtos.MasterData;
-
 using FVN_REGISTER.Core.Repositories;
-
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Leaves
@@ -21,11 +19,17 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
         : BaseRequestQueryService<LeaveSummaryDto, LeaveBalanceDto, LeaveRequestDetailDto, LeaveRequestDto>,
           ILeaveQueryService
     {
-        private readonly IApprovalProvider<LeaveApprovalSubject> _approvalProvider;
+        private readonly IApprovalProvider<LeaveRequestSubject> _approvalProvider;
         protected override RequestModule Module => RequestModule.Leave;
 
-        public LeaveQueryService(IUnitOfWork uow, IApprovalHistoryService historyService, IAttachmentService attachmentService, ICurrentUserService currentUserService, IApprovalProvider<LeaveApprovalSubject> approvalProvider)
-            : base(uow, historyService, attachmentService, currentUserService) => _approvalProvider = approvalProvider;
+        public LeaveQueryService(
+            IUnitOfWork uow,
+            IApprovalHistoryService historyService,
+            IAttachmentService attachmentService,
+            ICurrentUserService currentUserService,
+            IApprovalProvider<LeaveRequestSubject> approvalProvider)
+            : base(uow, historyService, attachmentService, currentUserService)
+            => _approvalProvider = approvalProvider;
 
         protected override async Task<LeaveRequestDto?> GetHeaderByIdAsync(int requestId, CancellationToken ct)
         {
