@@ -5,6 +5,7 @@ using FVN_REGISTER.Application.Interfaces.Companies;
 using FVN_REGISTER.Application.Interfaces.EmailTemplates;
 using FVN_REGISTER.Application.Interfaces.Emails;
 using FVN_REGISTER.Application.Interfaces.Employees;
+using FVN_REGISTER.Application.Interfaces.Equipment;
 using FVN_REGISTER.Application.Interfaces.Histories;
 using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Application.Interfaces.Leaves;
@@ -30,6 +31,7 @@ using FVN_REGISTER.Infrastructure.Services.Companies;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using FVN_REGISTER.Infrastructure.Services.Emails;
 using FVN_REGISTER.Infrastructure.Services.Employees;
+using FVN_REGISTER.Infrastructure.Services.Equipment;
 using FVN_REGISTER.Infrastructure.Services.Histories;
 using FVN_REGISTER.Infrastructure.Services.HrmSync;
 using FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.Importers;
@@ -115,8 +117,12 @@ builder.Services.AddScoped<IDepartmentStatusService, DepartmentStatusService>();
 builder.Services.AddScoped<IOTTypeManagementService, OTTypeManagementService>();
 builder.Services.AddScoped<IOTEscalationService, OTEscalationService>();
 
-// Trip / Business travel
+// Trip
 builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Trips.ITripService, FVN_REGISTER.Infrastructure.Services.Trips.TripService>();
+
+// Equipment
+builder.Services.AddScoped<IEquipmentService, EquipmentService>();
+builder.Services.AddScoped<IEquipmentQrCodeService, QrCodeService>();
 
 // Auth / users
 builder.Services.AddScoped<IAuditService, AuditService>();
@@ -143,15 +149,19 @@ builder.Services.AddScoped<IApprovalNotificationService, ApprovalNotificationSer
 builder.Services.AddScoped<LeaveApprovalProvider>();
 builder.Services.AddScoped<OTApprovalProvider>();
 builder.Services.AddScoped<TripApprovalProvider>();
+builder.Services.AddScoped<EquipmentApprovalProvider>();
 builder.Services.AddScoped<IApprovalProvider<LeaveRequestSubject>>(sp => sp.GetRequiredService<LeaveApprovalProvider>());
 builder.Services.AddScoped<IApprovalProvider<OTRequestSubject>>(sp => sp.GetRequiredService<OTApprovalProvider>());
-builder.Services.AddScoped<IApprovalProvider<FVN_REGISTER.Application.Models.Subjects.TripRequestSubject>>(sp => sp.GetRequiredService<TripApprovalProvider>());
+builder.Services.AddScoped<IApprovalProvider<TripRequestSubject>>(sp => sp.GetRequiredService<TripApprovalProvider>());
+builder.Services.AddScoped<IApprovalProvider<EquipmentRequestSubject>>(sp => sp.GetRequiredService<EquipmentApprovalProvider>());
 builder.Services.AddScoped<IApprovalEngine<LeaveRequestSubject>, ApprovalEngine<LeaveRequestSubject>>();
 builder.Services.AddScoped<IApprovalEngine<OTRequestSubject>, ApprovalEngine<OTRequestSubject>>();
-builder.Services.AddScoped<IApprovalEngine<FVN_REGISTER.Application.Models.Subjects.TripRequestSubject>, ApprovalEngine<FVN_REGISTER.Application.Models.Subjects.TripRequestSubject>>();
+builder.Services.AddScoped<IApprovalEngine<TripRequestSubject>, ApprovalEngine<TripRequestSubject>>();
+builder.Services.AddScoped<IApprovalEngine<EquipmentRequestSubject>, ApprovalEngine<EquipmentRequestSubject>>();
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<LeaveRequestSubject>, ApprovalWorkflowOrchestrator<LeaveRequestSubject>>();
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<OTRequestSubject>, ApprovalWorkflowOrchestrator<OTRequestSubject>>();
-builder.Services.AddScoped<IApprovalWorkflowOrchestrator<FVN_REGISTER.Application.Models.Subjects.TripRequestSubject>, ApprovalWorkflowOrchestrator<FVN_REGISTER.Application.Models.Subjects.TripRequestSubject>>();
+builder.Services.AddScoped<IApprovalWorkflowOrchestrator<TripRequestSubject>, ApprovalWorkflowOrchestrator<TripRequestSubject>>();
+builder.Services.AddScoped<IApprovalWorkflowOrchestrator<EquipmentRequestSubject>, ApprovalWorkflowOrchestrator<EquipmentRequestSubject>>();
 builder.Services.AddScoped<IApprovalEngineResolver, ApprovalEngineResolver>();
 builder.Services.AddScoped<IApprovalGroupingPolicy, ApprovalGroupingPolicy>();
 builder.Services.AddScoped<IApprovalInboxService, ApprovalInboxService>();
@@ -160,7 +170,7 @@ builder.Services.AddScoped<IApprovalListDataSource<OTRequestDto>, OTApprovalList
 builder.Services.AddScoped<ApprovalListService<LeaveRequestDto>>();
 builder.Services.AddScoped<ApprovalListService<OTRequestDto>>();
 
-// HRM Sync: Source Reader -> Staging Importer -> Sync Job -> Domain
+// HRM Sync
 builder.Services.AddScoped<IHrmSourceReader<HrmDepartmentSourceRow>, HrmDepartmentSourceReader>();
 builder.Services.AddScoped<IHrmSourceReader<HrmEmployeeSourceRow>, HrmEmployeeSourceReader>();
 builder.Services.AddScoped<IHrmSourceReader<HrmLeaveTypeSourceRow>, HrmLeaveTypeSourceReader>();
@@ -188,16 +198,12 @@ builder.Services.AddAuthentication(options =>
 {
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
-        ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidateAudience = true,
-        ValidAudience = builder.Configuration["Jwt:Audience"],
+        ValidateIssuer = true, ValidIssuer = builder.Configuration["Jwt:Issuer"],
+        ValidateAudience = true, ValidAudience = builder.Configuration["Jwt:Audience"],
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]!)),
-        ValidateLifetime = true,
-        ClockSkew = TimeSpan.FromMinutes(5),
-        NameClaimType = "unique_name",
-        RoleClaimType = "role"
+        ValidateLifetime = true, ClockSkew = TimeSpan.FromMinutes(5),
+        NameClaimType = "unique_name", RoleClaimType = "role"
     };
     options.Events = new JwtBearerEvents
     {
