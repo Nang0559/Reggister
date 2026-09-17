@@ -1,4 +1,3 @@
-using AutoMapper;
 using FVN_REGISTER.Application.Interfaces.EmailTemplates;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.EmailTemplates;
@@ -16,8 +15,13 @@ namespace FVN_REGISTER.API.Controllers
     {
         private readonly IEmailTemplateManagementService _templateService;
 
-        public EmailTemplateController(IEmailTemplateManagementService templateService, ICurrentUserService currentUser, IUserLogService userLog, IMapper mapper, ILogger<EmailTemplateController> logger, IOptionsMonitor<AuthDebugOptions> options)
-            : base(currentUser, userLog, mapper, logger, options)
+        public EmailTemplateController(
+            IEmailTemplateManagementService templateService,
+            ICurrentUserService currentUser,
+            IUserLogService userLog,
+            ILogger<EmailTemplateController> logger,
+            IOptionsMonitor<AuthDebugOptions> options)
+            : base(currentUser, userLog, logger, options)
         {
             _templateService = templateService;
         }
