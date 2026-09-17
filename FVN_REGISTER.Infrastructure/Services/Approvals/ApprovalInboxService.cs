@@ -1,4 +1,4 @@
-﻿using FVN_REGISTER.Application.Interfaces.Approvals;
+using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Application.Services.Common;
@@ -11,15 +11,12 @@ using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Infrastructure.Models.Subjects;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Diagnostics;
 
-
-namespace FVN_REGISTER.API.Services.Approvals
+namespace FVN_REGISTER.Infrastructure.Services.Approvals
 {
     /// <summary>
-    /// Gộp pending list xuyên module bằng cách gọi trực tiếp 2 IApprovalWorkflowOrchestrator&lt;TSubject&gt;
-    /// đã đăng ký cho Leave và OT. Vì các method trên interface đó không dùng TSubject trong chữ ký
-    /// (chỉ để phân biệt DI registration), nên switch bằng RequestModule là đủ — không cần registry/factory.
+    /// Gộp pending list xuyên module bằng cách gọi các approval workflow orchestrator.
+    /// Application chỉ biết IApprovalInboxService; implementation và DI nằm ở Infrastructure.
     /// </summary>
     public class ApprovalInboxService : BaseService<ApprovalInboxService>, IApprovalInboxService
     {
@@ -40,7 +37,6 @@ namespace FVN_REGISTER.API.Services.Approvals
             _groupingPolicy = groupingPolicy;
         }
 
-        // ================= PENDING =================
         public async Task<ServiceResult<List<PendingApprovalGroupDto>>> GetPendingAsync(
             UserIdentityDto user,
             CancellationToken ct = default)
@@ -60,12 +56,12 @@ namespace FVN_REGISTER.API.Services.Approvals
                     [RequestModule.Overtime] = await otItemsTask
                 };
 
-                // Đúng vai trò: Policy lo gộp/sắp xếp (CanApprove filter, RequestType, OverriddenCount,
-                // sort theo TimeoutDays/SubmittedAt), Service chỉ gom dữ liệu thô từ các Workflow rồi giao việc.
                 var grouped = _groupingPolicy.BuildGroups(byModule);
-
                 var totalItems = byModule.Values.Sum(x => x.Count);
-                Logger.LogInfoIf(Debug, "[INBOX] GetPending DONE: {Count} items, {GroupCount} groups", totalItems, grouped.Count);
+                Logger.LogInfoIf(Debug,
+                    "[INBOX] GetPending DONE: {Count} items, {GroupCount} groups",
+                    totalItems,
+                    grouped.Count);
 
                 return ServiceResult<List<PendingApprovalGroupDto>>.Ok(grouped);
             }
@@ -76,7 +72,6 @@ namespace FVN_REGISTER.API.Services.Approvals
             }
         }
 
-        // ================= APPROVE =================
         public async Task<ServiceResult> ApproveItemsAsync(
             List<int> ids,
             RequestModule kind,
@@ -99,8 +94,6 @@ namespace FVN_REGISTER.API.Services.Approvals
                     _ => throw new NotSupportedException($"Module {kind} chưa được hỗ trợ ở Inbox.")
                 };
 
-                Logger.LogInfoIf(Debug, "[INBOX] Approve {Kind} Level={Lv} Success={S}", kind, level, result.Success);
-
                 return result.Success
                     ? ServiceResult.Ok(result.Message)
                     : ServiceResult.Fail(result.Message ?? "Duyệt thất bại.");
@@ -116,7 +109,6 @@ namespace FVN_REGISTER.API.Services.Approvals
             }
         }
 
-        // ================= REJECT =================
         public async Task<ServiceResult> RejectItemsAsync(
             List<int> ids,
             RequestModule kind,
@@ -142,8 +134,6 @@ namespace FVN_REGISTER.API.Services.Approvals
                     _ => throw new NotSupportedException($"Module {kind} chưa được hỗ trợ ở Inbox.")
                 };
 
-                Logger.LogInfoIf(Debug, "[INBOX] Reject {Kind} Level={Lv} Success={S}", kind, level, result.Success);
-
                 return result.Success
                     ? ServiceResult.Ok(result.Message)
                     : ServiceResult.Fail(result.Message ?? "Từ chối thất bại.");
@@ -159,10 +149,13 @@ namespace FVN_REGISTER.API.Services.Approvals
             }
         }
 
-        // ================= HELPER =================
-
         private static ApprovalActionDto BuildActionDto(
-            List<int> ids, RequestModule kind, int level, string? comment, bool isReject, UserIdentityDto user) => new()
+            List<int> ids,
+            RequestModule kind,
+            int level,
+            string? comment,
+            bool isReject,
+            UserIdentityDto user) => new()
             {
                 RequestIds = ids,
                 Kind = kind,
