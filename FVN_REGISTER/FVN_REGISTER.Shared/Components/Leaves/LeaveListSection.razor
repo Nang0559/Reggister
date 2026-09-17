@@ -1,4 +1,5 @@
 @using FVN_REGISTER.Contract.Dtos.Leaves
+@using FVN_REGISTER.Core.Enums
 
 <MudText Typo="Typo.subtitle2" Class="mb-2">
     <MudIcon Icon="@Icons.Material.Filled.ListAlt" Size="Size.Small" Class="mr-1" />
@@ -14,24 +15,9 @@ else
     <MudList T="LeaveCalendarEventDto" Dense="true" DisablePadding="true">
         @foreach (var item in Items)
         {
-            var color = item.Status switch
-            {
-                "Approved" => Color.Success,
-                "Rejected" => Color.Error,
-                "ApprovedLv1" => Color.Info,
-                "ApprovedLv2" => Color.Info,
-                _ => Color.Warning
-            };
-
-            var statusText = item.Status switch
-            {
-                "Approved" => "Đã duyệt",
-                "Rejected" => "Từ chối",
-                "ApprovedLv1" => "Đã duyệt cấp 1",
-                "ApprovedLv2" => "Đã duyệt cấp 2",
-                "Cancelled" => "Đã hủy",
-                _ => "Chờ duyệt"
-            };
+            var status = ParseStatus(item.Status);
+            var color = GetStatusColor(status);
+            var statusText = GetStatusText(status);
 
             <MudListItem T="LeaveCalendarEventDto" Dense="true" Class="pa-1" OnClick="@(() => OnView.InvokeAsync(item))">
                 <MudPaper Elevation="0" Class="pa-2 mb-1" Style="border-left:3px solid var(--mud-palette-primary);">
@@ -51,4 +37,31 @@ else
 @code {
     [Parameter] public List<LeaveCalendarEventDto> Items { get; set; } = new();
     [Parameter] public EventCallback<LeaveCalendarEventDto> OnView { get; set; }
+
+    private static ApprovalStatus ParseStatus(string? value)
+        => Enum.TryParse<ApprovalStatus>(value, true, out var status)
+            ? status
+            : ApprovalStatus.Pending;
+
+    private static Color GetStatusColor(ApprovalStatus status) => status switch
+    {
+        ApprovalStatus.Approved => Color.Success,
+        ApprovalStatus.Rejected => Color.Error,
+        ApprovalStatus.Cancelled => Color.Default,
+        ApprovalStatus.InProgress => Color.Info,
+        ApprovalStatus.Returned => Color.Warning,
+        ApprovalStatus.Draft => Color.Default,
+        _ => Color.Warning
+    };
+
+    private static string GetStatusText(ApprovalStatus status) => status switch
+    {
+        ApprovalStatus.Approved => "Đã duyệt",
+        ApprovalStatus.Rejected => "Từ chối",
+        ApprovalStatus.Cancelled => "Đã hủy",
+        ApprovalStatus.InProgress => "Đang xử lý",
+        ApprovalStatus.Returned => "Trả lại",
+        ApprovalStatus.Draft => "Nháp",
+        _ => "Chờ duyệt"
+    };
 }
