@@ -41,8 +41,8 @@ else
                     <tr><td><b>Người đăng ký</b></td><td>@_detail.RequesterName (@_detail.RequesterCode)</td></tr>
                     <tr><td><b>Phòng ban</b></td><td>@_detail.DeptName (@_detail.DeptCode)</td></tr>
                     <tr><td><b>Tổng giờ OT</b></td><td>@_detail.TotalOtHours.ToString("N1") h</td></tr>
-                    <tr><td><b>Mục đích</b></td><td>@(_detail.OtPurpose ?? "—")</td></tr>
-                    <tr><td><b>Mô tả</b></td><td>@(_detail.Description ?? "—")</td></tr>
+                    <tr><td><b>Mục đích</b></td><td>@_detail.OtPurpose</td></tr>
+                    <tr><td><b>Mô tả</b></td><td>@_detail.Description</td></tr>
                 </tbody></MudSimpleTable></MudCardContent>
             </MudCard>
 
@@ -68,7 +68,7 @@ else
                     {
                         <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="2" Class="mb-3">
                             <MudIcon Icon="@(step.IsRequired ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)" Color="@(step.IsRequired ? Color.Primary : Color.Default)" />
-                            <div><MudText Typo="Typo.body2"><b>Cấp @step.Level</b> — @step.RoleName</MudText><MudText Typo="Typo.caption">@step.LevelName — @(step.ApproverName ?? "Chưa phân công")</MudText></div>
+                            <div><MudText Typo="Typo.body2"><b>Cấp @step.Level</b> — @step.RoleName</MudText><MudText Typo="Typo.caption">@step.ApproverName — @step.Status</MudText></div>
                         </MudStack>
                     }
                 </MudCardContent>
