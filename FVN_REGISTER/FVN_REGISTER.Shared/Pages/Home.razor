@@ -14,62 +14,24 @@
 
 @if (_isLoading)
 {
-    <div style="padding:24px 0">
-        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="120px" Class="mb-4" Style="border-radius:16px" />
-        <MudGrid Spacing="3" Class="mb-4">
-            <MudItem xs="4"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="80px" Style="border-radius:12px" /></MudItem>
-            <MudItem xs="4"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="80px" Style="border-radius:12px" /></MudItem>
-            <MudItem xs="4"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="80px" Style="border-radius:12px" /></MudItem>
-        </MudGrid>
-    </div>
+    <div style="padding:24px 0"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="120px" Class="mb-4" Style="border-radius:16px" /><MudGrid Spacing="3" Class="mb-4"><MudItem xs="4"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="80px" Style="border-radius:12px" /></MudItem><MudItem xs="4"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="80px" Style="border-radius:12px" /></MudItem><MudItem xs="4"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="80px" Style="border-radius:12px" /></MudItem></MudGrid></div>
 }
 else if (_model != null)
 {
-    <MudText Typo="Typo.h5" Class="mb-4">
-        Chào mừng, @(CurrentUserService.User?.FullName ?? "Cán bộ FCC")!
-    </MudText>
+    <MudText Typo="Typo.h5" Class="mb-4">Chào mừng, @(CurrentUserService.User?.FullName ?? "Cán bộ FCC")!</MudText>
+    <EquipmentDashboardTile />
     <DashboardOverview Data="_model" />
 }
-else
-{
-    <MudAlert Severity="Severity.Info">Không có dữ liệu hiển thị hoặc phiên làm việc hết hạn.</MudAlert>
-}
+else { <MudAlert Severity="Severity.Info">Không có dữ liệu hiển thị hoặc phiên làm việc hết hạn.</MudAlert> }
 
 @code {
-    private DashboardDto? _model;
-    private bool _isLoading = true;
-    private readonly CancellationTokenSource _cts = new();
-
+    private DashboardDto? _model; private bool _isLoading = true; private readonly CancellationTokenSource _cts = new();
     protected override async Task OnInitializedAsync()
     {
-        try
-        {
-            await CurrentUserService.InitializeAsync();
-            if (!CurrentUserService.IsLoggedIn)
-                return;
-
-            var result = await DashboardService.GetDashboardDataAsync(_cts.Token);
-            if (result.IsSuccess)
-                _model = result.Data;
-            else if (!result.IsUnauthorized)
-                Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
-        }
-        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
-        {
-        }
-        catch (Exception ex)
-        {
-            Snackbar.Add($"Không thể tải dashboard: {ex.Message}", Severity.Error);
-        }
-        finally
-        {
-            _isLoading = false;
-        }
+        try { await CurrentUserService.InitializeAsync(); if (!CurrentUserService.IsLoggedIn) return; var result = await DashboardService.GetDashboardDataAsync(_cts.Token); if (result.IsSuccess) _model = result.Data; else if (!result.IsUnauthorized) Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error); }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested) { }
+        catch (Exception ex) { Snackbar.Add($"Không thể tải dashboard: {ex.Message}", Severity.Error); }
+        finally { _isLoading = false; }
     }
-
-    public void Dispose()
-    {
-        _cts.Cancel();
-        _cts.Dispose();
-    }
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 }
