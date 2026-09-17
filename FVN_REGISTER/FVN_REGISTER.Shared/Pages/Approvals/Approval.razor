@@ -1,12 +1,10 @@
-﻿@page "/approvals"
+@page "/approvals"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Approvals
-@using FVN_REGISTER.Contract.ViewModels.OT
 @using FVN_REGISTER.Shared.Dialogs.Approvals
 @using FVN_REGISTER.Shared.Services.Approvals
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils.Helpers
-@using FVN_REGISTER.Core.Logging
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IDisposable
@@ -21,23 +19,17 @@
 @* ═══ BATCH ACTION BAR ═══ *@
 @if (_selectedItems.Count > 0)
 {
-    <MudPaper Elevation="3" Class="pa-3 mb-3"
-              Style="border-left:4px solid var(--mud-palette-primary)">
-        <MudStack Row="true" AlignItems="AlignItems.Center"
-                  Wrap="Wrap.Wrap" Spacing="2">
+    <MudPaper Elevation="3" Class="pa-3 mb-3" Style="border-left:4px solid var(--mud-palette-primary)">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="2">
             <MudIcon Icon="@Icons.Material.Filled.CheckBox" Color="Color.Primary" />
-            <MudText Typo="Typo.body2">
-                Đã chọn <b>@_selectedItems.Count</b> đơn
-            </MudText>
+            <MudText Typo="Typo.body2">Đã chọn <b>@_selectedItems.Count</b> đơn</MudText>
             <MudSpacer />
-            <MudButton Variant="Variant.Filled" Color="Color.Success"
-                       Size="Size.Small"
+            <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
                        StartIcon="@Icons.Material.Filled.CheckCircle"
                        OnClick="OnBatchApprove" Disabled="_processing">
                 Duyệt (@_selectedItems.Count(x => x.CanApprove))
             </MudButton>
-            <MudButton Variant="Variant.Outlined" Color="Color.Error"
-                       Size="Size.Small"
+            <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
                        StartIcon="@Icons.Material.Filled.Cancel"
                        OnClick="OpenBatchRejectDialog" Disabled="_processing">
                 Từ chối (@_selectedItems.Count(x => x.CanApprove))
@@ -51,60 +43,40 @@
     </MudPaper>
 }
 
-@* ═══ TOOLBAR ═══ *@
-<MudStack Row="true" AlignItems="AlignItems.Center"
-          Justify="Justify.SpaceBetween" Class="mb-4" Wrap="Wrap.Wrap">
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4" Wrap="Wrap.Wrap">
     <MudStack Spacing="0">
         <MudText Typo="Typo.h5">Danh sách chờ phê duyệt</MudText>
         @if (_data != null)
         {
             <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                Tổng <b>@_data.Total</b> đơn
-                — Nghỉ phép: <b>@_data.TotalLeave</b>
-                — OT: <b>@_data.TotalOT</b>
+                Tổng <b>@_data.Total</b> đơn — Nghỉ phép: <b>@_data.TotalLeave</b> — OT: <b>@_data.TotalOT</b>
                 — Cập nhật: @_loadedAt?.ToString("HH:mm:ss")
             </MudText>
         }
     </MudStack>
 
     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
-        <MudTextField @bind-Value="_search"
-                      Placeholder="Tìm tên / mã NV..."
-                      Adornment="Adornment.Start"
-                      AdornmentIcon="@Icons.Material.Filled.Search"
-                      Variant="Variant.Outlined" Margin="Margin.Dense"
-                      Immediate="true" Style="min-width:200px" />
-
-        <MudSelect T="string" @bind-Value="_kindFilter" Label="Loại đơn"
-                   Variant="Variant.Outlined" Margin="Margin.Dense"
-                   Style="min-width:130px">
-            <MudSelectItem Value="@("")">Tất cả</MudSelectItem>
-            <MudSelectItem Value="@("Leave")">Nghỉ phép</MudSelectItem>
-            <MudSelectItem Value="@("OT")">OT</MudSelectItem>
+        <MudTextField @bind-Value="_search" Placeholder="Tìm tên / mã NV..."
+                      Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" Style="min-width:200px" />
+        <MudSelect T="string" @bind-Value="_kindFilter" Label="Loại đơn" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:130px">
+            <MudSelectItem Value="">Tất cả</MudSelectItem>
+            <MudSelectItem Value="Leave">Nghỉ phép</MudSelectItem>
+            <MudSelectItem Value="OT">OT</MudSelectItem>
         </MudSelect>
-
-        <MudSelect T="string" @bind-Value="_levelFilter" Label="Cấp duyệt"
-                   Variant="Variant.Outlined" Margin="Margin.Dense"
-                   Style="min-width:130px">
-            <MudSelectItem Value="@("")">Tất cả</MudSelectItem>
-            <MudSelectItem Value="@("1")">Cấp 1</MudSelectItem>
-            <MudSelectItem Value="@("2")">Cấp 2</MudSelectItem>
-            <MudSelectItem Value="@("3")">Cấp 3</MudSelectItem>
-            <MudSelectItem Value="@("5")">Cấp 5</MudSelectItem>
-            <MudSelectItem Value="@("6")">Cấp 6</MudSelectItem>
-            <MudSelectItem Value="@("7")">Cấp 7 (GM)</MudSelectItem>
+        <MudSelect T="string" @bind-Value="_levelFilter" Label="Cấp duyệt" Variant="Variant.Outlined" Margin="Margin.Dense" Style="min-width:130px">
+            <MudSelectItem Value="">Tất cả</MudSelectItem>
+            <MudSelectItem Value="1">Cấp 1</MudSelectItem>
+            <MudSelectItem Value="2">Cấp 2</MudSelectItem>
+            <MudSelectItem Value="3">Cấp 3</MudSelectItem>
+            <MudSelectItem Value="5">Cấp 5</MudSelectItem>
+            <MudSelectItem Value="6">Cấp 6</MudSelectItem>
+            <MudSelectItem Value="7">Cấp 7 (GM)</MudSelectItem>
         </MudSelect>
-
         <MudTooltip Text="Chỉ hiện đơn bạn có quyền duyệt">
-            <MudSwitch @bind-Value="_onlyCanApprove" Color="Color.Primary"
-                       Label="Chờ tôi duyệt" Size="Size.Small" />
+            <MudSwitch @bind-Value="_onlyCanApprove" Color="Color.Primary" Label="Chờ tôi duyệt" Size="Size.Small" />
         </MudTooltip>
-
-        <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.Refresh"
-                   OnClick="LoadAsync" Disabled="_loading">
-            Làm mới
-        </MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="_loading">Làm mới</MudButton>
     </MudStack>
 </MudStack>
 
@@ -113,202 +85,78 @@
     <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-2" />
 }
 
-@* ═══ SUMMARY CHIPS ═══ *@
 @if (!_loading && _data != null)
 {
     <MudStack Row="true" Spacing="2" Class="mb-3" Wrap="Wrap.Wrap">
-        <MudChip T="string" Icon="@Icons.Material.Filled.PendingActions"
-                 Color="Color.Default">
-            Tổng: @FilteredItems.Count()
-        </MudChip>
-        <MudChip T="string" Icon="@Icons.Material.Filled.HowToVote"
-                 Color="Color.Warning">
-            Chờ tôi duyệt: @FilteredItems.Count(x => x.CanApprove)
-        </MudChip>
-        <MudChip T="string" Icon="@Icons.Material.Filled.BeachAccess"
-                 Color="Color.Info">
-            Nghỉ phép: @FilteredItems.Count(x => x.Kind == RequestKind.Leave)
-        </MudChip>
-        <MudChip T="string" Icon="@Icons.Material.Filled.AccessTime"
-                 Color="Color.Warning">
-            OT: @FilteredItems.Count(x => x.Kind == RequestKind.OT)
-        </MudChip>
+        <MudChip T="string" Icon="@Icons.Material.Filled.PendingActions" Color="Color.Default">Tổng: @FilteredItems.Count()</MudChip>
+        <MudChip T="string" Icon="@Icons.Material.Filled.HowToVote" Color="Color.Warning">Chờ tôi duyệt: @FilteredItems.Count(x => x.CanApprove)</MudChip>
+        <MudChip T="string" Icon="@Icons.Material.Filled.BeachAccess" Color="Color.Info">Nghỉ phép: @FilteredItems.Count(x => x.Kind == RequestKind.Leave)</MudChip>
+        <MudChip T="string" Icon="@Icons.Material.Filled.AccessTime" Color="Color.Warning">OT: @FilteredItems.Count(x => x.Kind == RequestKind.OT)</MudChip>
     </MudStack>
 }
 
-@* ═══ BẢNG CHÍNH ═══ *@
-<MudTable Items="FilteredItems"
-          @bind-SelectedItems="_selectedItems"
-          MultiSelection="true" Hover="true" Dense="true"
-          Breakpoint="Breakpoint.Sm" Elevation="2"
-          T="PendingApprovalItemDto"
-          Loading="_loading"
-          RowStyleFunc="RowStyle">
-
+<MudTable Items="FilteredItems" @bind-SelectedItems="_selectedItems" MultiSelection="true" Hover="true" Dense="true"
+          Breakpoint="Breakpoint.Sm" Elevation="2" T="PendingApprovalItemDto" Loading="_loading" RowStyleFunc="RowStyle">
     <HeaderContent>
-        <MudTh>Nhân viên</MudTh>
-        <MudTh>Loại đơn</MudTh>
-        <MudTh>Thời gian</MudTh>
-        <MudTh Style="text-align:center">Số lượng</MudTh>
-        <MudTh>Tiến trình duyệt</MudTh>
-        <MudTh>Cấp đang chờ</MudTh>
-        <MudTh>Lý do</MudTh>
-        <MudTh Style="text-align:center">Thao tác</MudTh>
+        <MudTh>Nhân viên</MudTh><MudTh>Loại đơn</MudTh><MudTh>Thời gian</MudTh><MudTh Style="text-align:center">Số lượng</MudTh>
+        <MudTh>Tiến trình duyệt</MudTh><MudTh>Cấp đang chờ</MudTh><MudTh>Lý do</MudTh><MudTh Style="text-align:center">Thao tác</MudTh>
     </HeaderContent>
-
     <RowTemplate>
-        @* Nhân viên *@
         <MudTd DataLabel="Nhân viên">
             <MudStack Spacing="0">
                 <MudText Typo="Typo.body2"><b>@context.EmployeeName</b></MudText>
                 <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                    @context.EmployeeCode
-                    @if (!string.IsNullOrEmpty(context.DeptName))
-                    {
-                        @(" — ")@context.DeptName
-                    }
+                    @context.EmployeeCode@if (!string.IsNullOrEmpty(context.DeptName)){ @(" — ")@context.DeptName }
                 </MudText>
             </MudStack>
         </MudTd>
-
-        @* Loại đơn *@
         <MudTd DataLabel="Loại">
-            <MudChip T="string" Size="Size.Small"
-                     Color="@(context.Kind == RequestKind.OT
-                               ? Color.Warning : Color.Info)">
-                @context.KindDisplay
-            </MudChip>
+            <MudChip T="string" Size="Size.Small" Color="@(context.Kind == RequestKind.OT ? Color.Warning : Color.Info)">@context.KindDisplay</MudChip>
             @if (!string.IsNullOrEmpty(context.TypeDisplay))
-            {
-                <MudText Typo="Typo.caption"
-                         Class="d-block mud-text-secondary mt-1">
-                    @context.TypeDisplay
-                </MudText>
-            }
+            { <MudText Typo="Typo.caption" Class="d-block mud-text-secondary mt-1">@context.TypeDisplay</MudText> }
         </MudTd>
-
-        @* Thời gian *@
         <MudTd DataLabel="Thời gian">
-            <MudText Typo="Typo.body2">
-                @context.FromDate.ToString("dd/MM/yyyy")
-                @if (context.FromDate.Date != context.ToDate.Date)
-                {
-                    @(" → ")@context.ToDate.ToString("dd/MM/yyyy")
-                }
-            </MudText>
-            <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                Gửi: @context.SubmittedAt.ToString("dd/MM HH:mm")
-            </MudText>
+            <MudText Typo="Typo.body2">@context.FromDate.ToString("dd/MM/yyyy")@if (context.FromDate.Date != context.ToDate.Date){ @(" → ")@context.ToDate.ToString("dd/MM/yyyy") }</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">Gửi: @context.SubmittedAt.ToString("dd/MM HH:mm")</MudText>
         </MudTd>
-
-        @* Số lượng *@
-        <MudTd DataLabel="Số lượng" Style="text-align:center">
-            <MudText Typo="Typo.body2">
-                <b>@context.TotalUnits</b> @context.UnitDisplay
-            </MudText>
-        </MudTd>
-
-        @* ← THAY CỘT TRẠNG THÁI BẰNG PROGRESS BAR *@
+        <MudTd DataLabel="Số lượng" Style="text-align:center"><MudText Typo="Typo.body2"><b>@context.TotalUnits</b> @context.UnitDisplay</MudText></MudTd>
         <MudTd DataLabel="Tiến trình duyệt">
             <MudStack Spacing="1">
-                <MudChip T="string" Size="Size.Small"
-                         Style="@($"background:{context.StatusColor};color:white")">
-                    @context.StatusDisplay
-                </MudChip>
+                <MudChip T="string" Size="Size.Small" Style="@($"background:{context.StatusColor};color:white")">@context.StatusDisplay</MudChip>
                 <OTApprovalProgressBar Steps="@context.ApprovalSteps" />
             </MudStack>
         </MudTd>
-
-        @* Cấp đang chờ *@
         <MudTd DataLabel="Cấp chờ">
             @if (context.CurrentApprovalLevel > 0)
             {
-                <MudStack Spacing="0">
-                    <MudText Typo="Typo.body2">
-                        Cấp @context.CurrentApprovalLevel
-                        @if (context.CanApprove)
-                        {
-                            <MudIcon Icon="@Icons.Material.Filled.Star"
-                                     Size="Size.Small" Color="Color.Warning"
-                                     Style="vertical-align:middle;margin-left:4px" />
-                        }
-                    </MudText>
-                    @if (!string.IsNullOrEmpty(context.CurrentApproverName))
-                    {
-                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                            @context.CurrentApproverName
-                        </MudText>
-                    }
-                </MudStack>
+                <MudStack Spacing="0"><MudText Typo="Typo.body2">Cấp @context.CurrentApprovalLevel@if (context.CanApprove){ <MudIcon Icon="@Icons.Material.Filled.Star" Size="Size.Small" Color="Color.Warning" /> }</MudText>
+                    @if (!string.IsNullOrEmpty(context.CurrentApproverName)){ <MudText Typo="Typo.caption" Class="mud-text-secondary">@context.CurrentApproverName</MudText> }</MudStack>
             }
-            else
-            {
-                <MudText Typo="Typo.caption" Class="mud-text-secondary">—</MudText>
-            }
+            else { <MudText Typo="Typo.caption" Class="mud-text-secondary">—</MudText> }
         </MudTd>
-
-        @* Lý do *@
         <MudTd DataLabel="Lý do">
             @if (!string.IsNullOrEmpty(context.Reason))
             {
-                <MudTooltip Text="@context.Reason" Placement="Placement.Left">
-                    <MudText Typo="Typo.body2"
-                             Style="max-width:180px;overflow:hidden;
-                                    text-overflow:ellipsis;white-space:nowrap;
-                                    display:block">
-                        @context.Reason
-                    </MudText>
-                </MudTooltip>
+                <MudTooltip Text="@context.Reason" Placement="Placement.Left"><MudText Typo="Typo.body2" Style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block">@context.Reason</MudText></MudTooltip>
             }
-            else
-            {
-                <MudText Typo="Typo.caption" Class="mud-text-secondary">—</MudText>
-            }
+            else { <MudText Typo="Typo.caption" Class="mud-text-secondary">—</MudText> }
         </MudTd>
-
-        @* Thao tác *@
         <MudTd DataLabel="Thao tác" Style="text-align:center">
             @if (context.CanApprove)
             {
                 <MudStack Row="true" Justify="Justify.Center" Spacing="0">
-                    <MudTooltip Text="Phê duyệt">
-                        <MudIconButton Icon="@Icons.Material.Filled.CheckCircle"
-                                       Color="Color.Success" Size="Size.Small"
-                                       OnClick="@(() => OnApproveSingle(context))"
-                                       Disabled="_processing" />
-                    </MudTooltip>
-                    <MudTooltip Text="Từ chối">
-                        <MudIconButton Icon="@Icons.Material.Filled.Cancel"
-                                       Color="Color.Error" Size="Size.Small"
-                                       OnClick="@(() => OnRejectSingle(context))"
-                                       Disabled="_processing" />
-                    </MudTooltip>
+                    <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" OnClick="@(() => OnApproveSingle(context))" Disabled="_processing" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" OnClick="@(() => OnRejectSingle(context))" Disabled="_processing" />
                 </MudStack>
             }
             else
             {
-                <MudTooltip Text="Bạn không phải approver cấp này">
-                    <MudIcon Icon="@Icons.Material.Filled.RemoveRedEye"
-                             Size="Size.Small" Color="Color.Default" />
-                </MudTooltip>
+                <MudTooltip Text="Bạn không phải approver cấp này"><MudIcon Icon="@Icons.Material.Filled.RemoveRedEye" Size="Size.Small" /></MudTooltip>
             }
         </MudTd>
     </RowTemplate>
-
-    <NoRecordsContent>
-        <MudStack AlignItems="AlignItems.Center" Class="pa-8">
-            <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline"
-                     Color="Color.Success" Style="font-size:3rem" />
-            <MudText Typo="Typo.h6">Không có đơn nào chờ phê duyệt</MudText>
-            <MudText Typo="Typo.body2" Class="mud-text-secondary">
-                Tất cả các đơn đã được xử lý.
-            </MudText>
-        </MudStack>
-    </NoRecordsContent>
-
-    <PagerContent>
-        <MudTablePager PageSizeOptions="new int[] { 10, 20, 50 }" />
-    </PagerContent>
+    <NoRecordsContent><MudStack AlignItems="AlignItems.Center" Class="pa-8"><MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success" Style="font-size:3rem" /><MudText Typo="Typo.h6">Không có đơn nào chờ phê duyệt</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">Tất cả các đơn đã được xử lý.</MudText></MudStack></NoRecordsContent>
+    <PagerContent><MudTablePager PageSizeOptions="new int[] { 10, 20, 50 }" /></PagerContent>
 </MudTable>
 
 @code {
@@ -316,21 +164,17 @@
     private bool _processing;
     private PendingApprovalListDto? _data;
     private DateTime? _loadedAt;
-
     private string _search = string.Empty;
     private string _kindFilter = string.Empty;
     private string _levelFilter = string.Empty;
     private bool _onlyCanApprove;
-
     private HashSet<PendingApprovalItemDto> _selectedItems = new();
-    private CancellationTokenSource _cts = new();
+    private readonly CancellationTokenSource _cts = new();
 
     private IEnumerable<PendingApprovalItemDto> FilteredItems =>
         _data?.Items.Where(x =>
-            (string.IsNullOrEmpty(_kindFilter) ||
-             x.Kind.ToString() == _kindFilter) &&
-            (string.IsNullOrEmpty(_levelFilter) ||
-             x.CurrentApprovalLevel.ToString() == _levelFilter) &&
+            (string.IsNullOrEmpty(_kindFilter) || x.Kind.ToString() == _kindFilter) &&
+            (string.IsNullOrEmpty(_levelFilter) || x.CurrentApprovalLevel.ToString() == _levelFilter) &&
             (!_onlyCanApprove || x.CanApprove) &&
             (string.IsNullOrWhiteSpace(_search) ||
              x.EmployeeName.Contains(_search, StringComparison.OrdinalIgnoreCase) ||
@@ -338,8 +182,7 @@
              x.DeptName.Contains(_search, StringComparison.OrdinalIgnoreCase)))
         ?? Enumerable.Empty<PendingApprovalItemDto>();
 
-    private string RowStyle(PendingApprovalItemDto item, int index)
-        => item.CanApprove ? "background:rgba(33,150,243,0.05);" : string.Empty;
+    private string RowStyle(PendingApprovalItemDto item, int index) => item.CanApprove ? "background:rgba(33,150,243,0.05);" : string.Empty;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -350,16 +193,10 @@
         try
         {
             var result = await ApprovalService.GetPendingAsync(_cts.Token);
-            if (result.IsSuccess)
-            {
-                _data = result.Data;
-                _loadedAt = DateTime.Now;
-            }
-            else
-            {
-                Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
-            }
+            if (result.IsSuccess) { _data = result.Data; _loadedAt = DateTime.Now; }
+            else Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
         }
+        catch (Exception ex) { Logger.LogError(ex, "[APPROVAL] Load error"); Snackbar.Add("Lỗi tải dữ liệu", Severity.Error); }
         finally { _loading = false; }
     }
 
@@ -368,15 +205,8 @@
         _processing = true;
         try
         {
-            var result = await ApprovalService.ApproveAsync(
-                new List<int> { item.Id }, item.Kind,
-                item.CurrentApprovalLevel, null, _cts.Token);
-
-            Snackbar.Add(
-                result.IsSuccess ? "✅ Đã phê duyệt thành công!"
-                                 : result.Message ?? "Lỗi phê duyệt",
-                result.IsSuccess ? Severity.Success : Severity.Error);
-
+            var result = await ApprovalService.ApproveAsync(new List<int> { item.Id }, item.Kind, item.CurrentApprovalLevel, null, _cts.Token);
+            Snackbar.Add(result.IsSuccess ? "Đã phê duyệt thành công!" : result.Message ?? "Lỗi phê duyệt", result.IsSuccess ? Severity.Success : Severity.Error);
             if (result.IsSuccess) await LoadAsync();
         }
         finally { _processing = false; }
@@ -385,79 +215,33 @@
     private async Task OnBatchApprove()
     {
         var items = _selectedItems.Where(x => x.CanApprove).ToList();
-        if (items.Count == 0)
-        {
-            Snackbar.Add("Không có đơn nào bạn có quyền phê duyệt.", Severity.Warning);
-            return;
-        }
-
+        if (items.Count == 0) { Snackbar.Add("Không có đơn nào bạn có quyền phê duyệt.", Severity.Warning); return; }
         _processing = true;
         int successCount = 0;
         try
         {
-            foreach (var group in items
-                .Where(x => x.Kind == RequestKind.Leave)
-                .GroupBy(x => x.CurrentApprovalLevel))
+            foreach (var group in items.GroupBy(x => new { x.Kind, x.CurrentApprovalLevel }))
             {
-                var r = await ApprovalService.ApproveAsync(
-                    group.Select(x => x.Id).ToList(),
-                    RequestKind.Leave, group.Key, null, _cts.Token);
-                if (r.IsSuccess) successCount += group.Count();
-                else Snackbar.Add(r.Message ?? "Lỗi duyệt nghỉ phép", Severity.Error);
+                var r = await ApprovalService.ApproveAsync(group.Select(x => x.Id).ToList(), group.Key.Kind, group.Key.CurrentApprovalLevel, null, _cts.Token);
+                if (r.IsSuccess) successCount += group.Count(); else Snackbar.Add(r.Message ?? "Lỗi phê duyệt", Severity.Error);
             }
-
-            foreach (var group in items
-                .Where(x => x.Kind == RequestKind.OT)
-                .GroupBy(x => x.CurrentApprovalLevel))
-            {
-                var r = await ApprovalService.ApproveAsync(
-                    group.Select(x => x.Id).ToList(),
-                    RequestKind.OT, group.Key, null, _cts.Token);
-                if (r.IsSuccess) successCount += group.Count();
-                else Snackbar.Add(r.Message ?? "Lỗi duyệt OT", Severity.Error);
-            }
-
-            if (successCount > 0)
-            {
-                Snackbar.Add($"✅ Đã phê duyệt {successCount} đơn.", Severity.Success);
-                await LoadAsync();
-            }
+            if (successCount > 0) { Snackbar.Add($"Đã phê duyệt {successCount} đơn.", Severity.Success); await LoadAsync(); }
         }
         finally { _processing = false; }
     }
 
-    // ── Reject: mở dialog tách riêng ─────────────────────────
     private async Task OnRejectSingle(PendingApprovalItemDto item)
     {
-        var parameters = new DialogParameters
-        {
-            [nameof(RejectDialog.Items)] =
-                new List<PendingApprovalItemDto> { item },
-            [nameof(RejectDialog.IsBatchMode)] = false
-        };
-
-        var dialog = await DialogService.ShowAsync<RejectDialog>(
-            "Từ chối đơn",
-            parameters,
-            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true,
-                                CloseOnEscapeKey = true });
-
+        var parameters = new DialogParameters { [nameof(RejectDialog.Items)] = new List<PendingApprovalItemDto> { item }, [nameof(RejectDialog.IsBatchMode)] = false };
+        var dialog = await DialogService.ShowAsync<RejectDialog>("Từ chối đơn", parameters, new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
         var result = await dialog.Result;
         if (result?.Canceled == true) return;
-
-        var comment = result?.Data as string ?? "";
+        var comment = result?.Data as string ?? string.Empty;
         _processing = true;
         try
         {
-            var r = await ApprovalService.RejectAsync(
-                new List<int> { item.Id }, item.Kind,
-                item.CurrentApprovalLevel, comment, _cts.Token);
-
-            Snackbar.Add(
-                r.IsSuccess ? "✅ Đã từ chối đơn."
-                            : r.Message ?? "Lỗi từ chối",
-                r.IsSuccess ? Severity.Success : Severity.Error);
-
+            var r = await ApprovalService.RejectAsync(new List<int> { item.Id }, item.Kind, item.CurrentApprovalLevel, comment, _cts.Token);
+            Snackbar.Add(r.IsSuccess ? "Đã từ chối đơn." : r.Message ?? "Lỗi từ chối", r.IsSuccess ? Severity.Success : Severity.Error);
             if (r.IsSuccess) await LoadAsync();
         }
         finally { _processing = false; }
@@ -466,66 +250,25 @@
     private async Task OpenBatchRejectDialog()
     {
         var canRejectItems = _selectedItems.Where(x => x.CanApprove).ToList();
-        if (canRejectItems.Count == 0)
-        {
-            Snackbar.Add("Không có đơn nào bạn có quyền từ chối.", Severity.Warning);
-            return;
-        }
-
-        var parameters = new DialogParameters
-        {
-            [nameof(RejectDialog.Items)] = canRejectItems,
-            [nameof(RejectDialog.IsBatchMode)] = true
-        };
-
-        var dialog = await DialogService.ShowAsync<RejectDialog>(
-            $"Từ chối {canRejectItems.Count} đơn",
-            parameters,
-            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true,
-                                CloseOnEscapeKey = true });
-
+        if (canRejectItems.Count == 0) { Snackbar.Add("Không có đơn nào bạn có quyền từ chối.", Severity.Warning); return; }
+        var parameters = new DialogParameters { [nameof(RejectDialog.Items)] = canRejectItems, [nameof(RejectDialog.IsBatchMode)] = true };
+        var dialog = await DialogService.ShowAsync<RejectDialog>($"Từ chối {canRejectItems.Count} đơn", parameters, new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
         var result = await dialog.Result;
         if (result?.Canceled == true) return;
-
-        var comment = result?.Data as string ?? "";
+        var comment = result?.Data as string ?? string.Empty;
         _processing = true;
         int successCount = 0;
         try
         {
-            foreach (var group in canRejectItems
-                .Where(x => x.Kind == RequestKind.Leave)
-                .GroupBy(x => x.CurrentApprovalLevel))
+            foreach (var group in canRejectItems.GroupBy(x => new { x.Kind, x.CurrentApprovalLevel }))
             {
-                var r = await ApprovalService.RejectAsync(
-                    group.Select(x => x.Id).ToList(),
-                    RequestKind.Leave, group.Key, comment, _cts.Token);
-                if (r.IsSuccess) successCount += group.Count();
-                else Snackbar.Add(r.Message ?? "Lỗi từ chối nghỉ phép", Severity.Error);
+                var r = await ApprovalService.RejectAsync(group.Select(x => x.Id).ToList(), group.Key.Kind, group.Key.CurrentApprovalLevel, comment, _cts.Token);
+                if (r.IsSuccess) successCount += group.Count(); else Snackbar.Add(r.Message ?? "Lỗi từ chối", Severity.Error);
             }
-
-            foreach (var group in canRejectItems
-                .Where(x => x.Kind == RequestKind.OT)
-                .GroupBy(x => x.CurrentApprovalLevel))
-            {
-                var r = await ApprovalService.RejectAsync(
-                    group.Select(x => x.Id).ToList(),
-                    RequestKind.OT, group.Key, comment, _cts.Token);
-                if (r.IsSuccess) successCount += group.Count();
-                else Snackbar.Add(r.Message ?? "Lỗi từ chối OT", Severity.Error);
-            }
-
-            if (successCount > 0)
-            {
-                Snackbar.Add($"✅ Đã từ chối {successCount} đơn.", Severity.Success);
-                await LoadAsync();
-            }
+            if (successCount > 0) { Snackbar.Add($"Đã từ chối {successCount} đơn.", Severity.Success); await LoadAsync(); }
         }
         finally { _processing = false; }
     }
 
-    public void Dispose()
-    {
-        _cts.Cancel();
-        _cts.Dispose();
-    }
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 }
