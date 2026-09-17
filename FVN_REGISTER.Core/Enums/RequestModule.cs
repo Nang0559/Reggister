@@ -2,8 +2,9 @@
 {
     public enum RequestModule
     {
-        Leave,      // Thay cho "LEAVE"
-        Overtime,   // Thay cho "OT"
-        Trip        // Thay cho "TRIP"
+        Leave,
+        Overtime,
+        Trip,
+        Equipment
     }
 }
