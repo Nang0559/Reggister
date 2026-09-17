@@ -1,8 +1,7 @@
 ﻿@* /leave/history *@
 @page "/leave/history"
 @attribute [Authorize]
-@using FVN_REGISTER.Contract.Dtos.Approvals
 @using FVN_REGISTER.Shared.Pages.Histories
 @using Microsoft.AspNetCore.Authorization
 <PageTitle>Lịch sử nghỉ phép</PageTitle>
-<HistoryPage Kind="RequestKind.Leave" />
+<HistoryPage KindCode="leave" />
