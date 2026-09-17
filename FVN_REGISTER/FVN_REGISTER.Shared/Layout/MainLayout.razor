@@ -1,8 +1,7 @@
-﻿@* File: FVN_REGISTER.Shared/Layout/MainLayout.razor *@
+@* File: FVN_REGISTER.Shared/Layout/MainLayout.razor *@
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils
 @using FVN_REGISTER.Shared.Utils.Helpers
-@using FVN_REGISTER.Core.Logging
 @inherits AppLayoutBase
 @implements IDisposable
 
@@ -13,8 +12,6 @@
 @inject CustomAuthStateProvider _authStateProvider
 
 <MudLayout>
-    @* <MudPopoverProvider /> *@
-
     @if (_isLoading)
     {
         <div class="d-flex vh-100 align-center justify-center">
@@ -24,26 +21,17 @@
     else
     {
         <MudAppBar Elevation="1" Color="Color.Primary">
-
             @if (!_isNormalUser)
             {
-                <MudIconButton Icon="@Icons.Material.Filled.Menu"
-                               OnClick="DrawerToggle"
-                               Color="Color.Inherit" />
+                <MudIconButton Icon="@Icons.Material.Filled.Menu" OnClick="DrawerToggle" Color="Color.Inherit" />
             }
             else
             {
-                <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing"
-                         Style="margin-right: 8px;" />
+                <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Style="margin-right: 8px;" />
             }
 
-            <MudText Typo="Typo.h6" Class="@(_isNormalUser ? "" : "ml-1")">
-                FCC Smart Portal
-            </MudText>
-
+            <MudText Typo="Typo.h6" Class="@(_isNormalUser ? "" : "ml-1")">FCC Smart Portal</MudText>
             <MudSpacer />
-
-            @* ✅ NotificationBell — không cần DeviceId *@
             <NotificationBell />
 
             <MudMenu Label="@(_user.User?.FullName ?? "Nhân viên FCC")"
@@ -56,62 +44,41 @@
                      Dense="true"
                      Class="ml-auto">
                 <ChildContent>
-                    <div class="pa-4" style="min-width: 220px;">
+                    <div class="pa-4" style="min-width:220px;">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
                             <MudAvatar Color="Color.Secondary" Size="Size.Small">
                                 @(_user.User?.FullName?.FirstOrDefault().ToString().ToUpper() ?? "U")
                             </MudAvatar>
                             <div>
                                 <MudText Typo="Typo.subtitle2">@(_user.User?.FullName ?? "N/A")</MudText>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                                    Mã NV: @(_user.User?.EmployeeCode ?? "N/A")
-                                </MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Mã NV: @(_user.User?.EmployeeCode ?? "N/A")</MudText>
                             </div>
                         </MudStack>
                     </div>
                     <MudDivider />
-                    <MudMenuItem Icon="@Icons.Material.Filled.PersonOutline"
-                                 OnClick="@(() => _nav.NavigateTo("/profile"))">
-                        Hồ sơ của tôi
-                    </MudMenuItem>
-                    <MudMenuItem Icon="@Icons.Material.Filled.LockReset"
-                                 OnClick="@(() => _nav.NavigateTo("/change-password"))">
-                        Đổi mật khẩu
-                    </MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.PersonOutline" OnClick="@(() => _nav.NavigateTo("/profile"))">Hồ sơ của tôi</MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.LockReset" OnClick="@(() => _nav.NavigateTo("/change-password"))">Đổi mật khẩu</MudMenuItem>
                     @if (_isNormalUser)
                     {
                         <MudDivider />
-                        <MudMenuItem Icon="@Icons.Material.Filled.EventAvailable"
-                                     OnClick="@(() => _nav.NavigateTo("/leave/create"))">
-                            Đăng ký nghỉ phép
-                        </MudMenuItem>
-                        <MudMenuItem Icon="@Icons.Material.Filled.History"
-                                     OnClick="@(() => _nav.NavigateTo("/leave/history"))">
-                            Lịch sử đơn của tôi
-                        </MudMenuItem>
+                        <MudMenuItem Icon="@Icons.Material.Filled.EventAvailable" OnClick="@(() => _nav.NavigateTo("/leave/create"))">Đăng ký nghỉ phép</MudMenuItem>
+                        <MudMenuItem Icon="@Icons.Material.Filled.History" OnClick="@(() => _nav.NavigateTo("/leave/history"))">Lịch sử đơn của tôi</MudMenuItem>
                     }
                     <MudDivider />
-                    <MudMenuItem Icon="@Icons.Material.Filled.Logout"
-                                 IconColor="Color.Error"
-                                 OnClick="HandleLogout">
+                    <MudMenuItem Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error" OnClick="HandleLogout">
                         <MudText Color="Color.Error">Đăng xuất</MudText>
                     </MudMenuItem>
                 </ChildContent>
             </MudMenu>
-
         </MudAppBar>
 
         @if (!_isNormalUser)
         {
-            <MudDrawer @bind-Open="_drawerOpen" Elevation="1">
-                <NavMenu />
-            </MudDrawer>
+            <MudDrawer @bind-Open="_drawerOpen" Elevation="1"><NavMenu /></MudDrawer>
         }
 
         <MudMainContent>
-            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">
-                @Body
-            </MudContainer>
+            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">@Body</MudContainer>
         </MudMainContent>
     }
 </MudLayout>
@@ -119,7 +86,7 @@
 @code {
     private bool _drawerOpen = true;
     private bool _isLoading = true;
-    private bool _isNormalUser = false;
+    private bool _isNormalUser;
 
     protected override async Task OnInitializedAsync()
     {
@@ -135,9 +102,7 @@
 
             await _user.InitializeAsync();
             _isNormalUser = _user.User?.PermissionCode.IsNormalUser() ?? true;
-
-            Logger.LogInfoIf(Debug, "[{Component}] Init done. User={UserId}, IsNormalUser={Flag}",
-                ComponentName, _user.User?.UserId, _isNormalUser);
+            Logger.LogInfoIf(Debug, "[{Component}] Init done. User={UserId}, IsNormalUser={Flag}", ComponentName, _user.User?.UserId, _isNormalUser);
         }
         catch (Exception ex)
         {
@@ -155,6 +120,6 @@
         _nav.NavigateTo("/login", forceLoad: false);
     }
 
-    void DrawerToggle() => _drawerOpen = !_drawerOpen;
+    private void DrawerToggle() => _drawerOpen = !_drawerOpen;
     public void Dispose() { }
 }
