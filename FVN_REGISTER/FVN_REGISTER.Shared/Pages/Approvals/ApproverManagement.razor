@@ -1,9 +1,10 @@
-﻿@page "/admin/approvers"
+@page "/admin/approvers"
 @attribute [Authorize]
-@using FVN_REGISTER.Core.Logging
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Contract.Dtos.Depts
+@using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Dialogs.Approvals
 @using FVN_REGISTER.Shared.Services.Approvals
-@using FVN_REGISTER.Shared.Utils.Helpers
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 
@@ -13,570 +14,123 @@
 
 <PageTitle>Quản lý Approver - FCC</PageTitle>
 
-@* ─── HEADER ─────────────────────────────────────────────────── *@
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudIcon Icon="@Icons.Material.Filled.VerifiedUser" Color="Color.Primary" Size="Size.Large" />
-    <div>
-        <MudText Typo="Typo.h5" Style="font-weight:700">Quản lý Người Phê Duyệt</MudText>
-        <MudText Typo="Typo.caption" Color="Color.Secondary">
-            Cấu hình approver theo từng bộ phận và cấp duyệt
-        </MudText>
-    </div>
+    <div><MudText Typo="Typo.h5">Quản lý Người Phê Duyệt</MudText><MudText Typo="Typo.caption" Color="Color.Secondary">Cấu hình approver theo bộ phận và cấp duyệt</MudText></div>
     <MudSpacer />
-    <MudButton Variant="Variant.Filled"
-               Color="Color.Primary"
-               StartIcon="@Icons.Material.Filled.PersonAdd"
-               OnClick="OpenCreateDialog">
-        Thêm Approver
-    </MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="OpenCreateDialog">Thêm Approver</MudButton>
 </MudStack>
 
-@* ─── FILTER BAR ─────────────────────────────────────────────── *@
-<MudPaper Elevation="1" Class="pa-3 mb-4" Style="border-radius:12px">
-    <MudGrid AlignItems="AlignItems.Center">
-        <MudItem xs="12" sm="4">
-            <MudSelect T="string"
-                       Label="Lọc theo bộ phận"
-                       Value="_filterDept"
-                       ValueChanged="OnDeptFilterChanged"
-                       Variant="Variant.Outlined"
-                       Margin="Margin.Dense"
-                       Clearable="true"
-                       AdornmentIcon="@Icons.Material.Filled.Business"
-                       Adornment="Adornment.Start">
-                @foreach (var dept in _departments)
-                {
-                    <MudSelectItem Value="@dept.DeptCode">@dept.DeptName</MudSelectItem>
-                }
-            </MudSelect>
-        </MudItem>
-
-        <MudItem xs="12" sm="4">
-            <MudSelect T="int?"
-                       Label="Lọc theo cấp duyệt"
-                       Value="_filterLevel"
-                       ValueChanged="OnLevelFilterChanged"
-                       Variant="Variant.Outlined"
-                       Margin="Margin.Dense"
-                       Clearable="true"
-                       AdornmentIcon="@Icons.Material.Filled.AccountTree"
-                       Adornment="Adornment.Start">
-                <MudSelectItem T="int?" Value="@((int?)1)">Cấp 1 - Sub-Leader</MudSelectItem>
-                <MudSelectItem T="int?" Value="@((int?)2)">Cấp 2 - Chief</MudSelectItem>
-                <MudSelectItem T="int?" Value="@((int?)3)">Cấp 3 - Manager</MudSelectItem>
-                <MudSelectItem T="int?" Value="@((int?)4)">Cấp 4 - GM</MudSelectItem>
-                <MudSelectItem T="int?" Value="@((int?)5)">Cấp 5 - Công đoàn</MudSelectItem>
-            </MudSelect>
-        </MudItem>
-
-        <MudItem xs="12" sm="4">
-            <MudSelect T="string"
-                       Label="Lọc theo loại đơn"
-                       Value="_filterRequestType"
-                       ValueChanged="OnRequestTypeFilterChanged"
-                       Variant="Variant.Outlined"
-                       Margin="Margin.Dense"
-                       Clearable="true"
-                       AdornmentIcon="@Icons.Material.Filled.Category"
-                       Adornment="Adornment.Start">
-                <MudSelectItem Value="@RequestTypeDf.Leave">Nghỉ phép</MudSelectItem>
-                <MudSelectItem Value="@RequestTypeDf.OT">OT</MudSelectItem>
-            </MudSelect>
-        </MudItem>
-
-        <MudItem xs="12">
-            <MudButton Variant="Variant.Outlined"
-                       Color="Color.Default"
-                       StartIcon="@Icons.Material.Filled.Refresh"
-                       OnClick="ResetFilter">
-                Xem tất cả
-            </MudButton>
-        </MudItem>
+<MudPaper Elevation="1" Class="pa-3 mb-4">
+    <MudGrid>
+        <MudItem xs="12" sm="4"><MudSelect T="string" Label="Bộ phận" @bind-Value="_filterDept" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+            @foreach (var dept in _departments) { <MudSelectItem Value="@dept.DeptCode">@dept.DeptName</MudSelectItem> }
+        </MudSelect></MudItem>
+        <MudItem xs="12" sm="3"><MudSelect T="int?" Label="Cấp duyệt" @bind-Value="_filterLevel" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+            @for (var level = 1; level <= 5; level++) { var l = level; <MudSelectItem T="int?" Value="@((int?)l)">Cấp @l</MudSelectItem> }
+        </MudSelect></MudItem>
+        <MudItem xs="12" sm="3"><MudSelect T="RequestModule?" Label="Loại đơn" @bind-Value="_filterType" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
+            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Leave)">Nghỉ phép</MudSelectItem>
+            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.OT)">OT</MudSelectItem>
+        </MudSelect></MudItem>
+        <MudItem xs="12" sm="2"><MudButton FullWidth="true" Variant="Variant.Outlined" OnClick="ResetFilter">Tất cả</MudButton></MudItem>
     </MudGrid>
 </MudPaper>
 
-@* ─── CONTENT ────────────────────────────────────────────────── *@
-@if (_isLoading)
+@if (_loading)
 {
-    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-4" />
-    @for (int i = 0; i < 3; i++)
-    {
-        <MudSkeleton SkeletonType="SkeletonType.Rectangle"
-                     Height="80px" Class="mb-3"
-                     Style="border-radius:12px" />
-    }
-}
-else if (_isFiltered)
-{
-    @* ── VIEW PHẲNG KHI CÓ FILTER ── *@
-    <MudPaper Elevation="1" Style="border-radius:12px; overflow:hidden">
-        <MudTable Items="_flatList" Dense="true" Hover="true" Striped="true">
-            <HeaderContent>
-                <MudTh>Bộ phận duyệt</MudTh>
-                <MudTh>Loại đơn</MudTh>
-                <MudTh>Cấp duyệt</MudTh>
-                <MudTh>Mã NV</MudTh>
-                <MudTh>Họ tên</MudTh>
-                <MudTh>Email</MudTh>
-                <MudTh>Trạng thái</MudTh>
-                <MudTh Style="text-align:center">Thao tác</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd>
-                    <MudText Typo="Typo.body2" Style="font-weight:500">
-                        @context.ApproveForDeptName
-                    </MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        @context.ApproveForDeptCode
-                    </MudText>
-                </MudTd>
-                <MudTd>
-                    <MudChip T="string"
-                             Color="@(context.RequestType == RequestTypeDf.OT
-                                        ? Color.Warning : Color.Info)"
-                             Size="Size.Small">
-                        @(context.RequestType == RequestTypeDf.OT ? "OT" : "Nghỉ phép")
-                    </MudChip>
-                </MudTd>
-                <MudTd>
-                    <MudChip T="string"
-                             Color="@GetLevelColor(context.ApproveLevel)"
-                             Size="Size.Small">
-                        @context.RoleName
-                    </MudChip>
-                </MudTd>
-                <MudTd>
-                    <MudText Typo="Typo.body2">@context.ApproveLevelCode</MudText>
-                </MudTd>
-                <MudTd>
-                    <MudText Typo="Typo.body2" Style="font-weight:500">
-                        @context.ApproveLevelName
-                    </MudText>
-                </MudTd>
-                <MudTd>
-                    <MudText Typo="Typo.body2">@context.ApproveLevelEmail</MudText>
-                </MudTd>
-                <MudTd>
-                    <MudChip T="string"
-                             Color="@(context.IsActive ? Color.Success : Color.Error)"
-                             Size="Size.Small">
-                        @(context.IsActive ? "Hoạt động" : "Tắt")
-                    </MudChip>
-                </MudTd>
-                <MudTd Style="text-align:center">
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                   Size="Size.Small" Color="Color.Primary"
-                                   OnClick="@(() => OpenEditDialog(context))" />
-                    <MudIconButton Icon="@(context.IsActive
-                                            ? Icons.Material.Filled.ToggleOff
-                                            : Icons.Material.Filled.ToggleOn)"
-                                   Size="Size.Small"
-                                   Color="@(context.IsActive ? Color.Warning : Color.Success)"
-                                   OnClick="@(() => ToggleApprover(context))" />
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                   Size="Size.Small" Color="Color.Error"
-                                   OnClick="@(() => ConfirmDelete(context))" />
-                </MudTd>
-            </RowTemplate>
-            <NoRecordsContent>
-                <MudStack AlignItems="AlignItems.Center" Class="pa-8">
-                    <MudIcon Icon="@Icons.Material.Filled.SearchOff"
-                             Size="Size.Large" Color="Color.Secondary" />
-                    <MudText Color="Color.Secondary">Không tìm thấy approver phù hợp</MudText>
-                </MudStack>
-            </NoRecordsContent>
-        </MudTable>
-    </MudPaper>
+    <MudProgressLinear Indeterminate="true" />
 }
 else
 {
-    @* ── TREE VIEW THEO BỘ PHẬN ── *@
-    @if (!_tree.Any())
-    {
-        <MudPaper Elevation="0" Class="pa-8 text-center"
-                  Style="border: 2px dashed #e0e0e0; border-radius:16px">
-            <MudIcon Icon="@Icons.Material.Filled.VerifiedUser"
-                     Size="Size.Large" Color="Color.Secondary" />
-            <MudText Typo="Typo.h6" Color="Color.Secondary" Class="mt-2">
-                Chưa có Approver nào
-            </MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                Nhấn "Thêm Approver" để bắt đầu cấu hình
-            </MudText>
-        </MudPaper>
-    }
-    else
-    {
-        @foreach (var dept in _tree)
-        {
-            <MudPaper Elevation="2" Class="mb-4" Style="border-radius:14px; overflow:hidden">
-
-                @* Header bộ phận *@
-                <div style="background: linear-gradient(135deg,#1E88E5 0%,#1565C0 100%);
-                            padding:12px 16px; cursor:pointer"
-                     @onclick="() => ToggleDeptExpand(dept)">
-                    <MudStack Row="true" AlignItems="AlignItems.Center">
-                        <MudIcon Icon="@Icons.Material.Filled.Business" Style="color:white" />
-                        <div style="flex:1">
-                            <MudText Typo="Typo.subtitle1" Style="color:white; font-weight:700">
-                                @dept.DeptName
-                            </MudText>
-                            <MudText Typo="Typo.caption" Style="color:rgba(255,255,255,0.75)">
-                                @dept.DeptCode
-                            </MudText>
-                        </div>
-                        <MudIconButton
-                            Icon="@(_expandedDepts.Contains(dept.DeptCode)
-                                      ? Icons.Material.Filled.ExpandLess
-                                      : Icons.Material.Filled.ExpandMore)"
-                            Style="color:white" Size="Size.Small" />
-                        <span @onclick:stopPropagation="true">
-                            <MudIconButton Icon="@Icons.Material.Filled.PersonAdd"
-                                           Style="color:white" Size="Size.Small"
-                                           Title="Thêm approver cho bộ phận này"
-                                           OnClick="@(() => OpenCreateDialogForDept(
-                                                         dept.DeptCode, dept.DeptName))" />
-                        </span>
-                    </MudStack>
-                </div>
-
-                @* Body *@
-                @if (_expandedDepts.Contains(dept.DeptCode))
-                {
-                    <div class="pa-3">
-                        @if (!dept.LevelGroups.Any())
-                        {
-                            <MudText Typo="Typo.body2" Color="Color.Secondary"
-                                     Class="pa-4 text-center">
-                                Bộ phận này chưa có approver nào
-                            </MudText>
-                        }
-                        else
-                        {
-                            @foreach (var levelGroup in dept.LevelGroups)
-                            {
-                                <div class="mb-3">
-                                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
-                                        <MudChip T="string"
-                                                 Color="@GetLevelColor(levelGroup.Level)"
-                                                 Size="Size.Small"
-                                                 Style="font-weight:600">
-                                            @levelGroup.LevelDisplayName
-                                        </MudChip>
-                                    </MudStack>
-
-                                    @* Group theo RequestType (Leave / OT) *@
-                                    @foreach (var rtGroup in levelGroup.Approvers)
-                                    {
-                                        <MudText Typo="Typo.caption"
-                                                 Color="Color.Secondary"
-                                                 Class="mb-1">
-                                            @rtGroup.RequestTypeDisplay
-                                        </MudText>
-
-                                        <MudGrid Spacing="2">
-                                            @foreach (var approver in rtGroup.Items)
-                                            {
-                                                <MudItem xs="12" sm="6" md="4">
-                                                    <MudPaper Elevation="0"
-                                                              Style="@GetCardStyle(approver.IsActive)"
-                                                              Class="pa-3">
-                                                        <MudStack Row="true" AlignItems="AlignItems.Start">
-                                                            <MudAvatar Color="@GetLevelColor(levelGroup.Level)"
-                                                                       Size="Size.Medium"
-                                                                       Style="font-size:0.8rem; flex-shrink:0">
-                                                                @(approver.ApproveLevelName?.Length > 0
-                                                                    ? approver.ApproveLevelName[0]
-                                                                              .ToString().ToUpper()
-                                                                    : "?")
-                                                            </MudAvatar>
-
-                                                            <div style="flex:1; min-width:0">
-                                                                <MudStack Row="true" AlignItems="AlignItems.Center">
-                                                                    <MudText Typo="Typo.subtitle2"
-                                                                             Style="font-weight:600;
-                                                                                    overflow:hidden;
-                                                                                    text-overflow:ellipsis;
-                                                                                    white-space:nowrap">
-                                                                        @approver.ApproveLevelName
-                                                                    </MudText>
-                                                                    @if (!approver.IsActive)
-                                                                    {
-                                                                        <MudChip T="string"
-                                                                                 Size="Size.Small"
-                                                                                 Color="Color.Error"
-                                                                                 Style="height:18px; font-size:10px">
-                                                                            Tắt
-                                                                        </MudChip>
-                                                                    }
-                                                                </MudStack>
-                                                                <MudText Typo="Typo.caption"
-                                                                         Color="Color.Secondary">
-                                                                    @approver.ApproveLevelCode
-                                                                </MudText>
-                                                                <MudText Typo="Typo.caption"
-                                                                         Style="overflow:hidden;
-                                                                                text-overflow:ellipsis;
-                                                                                white-space:nowrap;
-                                                                                display:block">
-                                                                    @approver.ApproveLevelEmail
-                                                                </MudText>
-                                                            </div>
-
-                                                            <MudMenu Icon="@Icons.Material.Filled.MoreVert"
-                                                                     Size="Size.Small" Dense="true"
-                                                                     AnchorOrigin="Origin.BottomRight"
-                                                                     TransformOrigin="Origin.TopRight">
-                                                                <MudMenuItem Icon="@Icons.Material.Filled.Edit"
-                                                                             OnClick="@(() => OpenEditDialog(approver))">
-                                                                    Chỉnh sửa
-                                                                </MudMenuItem>
-                                                                <MudMenuItem
-                                                                    Icon="@(approver.IsActive
-                                                                              ? Icons.Material.Filled.ToggleOff
-                                                                              : Icons.Material.Filled.ToggleOn)"
-                                                                    OnClick="@(() => ToggleApprover(approver))">
-                                                                    @(approver.IsActive ? "Vô hiệu hóa" : "Kích hoạt")
-                                                                </MudMenuItem>
-                                                                <MudDivider />
-                                                                <MudMenuItem Icon="@Icons.Material.Filled.Delete"
-                                                                             IconColor="Color.Error"
-                                                                             OnClick="@(() => ConfirmDelete(approver))">
-                                                                    <MudText Color="Color.Error">Xóa</MudText>
-                                                                </MudMenuItem>
-                                                            </MudMenu>
-                                                        </MudStack>
-                                                    </MudPaper>
-                                                </MudItem>
-                                            }
-                                        </MudGrid>
-                                    }
-                                </div>
-
-                                @if (levelGroup != dept.LevelGroups.Last())
-                                {
-                                    <MudDivider Class="my-2" />
-                                }
-                            }
-                        }
-                    </div>
-                }
-            </MudPaper>
-        }
-    }
+    <MudTable Items="FilteredItems" Dense="true" Hover="true" Striped="true">
+        <HeaderContent><MudTh>Bộ phận</MudTh><MudTh>Loại đơn</MudTh><MudTh>Cấp</MudTh><MudTh>Approver</MudTh><MudTh>Email</MudTh><MudTh>Trạng thái</MudTh><MudTh></MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.ApproveForDeptName (@context.ApproveForDeptCode)</MudTd>
+            <MudTd>@context.RequestType</MudTd>
+            <MudTd><MudChip T="string" Size="Size.Small" Color="@GetLevelColor(context.Level)">@(context.RoleName ?? $"Cấp {context.Level}")</MudChip></MudTd>
+            <MudTd>@context.ApproverName <MudText Typo="Typo.caption">@context.ApproverCode</MudText></MudTd>
+            <MudTd>@context.ApproverEmail</MudTd>
+            <MudTd><MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? "Hoạt động" : "Tắt")</MudChip></MudTd>
+            <MudTd><MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => OpenEditDialog(context))" /><MudIconButton Icon="@(context.IsActive ? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)" Size="Size.Small" OnClick="@(() => ToggleApprover(context))" /><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => ConfirmDelete(context))" /></MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudText Class="pa-6" Color="Color.Secondary">Không có approver phù hợp.</MudText></NoRecordsContent>
+    </MudTable>
 }
 
 @code {
-    // ── State ────────────────────────────────────────────────────
-    // Dùng ApproverTreeNodeViewModel thay vì ApproverDeptTreeViewModel
-    private List<ApproverTreeNodeViewModel> _tree = new();
-
-    // Dùng ApproverViewModel thay vì ApproverFlatViewModel
-    private List<ApproverViewModel> _flatList = new();
-    private List<DepartmentViewModel> _departments = new();
-
-    private bool _isLoading = true;
-    private bool _isFiltered = false;
-
+    private List<ApproverDto> _items = new();
+    private List<DepartmentDto> _departments = new();
+    private bool _loading;
     private string? _filterDept;
     private int? _filterLevel;
-    private string? _filterRequestType;
+    private RequestModule? _filterType;
 
-    // Track expand/collapse bằng HashSet thay vì property trên model
-    private readonly HashSet<string> _expandedDepts = new();
+    private IEnumerable<ApproverDto> FilteredItems => _items;
 
-    private static readonly DialogOptions _dialogOptions = new()
-    {
-        MaxWidth = MaxWidth.Small,
-        FullWidth = true,
-        CloseOnEscapeKey = true
-    };
-
-    // ── Init ─────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
-        await Task.WhenAll(LoadTreeAsync(), LoadDepartmentsAsync());
+        await LoadDepartments();
+        await LoadAsync();
     }
 
-    private async Task LoadTreeAsync()
-    {
-        _isLoading = true;
-        StateHasChanged();
-        try
-        {
-            var result = await ApproverService.GetTreeAsync();
-            if (result.IsSuccess && result.Data != null)
-            {
-                _tree = result.Data;
-                // Mặc định expand tất cả
-                _expandedDepts.Clear();
-                foreach (var dept in _tree)
-                    _expandedDepts.Add(dept.DeptCode);
-            }
-            else
-                Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
-        }
-        finally
-        {
-            _isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    private async Task LoadDepartmentsAsync()
+    private async Task LoadDepartments()
     {
         var result = await ApproverService.GetDepartmentsAsync();
-        if (result.IsSuccess && result.Data != null)
-            _departments = result.Data;
+        if (result.IsSuccess && result.Data != null) _departments = result.Data;
     }
 
-    // ── Expand/Collapse ──────────────────────────────────────────
-    private void ToggleDeptExpand(ApproverTreeNodeViewModel dept)
+    private async Task LoadAsync()
     {
-        if (_expandedDepts.Contains(dept.DeptCode))
-            _expandedDepts.Remove(dept.DeptCode);
-        else
-            _expandedDepts.Add(dept.DeptCode);
-    }
-
-    // ── Filter ───────────────────────────────────────────────────
-    private async Task OnDeptFilterChanged(string? value)
-    {
-        _filterDept = value;
-        await ApplyFilter();
-    }
-
-    private async Task OnLevelFilterChanged(int? value)
-    {
-        _filterLevel = value;
-        await ApplyFilter();
-    }
-
-    private async Task OnRequestTypeFilterChanged(string? value)
-    {
-        _filterRequestType = value;
-        await ApplyFilter();
-    }
-
-    private async Task ApplyFilter()
-    {
-        if (string.IsNullOrEmpty(_filterDept)
-            && !_filterLevel.HasValue
-            && string.IsNullOrEmpty(_filterRequestType))
+        _loading = true;
+        try
         {
-            _isFiltered = false;
-            return;
+            var result = await ApproverService.GetListAsync(_filterDept, _filterLevel, _filterType?.ToString());
+            if (result.IsSuccess && result.Data != null) _items = result.Data;
+            else Snackbar.Add(result.Message ?? "Lỗi tải approver.", Severity.Error);
         }
-
-        _isLoading = true;
-        _isFiltered = true;
-        StateHasChanged();
-
-        // GetListAsync nhận thêm requestType
-        var result = await ApproverService.GetListAsync(
-            _filterDept, _filterLevel, _filterRequestType);
-
-        if (result.IsSuccess && result.Data != null)
-            _flatList = result.Data;
-
-        _isLoading = false;
-        StateHasChanged();
+        finally { _loading = false; }
     }
 
     private async Task ResetFilter()
     {
-        _filterDept = null;
-        _filterLevel = null;
-        _filterRequestType = null;
-        _isFiltered = false;
-        await LoadTreeAsync();
+        _filterDept = null; _filterLevel = null; _filterType = null; await LoadAsync();
     }
 
-    // ── Dialog ───────────────────────────────────────────────────
-    private async Task ShowDialog(ApproverViewModel model, bool lockDept)
+    private async Task OpenCreateDialog()
     {
-        var parameters = new DialogParameters
-        {
-            [nameof(ApproverEditDialog.Model)] = model,
-            [nameof(ApproverEditDialog.Departments)] = _departments,
-            [nameof(ApproverEditDialog.LockDept)] = lockDept
-        };
-
-        var dialog = await DialogService.ShowAsync<ApproverEditDialog>(
-            "", parameters, _dialogOptions);
-        var result = await dialog.Result;
-
-        if (result is { Canceled: false })
-        {
-            await LoadTreeAsync();
-            if (_isFiltered) await ApplyFilter();
-        }
+        var model = new ApproverDto { IsActive = true, RequestType = RequestModule.Leave, Level = 1 };
+        await ShowDialog(model, false);
     }
 
-    private Task OpenCreateDialog()
-        => ShowDialog(new ApproverViewModel { IsActive = true }, lockDept: false);
+    private async Task OpenEditDialog(ApproverDto item) => await ShowDialog(item, false);
 
-    private Task OpenCreateDialogForDept(string deptCode, string deptName)
-        => ShowDialog(new ApproverViewModel
+    private async Task ShowDialog(ApproverDto model, bool lockDept)
+    {
+        var parameters = new DialogParameters<ApproverEditDialog>
         {
-            IsActive = true,
-            ApproveForDeptCode = deptCode,   // ← dùng ApproveForDeptCode thay vì DeptCode
-            ApproveForDeptName = deptName
-        }, lockDept: true);
+            { x => x.Model, model }, { x => x.Departments, _departments }, { x => x.LockDept, lockDept }
+        };
+        var dialog = await DialogService.ShowAsync<ApproverEditDialog>("", parameters, new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
+        var result = await dialog.Result;
+        if (result is { Canceled: false }) await LoadAsync();
+    }
 
-    // OpenEditDialog nhận ApproverViewModel trực tiếp (từ tree)
-    private Task OpenEditDialog(ApproverViewModel approver)
-        => ShowDialog(approver, lockDept: false);
-
-    // ── Toggle ───────────────────────────────────────────────────
-    private async Task ToggleApprover(ApproverViewModel item)
+    private async Task ToggleApprover(ApproverDto item)
     {
         var result = await ApproverService.ToggleAsync(item.Id);
-        if (result.IsSuccess)
-        {
-            Snackbar.Add(result.Message ?? "Đã cập nhật", Severity.Success);
-            await LoadTreeAsync();
-            if (_isFiltered) await ApplyFilter();
-        }
-        else
-            Snackbar.Add(result.Message ?? "Lỗi", Severity.Error);
+        Snackbar.Add(result.IsSuccess ? result.Message ?? "Đã cập nhật." : result.Message ?? "Lỗi.", result.IsSuccess ? Severity.Success : Severity.Error);
+        if (result.IsSuccess) await LoadAsync();
     }
 
-    // ── Delete ───────────────────────────────────────────────────
-    private async Task ConfirmDelete(ApproverViewModel item)
+    private async Task ConfirmDelete(ApproverDto item)
     {
-        var confirm = await DialogService.ShowMessageBoxAsync(
-            "Xác nhận xóa",
-            $"Bạn có chắc muốn xóa approver '{item.ApproveLevelName}'?",
-            yesText: "Xóa",
-            cancelText: "Hủy");
-
+        var confirm = await DialogService.ShowMessageBoxAsync("Xác nhận xóa", $"Xóa approver {item.ApproverName}?", yesText: "Xóa", cancelText: "Hủy");
         if (confirm != true) return;
-
         var result = await ApproverService.DeleteAsync(item.Id);
-        if (result.IsSuccess)
-        {
-            Snackbar.Add("Đã xóa Approver", Severity.Success);
-            await LoadTreeAsync();
-            if (_isFiltered) await ApplyFilter();
-        }
-        else
-            Snackbar.Add(result.Message ?? "Lỗi xóa", Severity.Error);
+        Snackbar.Add(result.IsSuccess ? "Đã xóa approver." : result.Message ?? "Lỗi xóa.", result.IsSuccess ? Severity.Success : Severity.Error);
+        if (result.IsSuccess) await LoadAsync();
     }
 
-    // ── UI Helpers ───────────────────────────────────────────────
-    private static Color GetLevelColor(int level) => level switch
-    {
-        1 => Color.Info,
-        2 => Color.Primary,
-        3 => Color.Warning,
-        4 => Color.Error,
-        5 => Color.Dark,
-        _ => Color.Default
-    };
-
-    private static string GetCardStyle(bool isActive) =>
-        isActive
-            ? "border:1px solid #e3f2fd; border-radius:10px; background:#fafafa"
-            : "border:1px solid #ffebee; border-radius:10px; background:#fff5f5; opacity:0.75";
+    private static Color GetLevelColor(int level) => level switch { 1 => Color.Info, 2 => Color.Primary, 3 => Color.Warning, 4 => Color.Error, _ => Color.Default };
 }
