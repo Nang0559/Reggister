@@ -1,5 +1,7 @@
+using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Application.Logging;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Requests;
 using FVN_REGISTER.Contract.Requests.Auths;
