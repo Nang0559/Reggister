@@ -160,12 +160,12 @@ public class LeaveTypeManagementService
             if (entity == null)
                 return ServiceResult.Fail("Không tìm thấy hình thức nghỉ.");
 
-            entity.IsActive = !entity.IsActive;
+            entity.IsActive = !(entity.IsActive ?? false);
             entity.ModifiedBy = currentUserId;
 
             await _uow.SaveChangesAsync(ct);
 
-            var action = entity.IsActive ? "kích hoạt" : "tạm dừng";
+            var action = (entity.IsActive ?? false) ? "kích hoạt" : "tạm dừng";
             Logger.LogInfoIf(Debug, "[LEAVE_TYPE] Toggled {Id} -> {Action}", id, action);
 
             return ServiceResult.Ok($"Đã {action} hình thức nghỉ.");

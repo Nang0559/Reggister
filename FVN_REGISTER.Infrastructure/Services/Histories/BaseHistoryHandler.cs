@@ -22,7 +22,7 @@ public abstract class BaseHistoryHandler<TRequest> : IHistoryHandler
 
     protected abstract RequestModule ModuleKind { get; }
 
-    public string Kind => ModuleKind.ToCode();
+    public RequestModule Kind => ModuleKind;   // ✅ khớp interface, không cần ToCode() nữa
 
     public abstract Task<ServiceResult<PaginationResult<HistoryItemDto>>> GetHistoryAsync(
         HistoryFilterDto filter,

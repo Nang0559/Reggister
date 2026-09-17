@@ -14,7 +14,7 @@ namespace FVN_REGISTER.API.Services.Histories
             _handlers = handlers;
         }
 
-        private IHistoryHandler Resolve(string kind)
+        private IHistoryHandler Resolve(RequestModule kind)
             => _handlers.FirstOrDefault(h => h.Kind == kind)
                ?? throw new NotSupportedException($"No handler for kind: {kind}");
 
@@ -23,15 +23,15 @@ namespace FVN_REGISTER.API.Services.Histories
             => Resolve(filter.Kind).GetHistoryAsync(filter, user, ct);
 
         public Task<ServiceResult<HistoryItemDetailDto>> GetDetailAsync(
-            string kind, int id, UserIdentityDto user, CancellationToken ct)
+            RequestModule kind, int id, UserIdentityDto user, CancellationToken ct)
             => Resolve(kind).GetDetailAsync(id, user, ct);
 
         public Task<ServiceResult<BalanceSummaryDto>> GetBalanceAsync(
-            string kind, int year, UserIdentityDto user, CancellationToken ct)
+            RequestModule kind, int year, UserIdentityDto user, CancellationToken ct)
             => Resolve(kind).GetBalanceAsync(year, user, ct);
 
         public Task<ServiceResult> CancelAsync(
-            string kind, int id, string reason, UserIdentityDto user, CancellationToken ct)
+            RequestModule kind, int id, string reason, UserIdentityDto user, CancellationToken ct)
             => Resolve(kind).CancelAsync(id, reason, user, ct);
     }
 }

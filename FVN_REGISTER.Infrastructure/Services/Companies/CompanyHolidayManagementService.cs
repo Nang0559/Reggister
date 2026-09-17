@@ -24,8 +24,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Companies
         }
 
         public async Task<List<CompanyHolidayDto>> GetAllAsync(CancellationToken ct = default)
-            => await _uow.Repository<F03CompanyHoliday>().Query().AsNoTracking()
-                .OrderByDescending(x => x.HolidayDate).Select(ToDto).ToListAsync(ct);
+    => await _uow.Repository<F03CompanyHoliday>().Query().AsNoTracking()
+        .OrderByDescending(x => x.HolidayDate)
+        .Select(x => ToDto(x))   // ✅ lambda, không phải method group
+        .ToListAsync(ct);
 
         public async Task<CompanyHolidayDto?> GetByIdAsync(int id, CancellationToken ct = default)
         {

@@ -4,6 +4,7 @@
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Histories;
 using FVN_REGISTER.Contract.Utils;
+using FVN_REGISTER.Core.Enums;
 
 
 namespace FVN_REGISTER.Application.Interfaces.Histories
@@ -11,7 +12,7 @@ namespace FVN_REGISTER.Application.Interfaces.Histories
     // IHistoryHandler.cs
     public interface IHistoryHandler
     {
-        string Kind { get; }
+        RequestModule Kind { get; }
 
         Task<ServiceResult<PaginationResult<HistoryItemDto>>> GetHistoryAsync(
             HistoryFilterDto filter, UserIdentityDto user, CancellationToken ct);

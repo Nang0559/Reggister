@@ -41,7 +41,7 @@ namespace FVN_REGISTER.Core.Extensions
             "TRIP" => RequestModule.Trip,
             _ => RequestModule.Leave
         };
-
+        public static RequestModule ToRequestModule(this string code) => ParseCode(code);
         public static bool TryToRequestModule(this string code, out RequestModule module)
         {
             module = ParseCode(code);
