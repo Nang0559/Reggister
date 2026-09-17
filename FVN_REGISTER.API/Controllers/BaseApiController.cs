@@ -14,7 +14,7 @@ namespace FVN_REGISTER.API.Controllers
         protected readonly ICurrentUserService _currentUser;
         protected readonly IUserLogService _userLog;
         protected readonly ILogger _logger;
-        protected readonly IOptionsMonitor<AuthDebugOptions> _options;
+        protected readonly IOptionsMonitor<FVN_REGISTER.Application.Configuration.AuthDebugOptions> _options;
 
         protected bool Debug => _options.CurrentValue.Enabled;
         protected UserIdentityDto? UserInfo => _currentUser.GetCurrentUser();
@@ -24,7 +24,7 @@ namespace FVN_REGISTER.API.Controllers
             ICurrentUserService currentUser,
             IUserLogService userLog,
             ILogger logger,
-            IOptionsMonitor<AuthDebugOptions> options)
+            IOptionsMonitor<FVN_REGISTER.Application.Configuration.AuthDebugOptions> options)
         {
             _currentUser = currentUser;
             _userLog = userLog;
@@ -36,21 +36,18 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (result == null)
             {
-                _logger.LogWarnIf(Debug, "[API] Null result at {Path}", Path);
+                if (Debug) _logger.LogWarning("[API] Null result at {Path}", Path);
                 return NotFound(ApiResponse<T>.Fail("Không tìm thấy phản hồi từ hệ thống."));
             }
 
             var apiResponse = ApiResponse<T>.FromResult(result);
             if (result.IsSuccess)
             {
-                _logger.LogDebugIf(Debug, "[API] Success: {Path}", Path);
+                if (Debug) _logger.LogDebug("[API] Success: {Path}", Path);
                 return Ok(apiResponse);
             }
 
-            _logger.LogWarnIf(Debug,
-                "[API] Failed: {Path} | Message: {Message}",
-                Path,
-                result.Message);
+            if (Debug) _logger.LogWarning("[API] Failed: {Path} | Message: {Message}", Path, result.Message);
             return BadRequest(apiResponse);
         }
 
@@ -59,14 +56,11 @@ namespace FVN_REGISTER.API.Controllers
             var apiResponse = ApiResponse<object>.FromResult(result);
             if (result.IsSuccess)
             {
-                _logger.LogDebugIf(Debug, "[API] Success: {Path}", Path);
+                if (Debug) _logger.LogDebug("[API] Success: {Path}", Path);
                 return Ok(apiResponse);
             }
 
-            _logger.LogWarnIf(Debug,
-                "[API] Failed: {Path} | Message: {Message}",
-                Path,
-                result.Message);
+            if (Debug) _logger.LogWarning("[API] Failed: {Path} | Message: {Message}", Path, result.Message);
             return BadRequest(apiResponse);
         }
 
@@ -74,7 +68,7 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (result == null || result.Data == null)
             {
-                _logger.LogWarnIf(Debug, "[API] Empty pagination result at {Path}", Path);
+                if (Debug) _logger.LogWarning("[API] Empty pagination result at {Path}", Path);
                 return Ok(ApiResponse<PaginationResult<T>>.Ok(new PaginationResult<T>()));
             }
 
@@ -84,11 +78,14 @@ namespace FVN_REGISTER.API.Controllers
         protected async Task LogActionAsync(string description)
         {
             var user = UserInfo;
-            _logger.LogDebugIf(Debug,
-                "[USER ACTION] UserId={UserId} | {Desc} | Path={Path}",
-                user?.UserId,
-                description,
-                Path);
+            if (Debug)
+            {
+                _logger.LogDebug(
+                    "[USER ACTION] UserId={UserId} | {Desc} | Path={Path}",
+                    user?.UserId,
+                    description,
+                    Path);
+            }
 
             if (user != null)
             {
