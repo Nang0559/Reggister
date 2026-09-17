@@ -15,11 +15,9 @@ namespace FVN_REGISTER.API.Controllers;
 public class LeaveCalendarController : BaseApiController
 {
     private readonly ILeaveQueryService _queryService;
-    private readonly ILeaveService _leaveService;
 
     public LeaveCalendarController(
         ILeaveQueryService queryService,
-        ILeaveService leaveService,
         ICurrentUserService currentUser,
         IUserLogService userLog,
         IMapper mapper,
@@ -28,25 +26,27 @@ public class LeaveCalendarController : BaseApiController
         : base(currentUser, userLog, mapper, logger, options)
     {
         _queryService = queryService;
-        _leaveService = leaveService;
     }
 
     [HttpGet("data")]
     public async Task<IActionResult> GetData(
-        [FromQuery] string empCode,
-        [FromQuery] string deptCode,
-        [FromQuery] string cvCode,
+        [FromQuery] string? empCode,
+        [FromQuery] string? deptCode,
+        [FromQuery] string? cvCode,
         [FromQuery] int year,
         CancellationToken ct)
     {
-        var effectiveEmpCode = string.IsNullOrEmpty(empCode)
-            ? UserInfo?.EmployeeCode ?? ""
+        if (UserInfo == null)
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+
+        var effectiveEmpCode = string.IsNullOrWhiteSpace(empCode)
+            ? UserInfo.EmployeeCode ?? string.Empty
             : empCode;
-        var effectiveDeptCode = string.IsNullOrEmpty(deptCode)
-            ? UserInfo?.DeptCode ?? ""
+        var effectiveDeptCode = string.IsNullOrWhiteSpace(deptCode)
+            ? UserInfo.DeptCode ?? string.Empty
             : deptCode;
-        var effectiveCvCode = string.IsNullOrEmpty(cvCode)
-            ? UserInfo?.CvCode ?? ""
+        var effectiveCvCode = string.IsNullOrWhiteSpace(cvCode)
+            ? UserInfo.CvCode ?? string.Empty
             : cvCode;
 
         try
@@ -58,14 +58,20 @@ public class LeaveCalendarController : BaseApiController
                 year,
                 ct);
 
-            data.UserLevel = UserInfo?.LevelApprove ?? 0;
+            data.UserLevel = UserInfo.LevelApprove;
             await LogActionAsync("Xem lịch đăng ký nghỉ");
             return Ok(ApiResponse<SystemMasterDataDto>.Ok(data));
         }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
-            _logger.LogError(ex,
-                "[CALENDAR] GetData error for EmpCode: {EmpCode}", effectiveEmpCode);
+            _logger.LogError(
+                ex,
+                "[CALENDAR] GetData failed for EmpCode: {EmpCode}",
+                effectiveEmpCode);
             return BadRequest(ApiResponse<object>.Fail("Không thể tải dữ liệu lịch"));
         }
     }

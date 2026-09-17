@@ -3,7 +3,9 @@ using FVN_REGISTER.Application.Interfaces.Histories;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.Histories;
+using FVN_REGISTER.Contract.Requests;
 using FVN_REGISTER.Core.Configurations;
+using FVN_REGISTER.Core.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -42,10 +44,8 @@ namespace FVN_REGISTER.API.Controllers
             CancellationToken ct = default)
         {
             if (UserInfo == null) return Unauthorized();
-
-            var requestKind = kind.Equals("ot", StringComparison.OrdinalIgnoreCase)
-                ? RequestKind.OT
-                : RequestKind.Leave;
+            if (!TryParseRequestKind(kind, out var requestKind))
+                return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave hoặc ot."));
 
             var filter = new HistoryFilterDto
             {
@@ -67,9 +67,9 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> GetDetail(string kind, int id, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
-            var requestKind = kind.Equals("ot", StringComparison.OrdinalIgnoreCase)
-                ? RequestKind.OT
-                : RequestKind.Leave;
+            if (!TryParseRequestKind(kind, out var requestKind))
+                return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave hoặc ot."));
+
             var result = await _dispatcher.GetDetailAsync(requestKind, id, UserInfo, ct);
             return HandleResult(result);
         }
@@ -81,9 +81,9 @@ namespace FVN_REGISTER.API.Controllers
             CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
-            var requestKind = kind.Equals("ot", StringComparison.OrdinalIgnoreCase)
-                ? RequestKind.OT
-                : RequestKind.Leave;
+            if (!TryParseRequestKind(kind, out var requestKind))
+                return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave hoặc ot."));
+
             var result = await _dispatcher.GetBalanceAsync(
                 requestKind, year ?? DateTime.Now.Year, UserInfo, ct);
             return HandleResult(result);
@@ -93,18 +93,36 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> Cancel(
             string kind,
             int id,
-            [FromBody] CancelRequest req,
+            [FromBody] HistoryCancelRequestDto req,
             CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
-            var requestKind = kind.Equals("ot", StringComparison.OrdinalIgnoreCase)
-                ? RequestKind.OT
-                : RequestKind.Leave;
+            if (!TryParseRequestKind(kind, out var requestKind))
+                return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave hoặc ot."));
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
+
             var result = await _dispatcher.CancelAsync(
-                requestKind, id, req.Reason ?? "", UserInfo, ct);
+                requestKind, id, req.Reason, UserInfo, ct);
             return HandleResult(result);
         }
-    }
 
-    public record CancelRequest(string? Reason);
+        private static bool TryParseRequestKind(string kind, out RequestKind requestKind)
+        {
+            if (kind.Equals("ot", StringComparison.OrdinalIgnoreCase))
+            {
+                requestKind = RequestKind.OT;
+                return true;
+            }
+
+            if (kind.Equals("leave", StringComparison.OrdinalIgnoreCase))
+            {
+                requestKind = RequestKind.Leave;
+                return true;
+            }
+
+            requestKind = default;
+            return false;
+        }
+    }
 }
