@@ -1,160 +1,44 @@
-﻿@* File: LeaveAddDialog.razor *@
 @using FVN_REGISTER.Contract.Dtos.MasterData
-@using FVN_REGISTER.Contract.Models
-@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Contract.Requests.Leaves
+@using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.Leaves
 @inject ILeaveCreateClientService LeaveService
 @inject ISnackbar Snackbar
 
-<style>
-    .native-select {
-        width: 100%;
-        border: none;
-        border-bottom: 1px solid rgba(0,0,0,0.42);
-        outline: none;
-        background: transparent;
-        font-size: 0.875rem;
-        font-family: inherit;
-        color: inherit;
-        cursor: pointer;
-        padding: 6px 0 4px 0;
-        border-radius: 0;
-    }
-
-        .native-select:focus {
-            border-bottom: 2px solid var(--mud-palette-primary);
-        }
-
-        .native-select option {
-            background: white;
-            color: #212121;
-        }
-
-    .field-label {
-        font-size: 0.75rem;
-        color: rgba(0,0,0,0.6);
-        margin-bottom: 2px;
-        display: block;
-    }
-
-    .field-wrap {
-        padding: 4px 0;
-        width: 100%;
-    }
-</style>
-
 <MudDialog>
     <TitleContent>
-        <MudText Typo="Typo.h6">
-            <MudIcon Icon="@Icons.Material.Filled.EditCalendar" Class="mr-2" />
-            Đăng ký nghỉ phép
-        </MudText>
+        <MudText Typo="Typo.h6"><MudIcon Icon="@Icons.Material.Filled.EditCalendar" Class="mr-2" />Đăng ký nghỉ phép</MudText>
     </TitleContent>
 
     <DialogContent>
-        <MudForm @ref="_form" @bind-IsValid="_formValid">
-
-            @* Hàng 1: Năm, Từ ngày, Đến ngày *@
+        <MudForm @ref="_form">
             <MudGrid Spacing="2">
-                <MudItem xs="12" sm="4">
-                    <div class="field-wrap">
-                        <span class="field-label">Năm làm việc *</span>
-                        <select class="native-select"
-                                @onchange="@((ChangeEventArgs e) =>
-                                                                    _request.WorkYear = int.TryParse(e.Value?.ToString(), out var y) ? y : DateTime.Now.Year)">
-                            @foreach (var yr in Model.WorkYears)
-                            {
-                                var yVal = yr.WorkYear ?? DateTime.Now.Year;
-                                @if (yVal == _request.WorkYear)
-                                {
-                                    <option value="@yVal" selected>@yVal</option>
-                                }
-                                else
-                                {
-                                    <option value="@yVal">@yVal</option>
-                                }
-                            }
-                        </select>
-                    </div>
-                </MudItem>
-
-                <MudItem xs="12" sm="4">
-                    <MudDatePicker Date="_startDate"
-                                   DateChanged="OnStartDateChanged"
-                                   Label="Từ ngày *"
-                                   Variant="Variant.Outlined" Margin="Margin.Dense"
-                                   IsDateDisabledFunc="IsHolidayOrWeekend" />
-                </MudItem>
-
-                <MudItem xs="12" sm="4">
-                    <MudDatePicker Date="_endDate"
-                                   DateChanged="OnEndDateChanged"
-                                   Label="Đến ngày *"
-                                   Variant="Variant.Outlined" Margin="Margin.Dense"
-                                   IsDateDisabledFunc="IsHolidayOrWeekend" />
-                </MudItem>
+                <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_startDate" Label="Từ ngày *" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_endDate" Label="Đến ngày *" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
             </MudGrid>
 
-            @* Bảng chi tiết từng ngày *@
+            <MudTextField @bind-Value="_reason" Label="Lý do nghỉ *" Lines="3" Required="true" RequiredError="Vui lòng nhập lý do" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+
             @if (_details.Any())
             {
-                <MudPaper Class="mt-3" Elevation="0" Outlined="true">
-                    <MudSimpleTable Dense="true" Striped="true" Style="max-height: 280px; overflow-y: auto;">
-                        <thead>
-                            <tr>
-                                <th>Ngày nghỉ</th>
-                                <th>Loại phép</th>
-                                <th style="width:90px">Nghỉ nửa ngày</th>
-                                <th style="width:80px">Tính phép</th>
-                            </tr>
-                        </thead>
+                <MudPaper Class="mt-3 pa-2" Elevation="0" Outlined="true">
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Chi tiết từng ngày</MudText>
+                    <MudSimpleTable Dense="true" Striped="true">
+                        <thead><tr><th>Ngày</th><th>Loại nghỉ</th><th>Nửa ngày</th></tr></thead>
                         <tbody>
-                            @foreach (var d in _details)
+                            @foreach (var detail in _details)
                             {
-                                <tr @key="d.LeaveDate">
+                                <tr>
+                                    <td>@detail.LeaveDate.ToString("dd/MM/yyyy")</td>
                                     <td>
-                                        <MudText Typo="Typo.body2">
-                                            @d.LeaveDate.ToString("dd/MM/yyyy (ddd)")
-                                        </MudText>
-                                    </td>
-                                    <td>
-                                        <select class="native-select"
-                                                @onchange="@((ChangeEventArgs e) =>
-                                                OnLeaveTypeChanged(d, e.Value?.ToString() ?? ""))">
-                                    @foreach (var lt in Model.LeaveTypes)
+                                        <MudSelect T="string" Value="detail.LeaveTypeCode" ValueChanged="@(code => ChangeLeaveType(detail, code))" Dense="true" Margin="Margin.Dense">
+                                            @foreach (var type in Model.LeaveTypes)
                                             {
-                                                @if (lt.LeaveTypeCode == d.LeaveTypeCode)
-                                                {
-                                                    <option value="@lt.LeaveTypeCode" selected>@lt.LeaveTypeName</option>
-                                                }
-                                                else
-                                                {
-                                                    <option value="@lt.LeaveTypeCode">@lt.LeaveTypeName</option>
-                                                }
+                                                <MudSelectItem Value="@type.LeaveTypeCode">@type.LeaveTypeName</MudSelectItem>
                                             }
-                                        </select>
+                                        </MudSelect>
                                     </td>
-                                    <td style="text-align:center;">
-                                        <input type="checkbox"
-                                               checked="@d.IsHalfDay"
-                                               @onchange="@((ChangeEventArgs e) =>
-                                               OnHalfDayChanged(d, e.Value is bool b ? b : bool.Parse(e.Value?.ToString() ?? "false")))" />
-                            </td>
-                            <td>
-                                @{
-                                            var leaveType = Model.LeaveTypes
-                                            .FirstOrDefault(x => x.LeaveTypeCode == d.LeaveTypeCode);
-                                            bool tinhPhep = leaveType?.TinhPhep == true;
-                                        }
-                                        @if (tinhPhep)
-                                        {
-                                            <MudChip T="string" Color="Color.Success" Size="Size.Small" Text="Có" />
-                                        }
-                                        else
-                                        {
-                                            <MudChip T="string" Color="Color.Default" Size="Size.Small" Text="Không" />
-                                        }
-                                    </td>
+                                    <td><MudCheckBox T="bool" Value="detail.IsHalfDay" ValueChanged="@(value => ChangeHalfDay(detail, value))" Size="Size.Small" /></td>
                                 </tr>
                             }
                         </tbody>
@@ -162,338 +46,120 @@
                 </MudPaper>
             }
 
-            @* Tổng ngày *@
-            <MudGrid Spacing="2" Class="mt-2">
-                <MudItem xs="6">
-                    <MudTextField Value="@_totalDay" Label="Tổng số ngày"
-                                  Variant="Variant.Outlined" Margin="Margin.Dense"
-                                  ReadOnly="true" Adornment="Adornment.End" AdornmentText="ngày" />
-                </MudItem>
-                <MudItem xs="6">
-                    <MudTextField Value="@_totalLeaveDay" Label="Ngày tính phép"
-                                  Variant="Variant.Outlined" Margin="Margin.Dense"
-                                  ReadOnly="true" Adornment="Adornment.End" AdornmentText="ngày"
-                                  AdornmentColor="Color.Warning" />
-                </MudItem>
-            </MudGrid>
-
-            @* Lý do *@
-            <MudTextField @bind-Value="_request.LeaveReason" Label="Lý do nghỉ *"
-                          Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense"
-                          Class="mt-2" Required="true" RequiredError="Vui lòng nhập lý do" />
-
-            @* ✅ Người duyệt — mỗi level có handler riêng gán cả Email + Code + Name *@
-            <MudGrid Spacing="2" Class="mt-2">
-
-                @if (Model.LVA1.Any())
-                {
-                    <MudItem xs="12" sm="4">
-                        <div class="field-wrap">
-                            <span class="field-label">1. @(Model.LVA1.First().LevelName ?? "Cấp duyệt 1")</span>
-                            <select class="native-select"
-                                    @onchange="@((ChangeEventArgs e) => OnApprover1Changed(e.Value?.ToString()))">
-                                <option value="">-- Chọn --</option>
-                                @foreach (var a in Model.LVA1)
-                                {
-                                    @if (a.ApproveLevelEmail == _request.Level1ApproveEmail)
-                                    {
-                                        <option value="@a.ApproveLevelEmail" selected>
-                                            @a.ApproveLevelName (@(string.IsNullOrEmpty(a.DeptCode) ? "ALL" : a.DeptCode))
-                                        </option>
-                                    }
-                                    else
-                                    {
-                                        <option value="@a.ApproveLevelEmail">
-                                            @a.ApproveLevelName (@(string.IsNullOrEmpty(a.DeptCode) ? "ALL" : a.DeptCode))
-                                        </option>
-                                    }
-                                }
-                            </select>
-                        </div>
-                    </MudItem>
-                }
-
-                @if (Model.LVA2.Any())
-                {
-                    <MudItem xs="12" sm="4">
-                        <div class="field-wrap">
-                            <span class="field-label">2. @(Model.LVA2.First().LevelName ?? "Cấp duyệt 2")</span>
-                            <select class="native-select"
-                                    @onchange="@((ChangeEventArgs e) => OnApprover2Changed(e.Value?.ToString()))">
-                                <option value="">-- Chọn --</option>
-                                @foreach (var a in Model.LVA2)
-                                {
-                                    @if (a.ApproveLevelEmail == _request.Level2ApproveEmail)
-                                    {
-                                        <option value="@a.ApproveLevelEmail" selected>
-                                            @a.ApproveLevelName (@(string.IsNullOrEmpty(a.DeptCode) ? "ALL" : a.DeptCode))
-                                        </option>
-                                    }
-                                    else
-                                    {
-                                        <option value="@a.ApproveLevelEmail">
-                                            @a.ApproveLevelName (@(string.IsNullOrEmpty(a.DeptCode) ? "ALL" : a.DeptCode))
-                                        </option>
-                                    }
-                                }
-                            </select>
-                        </div>
-                    </MudItem>
-                }
-
-                @if (Model.LVA3.Any())
-                {
-                    <MudItem xs="12" sm="4">
-                        <div class="field-wrap">
-                            <span class="field-label">3. @(Model.LVA3.First().LevelName ?? "Cấp duyệt 3")</span>
-                            <select class="native-select"
-                                    @onchange="@((ChangeEventArgs e) => OnApprover3Changed(e.Value?.ToString()))">
-                                <option value="">-- Chọn --</option>
-                                @foreach (var a in Model.LVA3)
-                                {
-                                    @if (a.ApproveLevelEmail == _request.Level3ApproveEmail)
-                                    {
-                                        <option value="@a.ApproveLevelEmail" selected>
-                                            @a.ApproveLevelName (@(string.IsNullOrEmpty(a.DeptCode) ? "ALL" : a.DeptCode))
-                                        </option>
-                                    }
-                                    else
-                                    {
-                                        <option value="@a.ApproveLevelEmail">
-                                            @a.ApproveLevelName (@(string.IsNullOrEmpty(a.DeptCode) ? "ALL" : a.DeptCode))
-                                        </option>
-                                    }
-                                }
-                            </select>
-                        </div>
-                    </MudItem>
-                }
-
-            </MudGrid>
-
+            @if (Model.DefaultApprovalFlow.Any())
+            {
+                <MudPaper Class="mt-3 pa-2" Elevation="0" Outlined="true">
+                    <MudText Typo="Typo.subtitle2">Quy trình phê duyệt dự kiến</MudText>
+                    @foreach (var step in Model.DefaultApprovalFlow.OrderBy(x => x.Level))
+                    {
+                        <MudText Typo="Typo.caption" Class="d-block">Cấp @step.Level — @step.RoleName — @(step.ApproverName ?? step.ApproverEmail ?? "Tự động xác định")</MudText>
+                    }
+                </MudPaper>
+            }
         </MudForm>
     </DialogContent>
 
     <DialogActions>
         <MudButton OnClick="Cancel" Variant="Variant.Text">Đóng</MudButton>
-        <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled"
-                   Disabled="@_isSaving">
-            @if (_isSaving)
-            {
-                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
-                <span>Đang lưu...</span>
-            }
-            else
-            {
-                <MudIcon Icon="@Icons.Material.Filled.Send" Size="Size.Small" Class="mr-1" />
-                <span>Gửi đơn</span>
-            }
-        </MudButton>
+        <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled" Disabled="@_saving">@(_saving ? "Đang gửi..." : "Gửi đơn")</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
-
     [Parameter] public SystemMasterDataDto Model { get; set; } = default!;
     [Parameter] public string? DefaultStart { get; set; }
     [Parameter] public string? DefaultEnd { get; set; }
     [Parameter] public int SelectedYear { get; set; } = DateTime.Now.Year;
     [Parameter] public EventCallback OnSaved { get; set; }
 
-    private MudForm _form = default!;
-    private bool _formValid;
-    private bool _isSaving;
-
+    private MudForm? _form;
     private DateTime? _startDate;
     private DateTime? _endDate;
-    private List<CreateLeaveDetailModel> _details = new();
-    private decimal _totalDay;
-    private decimal _totalLeaveDay;
+    private string _reason = string.Empty;
+    private bool _saving;
+    private readonly List<LeaveRequestDetailUpsertDto> _details = new();
 
-    private CreateLeaveRequestModel _request = new();
-
-    // ─── Lifecycle ───────────────────────────────────────
     protected override void OnInitialized()
     {
-        _request.WorkYear = SelectedYear;
-
-        if (!string.IsNullOrEmpty(DefaultStart) && DateTime.TryParse(DefaultStart, out var s))
-            _startDate = s;
-
-        if (!string.IsNullOrEmpty(DefaultEnd) && DateTime.TryParse(DefaultEnd, out var e))
-            _endDate = e;
-        else
-            _endDate = _startDate;
-
-        var defaultType = Model.LeaveTypes.FirstOrDefault(x => x.LeaveTypeCode == "0021")
-                          ?? Model.LeaveTypes.FirstOrDefault();
-
-        if (_startDate.HasValue)
-            BuildDetails(defaultType?.LeaveTypeCode ?? "");
-    }
-
-    // ─── Date Changed ────────────────────────────────────
-    private void OnStartDateChanged(DateTime? date)
-    {
-        _startDate = date;
-        RebuildDetails();
-    }
-
-    private void OnEndDateChanged(DateTime? date)
-    {
-        _endDate = date;
+        if (DateTime.TryParse(DefaultStart, out var start)) _startDate = start;
+        if (DateTime.TryParse(DefaultEnd, out var end)) _endDate = end;
+        else _endDate = _startDate;
         RebuildDetails();
     }
 
     private void RebuildDetails()
     {
-        var defaultType = Model.LeaveTypes.FirstOrDefault(x => x.LeaveTypeCode == "0021")
-                          ?? Model.LeaveTypes.FirstOrDefault();
-        BuildDetails(defaultType?.LeaveTypeCode ?? "");
-    }
-
-    // ─── Build Details ───────────────────────────────────
-    private void BuildDetails(string defaultLeaveTypeCode)
-    {
         _details.Clear();
-        if (!_startDate.HasValue || !_endDate.HasValue) return;
-        if (_startDate > _endDate) return;
+        if (!_startDate.HasValue || !_endDate.HasValue || _startDate > _endDate) return;
+        var defaultType = Model.LeaveTypes.FirstOrDefault();
+        if (defaultType == null) return;
 
-        for (var d = _startDate.Value.Date; d <= _endDate.Value.Date; d = d.AddDays(1))
+        for (var date = _startDate.Value.Date; date <= _endDate.Value.Date; date = date.AddDays(1))
         {
-            if (d.DayOfWeek == DayOfWeek.Saturday || d.DayOfWeek == DayOfWeek.Sunday)
-                continue;
-
-            if (Model.CompanyHolidays.Any(x => x.Start == d.ToString("yyyy-MM-dd")))
-                continue;
-
-            var lt = Model.LeaveTypes.FirstOrDefault(x => x.LeaveTypeCode == defaultLeaveTypeCode);
-
-            _details.Add(new CreateLeaveDetailModel
+            if (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) continue;
+            if (Model.CompanyHolidays.Any(x => x.Start.Date == date)) continue;
+            _details.Add(new LeaveRequestDetailUpsertDto
             {
-                LeaveDate = d,
-                LeaveTypeCode = defaultLeaveTypeCode,
-                LeaveTypeName = lt?.LeaveTypeName ?? "",
+                LeaveDate = date,
+                LeaveTypeCode = defaultType.LeaveTypeCode,
                 IsHalfDay = false,
-                HalfDayOption = null,
-                DayValue = 1m,
-                TinhPhep = lt?.TinhPhep == true ? 1 : 0
+                HalfDayOption = HalfDayType.None
             });
         }
-
-        RecalcTotals();
     }
 
-    // ─── Leave Type / Half Day ───────────────────────────
-    private void OnLeaveTypeChanged(CreateLeaveDetailModel detail, string newCode)
+    private void ChangeLeaveType(LeaveRequestDetailUpsertDto detail, string code) => detail.LeaveTypeCode = code;
+
+    private void ChangeHalfDay(LeaveRequestDetailUpsertDto detail, bool value)
     {
-        if (detail == null || string.IsNullOrEmpty(newCode)) return;
-
-        var lt = Model.LeaveTypes.FirstOrDefault(x => x.LeaveTypeCode == newCode);
-        detail.LeaveTypeCode = newCode;
-        detail.LeaveTypeName = lt?.LeaveTypeName ?? "";
-        detail.TinhPhep = lt?.TinhPhep == true ? 1 : 0;
-
-        RecalcTotals();
-        InvokeAsync(StateHasChanged);
+        detail.IsHalfDay = value;
+        detail.HalfDayOption = value ? HalfDayType.Morning : HalfDayType.None;
     }
 
-    private void OnHalfDayChanged(CreateLeaveDetailModel detail, bool isHalfDay)
-    {
-        if (detail == null) return;
-
-        detail.IsHalfDay = isHalfDay;
-        detail.DayValue = isHalfDay ? 0.5m : 1m;
-        detail.HalfDayOption = isHalfDay ? "Morning" : null;
-
-        RecalcTotals();
-        InvokeAsync(StateHasChanged);
-    }
-
-    // ─── ✅ Approver Handlers — gán đủ Email + Code + Name ──
-    private void OnApprover1Changed(string? email)
-    {
-        var approver = Model.LVA1.FirstOrDefault(a => a.ApproveLevelEmail == email);
-        _request.Level1ApproveEmail = approver?.ApproveLevelEmail ?? "";
-        _request.Level1ApproveCode = approver?.ApproveLevelCode ?? "";
-        _request.Level1ApproveName = approver?.ApproveLevelName ?? "";
-    }
-
-    private void OnApprover2Changed(string? email)
-    {
-        var approver = Model.LVA2.FirstOrDefault(a => a.ApproveLevelEmail == email);
-        _request.Level2ApproveEmail = approver?.ApproveLevelEmail ?? "";
-        _request.Level2ApproveCode = approver?.ApproveLevelCode ?? "";
-        _request.Level2ApproveName = approver?.ApproveLevelName ?? "";
-    }
-
-    private void OnApprover3Changed(string? email)
-    {
-        var approver = Model.LVA3.FirstOrDefault(a => a.ApproveLevelEmail == email);
-        _request.Level3ApproveEmail = approver?.ApproveLevelEmail ?? "";
-        _request.Level3ApproveCode = approver?.ApproveLevelCode ?? "";
-        _request.Level3ApproveName = approver?.ApproveLevelName ?? "";
-    }
-
-    // ─── Totals ──────────────────────────────────────────
-    private void RecalcTotals()
-    {
-        _totalDay = _details.Sum(x => x.DayValue);
-
-        _totalLeaveDay = _details
-            .Where(x =>
-            {
-                var lt = Model.LeaveTypes.FirstOrDefault(t => t.LeaveTypeCode == x.LeaveTypeCode);
-                return lt?.TinhPhep == true;
-            })
-            .Sum(x => x.DayValue);
-    }
-
-    // ─── Validation ──────────────────────────────────────
-    private bool IsHolidayOrWeekend(DateTime date)
-    {
-        if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
-            return true;
-        return Model.CompanyHolidays.Any(x => x.Start == date.ToString("yyyy-MM-dd"));
-    }
-
-    // ─── Submit ──────────────────────────────────────────
     private async Task Submit()
     {
-        await _form.ValidateAsync();
-        if (!_formValid) return;
-
+        if (_startDate == null || _endDate == null || _startDate > _endDate)
+        {
+            Snackbar.Add("Khoảng ngày nghỉ không hợp lệ.", Severity.Warning);
+            return;
+        }
+        if (string.IsNullOrWhiteSpace(_reason))
+        {
+            Snackbar.Add("Vui lòng nhập lý do nghỉ.", Severity.Warning);
+            return;
+        }
         if (!_details.Any())
         {
-            Snackbar.Add("Vui lòng chọn ít nhất một ngày nghỉ", Severity.Warning);
+            Snackbar.Add("Khoảng ngày không có ngày làm việc hợp lệ.", Severity.Warning);
             return;
         }
 
-        _isSaving = true;
-
-        _request.StartDate = _startDate!.Value;
-        _request.EndDate = _endDate!.Value;
-        _request.Details = _details;
-        _request.TotalDay = _totalDay;
-        _request.TotalLeaveDay = _totalLeaveDay;
-
-        var result = await LeaveService.CreateLeaveAsync(_request);
-
-        if (result.IsSuccess)
+        _saving = true;
+        try
         {
-            Snackbar.Add("Gửi đơn thành công", Severity.Success);
+            var request = new LeaveRequestUpsertDto
+            {
+                StartDate = _startDate.Value.Date,
+                EndDate = _endDate.Value.Date,
+                LeaveTypeCode = _details[0].LeaveTypeCode,
+                Reason = _reason.Trim(),
+                Details = _details.ToList()
+            };
+
+            var result = await LeaveService.CreateLeaveAsync(request);
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Gửi đơn nghỉ thất bại.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Đã gửi đơn nghỉ.", Severity.Success);
             await OnSaved.InvokeAsync();
             MudDialog.Close(DialogResult.Ok(true));
         }
-        else
-        {
-            Snackbar.Add(result.Message ?? "Gửi đơn thất bại", Severity.Error);
-        }
-
-        _isSaving = false;
+        finally { _saving = false; }
     }
 
-    // ─── Cancel ──────────────────────────────────────────
     private void Cancel() => MudDialog.Cancel();
 }

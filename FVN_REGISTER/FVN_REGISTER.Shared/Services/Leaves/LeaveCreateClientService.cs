@@ -1,12 +1,11 @@
-﻿using FVN_REGISTER.Contract.Dtos.MasterData;
+using FVN_REGISTER.Contract.Dtos.MasterData;
 using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Contract.ViewModels;
+using FVN_REGISTER.Contract.Requests.Leaves;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Shared.Handlers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-
 
 namespace FVN_REGISTER.Shared.Services.Leaves
 {
@@ -15,8 +14,9 @@ namespace FVN_REGISTER.Shared.Services.Leaves
         private readonly IHttpClientWithAuth _http;
         private readonly ILogger<LeaveCreateClientService> _logger;
         private readonly IOptionsMonitor<AuthDebugOptions> _options;
-    
+
         private bool Debug => _options.CurrentValue.Enabled;
+
         public LeaveCreateClientService(
             IHttpClientWithAuth http,
             ILogger<LeaveCreateClientService> logger,
@@ -57,7 +57,7 @@ namespace FVN_REGISTER.Shared.Services.Leaves
         }
 
         public async Task<ApiResponse<object>> CreateLeaveAsync(
-            CreateLeaveRequestModel model,
+            LeaveRequestUpsertDto model,
             CancellationToken ct = default)
         {
             try
@@ -80,8 +80,7 @@ namespace FVN_REGISTER.Shared.Services.Leaves
             try
             {
                 _logger.LogDebugIf(Debug, "[LEAVE_CLIENT] Cancel id={Id}", leaveId);
-                return await _http.PostAsync<object>($"api/leavedays/{leaveId}/cancel",
-                    new { reason }, ct);
+                return await _http.PostAsync<object>($"api/leavedays/{leaveId}/cancel", new { reason }, ct);
             }
             catch (Exception ex)
             {
@@ -89,18 +88,16 @@ namespace FVN_REGISTER.Shared.Services.Leaves
                 return ApiResponse<object>.Fail("Không thể hủy đơn");
             }
         }
+
         public async Task<ApiResponse<object>> CancelDetailAsync(
-        int detailId,
-        string reason,
-        CancellationToken ct = default)
+            int detailId,
+            string reason,
+            CancellationToken ct = default)
         {
             try
             {
                 _logger.LogDebugIf(Debug, "[LEAVE_CLIENT] CancelDetail detailId={Id}", detailId);
-                return await _http.PostAsync<object>(
-                    $"api/leavedays/cancel-detail/{detailId}",
-                    new { reason },
-                    ct);
+                return await _http.PostAsync<object>($"api/leavedays/cancel-detail/{detailId}", new { reason }, ct);
             }
             catch (Exception ex)
             {

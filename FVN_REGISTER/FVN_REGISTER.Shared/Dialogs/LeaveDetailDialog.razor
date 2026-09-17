@@ -1,7 +1,4 @@
-﻿@* File: LeaveDetailDialog.razor *@
-@using FVN_REGISTER.Contract.Dtos.MasterData
-@using FVN_REGISTER.Contract.Utils
-@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Contract.Dtos.Leaves
 @using FVN_REGISTER.Shared.Services.Leaves
 @inject ILeaveCreateClientService LeaveService
 @inject ISnackbar Snackbar
@@ -15,214 +12,34 @@
     </TitleContent>
 
     <DialogContent>
-        @if (Item?.ExtendedProps == null)
+        @if (Item == null)
         {
-            <MudText>Không có dữ liệu</MudText>
-            return;
+            <MudAlert Severity="Severity.Warning">Không có dữ liệu đơn nghỉ.</MudAlert>
         }
-
-        @* Thông tin cơ bản *@
-        <MudSimpleTable Dense="true" Class="mb-3">
-            <tbody>
-                <tr>
-                    <td><MudText Typo="Typo.caption" Color="Color.Secondary">Ngày đăng ký</MudText></td>
-                    <td><MudText Typo="Typo.body2">@FormatDate(Item.ExtendedProps.registerdate)</MudText></td>
-                </tr>
-                <tr>
-                    <td><MudText Typo="Typo.caption" Color="Color.Secondary">Thời gian</MudText></td>
-                    <td>
-                        <MudText Typo="Typo.body2">
-                            @FormatDate(Item.Start) → @FormatDate(Item.End)
-                        </MudText>
-                    </td>
-                </tr>
-                <tr>
-                    <td><MudText Typo="Typo.caption" Color="Color.Secondary">Số ngày</MudText></td>
-                    <td>
-                        <MudText Typo="Typo.body2">
-                            @Item.ExtendedProps.totalDay ngày
-                            @if (Item.ExtendedProps.totalDay != Item.ExtendedProps.daylev)
-                            {
-                                <span class="ml-1 mud-text-secondary">(tính phép: @Item.ExtendedProps.daylev)</span>
-                            }
-                        </MudText>
-                    </td>
-                </tr>
-                <tr>
-                    <td><MudText Typo="Typo.caption" Color="Color.Secondary">Lý do</MudText></td>
-                    <td><MudText Typo="Typo.body2">@Item.ExtendedProps.description</MudText></td>
-                </tr>
-                <tr>
-                    <td><MudText Typo="Typo.caption" Color="Color.Secondary">Trạng thái</MudText></td>
-                    <td>
-                        @{
-                            var (color, statusText) = Item.Status switch
-                            {
-                                "Approved" => (Color.Success, "Đã duyệt"),
-                                "Rejected" => (Color.Error, "Từ chối"),
-                                "ApprovedLv1" => (Color.Info, "Cấp 1 đã duyệt"),
-                                "ApprovedLv2" => (Color.Info, "Cấp 2 đã duyệt"),
-                                _ => (Color.Warning, "Chờ duyệt")
-                            };
-                        }
-                        <MudChip T="string" Color="@color" Size="Size.Small" Text="@statusText" />
-                    </td>
-                </tr>
-            </tbody>
-        </MudSimpleTable>
-
-        @* Timeline phê duyệt *@
-        <MudText Typo="Typo.subtitle2" Class="mb-2">Quy trình phê duyệt</MudText>
-
-        <MudTimeline TimelinePosition="TimelinePosition.Start" Class="mb-2">
-
-            @* Cấp 1 *@
-            @{
-                bool lv1Done = Item.ExtendedProps.level1ApprovedDate.HasValue;
-                var lv1Color = lv1Done ? Color.Success : Color.Default;
-            }
-            <MudTimelineItem Color="@lv1Color" Size="Size.Small">
-                <ItemContent>
-                    <MudPaper Class="pa-2" Elevation="0" Outlined="true">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Cấp duyệt 1</MudText>
-                        <MudText Typo="Typo.body2">
-                            @(string.IsNullOrEmpty(Item.ExtendedProps.level1ApprovedBy)
-                                                        ? Item.ExtendedProps.Level1ApproveEmail
-                                                        : Item.ExtendedProps.level1ApprovedBy)
-                        </MudText>
-                        @if (lv1Done)
-                        {
-                            <MudText Typo="Typo.caption" Color="Color.Success">
-                                ✓ @FormatDate(Item.ExtendedProps.level1ApprovedDate)
-                            </MudText>
-                        }
-                        else
-                        {
-                            <MudText Typo="Typo.caption" Color="Color.Warning">Đang chờ</MudText>
-                        }
-                        @if (!string.IsNullOrEmpty(Item.ExtendedProps.level1Comment))
-                        {
-                            <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-1">
-                                "@Item.ExtendedProps.level1Comment"
-                            </MudText>
-                        }
-                    </MudPaper>
-                </ItemContent>
-            </MudTimelineItem>
-
-            @* Cấp 2 *@
-            @{
-                bool lv2Done = Item.ExtendedProps.level2ApprovedDate.HasValue;
-                var lv2Color = lv2Done ? Color.Success : Color.Default;
-            }
-            @if (!string.IsNullOrEmpty(Item.ExtendedProps.Level2ApproveEmail))
-            {
-                <MudTimelineItem Color="@lv2Color" Size="Size.Small">
-                    <ItemContent>
-                        <MudPaper Class="pa-2" Elevation="0" Outlined="true">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">Cấp duyệt 2</MudText>
-                            <MudText Typo="Typo.body2">
-                                @(string.IsNullOrEmpty(Item.ExtendedProps.level2ApprovedBy)
-                                                            ? Item.ExtendedProps.Level2ApproveEmail
-                                                            : Item.ExtendedProps.level2ApprovedBy)
-                        </MudText>
-                        @if (lv2Done)
-                            {
-                                <MudText Typo="Typo.caption" Color="Color.Success">
-                                    ✓ @FormatDate(Item.ExtendedProps.level2ApprovedDate)
-                                </MudText>
-                            }
-                            else
-                            {
-                                <MudText Typo="Typo.caption" Color="Color.Warning">Đang chờ</MudText>
-                            }
-                        </MudPaper>
-                    </ItemContent>
-                </MudTimelineItem>
-            }
-
-            @* Cấp 3 *@
-            @{
-                bool lv3Done = Item.ExtendedProps.level3ApprovedDate.HasValue;
-                var lv3Color = lv3Done ? Color.Success : Color.Default;
-            }
-            @if (!string.IsNullOrEmpty(Item.ExtendedProps.Level3ApproveEmail))
-            {
-                <MudTimelineItem Color="@lv3Color" Size="Size.Small">
-                    <ItemContent>
-                        <MudPaper Class="pa-2" Elevation="0" Outlined="true">
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">Cấp duyệt 3 (GM)</MudText>
-                            <MudText Typo="Typo.body2">
-                                @(string.IsNullOrEmpty(Item.ExtendedProps.level3ApprovedBy)
-                                                            ? Item.ExtendedProps.Level3ApproveEmail
-                                                            : Item.ExtendedProps.level3ApprovedBy)
-                        </MudText>
-                        @if (lv3Done)
-                            {
-                                <MudText Typo="Typo.caption" Color="Color.Success">
-                                    ✓ @FormatDate(Item.ExtendedProps.level3ApprovedDate)
-                                </MudText>
-                            }
-                            else
-                            {
-                                <MudText Typo="Typo.caption" Color="Color.Warning">Đang chờ</MudText>
-                            }
-                        </MudPaper>
-                    </ItemContent>
-                </MudTimelineItem>
-            }
-        </MudTimeline>
-
-        @* Hủy đơn - chỉ khi Pending/ApprovedLv1 *@
-        @if (Item.Status == "Pending" || Item.Status == "ApprovedLv1")
+        else
         {
-            <MudDivider Class="my-2" />
-            <MudExpansionPanels Elevation="0">
-                <MudExpansionPanel Text="Yêu cầu hủy" Icon="@Icons.Material.Filled.Cancel">
+            <MudSimpleTable Dense="true" Class="mb-3">
+                <tbody>
+                    <tr><td>Ngày đăng ký</td><td>@Item.RegisterDate.ToString("dd/MM/yyyy HH:mm")</td></tr>
+                    <tr><td>Thời gian</td><td>@Item.StartDate.ToString("dd/MM/yyyy") → @Item.EndDate.ToString("dd/MM/yyyy")</td></tr>
+                    <tr><td>Loại nghỉ</td><td>@Item.LeaveTypeName (@Item.LeaveTypeCode)</td></tr>
+                    <tr><td>Số ngày</td><td>@Item.TotalDay ngày, tính phép @Item.TotalLeaveDay ngày</td></tr>
+                    <tr><td>Lý do</td><td>@(string.IsNullOrWhiteSpace(Item.Reason) ? "-" : Item.Reason)</td></tr>
+                    <tr><td>Trạng thái</td><td>@GetStatusText(Item.Status)</td></tr>
+                    <tr><td>Mã đơn</td><td>@(string.IsNullOrWhiteSpace(Item.LeaveCode) ? Item.RequestId.ToString() : Item.LeaveCode)</td></tr>
+                </tbody>
+            </MudSimpleTable>
 
-                    <MudTextField @bind-Value="_cancelReason"
-                                  Label="Lý do hủy *"
-                                  Lines="2"
-                                  Variant="Variant.Outlined"
-                                  Margin="Margin.Dense" />
-
-                    <MudGrid Class="mt-2" Spacing="2">
-
-                        @* Hủy ngày này — dùng DetailId *@
-                        @if (DetailId > 0)
-                        {
-                            <MudItem xs="12" sm="6">
-                                <MudButton OnClick="ConfirmCancelDetail"
-                                           Color="Color.Warning"
-                                           Variant="Variant.Outlined"
-                                           FullWidth="true"
-                                           Disabled="@_isCancelling"
-                                           Size="Size.Small"
-                                           StartIcon="@Icons.Material.Filled.RemoveCircle">
-                                    @(_isCancelling ? "Đang xử lý..." : $"Hủy ngày {Item.Start}")
-                                </MudButton>
-                            </MudItem>
-                        }
-
-                        @* Hủy cả đơn — dùng LeaveId (Inforregister) *@
-                        <MudItem xs="12" sm="@(DetailId > 0 ? 6 : 12)">
-                            <MudButton OnClick="ConfirmCancelLeave"
-                                       Color="Color.Error"
-                                       Variant="Variant.Filled"
-                                       FullWidth="true"
-                                       Disabled="@_isCancelling"
-                                       Size="Size.Small"
-                                       StartIcon="@Icons.Material.Filled.DeleteForever">
-                                @(_isCancelling ? "Đang xử lý..." : "Hủy cả đơn")
-                            </MudButton>
-                        </MudItem>
-
-                    </MudGrid>
-
-                </MudExpansionPanel>
-            </MudExpansionPanels>
+            @if (CanCancel)
+            {
+                <MudDivider Class="my-2" />
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Yêu cầu hủy đơn</MudText>
+                <MudTextField @bind-Value="_cancelReason" Label="Lý do hủy *" Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                <MudButton Class="mt-2" OnClick="ConfirmCancel" Color="Color.Error" Variant="Variant.Filled" Disabled="@_isCancelling" FullWidth="true">
+                    @(_isCancelling ? "Đang xử lý..." : "Hủy cả đơn")
+                </MudButton>
+            }
         }
-
     </DialogContent>
 
     <DialogActions>
@@ -232,82 +49,54 @@
 
 @code {
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
-    [Parameter] public CalendarEventDto Item { get; set; } = default!;
-    [Parameter] public int DetailId { get; set; }  // ✅ Thêm mới
+    [Parameter] public LeaveCalendarEventDto Item { get; set; } = default!;
     [Parameter] public EventCallback OnCancelled { get; set; }
 
-    private string _cancelReason = "";
+    private string _cancelReason = string.Empty;
     private bool _isCancelling;
 
-    // ✅ Hủy từng ngày dùng DetailId
-    private async Task ConfirmCancelDetail()
+    private bool CanCancel => Item != null &&
+        (Item.Status == "Pending" || Item.Status == "ApprovedLv1" || Item.Status == "InProgress");
+
+    private async Task ConfirmCancel()
     {
+        if (Item == null) return;
         if (string.IsNullOrWhiteSpace(_cancelReason))
         {
             Snackbar.Add("Vui lòng nhập lý do hủy", Severity.Warning);
             return;
         }
 
-        if (DetailId <= 0)
-        {
-            Snackbar.Add("ID ngày nghỉ không hợp lệ", Severity.Error);
-            return;
-        }
-
         _isCancelling = true;
-        var result = await LeaveService.CancelDetailAsync(DetailId, _cancelReason);
-
-        if (result.IsSuccess)
+        try
         {
-            Snackbar.Add("Đã hủy ngày nghỉ thành công", Severity.Success);
+            var result = await LeaveService.CancelLeaveAsync(Item.RequestId, _cancelReason);
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Hủy đơn thất bại", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Đã hủy đơn nghỉ thành công", Severity.Success);
             await OnCancelled.InvokeAsync();
             MudDialog.Close(DialogResult.Ok(true));
         }
-        else
+        finally
         {
-            Snackbar.Add(result.Message ?? "Hủy ngày thất bại", Severity.Error);
+            _isCancelling = false;
         }
-        _isCancelling = false;
-    }
-
-    // ✅ Hủy cả đơn dùng LeaveId (Item.Inforregister)
-    private async Task ConfirmCancelLeave()
-    {
-        if (string.IsNullOrWhiteSpace(_cancelReason))
-        {
-            Snackbar.Add("Vui lòng nhập lý do hủy", Severity.Warning);
-            return;
-        }
-
-        if (!int.TryParse(Item.Inforregister, out var leaveId))
-        {
-            Snackbar.Add("ID đơn không hợp lệ", Severity.Error);
-            return;
-        }
-
-        _isCancelling = true;
-        var result = await LeaveService.CancelLeaveAsync(leaveId, _cancelReason);
-
-        if (result.IsSuccess)
-        {
-            Snackbar.Add("Đã hủy cả đơn thành công", Severity.Success);
-            await OnCancelled.InvokeAsync();
-            MudDialog.Close(DialogResult.Ok(true));
-        }
-        else
-        {
-            Snackbar.Add(result.Message ?? "Hủy đơn thất bại", Severity.Error);
-        }
-        _isCancelling = false;
     }
 
     private void Close() => MudDialog.Cancel();
 
-    private static string FormatDate(object? date) => date switch
+    private static string GetStatusText(string status) => status switch
     {
-        DateTime dt => dt.ToString("dd/MM/yyyy"),
-        DateOnly d => d.ToString("dd/MM/yyyy"),
-        string s when DateTime.TryParse(s, out var dt) => dt.ToString("dd/MM/yyyy"),
-        _ => ""
+        "Approved" => "Đã duyệt",
+        "Rejected" => "Từ chối",
+        "ApprovedLv1" => "Đã duyệt cấp 1",
+        "ApprovedLv2" => "Đã duyệt cấp 2",
+        "Cancelled" => "Đã hủy",
+        "InProgress" => "Đang xử lý",
+        _ => "Chờ duyệt"
     };
 }
