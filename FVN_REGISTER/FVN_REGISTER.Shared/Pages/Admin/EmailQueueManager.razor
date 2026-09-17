@@ -1,0 +1,113 @@
+@page "/admin/email-queue"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.EmailTemplates
+@using FVN_REGISTER.Shared.Services.Emails
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@implements IDisposable
+
+@inject IEmailQueueClientService QueueService
+@inject ISnackbar Snackbar
+@inject IDialogService DialogService
+
+<PageTitle>Quản lý Email Queue</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+    <MudText Typo="Typo.h5"><MudIcon Icon="@Icons.Material.Filled.MarkEmailUnread" Class="mr-2" />Quản lý Email Queue</MudText>
+    <MudStack Row="true" Spacing="2"><MudButton Variant="Variant.Outlined" OnClick="LoadData" Disabled="_loading">Làm mới</MudButton><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="TriggerQueue" Disabled="_processing">@(_processing ? "Đang xử lý..." : "Xử lý ngay")</MudButton></MudStack>
+</MudStack>
+
+<MudPaper Class="pa-3 mb-3">
+    <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
+        <MudSelect T="string" @bind-Value="_status" Label="Trạng thái" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+            <MudSelectItem Value="Pending">Chờ gửi</MudSelectItem><MudSelectItem Value="Retry">Retry</MudSelectItem><MudSelectItem Value="Failed">Thất bại</MudSelectItem><MudSelectItem Value="Sent">Đã gửi</MudSelectItem><MudSelectItem Value="Cancelled">Đã hủy</MudSelectItem>
+        </MudSelect>
+        <MudTextField @bind-Value="_search" Placeholder="Tìm email/template..." Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" />
+        @if (_selected.Any()) { <MudButton Color="Color.Success" OnClick="RetrySelected">Retry (@_selected.Count)</MudButton><MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="CancelSelected">Hủy (@_selected.Count)</MudButton> }
+    </MudStack>
+</MudPaper>
+
+<MudTable T="EmailQueueDto" Items="FilteredItems" Dense="true" Hover="true" MultiSelection="true" @bind-SelectedItems="_selected">
+    <HeaderContent><MudTh>ID</MudTh><MudTh>Người nhận</MudTh><MudTh>Template</MudTh><MudTh>Trạng thái</MudTh><MudTh>Retry</MudTh><MudTh>Tạo lúc</MudTh><MudTh></MudTh></HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Id</MudTd><MudTd>@context.ToEmail</MudTd><MudTd>@context.TemplateCode</MudTd>
+        <MudTd><MudChip T="string" Size="Size.Small" Color="@StatusColor(context.Status)">@StatusText(context.Status)</MudChip></MudTd>
+        <MudTd>@context.RetryCount / @context.MaxRetry</MudTd><MudTd>@context.CreatedAt?.ToString("dd/MM HH:mm")</MudTd>
+        <MudTd>
+            <MudIconButton Icon="@Icons.Material.Filled.Visibility" Size="Size.Small" OnClick="@(() => _view = context)" />
+            @if (context.Status is "Pending" or "Retry" or "Failed") { <MudIconButton Icon="@Icons.Material.Filled.Send" Color="Color.Success" Size="Size.Small" OnClick="@(() => RetrySingle(context))" /> }
+            @if (context.Status is not "Sent" and not "Cancelled") { <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" OnClick="@(() => CancelSingle(context))" /> }
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent><MudText Class="pa-6" Color="Color.Secondary">Không có email nào.</MudText></NoRecordsContent>
+</MudTable>
+
+@if (_view != null)
+{
+    <MudDialog @bind-Visible="_showDialog" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })">
+        <TitleContent><MudText>Chi tiết Email #@_view.Id — @_view.TemplateCode</MudText></TitleContent>
+        <DialogContent><MudText>Người nhận: @_view.ToEmail</MudText><MudText>Trạng thái: @StatusText(_view.Status)</MudText><MudText Typo="Typo.caption" Class="mt-3">@_view.ErrorMessage</MudText><MudPaper Class="pa-3 mt-2" Elevation="0"><pre style="white-space:pre-wrap">@_view.Payload</pre></MudPaper></DialogContent>
+        <DialogActions><MudButton OnClick="CloseDialog">Đóng</MudButton></DialogActions>
+    </MudDialog>
+}
+
+@code {
+    private List<EmailQueueDto> _items = new();
+    private HashSet<EmailQueueDto> _selected = new();
+    private EmailQueueDto? _view;
+    private bool _showDialog => _view != null;
+    private bool _loading, _processing;
+    private string? _status;
+    private string _search = string.Empty;
+    private readonly CancellationTokenSource _cts = new();
+
+    private IEnumerable<EmailQueueDto> FilteredItems => _items.Where(x =>
+        (string.IsNullOrEmpty(_status) || x.Status == _status) &&
+        (string.IsNullOrWhiteSpace(_search) || (x.ToEmail?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) || (x.TemplateCode?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false)));
+
+    protected override async Task OnInitializedAsync() => await LoadData();
+
+    private async Task LoadData()
+    {
+        _loading = true;
+        try { var result = await QueueService.GetAllAsync(_cts.Token); if (result.IsSuccess && result.Data != null) _items = result.Data; else Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu.", Severity.Error); }
+        finally { _loading = false; }
+    }
+
+    private async Task TriggerQueue()
+    {
+        _processing = true;
+        try { var result = await QueueService.TriggerProcessAsync(_cts.Token); Snackbar.Add(result.IsSuccess ? "Đã xử lý queue." : result.Message ?? "Lỗi.", result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) await LoadData(); }
+        finally { _processing = false; }
+    }
+
+    private async Task RetrySingle(EmailQueueDto item)
+    {
+        var result = await QueueService.RetryAsync(item.Id, _cts.Token); Snackbar.Add(result.IsSuccess ? "Đã đặt lại để gửi." : result.Message ?? "Lỗi.", result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) await LoadData();
+    }
+
+    private async Task CancelSingle(EmailQueueDto item)
+    {
+        var ok = await DialogService.ShowMessageBoxAsync("Xác nhận hủy", $"Hủy email #{item.Id} đến {item.ToEmail}?", yesText: "Hủy", cancelText: "Không");
+        if (ok != true) return;
+        var result = await QueueService.CancelAsync(item.Id, _cts.Token); Snackbar.Add(result.IsSuccess ? "Đã hủy." : result.Message ?? "Lỗi.", result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) await LoadData();
+    }
+
+    private async Task RetrySelected()
+    {
+        var ids = _selected.Select(x => x.Id).ToList(); if (!ids.Any()) return;
+        var result = await QueueService.RetryBatchAsync(ids, _cts.Token); Snackbar.Add(result.IsSuccess ? $"Đã retry {ids.Count} email." : result.Message ?? "Lỗi.", result.IsSuccess ? Severity.Success : Severity.Error); _selected.Clear(); if (result.IsSuccess) await LoadData();
+    }
+
+    private async Task CancelSelected()
+    {
+        var ids = _selected.Select(x => x.Id).ToList(); if (!ids.Any()) return;
+        var ok = await DialogService.ShowMessageBoxAsync("Xác nhận hủy", $"Hủy {ids.Count} email?", yesText: "Hủy", cancelText: "Không"); if (ok != true) return;
+        var result = await QueueService.CancelBatchAsync(ids, _cts.Token); Snackbar.Add(result.IsSuccess ? $"Đã hủy {ids.Count} email." : result.Message ?? "Lỗi.", result.IsSuccess ? Severity.Success : Severity.Error); _selected.Clear(); if (result.IsSuccess) await LoadData();
+    }
+
+    private void CloseDialog() => _view = null;
+    private static Color StatusColor(string? s) => s switch { "Sent" => Color.Success, "Failed" => Color.Error, "Retry" => Color.Warning, "Pending" => Color.Info, _ => Color.Default };
+    private static string StatusText(string? s) => s switch { "Sent" => "Đã gửi", "Failed" => "Thất bại", "Retry" => "Retry", "Pending" => "Chờ gửi", "Cancelled" => "Đã hủy", _ => s ?? "—" };
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+}
