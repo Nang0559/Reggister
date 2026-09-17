@@ -40,6 +40,13 @@ global using F03User = FVN_REGISTER.Core.Entities.Security.F03User;
 global using F03UserFunction = FVN_REGISTER.Core.Entities.Security.F03UserFunction;
 global using F03UserSession = FVN_REGISTER.Core.Entities.Security.F03UserSession;
 global using F03StagingTrip = FVN_REGISTER.Core.Entities.Trips.F03StagingTrip;
+global using LeaveApprovalSubject = FVN_REGISTER.Application.Models.Subjects.LeaveRequestSubject;
+global using IHistoryDispatcher = FVN_REGISTER.Application.Interfaces.Histories.IHistoryDispatcher;
+global using IHistoryHandler = FVN_REGISTER.Application.Interfaces.Histories.IHistoryHandler;
+global using IApprovalSubject = FVN_REGISTER.Application.Interfaces.Approvals.IApprovalSubject;
+global using IApprovalProvider = FVN_REGISTER.Application.Interfaces.Approvals.IApprovalProvider<>;
+global using IApprovalEngine = FVN_REGISTER.Application.Interfaces.Approvals.IApprovalEngine;
+global using Microsoft.Extensions.DependencyInjection.IServiceScopeFactory;
 
 namespace FVN_REGISTER.Infrastructure.Models.Entities { }
 namespace FVN_REGISTER.Infrastructure.Models.Entities.Common { }
