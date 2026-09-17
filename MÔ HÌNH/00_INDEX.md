@@ -13,6 +13,7 @@ flowchart TD
     B --> D[03_NOTIFICATION<br/>Approval → SignalR → UI]
     B --> E[04_DASHBOARD<br/>Aggregation → UI]
     C --> F[05_SYNC_FLOW<br/>6 implementation layers]
+    D --> G[06_NOTIFICATION_DIAGRAMS<br/>Notification implementation]
 ```
 
 - `00_INDEX.md`: bản đồ kiến trúc và dependency direction.
@@ -21,6 +22,7 @@ flowchart TD
 - `03_NOTIFICATION.md`: notification từ Approval đến persistence, SignalR và Blazor.
 - `04_DASHBOARD.md`: request flow và module provider architecture.
 - `05_SYNC_FLOW.md`: chi tiết triển khai HRM Sync theo 6 tầng.
+- `06_NOTIFICATION_DIAGRAMS.md`: sequence và dependency chi tiết của Notification.
 
 ## 2. Tài liệu
 
@@ -31,6 +33,7 @@ flowchart TD
 | [03_NOTIFICATION.md](./03_NOTIFICATION.md) | Notification Pipeline, Factory, Service, SignalR và Blazor client |
 | [04_DASHBOARD.md](./04_DASHBOARD.md) | Dashboard aggregation và module providers |
 | [05_SYNC_FLOW.md](./05_SYNC_FLOW.md) | Chi tiết tầng của pipeline HRM Sync, resolver, worker, management service và review flags |
+| [06_NOTIFICATION_DIAGRAMS.md](./06_NOTIFICATION_DIAGRAMS.md) | Notification sequence, identity mapping và dependency |
 
 ## 3. Sơ đồ kiến trúc tổng thể
 
