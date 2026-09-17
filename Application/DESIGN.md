@@ -18,23 +18,23 @@ Application **không sở hữu persistence implementation**, HTTP endpoint, UI 
 
 ## 2. Dependency rule
 
-Dependency direction bắt buộc:
+Dependency phải đi từ lớp bên ngoài vào abstraction bên trong:
 
 ```text
-Core
-  ↑
-Contract / Models
-  ↑
-Application
-  ↑
-Infrastructure
-  ↑
-API
-  ↑
 Shared / UI
+     ↓
+    API
+     ↓
+Infrastructure
+     ↓
+Application
+     ↓
+Contract / Models
+     ↓
+   Core
 ```
 
-Ở mức project reference:
+Project references của Application:
 
 ```text
 Application
