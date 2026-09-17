@@ -26,7 +26,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
     {
         protected readonly IUnitOfWork Uow;
         protected readonly IApprovalWorkflowOrchestrator<TSubject> Workflow;
-
         protected abstract RequestModule ModuleKind { get; }
 
         protected BaseRequestCommandService(
@@ -52,7 +51,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
         {
             if (string.IsNullOrWhiteSpace(comment))
                 return ServiceResult.Fail("Lý do từ chối không được để trống.");
-
             return await ProcessBulkAsync(ids, level, user, comment, isReject: true, ct);
         }
 
@@ -63,38 +61,23 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
             {
                 var repo = Uow.Repository<TEntity>();
                 var entity = await repo.GetByIdAsync(requestId, ct);
-
-                if (entity == null)
-                    return ServiceResult.Fail("Không tìm thấy đơn.");
-
+                if (entity == null) return ServiceResult.Fail("Không tìm thấy đơn.");
                 bool isOwner = entity.EmployeeCode == user.EmployeeCode;
                 bool isAdmin = IsAdmin(user);
-
-                if (!isOwner && !isAdmin)
-                    return ServiceResult.Fail("Không có quyền hủy đơn này.");
-
-                if (IsFinalized(entity) && !isAdmin)
-                    return ServiceResult.Fail("Đơn đã xử lý xong, không thể hủy.");
-
+                if (!isOwner && !isAdmin) return ServiceResult.Fail("Không có quyền hủy đơn này.");
+                if (IsFinalized(entity) && !isAdmin) return ServiceResult.Fail("Đơn đã xử lý xong, không thể hủy.");
                 ApplyCancel(entity, reason, user);
                 await Uow.SaveChangesAsync(ct);
-
                 Logger.LogInfoIf(Debug, "[{Component}] Cancelled Id={Id} By={User}", ComponentName, requestId, user.EmployeeCode);
-
                 return ServiceResult.Ok("Đã hủy đơn thành công.");
             }
-            catch (Exception ex)
-            {
-                return InternalError(ex, "Lỗi hệ thống khi hủy đơn.");
-            }
+            catch (Exception ex) { return InternalError(ex, "Lỗi hệ thống khi hủy đơn."); }
         }
 
         private async Task<ServiceResult> ProcessBulkAsync(
             List<int> ids, int level, UserIdentityDto user, string? comment, bool isReject, CancellationToken ct)
         {
-            if (ids == null || ids.Count == 0)
-                return ServiceResult.Fail("Không có đơn nào được chọn.");
-
+            if (ids == null || ids.Count == 0) return ServiceResult.Fail("Không có đơn nào được chọn.");
             try
             {
                 var action = new ApprovalActionDto
@@ -108,20 +91,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
                     ApproverPermission = user.Permission,
                     ApproverPositionCode = user.PositionCode
                 };
-
                 ApprovalActionResult result = isReject
                     ? await Workflow.RejectAsync(action, ct)
                     : await Workflow.ApproveAsync(action, ct);
-
-                Logger.LogInfoIf(
-                    Debug,
-                    "[{Component}] {Action} bulk Level={Level} {Success}/{Total} thành công",
-                    ComponentName,
-                    isReject ? "Reject" : "Approve",
-                    level,
-                    result.SuccessCount,
-                    result.TotalCount);
-
+                Logger.LogInfoIf(Debug, "[{Component}] {Action} bulk Level={Level} {Success}/{Total} thành công",
+                    ComponentName, isReject ? "Reject" : "Approve", level, result.SuccessCount, result.TotalCount);
                 return result.Success
                     ? ServiceResult.Ok(result.Message)
                     : ServiceResult.Fail(result.Message ?? (isReject ? "Từ chối thất bại." : "Duyệt thất bại."));
@@ -137,20 +111,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
         {
             if (command.Attachments == null || command.Attachments.Count == 0)
                 return ServiceResult.Fail("Không có file nào để đính kèm.");
-
             try
             {
-                var repo = Uow.Repository<TEntity>();
-                var entity = await repo.GetByIdAsync(command.Id, ct);
-                if (entity == null)
-                    return ServiceResult.Fail("Không tìm thấy đơn.");
-
+                var entity = await Uow.Repository<TEntity>().GetByIdAsync(command.Id, ct);
+                if (entity == null) return ServiceResult.Fail("Không tìm thấy đơn.");
                 bool isOwner = entity.EmployeeCode == user.EmployeeCode;
-                if (!isOwner && !IsAdmin(user))
-                    return ServiceResult.Fail("Không có quyền đính kèm file cho đơn này.");
-
-                if (IsFinalized(entity) && !IsAdmin(user))
-                    return ServiceResult.Fail("Đơn đã xử lý xong, không thể thêm đính kèm.");
+                if (!isOwner && !IsAdmin(user)) return ServiceResult.Fail("Không có quyền đính kèm file cho đơn này.");
+                if (IsFinalized(entity) && !IsAdmin(user)) return ServiceResult.Fail("Đơn đã xử lý xong, không thể thêm đính kèm.");
 
                 var attachRepo = Uow.Repository<F03Attachment>();
                 foreach (var a in command.Attachments)
@@ -168,23 +135,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
                         CreatedAt = DateTime.Now
                     }, ct);
                 }
-
                 await Uow.SaveChangesAsync(ct);
-
-                Logger.LogInfoIf(
-                    Debug,
-                    "[{Component}] Attached {Count} files to Id={Id} | Module={Module}",
-                    ComponentName,
-                    command.Attachments.Count,
-                    command.Id,
-                    ModuleKind);
-
+                Logger.LogInfoIf(Debug, "[{Component}] Attached {Count} files to Id={Id} | Module={Module}", ComponentName, command.Attachments.Count, command.Id, ModuleKind);
                 return ServiceResult.Ok("Đã đính kèm file thành công.");
             }
-            catch (Exception ex)
-            {
-                return InternalError(ex, "Lỗi hệ thống khi đính kèm file.");
-            }
+            catch (Exception ex) { return InternalError(ex, "Lỗi hệ thống khi đính kèm file."); }
         }
 
         protected virtual bool IsFinalized(TEntity entity)
@@ -198,7 +153,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
             entity.IsActive = false;
         }
 
-        protected virtual bool IsAdmin(UserIdentityDto user)
-            => user.Permission.IsAdmin();
+        protected virtual bool IsAdmin(UserIdentityDto user) => user.Permission.IsAdmin();
     }
 }
