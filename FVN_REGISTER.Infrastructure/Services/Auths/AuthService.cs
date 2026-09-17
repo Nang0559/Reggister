@@ -10,6 +10,7 @@ using FVN_REGISTER.Core.Entities.Security;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Infrastructure.Hubs;
+using FVN_REGISTER.Infrastructure.Utils;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
