@@ -56,7 +56,7 @@ else
 
             <MudDivider Class="my-4" />
             <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
-                @if (_item.RequestStatus == ApprovalStatus.Draft || _item.RequestStatus == ApprovalStatus.NeedsRevision || _item.RequestStatus == ApprovalStatus.Returned)
+                @if (_item.RequestStatus == ApprovalStatus.Draft || _item.RequestStatus == ApprovalStatus.NeedsRevision)
                 {
                     <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@_submitting" StartIcon="@Icons.Material.Filled.Send">
                         @(_submitting ? "Đang gửi..." : "Gửi duyệt")
@@ -125,7 +125,6 @@ else
         ApprovalStatus.Cancelled => Color.Default,
         ApprovalStatus.InProgress => Color.Info,
         ApprovalStatus.NeedsRevision => Color.Warning,
-        ApprovalStatus.Returned => Color.Warning,
         ApprovalStatus.Draft => Color.Default,
         _ => Color.Warning
     };
@@ -137,7 +136,6 @@ else
         ApprovalStatus.Cancelled => "Đã hủy",
         ApprovalStatus.InProgress => "Đang xử lý",
         ApprovalStatus.NeedsRevision => "Cần chỉnh sửa",
-        ApprovalStatus.Returned => "Trả lại",
         ApprovalStatus.Draft => "Nháp",
         _ => "Chờ duyệt"
     };
