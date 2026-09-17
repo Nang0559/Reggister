@@ -1,6 +1,6 @@
-﻿
 using FVN_REGISTER.Application.Interfaces.Emails;
 using FVN_REGISTER.Application.Services.Common;
+using FVN_REGISTER.Contract.Dtos.EmailTemplates;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Entities.Common;
 using FVN_REGISTER.Core.Entities.Leaves;
@@ -12,7 +12,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
-using System.Diagnostics;
 using System.Net;
 using System.Net.Mail;
 
@@ -31,7 +30,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Emails
             _uow = uow;
         }
 
-        // ================= ĐỒNG BỘ NGHIỆP VỤ: GỬI YÊU CẦU DUYỆT ĐƠN NGHỈ PHÉP =================
         public async Task SendApprovalRequestAsync(
             string toEmail,
             string recipientRole,
@@ -53,17 +51,16 @@ namespace FVN_REGISTER.Infrastructure.Services.Emails
                 };
 
                 await QueueEmail(toEmail, "LEAVE_APPROVAL_REQUEST", emailPayload, ct);
-
-                Logger.LogDebugIf(Debug, "[EMAIL] Dispatched leave approval email request to queue for: {Email}", toEmail);
+                Logger.LogDebugIf(Debug,
+                    "[EMAIL] Dispatched leave approval email request to queue for: {Email}", toEmail);
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "[EMAIL] SendApprovalRequestAsync failed for LeaveId={LeaveId}", leave.Id);
-                // Không throw để không làm crash luồng chạy ngầm gọi hàm này
+                Logger.LogError(ex,
+                    "[EMAIL] SendApprovalRequestAsync failed for LeaveId={LeaveId}", leave.Id);
             }
         }
 
-        // ================= QUEUE EMAIL =================
         public async Task<EmailQueueResult> QueueEmail(
             string to,
             string templateCode,
@@ -78,9 +75,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Emails
                 if (!templateExists)
                 {
                     Logger.LogWarning(
-                        "[EMAIL] ⚠️ Template '{TemplateCode}' chưa khai báo. Email tới [{To}] KHÔNG được queue.",
+                        "[EMAIL] Template '{TemplateCode}' chưa khai báo. Email tới [{To}] KHÔNG được queue.",
                         templateCode, to);
-
                     return EmailQueueResult.TemplateNotFound(templateCode);
                 }
 
@@ -97,8 +93,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Emails
                 await _uow.Repository<F03EmailQueue>().AddAsync(queue, ct);
                 await _uow.SaveChangesAsync(ct);
 
-                Logger.LogDebugIf(Debug, "[EMAIL] Queued to {To} | Template {Template}", to, templateCode);
-
                 return EmailQueueResult.Ok();
             }
             catch (Exception ex)
@@ -108,16 +102,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Emails
             }
         }
 
-        // ================= PROCESS QUEUE =================
-        // Nhặt cả Pending (lần đầu) lẫn Retry (đã fail, còn lượt thử) trong 1 lượt chạy worker
         public async Task ProcessQueue(CancellationToken ct = default)
         {
             try
             {
-                Logger.LogDebugIf(Debug, "[EMAIL] Processing queue start");
-
                 var repo = _uow.Repository<F03EmailQueue>();
-
                 var emails = await repo.Query()
                     .Where(x => x.Status == EmailStatus.Pending || x.Status == EmailStatus.Retry)
                     .OrderBy(x => x.CreatedAt)
@@ -132,41 +121,30 @@ namespace FVN_REGISTER.Infrastructure.Services.Emails
                     {
                         var template = await _uow.Repository<F03EmailTemplate>().Query()
                             .FirstOrDefaultAsync(x =>
-                                x.Code == email.TemplateCode &&
-                                x.IsActive == true, ct);
+                                x.Code == email.TemplateCode && x.IsActive == true, ct);
 
                         if (template == null)
                         {
-                            Logger.LogWarning(
-                                "[EMAIL] ⚠️ Template '{Code}' không tồn tại hoặc chưa kích hoạt. Email Id={Id} To={To} bị FAILED.",
-                                email.TemplateCode, email.Id, email.ToEmail);
-
-                            MarkFailed(email, $"Template '{email.TemplateCode}' chưa được khai báo hoặc chưa kích hoạt.");
+                            MarkFailed(email,
+                                $"Template '{email.TemplateCode}' chưa được khai báo hoặc chưa kích hoạt.");
                             continue;
                         }
 
-                        string subject = RenderTemplate(template.Subject, email.Payload ?? "");
-                        string body = RenderTemplate(template.Body, email.Payload ?? "");
-
+                        var subject = RenderTemplate(template.Subject, email.Payload ?? "");
+                        var body = RenderTemplate(template.Body, email.Payload ?? "");
                         await SendEmail(email.ToEmail, subject, body, ct);
 
                         email.Status = EmailStatus.Sent;
                         email.SentAt = DateTime.Now;
                         email.ErrorMessage = null;
-
-                        Logger.LogDebugIf(Debug, "[EMAIL] Sent Id={Id} To={To} Template={Code}",
-                            email.Id, email.ToEmail, email.TemplateCode);
                     }
                     catch (Exception ex)
                     {
                         HandleRetry(email, ex.Message);
-                        Logger.LogWarnIf(Debug, "[EMAIL] Send failed Id={Id} To={To}: {Error}",
-                            email.Id, email.ToEmail, ex.Message);
                     }
                 }
 
                 await _uow.SaveChangesAsync(ct);
-
                 Logger.LogInfoIf(Debug, "[EMAIL] Queue processed: {Count}", emails.Count);
             }
             catch (Exception ex)
@@ -176,7 +154,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Emails
             }
         }
 
-        // ================= SEND EMAIL DIRECT (SMTP) =================
         public async Task SendEmail(
             string to,
             string subject,
@@ -189,7 +166,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Emails
                 .FirstOrDefaultAsync(ct);
 
             if (profile == null)
-                throw new Exception("Active Email profile 'ITSYS' not found in database.");
+                throw new InvalidOperationException("Active Email profile 'ITSYS' not found in database.");
 
             using var smtp = new SmtpClient
             {
@@ -199,8 +176,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Emails
                 UseDefaultCredentials = false,
                 Credentials = new NetworkCredential(
                     profile.EmailAccountName,
-                    EncryptUtils.MD5Decrypt(profile.EmailPassword)
-                )
+                    EncryptUtils.MD5Decrypt(profile.EmailPassword))
             };
 
             using var mail = new MailMessage
@@ -212,13 +188,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Emails
             };
 
             mail.To.Add(to);
-
             await smtp.SendMailAsync(mail, ct);
-
-            Logger.LogDebugIf(Debug, "[EMAIL] Sent to {To}", to);
         }
 
-        // ================= TEMPLATE RENDER =================
         public string RenderTemplate(string template, string jsonPayload)
         {
             if (string.IsNullOrEmpty(template) || string.IsNullOrEmpty(jsonPayload))
@@ -228,72 +200,122 @@ namespace FVN_REGISTER.Infrastructure.Services.Emails
             if (dict == null) return template;
 
             foreach (var item in dict)
-            {
                 template = template.Replace($"{{{{{item.Key}}}}}", item.Value?.ToString() ?? "");
-            }
 
             return template;
         }
 
-        // ================= RETRY (thủ công, do Admin bấm) =================
         public async Task RetryFailedEmails(CancellationToken ct = default)
         {
-            var repo = _uow.Repository<F03EmailQueue>();
-
-            var emails = await repo.Query()
+            var emails = await _uow.Repository<F03EmailQueue>().Query()
                 .Where(x => x.Status == EmailStatus.Failed && x.RetryCount < x.MaxRetry)
                 .ToListAsync(ct);
 
-            foreach (var e in emails)
+            foreach (var email in emails)
+                email.Status = EmailStatus.Retry;
+
+            await _uow.SaveChangesAsync(ct);
+        }
+
+        public Task<int> GetPendingCount(CancellationToken ct = default) =>
+            _uow.Repository<F03EmailQueue>().Query()
+                .CountAsync(x => x.Status == EmailStatus.Pending, ct);
+
+        public Task<int> GetFailedCount(CancellationToken ct = default) =>
+            _uow.Repository<F03EmailQueue>().Query()
+                .CountAsync(x => x.Status == EmailStatus.Failed, ct);
+
+        public async Task<List<EmailQueueDto>> GetFailedEmails(CancellationToken ct = default)
+        {
+            return await ProjectQueue(_uow.Repository<F03EmailQueue>().Query()
+                .Where(x => x.Status == EmailStatus.Failed))
+                .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync(ct);
+        }
+
+        public async Task<List<EmailQueueDto>> GetQueueAsync(
+            int take = 500,
+            CancellationToken ct = default)
+        {
+            take = Math.Clamp(take, 1, 1000);
+
+            return await ProjectQueue(_uow.Repository<F03EmailQueue>().Query())
+                .OrderByDescending(x => x.CreatedAt)
+                .Take(take)
+                .ToListAsync(ct);
+        }
+
+        public async Task RetryEmailBatchAsync(
+            IReadOnlyCollection<int> ids,
+            CancellationToken ct = default)
+        {
+            if (ids.Count == 0) return;
+
+            var emails = await _uow.Repository<F03EmailQueue>().Query()
+                .Where(x => ids.Contains(x.Id))
+                .ToListAsync(ct);
+
+            foreach (var email in emails)
             {
-                e.Status = EmailStatus.Retry;
+                email.Status = EmailStatus.Pending;
+                email.RetryCount = 0;
+                email.ErrorMessage = null;
             }
 
             await _uow.SaveChangesAsync(ct);
-
-            Logger.LogInfoIf(Debug, "[EMAIL] Retry reset: {Count}", emails.Count);
         }
 
-        // ================= QUERIES =================
-        public async Task<int> GetPendingCount(CancellationToken ct = default) =>
-            await _uow.Repository<F03EmailQueue>().Query()
-                .CountAsync(x => x.Status == EmailStatus.Pending, ct);
+        public async Task CancelEmailBatchAsync(
+            IReadOnlyCollection<int> ids,
+            CancellationToken ct = default)
+        {
+            if (ids.Count == 0) return;
 
-        public async Task<int> GetFailedCount(CancellationToken ct = default) =>
-            await _uow.Repository<F03EmailQueue>().Query()
-                .CountAsync(x => x.Status == EmailStatus.Failed, ct);
-
-        public async Task<List<F03EmailQueue>> GetFailedEmails(CancellationToken ct = default) =>
-            await _uow.Repository<F03EmailQueue>().Query()
-                .Where(x => x.Status == EmailStatus.Failed)
-                .OrderByDescending(x => x.CreatedAt)
+            var emails = await _uow.Repository<F03EmailQueue>().Query()
+                .Where(x => ids.Contains(x.Id) && x.Status != EmailStatus.Sent)
                 .ToListAsync(ct);
+
+            foreach (var email in emails)
+                email.Status = EmailStatus.Cancelled;
+
+            await _uow.SaveChangesAsync(ct);
+        }
 
         public async Task CancelEmail(int id, CancellationToken ct = default)
         {
-            var repo = _uow.Repository<F03EmailQueue>();
-            var email = await repo.GetByIdAsync(id, ct);
+            var email = await _uow.Repository<F03EmailQueue>().GetByIdAsync(id, ct);
             if (email == null || email.Status == EmailStatus.Sent) return;
 
             email.Status = EmailStatus.Cancelled;
-
             await _uow.SaveChangesAsync(ct);
         }
 
         public async Task ResendEmail(int id, CancellationToken ct = default)
         {
-            var repo = _uow.Repository<F03EmailQueue>();
-            var email = await repo.GetByIdAsync(id, ct);
+            var email = await _uow.Repository<F03EmailQueue>().GetByIdAsync(id, ct);
             if (email == null) return;
 
             email.Status = EmailStatus.Pending;
             email.RetryCount = 0;
             email.ErrorMessage = null;
-
             await _uow.SaveChangesAsync(ct);
         }
 
-        // ================= HELPERS =================
+        private static IQueryable<EmailQueueDto> ProjectQueue(IQueryable<F03EmailQueue> query) =>
+            query.Select(x => new EmailQueueDto
+            {
+                Id = x.Id,
+                ToEmail = x.ToEmail,
+                TemplateCode = x.TemplateCode,
+                Payload = x.Payload,
+                Status = x.Status.ToString(),
+                RetryCount = x.RetryCount,
+                MaxRetry = x.MaxRetry,
+                ErrorMessage = x.ErrorMessage,
+                CreatedAt = x.CreatedAt,
+                SentAt = x.SentAt
+            });
+
         private void HandleRetry(F03EmailQueue email, string error)
         {
             email.RetryCount++;
@@ -303,7 +325,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Emails
                 : EmailStatus.Retry;
         }
 
-        private void MarkFailed(F03EmailQueue email, string error)
+        private static void MarkFailed(F03EmailQueue email, string error)
         {
             email.Status = EmailStatus.Failed;
             email.ErrorMessage = error;
