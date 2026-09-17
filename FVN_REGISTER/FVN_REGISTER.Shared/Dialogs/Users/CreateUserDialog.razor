@@ -1,10 +1,4 @@
-﻿@* ═══════════════════════════════════════════════════════════
-   FILE: FVN_REGISTER.Shared/Components/Dialogs/CreateUserDialog.razor
-   MudBlazor v9 — dialog tách thành component riêng
-═══════════════════════════════════════════════════════════ *@
 @using FVN_REGISTER.Contract.Dtos.Usermanagers
-@using FVN_REGISTER.Contract.Requests.Users
-@inject MudBlazor.IDialogService DialogService
 
 <MudDialog>
     <TitleContent>
@@ -17,8 +11,8 @@
     <DialogContent>
         <MudGrid>
             <MudItem xs="12">
-                <MudTextField @bind-Value="Request.UserName"
-                              Label="Tên đăng nhập (*)"
+                <MudTextField @bind-Value="Request.EmployeeCode"
+                              Label="Mã nhân viên / tên đăng nhập (*)"
                               Variant="Variant.Outlined"
                               Margin="Margin.Dense"
                               Required="true" />
@@ -30,12 +24,6 @@
                               Variant="Variant.Outlined"
                               Margin="Margin.Dense"
                               Required="true" />
-            </MudItem>
-            <MudItem xs="12">
-                <MudTextField @bind-Value="Request.EmployeeCode"
-                              Label="Mã nhân viên"
-                              Variant="Variant.Outlined"
-                              Margin="Margin.Dense" />
             </MudItem>
             <MudItem xs="12">
                 <MudTextField @bind-Value="Request.DeptCode"
@@ -73,7 +61,7 @@
     [Parameter] public CreateUserRequest Request { get; set; } = new();
 
     private bool IsValid =>
-        !string.IsNullOrWhiteSpace(Request.UserName) &&
+        !string.IsNullOrWhiteSpace(Request.EmployeeCode) &&
         !string.IsNullOrWhiteSpace(Request.Password);
 
     private void Submit() => MudDialog.Close(DialogResult.Ok(Request));
