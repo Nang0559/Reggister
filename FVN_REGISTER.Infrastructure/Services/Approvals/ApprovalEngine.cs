@@ -18,11 +18,16 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
 {
     private readonly IUnitOfWork _uow;
     private readonly IApprovalProvider<TSubject> _provider;
+    private readonly IApprovalNotificationService _notification;
 
-    public ApprovalEngine(IUnitOfWork uow, IApprovalProvider<TSubject> provider)
+    public ApprovalEngine(
+        IUnitOfWork uow,
+        IApprovalProvider<TSubject> provider,
+        IApprovalNotificationService notification)
     {
         _uow = uow;
         _provider = provider;
+        _notification = notification;
     }
 
     private RequestModule Module => _provider.RequestType;
@@ -128,10 +133,46 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
                 var isFullyApproved = subject.OverallStatus == ApprovalStatus.Approved;
                 await _provider.NotifyStepCompletedAsync(
                     subject, completedStep, isFullyApproved, ct);
+
+                // Normal approval activates the next snapshot step. The activation has
+                // exactly the same email + in-app semantics as escalation. This prevents
+                // a request from becoming Pending at level N+1 without notifying its owner.
+                if (!action.IsReject && !isFullyApproved)
+                    await NotifyNextApproverAsync(requestId, subject, ct);
             }
         }
 
         return builder.Build();
+    }
+
+    private async Task NotifyNextApproverAsync(
+        int requestId,
+        TSubject subject,
+        CancellationToken ct)
+    {
+        var next = await GetNextStepAsync(requestId, ct);
+        if (next == null) return;
+
+        if (!string.IsNullOrWhiteSpace(next.ApproverEmail))
+        {
+            await _notification.NotifyNewRequestAsync(
+                next.ApproverCode,
+                next.ApproverEmail,
+                next.ApproverName,
+                requestId,
+                Module,
+                subject.EmployeeName ?? string.Empty,
+                next.Level,
+                ct);
+        }
+
+        await _notification.NotifyApproverInAppAsync(
+            next.ApproverCode,
+            requestId,
+            Module,
+            subject.EmployeeName ?? string.Empty,
+            next.Level,
+            ct);
     }
 
     public async Task<List<PendingApprovalItemDto>> GetPendingForApproverAsync(
