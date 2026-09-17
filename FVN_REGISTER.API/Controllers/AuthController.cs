@@ -19,14 +19,7 @@ namespace FVN_REGISTER.API.Controllers
         private readonly IAuthService _authService;
         private readonly ISessionService _sessionService;
 
-        public AuthController(
-            IAuthService authService,
-            ISessionService sessionService,
-            ICurrentUserService currentUser,
-            IUserLogService userLog,
-            IMapper mapper,
-            ILogger<AuthController> logger,
-            IOptionsMonitor<AuthDebugOptions> options)
+        public AuthController(IAuthService authService, ISessionService sessionService, ICurrentUserService currentUser, IUserLogService userLog, IMapper mapper, ILogger<AuthController> logger, IOptionsMonitor<AuthDebugOptions> options)
             : base(currentUser, userLog, mapper, logger, options)
         {
             _authService = authService;
@@ -35,94 +28,45 @@ namespace FVN_REGISTER.API.Controllers
 
         [HttpPost("login")]
         [AllowAnonymous]
-        public async Task<IActionResult> Login(
-            [FromBody] LoginRequestDto model,
-            CancellationToken ct)
+        public async Task<IActionResult> Login([FromBody] LoginRequestDto model, CancellationToken ct)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ"));
-
-            var result = await _authService.Login(
-                model.UserName,
-                model.Password,
-                model.DeviceId,
-                model.DeviceType,
-                model.DeviceName,
-                model.RememberMe,
-                ct);
-
-            if (result.IsSuccess && result.Data != null)
-                await _userLog.UpdateLastSeenAsync(
-                    result.Data.UserId,
-                    "Đăng nhập hệ thống",
-                    Path);
-
+            if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ"));
+            var result = await _authService.Login(model.UserName, model.Password, model.DeviceId, model.DeviceType, model.DeviceName, model.RememberMe, HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString(), ct);
+            if (result.IsSuccess && result.Data != null) await _userLog.UpdateLastSeenAsync(result.Data.UserId, "Đăng nhập hệ thống", Path);
             return HandleResult(result);
         }
 
         [HttpPost("refresh")]
         [AllowAnonymous]
-        public async Task<IActionResult> RefreshToken(
-            [FromBody] RefreshTokenRequest request,
-            CancellationToken ct)
+        public async Task<IActionResult> RefreshToken([FromBody] RefreshTokenRequest request, CancellationToken ct)
         {
-            if (string.IsNullOrEmpty(request.RefreshToken))
-                return BadRequest(ApiResponse<object>.Fail("Refresh token không hợp lệ"));
-
+            if (string.IsNullOrEmpty(request.RefreshToken)) return BadRequest(ApiResponse<object>.Fail("Refresh token không hợp lệ"));
             var result = await _authService.RefreshTokenAsync(request.RefreshToken, ct);
-
-            if (!result.IsSuccess)
-                return Unauthorized(ApiResponse<object>.Fail(
-                    result.Message ?? "Phiên đăng nhập hết hạn"));
-
+            if (!result.IsSuccess) return Unauthorized(ApiResponse<object>.Fail(result.Message ?? "Phiên đăng nhập hết hạn"));
             return Ok(ApiResponse<object>.Ok(new { Token = result.Data }));
         }
 
         [HttpGet("profile")]
         public async Task<IActionResult> GetProfile(CancellationToken ct)
         {
-            if (UserInfo == null)
-                return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-
-            var result = await _authService.GetProfileAsync(UserInfo.UserId, ct);
-            await LogActionAsync("Truy cập trang cá nhân");
-            return HandleResult(result);
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            return HandleResult(await _authService.GetProfileAsync(UserInfo.UserId, ct));
         }
 
         [HttpPut("profile-update")]
         [Authorize]
-        public async Task<IActionResult> UpdateProfile(
-            [FromBody] UpdateProfileCommandDto request,
-            CancellationToken ct)
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateProfileCommandDto request, CancellationToken ct)
         {
-            if (UserInfo == null)
-                return Unauthorized(ApiResponse<object>.Fail("Không tìm thấy User"));
-
-            var result = await _authService.UpdateProfileAsync(
-                UserInfo.UserId,
-                request.Email,
-                request.AvatarUrl,
-                ct);
-
-            await LogActionAsync("Cập nhật profile");
-            return HandleResult(result);
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Không tìm thấy User"));
+            return HandleResult(await _authService.UpdateProfileAsync(UserInfo.UserId, request.Email, request.AvatarUrl, ct));
         }
 
         [HttpPost("logout")]
         [Authorize]
-        public async Task<IActionResult> Logout(
-            [FromBody] LogoutRequest? request,
-            CancellationToken ct)
+        public async Task<IActionResult> Logout([FromBody] LogoutRequest? request, CancellationToken ct)
         {
-            if (UserInfo == null)
-                return Ok(ApiResponse<object>.Ok("Đã đăng xuất"));
-
-            var result = await _authService.Logout(
-                UserInfo.UserId,
-                request?.RefreshToken,
-                ct);
-
-            await LogActionAsync("Logout");
+            if (UserInfo == null) return Ok(ApiResponse<object>.Ok("Đã đăng xuất"));
+            var result = await _authService.Logout(UserInfo.UserId, request?.RefreshToken, HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString(), ct);
             return HandleResult(result);
         }
 
@@ -130,36 +74,19 @@ namespace FVN_REGISTER.API.Controllers
         [Authorize]
         public async Task<IActionResult> GetSessions(CancellationToken ct)
         {
-            if (UserInfo == null)
-                return Unauthorized();
-
+            if (UserInfo == null) return Unauthorized();
             var refreshToken = Request.Headers["X-Refresh-Token"].ToString();
-            var sessions = await _sessionService.GetActiveSessionsAsync(
-                UserInfo.UserId,
-                string.IsNullOrWhiteSpace(refreshToken) ? null : refreshToken,
-                ct);
-
+            var sessions = await _sessionService.GetActiveSessionsAsync(UserInfo.UserId, string.IsNullOrWhiteSpace(refreshToken) ? null : refreshToken, ct);
             return Ok(ApiResponse<List<SessionDto>>.Ok(sessions));
         }
 
         [HttpDelete("sessions/{sessionId:int}")]
         [Authorize]
-        public async Task<IActionResult> RevokeSession(
-            int sessionId,
-            CancellationToken ct)
+        public async Task<IActionResult> RevokeSession(int sessionId, CancellationToken ct)
         {
-            if (UserInfo == null)
-                return Unauthorized();
-
-            var result = await _sessionService.RevokeSessionAsync(
-                UserInfo.UserId,
-                sessionId,
-                ct);
-
-            if (result == null)
-                return NotFound(ApiResponse<object>.Fail(
-                    "Thiết bị không tồn tại hoặc đã đăng xuất."));
-
+            if (UserInfo == null) return Unauthorized();
+            var result = await _sessionService.RevokeSessionAsync(UserInfo.UserId, sessionId, ct);
+            if (result == null) return NotFound(ApiResponse<object>.Fail("Thiết bị không tồn tại hoặc đã đăng xuất."));
             return Ok(ApiResponse.Ok("Đã đăng xuất thiết bị thành công."));
         }
     }
