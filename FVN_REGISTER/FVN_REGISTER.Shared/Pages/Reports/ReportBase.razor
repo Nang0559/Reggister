@@ -1,5 +1,6 @@
-﻿@* FVN_REGISTER.Shared/Pages/Reports/ReportBase.razor *@
+@* FVN_REGISTER.Shared/Pages/Reports/ReportBase.razor *@
 @using FVN_REGISTER.Contract.Dtos.Reports
+@using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.Leaves
 @using FVN_REGISTER.Shared.Utils.Helpers
 @inherits AppComponentBase
@@ -14,38 +15,25 @@
                                 DateRangeChanged="OnDateRangeChanged"
                                 Margin="Margin.Dense" Variant="Variant.Outlined" />
         </MudItem>
-        
-        @* Inject các combo lọc riêng biệt của từng tab từ ngoài vào *@
         @if (AdditionalFilters != null)
         {
             @AdditionalFilters
         }
-        
         <MudItem xs="12" sm="3" Class="d-flex align-end gap-2 pb-1">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                       OnClick="LoadReport" Disabled="_loading"
-                       StartIcon="@Icons.Material.Filled.Search">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadReport" Disabled="_loading" StartIcon="@Icons.Material.Filled.Search">
                 @(_loading ? "Đang tải..." : "Xem báo cáo")
             </MudButton>
-            <MudButton Variant="Variant.Outlined" Color="Color.Success"
-                       OnClick="ExportExcel"
-                       StartIcon="@Icons.Material.Filled.Download">
-                Excel
-            </MudButton>
+            <MudButton Variant="Variant.Outlined" Color="Color.Success" OnClick="ExportExcel" StartIcon="@Icons.Material.Filled.Download">Excel</MudButton>
         </MudItem>
     </MudGrid>
 </MudPaper>
 
-@* TỰ ĐỘNG RENDER BIỂU ĐỒ TỪ BACKEND DTO *@
-@* TỰ ĐỘNG RENDER BIỂU ĐỒ TỪ BACKEND DTO *@
 @if (_result?.Chart != null && _result.Chart.Series.Any())
 {
     <MudPaper Elevation="1" Class="pa-4 mb-4">
         <MudText Typo="Typo.subtitle1" Class="mb-3"><b>Biểu đồ thống kê</b></MudText>
-
         @if (_result.Chart.ChartType == "bar" || _result.Chart.ChartType == "line")
         {
-            @* Bổ sung T="double" vào đây *@
             <MudChart T="double"
                       ChartType="@(_result.Chart.ChartType == "bar" ? ChartType.Bar : ChartType.Line)"
                       ChartSeries="@MapToMudChartSeries(_result.Chart.Series)"
@@ -55,7 +43,6 @@
         else if (_result.Chart.ChartType == "pie" || _result.Chart.ChartType == "donut")
         {
             <div class="d-flex justify-center">
-                @* Bổ sung T="double" vào đây *@
                 <MudChart T="double"
                           ChartType="@(_result.Chart.ChartType == "pie" ? ChartType.Pie : ChartType.Donut)"
                           InputData="@MapToMudChartData(_result.Chart.Series)"
@@ -66,7 +53,6 @@
     </MudPaper>
 }
 
-@* Summary cards *@
 @if (_result?.Summary.Any() == true)
 {
     <MudGrid Class="mb-4">
@@ -75,21 +61,16 @@
             <MudItem xs="6" sm="3">
                 <MudPaper Elevation="2" Class="pa-3 text-center">
                     <MudText Typo="Typo.h5">@FormatSummaryValue(kv.Value)</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        @GetSummaryLabel(kv.Key)
-                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@GetSummaryLabel(kv.Key)</MudText>
                 </MudPaper>
             </MudItem>
         }
     </MudGrid>
 }
 
-@* Data table *@
 @if (_result != null)
 {
-    <MudTable Items="@_result.Rows" Dense="true" Striped="true"
-              Hover="true" Loading="_loading" Bordered="false"
-              FixedHeader="true" Height="500px">
+    <MudTable Items="@_result.Rows" Dense="true" Striped="true" Hover="true" Loading="_loading" Bordered="false" FixedHeader="true" Height="500px">
         <HeaderContent>
             @foreach (var col in _result.Columns.Where(c => c.IsVisible))
             {
@@ -99,19 +80,12 @@
         <RowTemplate>
             @foreach (var col in _result.Columns.Where(c => c.IsVisible))
             {
-                <MudTd Class="@col.CssClass">
-                    @FormatCellValue(context, col)
-                </MudTd>
+                <MudTd Class="@col.CssClass">@FormatCellValue(context, col)</MudTd>
             }
         </RowTemplate>
-        <NoRecordsContent>
-            <MudText>Không có dữ liệu. Vui lòng chọn bộ lọc và bấm Xem báo cáo.</MudText>
-        </NoRecordsContent>
+        <NoRecordsContent><MudText>Không có dữ liệu. Vui lòng chọn bộ lọc và bấm Xem báo cáo.</MudText></NoRecordsContent>
     </MudTable>
-
-    <MudText Typo="Typo.caption" Class="mt-2" Color="Color.Secondary">
-        Tổng: @_result.TotalRows dòng
-    </MudText>
+    <MudText Typo="Typo.caption" Class="mt-2" Color="Color.Secondary">Tổng: @_result.TotalRows dòng</MudText>
 }
 
 @code {
@@ -121,11 +95,8 @@
 
     protected ReportResultDto? _result;
     protected bool _loading;
-
-    // Giữ nguyên khởi tạo ban đầu cho DateRange picker hiển thị giao diện
     private MudBlazor.DateRange? _dateRange = new(new DateTime(DateTime.Now.Year, 1, 1), DateTime.Now);
 
-    // SỬA 1: Khi người dùng chủ động đổi khoảng ngày trên UI, cập nhật ngay vào Query luôn
     private void OnDateRangeChanged(MudBlazor.DateRange range)
     {
         _dateRange = range;
@@ -142,8 +113,6 @@
         try
         {
             Query.Type = ReportType;
-
-            // SỬA 2: Kiểm tra nếu báo cáo xem theo Năm (WorkYear) thì KHÔNG ghi đè FromDate/ToDate
             if (Query.WorkYear.HasValue)
             {
                 Query.FromDate = null;
@@ -151,28 +120,20 @@
             }
             else
             {
-                // Nếu báo cáo xem theo khoảng ngày, đồng bộ chính xác từ thanh picker
                 Query.FromDate = _dateRange?.Start ?? new DateTime(DateTime.Now.Year, 1, 1);
                 Query.ToDate = _dateRange?.End ?? DateTime.Now;
             }
 
             var result = await ReportService.GetReportAsync(Query);
-            if (result.IsSuccess)
-                _result = result.Data;
-            else
-                Snackbar.Add(result.Message ?? "Lỗi tải báo cáo", Severity.Error);
+            if (result.IsSuccess) _result = result.Data;
+            else Snackbar.Add(result.Message ?? "Lỗi tải báo cáo", Severity.Error);
         }
-        finally
-        {
-            _loading = false;
-        }
+        finally { _loading = false; }
     }
 
     private async Task ExportExcel()
     {
         Query.Type = ReportType;
-
-        // Đảm bảo đồng bộ ngày tháng trước khi Export Excel tương tự như LoadReport
         if (Query.WorkYear.HasValue)
         {
             Query.FromDate = null;
@@ -185,30 +146,15 @@
         }
 
         var result = await ReportService.ExportExcelAsync(Query);
-        if (!result.IsSuccess)
-            Snackbar.Add(result.Message ?? "Lỗi xuất Excel", Severity.Error);
+        if (!result.IsSuccess) Snackbar.Add(result.Message ?? "Lỗi xuất Excel", Severity.Error);
     }
 
-    // ================= MAPPING CHART HELPERS =================
+    private static List<ChartSeries<double>> MapToMudChartSeries(List<ReportChartSeries> backendSeries)
+        => backendSeries.Select(s => new ChartSeries<double> { Name = s.Name, Data = s.Data.Select(Convert.ToDouble).ToArray() }).ToList();
 
-    private List<ChartSeries<double>> MapToMudChartSeries(List<ReportChartSeries> backendSeries)
-    {
-        // Đổi List<ChartSeries> thành List<ChartSeries<double>>
-        return backendSeries.Select(s => new ChartSeries<double>
-        {
-            Name = s.Name,
-            Data = s.Data.Select(d => Convert.ToDouble(d)).ToArray()
-        }).ToList();
-    }
+    private static double[] MapToMudChartData(List<ReportChartSeries> backendSeries)
+        => backendSeries.Any() ? backendSeries.First().Data.Select(Convert.ToDouble).ToArray() : Array.Empty<double>();
 
-    private double[] MapToMudChartData(List<ReportChartSeries> backendSeries)
-    {
-        // Biểu đồ Tròn/Donut nhận mảng phẳng double[] từ chuỗi Data của Series đầu tiên
-        if (!backendSeries.Any()) return Array.Empty<double>();
-        return backendSeries.First().Data.Select(d => Convert.ToDouble(d)).ToArray();
-    }
-
-    // ================= HELPERS FORMAT (GIỮ NGUYÊN) =================
     private static string GetSummaryLabel(string key) => key switch
     {
         "TotalEmployees" => "Nhân viên",
