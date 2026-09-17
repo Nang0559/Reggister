@@ -1,27 +1,29 @@
-﻿
 using FVN_REGISTER.Application.Interfaces.Auths;
+using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Core.Entities.Security;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-
 using System.Text;
-
-
 
 namespace FVN_REGISTER.Infrastructure.Services.Auths
 {
     public class SessionService : ISessionService
     {
         private readonly IUnitOfWork _uow;
+        private readonly ISessionTerminationNotifier _terminationNotifier;
         private readonly ILogger<SessionService> _logger;
 
         private const int SessionDaysDefault = 1;
         private const int SessionDaysRemember = 30;
 
-        public SessionService(IUnitOfWork uow, ILogger<SessionService> logger)
+        public SessionService(
+            IUnitOfWork uow,
+            ISessionTerminationNotifier terminationNotifier,
+            ILogger<SessionService> logger)
         {
             _uow = uow;
+            _terminationNotifier = terminationNotifier;
             _logger = logger;
         }
 
@@ -36,14 +38,14 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 .ToListAsync(ct);
 
             var kickedConnectionIds = others
-                .Where(x => !string.IsNullOrEmpty(x.SignalRConnectionId))
+                .Where(x => !string.IsNullOrWhiteSpace(x.SignalRConnectionId))
                 .Select(x => x.SignalRConnectionId!)
                 .ToList();
 
-            foreach (var s in others)
+            foreach (var session in others)
             {
-                s.IsActive = false;
-                s.RevokedAt = DateTime.Now;
+                session.IsActive = false;
+                session.RevokedAt = DateTime.Now;
             }
 
             var days = rememberMe ? SessionDaysRemember : SessionDaysDefault;
@@ -54,11 +56,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 DeviceType = deviceType,
                 DeviceId = deviceId,
                 DeviceName = deviceName,
-                RememberMe = rememberMe, // lưu lại — bắt buộc để RefreshTokenAsync đọc đúng sau này
+                RememberMe = rememberMe,
                 JwtToken = HashToken(refreshTokenRaw),
                 ExpiresAt = DateTime.Now.AddDays(days),
                 IsActive = true,
-                CreatedAt = DateTime.Now, // nhất quán múi giờ với toàn hệ thống, không dùng UtcNow
+                CreatedAt = DateTime.Now,
                 LastSeenAt = DateTime.Now
             }, ct);
 
@@ -79,7 +81,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             var session = await _uow.Repository<F03UserSession>().Query()
                 .FirstOrDefaultAsync(x => x.JwtToken == hash, ct);
 
-            if (session == null || !session.IsActive) return null;
+            if (session == null || !session.IsActive)
+                return null;
 
             if (session.ExpiresAt.HasValue && session.ExpiresAt.Value < DateTime.Now)
             {
@@ -89,7 +92,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 return null;
             }
 
-            // Sliding thật: gia hạn lại kể từ BÂY GIỜ theo đúng mức đã cấp lúc đăng nhập
             var slidingDays = session.RememberMe ? SessionDaysRemember : SessionDaysDefault;
             session.ExpiresAt = DateTime.Now.AddDays(slidingDays);
             session.LastSeenAt = DateTime.Now;
@@ -106,7 +108,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             var session = await _uow.Repository<F03UserSession>().Query()
                 .FirstOrDefaultAsync(x => x.JwtToken == hash && x.IsActive, ct);
 
-            if (session == null) return;
+            if (session == null)
+                return;
 
             session.IsActive = false;
             session.RevokedAt = DateTime.Now;
@@ -119,13 +122,66 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 .Where(x => x.UserId == userId && x.IsActive)
                 .ToListAsync(ct);
 
-            foreach (var s in sessions)
+            foreach (var session in sessions)
             {
-                s.IsActive = false;
-                s.RevokedAt = DateTime.Now;
+                session.IsActive = false;
+                session.RevokedAt = DateTime.Now;
             }
 
             await _uow.SaveChangesAsync(ct);
+        }
+
+        public async Task<List<SessionDto>> GetActiveSessionsAsync(
+            int userId,
+            string? currentRefreshTokenRaw,
+            CancellationToken ct = default)
+        {
+            var currentHash = string.IsNullOrWhiteSpace(currentRefreshTokenRaw)
+                ? null
+                : HashToken(currentRefreshTokenRaw);
+
+            return await _uow.Repository<F03UserSession>().Query()
+                .AsNoTracking()
+                .Where(x => x.UserId == userId && x.IsActive)
+                .OrderByDescending(x => x.LastSeenAt)
+                .Select(x => new SessionDto(
+                    x.Id,
+                    x.DeviceType,
+                    x.DeviceName ?? string.Empty,
+                    x.CreatedAt,
+                    x.LastSeenAt,
+                    currentHash != null && x.JwtToken == currentHash))
+                .ToListAsync(ct);
+        }
+
+        public async Task<SessionRevocationResult?> RevokeSessionAsync(
+            int userId,
+            int sessionId,
+            CancellationToken ct = default)
+        {
+            var session = await _uow.Repository<F03UserSession>().Query()
+                .FirstOrDefaultAsync(x =>
+                    x.Id == sessionId &&
+                    x.UserId == userId &&
+                    x.IsActive,
+                    ct);
+
+            if (session == null)
+                return null;
+
+            session.IsActive = false;
+            session.RevokedAt = DateTime.Now;
+            await _uow.SaveChangesAsync(ct);
+
+            if (!string.IsNullOrWhiteSpace(session.SignalRConnectionId))
+            {
+                await _terminationNotifier.NotifyRevokedAsync(
+                    session.SignalRConnectionId,
+                    "Thiết bị của bạn đã bị đăng xuất từ xa.",
+                    ct);
+            }
+
+            return new SessionRevocationResult(true, session.SignalRConnectionId);
         }
 
         private static string HashToken(string token)
