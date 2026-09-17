@@ -1,27 +1,21 @@
-﻿@* FVN_REGISTER.Shared/Components/NotificationBadge.razor *@
-@using FVN_REGISTER.Contract.Dtos
 @using FVN_REGISTER.Contract.Dtos.Notifications
-@using FVN_REGISTER.Core.Configurations
-@using FVN_REGISTER.Core.Logging
-@using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.Notifications
 @using FVN_REGISTER.Shared.Utils
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.SignalR.Client
-@using Microsoft.Extensions.Options
 
+@inject INotificationClientService NotificationService
 @inject ITokenStorage TokenStorage
 @inject AuthenticationStateProvider AuthStateProvider
-@inject ICurrentUserClientService CurrentUser
 @inject NavigationManager Nav
 @inject ISnackbar Snackbar
 @inject IConfiguration Configuration
 @inject ILogger<NotificationBadge> Logger
-@inject IOptionsMonitor<AuthDebugOptions> DebugOptions
 
 @implements IAsyncDisposable
 
-<MudBadge Content="@_unreadCount" Overlap="true" Color="Color.Error"
-          Visible="@(_unreadCount > 0)" Max="99">
+<MudBadge Content="@NotificationService.UnreadCount" Overlap="true" Color="Color.Error"
+          Visible="@(NotificationService.UnreadCount > 0)" Max="99">
     <MudIconButton Icon="@Icons.Material.Filled.Notifications"
                    Color="Color.Inherit"
                    OnClick="TogglePanel" />
@@ -30,57 +24,46 @@
 @if (_showPanel)
 {
     <MudPaper Elevation="8"
-              Style="position:absolute; top:56px; right:8px; width:340px;
-                         z-index:9999; max-height:480px; overflow-y:auto;"
+              Style="position:absolute; top:56px; right:8px; width:340px; z-index:9999; max-height:480px; overflow-y:auto;"
               Class="pa-0">
         <MudList T="NotificationDto" Dense="true">
             <MudListItem>
-                <MudStack Row="true" Justify="Justify.SpaceBetween"
-                          AlignItems="AlignItems.Center">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                     <MudText Typo="Typo.subtitle2">Thông báo</MudText>
-                    @if (_unreadCount > 0)
+                    @if (NotificationService.UnreadCount > 0)
                     {
-                        <MudButton Size="Size.Small" Variant="Variant.Text"
-                                   OnClick="MarkAllRead">Đọc tất cả</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="MarkAllRead">Đọc tất cả</MudButton>
                     }
                 </MudStack>
             </MudListItem>
             <MudDivider />
 
-            @if (!_isConnected)
+            @if (!_initialized)
             {
                 <MudListItem>
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                         <MudProgressCircular Size="Size.Small" Indeterminate="true" />
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            Đang kết nối...
-                        </MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">Đang tải...</MudText>
                     </MudStack>
                 </MudListItem>
             }
-            else if (_items.Count == 0)
+            else if (!NotificationService.Notifications.Any())
             {
                 <MudListItem>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        Không có thông báo mới
-                    </MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Không có thông báo mới</MudText>
                 </MudListItem>
             }
             else
             {
-                @foreach (var item in _items)
+                @foreach (var item in NotificationService.Notifications)
                 {
-                    <MudListItem OnClick="@(() => ClickItem(item))"
-                                 Class="@(item.IsRead ? "" : "mud-background-gray")">
+                    <MudListItem OnClick="@(() => ClickItem(item) )"
+                                 Class="@(item.IsRead ? string.Empty : "mud-background-gray")">
                         <MudStack Spacing="0">
-                            <MudText Typo="Typo.body2" Style="font-weight:500">
-                                @item.Title
-                            </MudText>
-                            @if (!string.IsNullOrEmpty(item.Body))
+                            <MudText Typo="Typo.body2" Style="font-weight:500">@item.Title</MudText>
+                            @if (!string.IsNullOrWhiteSpace(item.Body))
                             {
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    @item.Body
-                                </MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@item.Body</MudText>
                             }
                             <MudText Typo="Typo.caption" Color="Color.Tertiary">
                                 @item.CreatedAt.ToString("HH:mm dd/MM")
@@ -96,302 +79,170 @@
 
 @code {
     [Parameter] public string DeviceId { get; set; } = string.Empty;
-    private string _lastDeviceId = string.Empty;
 
     private HubConnection? _hub;
-    private int _unreadCount;
+    private string _lastDeviceId = string.Empty;
     private bool _showPanel;
-    private bool _isConnected;
-    private bool _isDisposed;
-    private List<NotificationDto> _items = new();
+    private bool _initialized;
+    private bool _disposed;
 
-    // Shortcut — đọc flag tập trung
-    private bool Debug => DebugOptions.CurrentValue.Enabled;
+    protected override void OnInitialized()
+    {
+        NotificationService.OnChanged += OnNotificationsChanged;
+    }
 
-    // ─── Lifecycle ───────────────────────────────────────────────
-
-    
     protected override async Task OnParametersSetAsync()
     {
-        // Chỉ init khi DeviceId thực sự có giá trị VÀ chưa init lần nào
-        // hoặc DeviceId vừa thay đổi từ "" sang có giá trị
-        if (string.IsNullOrEmpty(DeviceId)) return;
-        if (DeviceId == _lastDeviceId) return;      // ← tránh init lại nhiều lần
-        if (_hub != null) return;                   // ← đã init rồi, bỏ qua
+        if (_disposed || string.IsNullOrWhiteSpace(DeviceId) || DeviceId == _lastDeviceId || _hub != null)
+            return;
 
         _lastDeviceId = DeviceId;
+        await InitializeAsync();
+    }
 
-        var token = await WaitForTokenAsync();
-        if (string.IsNullOrEmpty(token))
+    private async Task InitializeAsync()
+    {
+        try
         {
-            Logger.LogWarning("[BADGE] No token after retries, skip hub init");
-            return;
+            await NotificationService.InitializeAsync();
+            await NotificationService.LoadListAsync();
+            _initialized = true;
+
+            var token = await WaitForTokenAsync();
+            if (!string.IsNullOrWhiteSpace(token))
+                await ConnectSignalRAsync(token);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[NOTIFY-BADGE] Initialization failed");
+            _initialized = true;
         }
 
-        await InitHubAsync(token);
+        await InvokeAsync(StateHasChanged);
     }
-    // ─── Token ───────────────────────────────────────────────────
 
     private async Task<string?> WaitForTokenAsync(int maxRetries = 5)
     {
-        for (int i = 0; i < maxRetries; i++)
+        for (var i = 0; i < maxRetries; i++)
         {
-            // Ưu tiên 1: RAM token từ CustomAuthStateProvider
-            if (AuthStateProvider is CustomAuthStateProvider cp &&
-                !string.IsNullOrEmpty(cp.CurrentToken))
+            if (AuthStateProvider is CustomAuthStateProvider provider &&
+                !string.IsNullOrWhiteSpace(provider.CurrentToken))
             {
-                Logger.LogDebugIf(Debug,
-                    "[BADGE] Token from AuthStateProvider (attempt={Attempt})", i + 1);
-                return cp.CurrentToken;
+                return provider.CurrentToken;
             }
 
-            // Ưu tiên 2: Storage (localStorage / SecureStorage)
             try
             {
                 var token = await TokenStorage.GetTokenAsync();
-                if (!string.IsNullOrEmpty(token))
-                {
-                    Logger.LogDebugIf(Debug,
-                        "[BADGE] Token from Storage (attempt={Attempt})", i + 1);
-                    return token;
-                }
+                if (!string.IsNullOrWhiteSpace(token)) return token;
             }
             catch
             {
-                // JS chưa sẵn sàng (SSR) — bỏ qua, thử lại
+                // JS/SecureStorage may not be ready yet.
             }
 
-            Logger.LogDebugIf(Debug,
-                "[BADGE] No token yet, retry {Attempt}/{Max}", i + 1, maxRetries);
-
-            await Task.Delay(600);
+            await Task.Delay(300);
         }
 
         return null;
     }
 
-    // ─── Hub init ────────────────────────────────────────────────
-
-    private async Task InitHubAsync(string token)
+    private async Task ConnectSignalRAsync(string token)
     {
         try
         {
-            var clean = token.Trim().Trim('"');
-            var apiBase = (Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7135/").TrimEnd('/');
-            var deviceId = string.IsNullOrEmpty(DeviceId) ? $"web-{Guid.NewGuid():N}" : DeviceId;
-            var hubUrl = $"{apiBase}/hubs/notification?deviceId={deviceId}";
-
-            Logger.LogDebugIf(Debug,
-                "[BADGE] Connecting | Url={Url} | TokenLen={Len}",
-                hubUrl, clean.Length);
+            var apiBase = GetApiBaseUrl();
+            var deviceId = string.IsNullOrWhiteSpace(DeviceId) ? $"web-{Guid.NewGuid():N}" : DeviceId;
+            var hubUrl = $"{apiBase}/hubs/notification?deviceId={Uri.EscapeDataString(deviceId)}";
 
             _hub = new HubConnectionBuilder()
-                .WithUrl(hubUrl, opts =>
+                .WithUrl(hubUrl, options =>
                 {
-                    opts.AccessTokenProvider = () =>
-                    {
-                        Logger.LogDebugIf(Debug,
-                            "[BADGE] AccessTokenProvider called | TokenLen={Len}", clean.Length);
-                        return Task.FromResult<string?>(clean);
-                    };
-
-                    opts.HttpMessageHandlerFactory = handler =>
-                    {
-                        if (handler is HttpClientHandler h)
-                            h.ServerCertificateCustomValidationCallback =
-                                HttpClientHandler.DangerousAcceptAnyServerCertificateValidator;
-                        return handler;
-                    };
+                    var cleanToken = token.Trim().Trim('"');
+                    options.AccessTokenProvider = () => Task.FromResult<string?>(cleanToken);
                 })
                 .WithAutomaticReconnect(new[]
                 {
-                    TimeSpan.FromSeconds(0),
+                    TimeSpan.Zero,
                     TimeSpan.FromSeconds(5),
                     TimeSpan.FromSeconds(10),
                     TimeSpan.FromSeconds(30)
                 })
                 .Build();
 
-            // ── Event handlers ──
-
             _hub.On<int>("BadgeUpdated", count =>
             {
-                if (_isDisposed) return;
-                _unreadCount = count;
-                Logger.LogDebugIf(Debug,
-                    "[BADGE] BadgeUpdated | Count={Count}", count);
-                InvokeAsync(StateHasChanged);
+                if (_disposed) return;
+                _ = InvokeAsync(StateHasChanged);
             });
 
-            _hub.On<NotificationPushDto>("ReceiveNotification", payload =>
+            _hub.On<NotificationPushDto>("ReceiveNotification", push =>
             {
-                if (_isDisposed) return;
-                _unreadCount = payload.UnreadCount;
+                if (_disposed) return;
+                NotificationService.HandlePush(push);
+                _ = InvokeAsync(StateHasChanged);
 
-                if (payload.Latest != null &&
-                    !_items.Any(x => x.Id == payload.Latest.Id))
+                if (push.Latest != null)
                 {
-                    _items.Insert(0, payload.Latest);
+                    Snackbar.Add(push.Latest.Title ?? "Có thông báo mới", Severity.Info,
+                        config => config.VisibleStateDuration = 4000);
                 }
-
-                Logger.LogDebugIf(Debug,
-                    "[BADGE] ReceiveNotification | Unread={Unread} | Title={Title}",
-                    payload.UnreadCount, payload.Latest?.Title);
-
-                Snackbar.Add(
-                    payload.Latest?.Title ?? "Có thông báo mới",
-                    Severity.Info,
-                    cfg => cfg.VisibleStateDuration = 4000);
-
-                InvokeAsync(StateHasChanged);
             });
 
             _hub.On<string>("ForceLogout", message =>
             {
-                if (_isDisposed) return;
-                // ForceLogout luôn warn
-                Logger.LogWarning("[BADGE] ForceLogout received | Message={Msg}", message);
-                Snackbar.Add(message, Severity.Warning);
-                InvokeAsync(() => Nav.NavigateTo("/login", forceLoad: true));
+                if (_disposed) return;
+                Snackbar.Add(message ?? "Phiên đăng nhập đã kết thúc.", Severity.Warning);
+                _ = InvokeAsync(() => Nav.NavigateTo("/login", forceLoad: true));
             });
 
-            _hub.Reconnecting += ex =>
-            {
-                if (_isDisposed) return Task.CompletedTask;
-                Logger.LogWarnIf(Debug,
-                    "[BADGE] Reconnecting | Reason={Reason}", ex?.Message);
-                _isConnected = false;
-                return InvokeAsync(StateHasChanged);
-            };
-
-            _hub.Reconnected += connId =>
-            {
-                if (_isDisposed) return Task.CompletedTask;
-                Logger.LogDebugIf(Debug,
-                    "[BADGE] Reconnected | ConnId={ConnId}", connId);
-                _isConnected = true;
-                return InvokeAsync(StateHasChanged);
-            };
-
-            _hub.Closed += ex =>
-            {
-                if (_isDisposed) return Task.CompletedTask;
-                if (ex != null)
-                    Logger.LogWarning("[BADGE] Connection closed with error | {Msg}", ex.Message);
-                else
-                    Logger.LogDebugIf(Debug, "[BADGE] Connection closed normally");
-                _isConnected = false;
-                return InvokeAsync(StateHasChanged);
-            };
-
             await _hub.StartAsync();
-            _isConnected = true;
-
-            Logger.LogDebugIf(Debug,
-                "[BADGE] Hub started | ConnId={ConnId}", _hub.ConnectionId);
-
-            await InvokeAsync(StateHasChanged);
-            await LoadNotificationsAsync();
         }
         catch (Exception ex)
         {
-            // Lỗi kết nối luôn log error
-            Logger.LogError(ex, "[BADGE] InitHub failed | {Msg}", ex.Message);
-            _isConnected = false;
-            await InvokeAsync(StateHasChanged);
+            Logger.LogWarning(ex, "[NOTIFY-BADGE] SignalR connection failed; REST notifications remain available");
+            _hub = null;
         }
     }
 
-    // ─── Load / actions ──────────────────────────────────────────
-
-    private async Task LoadNotificationsAsync()
+    private string GetApiBaseUrl()
     {
-        if (_isDisposed || _hub?.State != HubConnectionState.Connected) return;
-
-        try
-        {
-            Logger.LogDebugIf(Debug,
-                "[BADGE] LoadNotifications | HubState={State}", _hub.State);
-
-            var result = await _hub.InvokeAsync<IEnumerable<NotificationDto>>("GetNotifications");
-            _items = result?.ToList() ?? new();
-            _unreadCount = _items.Count(i => !i.IsRead);
-
-            Logger.LogDebugIf(Debug,
-                "[BADGE] LoadNotifications done | Items={Count} | Unread={Unread}",
-                _items.Count, _unreadCount);
-
-            await InvokeAsync(StateHasChanged);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex,
-                "[BADGE] LoadNotifications failed | {ExType}: {Msg}",
-                ex.GetType().Name, ex.Message);
-        }
+        var baseUrl = Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7135/";
+        var uri = new Uri(baseUrl);
+        return $"{uri.Scheme}://{uri.Host}{(uri.IsDefaultPort ? string.Empty : $":{uri.Port}")}";
     }
 
     private async Task TogglePanel()
     {
         _showPanel = !_showPanel;
-        if (_showPanel && _isConnected && _items.Count == 0)
-            await LoadNotificationsAsync();
+        if (_showPanel)
+            await NotificationService.LoadListAsync();
     }
 
     private async Task ClickItem(NotificationDto item)
     {
-        if (_hub?.State != HubConnectionState.Connected) return;
-        try
-        {
-            if (!item.IsRead)
-            {
-                await _hub.InvokeAsync("MarkRead", item.Id);
-                item.IsRead = true;
-                _unreadCount = Math.Max(0, _unreadCount - 1);
+        if (!item.IsRead)
+            await NotificationService.MarkReadAsync(item.Id);
 
-                Logger.LogDebugIf(Debug,
-                    "[BADGE] MarkRead | NotifId={Id}", item.Id);
-            }
-
-            if (!string.IsNullOrEmpty(item.ActionUrl))
-                Nav.NavigateTo(item.ActionUrl);
-
-            _showPanel = false;
-            await InvokeAsync(StateHasChanged);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[BADGE] ClickItem failed | {Msg}", ex.Message);
-        }
+        _showPanel = false;
+        if (!string.IsNullOrWhiteSpace(item.ActionUrl))
+            Nav.NavigateTo(item.ActionUrl);
     }
 
     private async Task MarkAllRead()
     {
-        if (_hub?.State != HubConnectionState.Connected) return;
-        try
-        {
-            await _hub.InvokeAsync("MarkAllRead");
-            foreach (var i in _items) i.IsRead = true;
-            _unreadCount = 0;
-            _showPanel = false;
-
-            Logger.LogDebugIf(Debug, "[BADGE] MarkAllRead done");
-            await InvokeAsync(StateHasChanged);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[BADGE] MarkAllRead failed | {Msg}", ex.Message);
-        }
+        await NotificationService.MarkAllReadAsync();
+        _showPanel = false;
     }
 
-    // ─── Dispose ─────────────────────────────────────────────────
+    private void OnNotificationsChanged()
+        => _ = InvokeAsync(StateHasChanged);
 
     public async ValueTask DisposeAsync()
     {
-        if (_isDisposed) return;
-        _isDisposed = true;
-
-        Logger.LogDebugIf(Debug, "[BADGE] Disposing hub connection");
+        if (_disposed) return;
+        _disposed = true;
+        NotificationService.OnChanged -= OnNotificationsChanged;
 
         if (_hub != null)
         {
@@ -402,7 +253,7 @@
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "[BADGE] DisposeAsync error | {Msg}", ex.Message);
+                Logger.LogDebug(ex, "[NOTIFY-BADGE] Error disposing SignalR connection");
             }
         }
     }
