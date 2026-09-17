@@ -1,10 +1,10 @@
-﻿
+﻿using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Configurations;
+using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Shared.Handlers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-
 
 namespace FVN_REGISTER.Shared.Services.Approvals
 {
@@ -20,23 +20,45 @@ namespace FVN_REGISTER.Shared.Services.Approvals
             ILogger<ApprovalListClientService> logger,
             IOptionsMonitor<AuthDebugOptions> options)
         {
-            _http = http; _logger = logger; _options = options;
+            _http = http;
+            _logger = logger;
+            _options = options;
         }
 
-        public Task<ApiResponse<PendingApprovalListDto>> GetPendingAsync(
-        CancellationToken ct = default)
-        => _http.GetAsync<PendingApprovalListDto>("api/ApprovalList/pending", ct);
+        public Task<ApiResponse<List<PendingApprovalGroupDto>>> GetPendingAsync(
+            CancellationToken ct = default)
+            => _http.GetAsync<List<PendingApprovalGroupDto>>("api/ApprovalList/pending", ct);
 
         public Task<ApiResponse<object>> ApproveAsync(
-            List<int> ids, RequestKind kind, int level,
-            string? comment, CancellationToken ct = default)
+            List<int> ids,
+            RequestModule kind,
+            int level,
+            string? comment,
+            CancellationToken ct = default)
             => _http.PostAsync<object>("api/ApprovalList/approve",
-                new { Ids = ids, Kind = kind, Level = level, Comment = comment }, ct);
+                new ApprovalActionDto
+                {
+                    RequestIds = ids,
+                    Kind = kind,
+                    Level = level,
+                    IsReject = false,
+                    Comment = comment
+                }, ct);
 
         public Task<ApiResponse<object>> RejectAsync(
-            List<int> ids, RequestKind kind, int level,
-            string comment, CancellationToken ct = default)
+            List<int> ids,
+            RequestModule kind,
+            int level,
+            string comment,
+            CancellationToken ct = default)
             => _http.PostAsync<object>("api/ApprovalList/reject",
-                new { Ids = ids, Kind = kind, Level = level, Comment = comment }, ct);
+                new ApprovalActionDto
+                {
+                    RequestIds = ids,
+                    Kind = kind,
+                    Level = level,
+                    IsReject = true,
+                    Comment = comment
+                }, ct);
     }
 }
