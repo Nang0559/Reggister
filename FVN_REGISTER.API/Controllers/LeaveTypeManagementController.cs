@@ -1,4 +1,3 @@
-using AutoMapper;
 using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.LeaveTypes;
@@ -20,10 +19,9 @@ namespace FVN_REGISTER.API.Controllers
             ILeaveTypeManagementService leaveTypeService,
             ICurrentUserService currentUser,
             IUserLogService userLog,
-            IMapper mapper,
             ILogger<LeaveTypeManagementController> logger,
             IOptionsMonitor<AuthDebugOptions> options)
-            : base(currentUser, userLog, mapper, logger, options)
+            : base(currentUser, userLog, logger, options)
         {
             _leaveTypeService = leaveTypeService;
         }
@@ -33,10 +31,7 @@ namespace FVN_REGISTER.API.Controllers
             => HandleResult(await _leaveTypeService.GetAllAsync(ct));
 
         [HttpGet("filter")]
-        public async Task<IActionResult> GetFiltered(
-            [FromQuery] bool? tinhPhep,
-            [FromQuery] bool? isActive,
-            CancellationToken ct)
+        public async Task<IActionResult> GetFiltered([FromQuery] bool? tinhPhep, [FromQuery] bool? isActive, CancellationToken ct)
             => HandleResult(await _leaveTypeService.GetFilteredAsync(tinhPhep, isActive, ct));
 
         [HttpPost]
@@ -52,7 +47,6 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
             if (UserInfo == null) return Unauthorized();
-
             model.Id = id;
             return HandleResult(await _leaveTypeService.UpdateAsync(model, UserInfo.UserId, ct));
         }
