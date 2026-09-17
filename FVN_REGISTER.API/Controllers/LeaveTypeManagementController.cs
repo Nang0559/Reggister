@@ -16,17 +16,27 @@ namespace FVN_REGISTER.API.Controllers
     {
         private readonly ILeaveTypeManagementService _leaveTypeService;
 
-        public LeaveTypeManagementController(ILeaveTypeManagementService leaveTypeService, ICurrentUserService currentUser, IUserLogService userLog, IMapper mapper, ILogger<LeaveTypeManagementController> logger, IOptionsMonitor<AuthDebugOptions> options)
+        public LeaveTypeManagementController(
+            ILeaveTypeManagementService leaveTypeService,
+            ICurrentUserService currentUser,
+            IUserLogService userLog,
+            IMapper mapper,
+            ILogger<LeaveTypeManagementController> logger,
+            IOptionsMonitor<AuthDebugOptions> options)
             : base(currentUser, userLog, mapper, logger, options)
         {
             _leaveTypeService = leaveTypeService;
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll(CancellationToken ct) => HandleResult(await _leaveTypeService.GetAllAsync(ct));
+        public async Task<IActionResult> GetAll(CancellationToken ct)
+            => HandleResult(await _leaveTypeService.GetAllAsync(ct));
 
         [HttpGet("filter")]
-        public async Task<IActionResult> GetFiltered([FromQuery] bool? tinhPhep, [FromQuery] bool? isActive, CancellationToken ct)
+        public async Task<IActionResult> GetFiltered(
+            [FromQuery] bool? tinhPhep,
+            [FromQuery] bool? isActive,
+            CancellationToken ct)
             => HandleResult(await _leaveTypeService.GetFilteredAsync(tinhPhep, isActive, ct));
 
         [HttpPost]
@@ -42,7 +52,8 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ModelState);
             if (UserInfo == null) return Unauthorized();
-            model.LeaveTypeId = id;
+
+            model.Id = id;
             return HandleResult(await _leaveTypeService.UpdateAsync(model, UserInfo.UserId, ct));
         }
 
