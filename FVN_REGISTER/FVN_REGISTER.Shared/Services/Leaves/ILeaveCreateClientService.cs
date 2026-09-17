@@ -1,7 +1,6 @@
-﻿using FVN_REGISTER.Contract.Dtos.MasterData;
+using FVN_REGISTER.Contract.Dtos.MasterData;
 using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Contract.ViewModels;
-
+using FVN_REGISTER.Contract.Requests.Leaves;
 
 namespace FVN_REGISTER.Shared.Services.Leaves
 {
@@ -15,14 +14,17 @@ namespace FVN_REGISTER.Shared.Services.Leaves
             CancellationToken ct = default);
 
         Task<ApiResponse<object>> CreateLeaveAsync(
-            CreateLeaveRequestModel model,
+            LeaveRequestUpsertDto model,
             CancellationToken ct = default);
 
         Task<ApiResponse<object>> CancelLeaveAsync(
             int leaveId,
             string reason,
             CancellationToken ct = default);
+
         Task<ApiResponse<object>> CancelDetailAsync(
-        int detailId, string reason, CancellationToken ct = default);
+            int detailId,
+            string reason,
+            CancellationToken ct = default);
     }
 }
