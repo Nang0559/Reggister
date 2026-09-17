@@ -1,7 +1,8 @@
+using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Approvals;
-using FVN_REGISTER.Core.Configurations;
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;

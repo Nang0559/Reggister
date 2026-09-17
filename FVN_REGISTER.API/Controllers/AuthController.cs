@@ -1,11 +1,9 @@
 using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Authentication;
-using FVN_REGISTER.Contract.Dtos.Requests.Auths;
+using FVN_REGISTER.Contract.Requests;
 using FVN_REGISTER.Contract.Requests.Auths;
-using FVN_REGISTER.Contract.Utils;
-using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Logging;
+using FVN_REGISTER.Contract.Responses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;

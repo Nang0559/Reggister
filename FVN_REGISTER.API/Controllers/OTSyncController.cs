@@ -1,12 +1,12 @@
-using AutoMapper;
+
+using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Jobs;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.OT;
-using FVN_REGISTER.Core.Configurations;
+using FVN_REGISTER.Contract.Responses;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
