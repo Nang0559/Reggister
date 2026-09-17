@@ -12,6 +12,9 @@ public class OTHistoryHandler : BaseHistoryHandler<F03OTRequest>
 
     public OTHistoryHandler(FVNWEBAPPContext db) : base(db) { }
 
+    protected override System.Linq.Expressions.Expression<Func<F03OTRequest, bool>> BuildIdPredicate(int id)
+        => x => x.Id == id;
+
     public override async Task<ServiceResult<PaginationResult<HistoryItemDto>>> GetHistoryAsync(
         HistoryFilterDto filter, UserIdentityDto user, CancellationToken ct)
     {

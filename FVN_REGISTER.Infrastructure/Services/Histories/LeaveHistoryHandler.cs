@@ -13,6 +13,9 @@ public class LeaveHistoryHandler : BaseHistoryHandler<F03LeaveDay>
 
     public LeaveHistoryHandler(FVNWEBAPPContext db) : base(db) { }
 
+    protected override System.Linq.Expressions.Expression<Func<F03LeaveDay, bool>> BuildIdPredicate(int id)
+        => x => x.Id == id;
+
     public override async Task<ServiceResult<PaginationResult<HistoryItemDto>>> GetHistoryAsync(
         HistoryFilterDto filter, UserIdentityDto user, CancellationToken ct)
     {
