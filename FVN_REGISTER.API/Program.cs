@@ -53,9 +53,6 @@ JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
 var builder = WebApplication.CreateBuilder(args);
 
-// =========================================================
-// 1. CORS
-// =========================================================
 var allowedOrigins = builder.Configuration
     .GetSection("AllowedOrigins")
     .Get<string[]>()
@@ -81,9 +78,6 @@ builder.Services.AddCors(options =>
     });
 });
 
-// =========================================================
-// 2. INFRASTRUCTURE
-// =========================================================
 builder.Services.AddMemoryCache();
 builder.Services.Configure<AuthDebugOptions>(
     builder.Configuration.GetSection("AuthDebug"));
@@ -106,7 +100,7 @@ builder.Services.AddSignalR();
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
 // =========================================================
-// 3. APPLICATION PORTS -> INFRASTRUCTURE ADAPTERS
+// APPLICATION PORTS -> INFRASTRUCTURE ADAPTERS
 // =========================================================
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<INetworkService, NetworkService>();
@@ -114,11 +108,9 @@ builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IWorkingDayService, WorkingDayService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 
-// Common / master-data lookups
 builder.Services.AddScoped<IDepartmentLookupService, DepartmentLookupService>();
 builder.Services.AddScoped<IDepartmentManagementService, DepartmentManagementService>();
 
-// Dashboard/Application orchestration
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ILeaveQueryService, LeaveQueryService>();
@@ -127,12 +119,10 @@ builder.Services.AddScoped<ILeaveValidator, LeaveValidator>();
 builder.Services.AddScoped<ILeaveEscalationService, LeaveEscalationService>();
 builder.Services.AddScoped<ILeaveService, LeaveService>();
 
-// Reports
 builder.Services.AddScoped<IReportService, LeaveReportService>();
 builder.Services.AddScoped<IReportService, OTReportService>();
 builder.Services.AddScoped<IReportDispatcher, ReportDispatcher>();
 
-// Overtime
 builder.Services.AddScoped<OTQueryService>();
 builder.Services.AddScoped<IOTQueryService, OTQueryService>();
 builder.Services.AddScoped<IOTValidator, OTValidator>();
@@ -141,31 +131,25 @@ builder.Services.AddScoped<IOTSyncService, OTSyncService>();
 builder.Services.AddScoped<IDepartmentStatusService, DepartmentStatusService>();
 builder.Services.AddScoped<IOTTypeManagementService, OTTypeManagementService>();
 
-// Authentication / users
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IUserLogService, UserLogService>();
 builder.Services.AddScoped<ISessionService, SessionService>();
+builder.Services.AddScoped<ISessionTerminationNotifier, SignalRSessionTerminationNotifier>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 builder.Services.AddScoped<IApproverManagementService, ApproverManagementService>();
 
-// Employees / company master data
 builder.Services.AddScoped<IEmployeeManagementService, EmployeeManagementService>();
 builder.Services.AddScoped<ILeaveTypeManagementService, LeaveTypeManagementService>();
 
-// History
 builder.Services.AddScoped<IHistoryHandler, LeaveHistoryHandler>();
 builder.Services.AddScoped<IHistoryHandler, OTHistoryHandler>();
 builder.Services.AddScoped<IHistoryDispatcher, HistoryDispatcher>();
 
-// Email templates
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
-
-// Notifications
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
-// Approval pipeline
 builder.Services.AddScoped<IApprovalInboxService, ApprovalInboxService>();
 builder.Services.AddScoped<LeaveApprovalProvider>();
 builder.Services.AddScoped<IApprovalEngine<LeaveRequestSubject>, ApprovalEngine<LeaveRequestSubject>>();
@@ -174,9 +158,6 @@ builder.Services.AddScoped<IApprovalListDataSource<OTRequestViewModel>, OTApprov
 builder.Services.AddScoped<ApprovalListService<LeaveRequestViewModel>>();
 builder.Services.AddScoped<ApprovalListService<OTRequestViewModel>>();
 
-// =========================================================
-// 4. AUTHENTICATION / JWT
-// =========================================================
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -291,18 +272,12 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 
-// =========================================================
-// 5. BACKGROUND WORKERS
-// =========================================================
 builder.Services.AddHostedService<EmailBackgroundWorker>();
 builder.Services.AddHostedService<EscalationBackgroundWorker>();
 builder.Services.AddSingleton<OTAttendanceStagingWorker>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<OTAttendanceStagingWorker>());
 builder.Services.AddSingleton<IOTWorkerStatus>(sp => sp.GetRequiredService<OTAttendanceStagingWorker>());
 
-// =========================================================
-// 6. BUILD & PIPELINE
-// =========================================================
 var app = builder.Build();
 app.UsePathBase("/api");
 
