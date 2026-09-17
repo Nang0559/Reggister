@@ -1,19 +1,16 @@
-﻿using FVN_REGISTER.Contract.Dtos.Authentication;
+using FVN_REGISTER.Contract.Dtos.Authentication;
+using FVN_REGISTER.Contract.Requests;
+using FVN_REGISTER.Contract.Requests.Auths;
 using FVN_REGISTER.Contract.Responses;
-using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Shared.Handlers;
 using FVN_REGISTER.Shared.Utils;
 using Microsoft.AspNetCore.Components.Authorization;
-
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using System.Net.Http.Json;
-
 
 namespace FVN_REGISTER.Shared.Services.Users
 {
-    public class AuthClientService : IAuthClientService
+    public sealed class AuthClientService : IAuthClientService
     {
         private readonly HttpClient _publicHttp;
         private readonly IHttpClientWithAuth _authHttp;
@@ -21,9 +18,6 @@ namespace FVN_REGISTER.Shared.Services.Users
         private readonly AuthenticationStateProvider _authStateProvider;
         private readonly ICurrentUserClientService _currentUserService;
         private readonly ILogger<AuthClientService> _logger;
-        private readonly IOptionsMonitor<AuthDebugOptions> _options;
-
-        private bool Debug => _options.CurrentValue.Enabled;
 
         public AuthClientService(
             HttpClient publicHttp,
@@ -31,8 +25,7 @@ namespace FVN_REGISTER.Shared.Services.Users
             ITokenStorage tokenStorage,
             AuthenticationStateProvider authStateProvider,
             ICurrentUserClientService currentUserService,
-            ILogger<AuthClientService> logger,
-            IOptionsMonitor<AuthDebugOptions> options)
+            ILogger<AuthClientService> logger)
         {
             _publicHttp = publicHttp;
             _authHttp = authHttp;
@@ -40,10 +33,8 @@ namespace FVN_REGISTER.Shared.Services.Users
             _authStateProvider = authStateProvider;
             _currentUserService = currentUserService;
             _logger = logger;
-            _options = options;
         }
 
-        // ================= LOGIN =================
         public async Task<ApiResponse<AuthResultDto>> Login(
             string username,
             string password,
@@ -51,44 +42,42 @@ namespace FVN_REGISTER.Shared.Services.Users
         {
             try
             {
-                var response = await _publicHttp.PostAsJsonAsync("api/auth/login", new
+                var request = new LoginRequestDto
                 {
                     UserName = username,
                     Password = password
-                }, ct);
+                };
 
+                var response = await _publicHttp.PostAsJsonAsync("api/auth/login", request, ct);
                 var result = await response.Content
                     .ReadFromJsonAsync<ApiResponse<AuthResultDto>>(cancellationToken: ct);
 
                 if (!response.IsSuccessStatusCode)
-                {
-                    _logger.LogWarnIf(Debug,
-                        "Login HTTP failed: {Status}",
-                        response.StatusCode);
-                }
+                    _logger.LogWarning("Login HTTP failed: {Status}", response.StatusCode);
 
-                if (result?.IsSuccess == true && result.Data != null)
+                if (result?.IsSuccess == true && result.Data != null &&
+                    !string.IsNullOrWhiteSpace(result.Data.Token))
                 {
-                    var token = result.Data.Token!;
-
+                    var token = result.Data.Token;
                     await _tokenStorage.SetTokenAsync(token);
 
-                    if (_authStateProvider is CustomAuthStateProvider cp)
-                        cp.NotifyUserLogin(token);
+                    if (_authStateProvider is CustomAuthStateProvider provider)
+                        provider.NotifyUserLogin(token);
 
-                    _logger.LogInfoIf(Debug,
-                        "Login success: {User}",
-                        username);
-
+                    _logger.LogInformation("Login success: {User}", username);
                     return result;
                 }
 
-                _logger.LogWarnIf(Debug,
+                _logger.LogWarning(
                     "Login failed: {User} | {Msg}",
                     username,
                     result?.Message);
 
                 return result ?? ApiResponse<AuthResultDto>.Fail("Sai tài khoản hoặc mật khẩu.");
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -97,12 +86,16 @@ namespace FVN_REGISTER.Shared.Services.Users
             }
         }
 
-        // ================= PROFILE =================
-        public async Task<ApiResponse<AuthResultDto>> GetProfileAsync(CancellationToken ct = default)
+        public async Task<ApiResponse<AuthResultDto>> GetProfileAsync(
+            CancellationToken ct = default)
         {
             try
             {
                 return await _authHttp.GetAsync<AuthResultDto>("api/auth/profile", ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -111,7 +104,6 @@ namespace FVN_REGISTER.Shared.Services.Users
             }
         }
 
-        // ================= CHANGE PASSWORD =================
         public async Task<ApiResponse<object>> ChangePassword(
             string currentPassword,
             string newPassword,
@@ -125,6 +117,10 @@ namespace FVN_REGISTER.Shared.Services.Users
                     NewPassword = newPassword
                 }, ct);
             }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "ChangePassword failed");
@@ -132,7 +128,6 @@ namespace FVN_REGISTER.Shared.Services.Users
             }
         }
 
-        // ================= UPDATE PROFILE =================
         public async Task<ApiResponse<object>> UpdateProfileAsync(
             string email,
             string? avatarUrl,
@@ -140,11 +135,17 @@ namespace FVN_REGISTER.Shared.Services.Users
         {
             try
             {
-                return await _authHttp.PutAsync<object>("api/auth/profile-update", new
+                var request = new UpdateProfileCommandDto
                 {
                     Email = email,
                     AvatarUrl = avatarUrl
-                }, ct);
+                };
+
+                return await _authHttp.PutAsync<object>("api/auth/profile-update", request, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -153,29 +154,32 @@ namespace FVN_REGISTER.Shared.Services.Users
             }
         }
 
-        // ================= LOGOUT =================
         public async Task Logout(CancellationToken ct = default)
         {
             try
             {
-                await _authHttp.PostAsync<object>("api/auth/logout", new { }, ct);
-
-                _logger.LogInfoIf(Debug, "Logout API called");
+                var refreshToken = await _tokenStorage.GetRefreshTokenAsync();
+                var request = new LogoutRequestDto { RefreshToken = refreshToken };
+                await _authHttp.PostAsync<object>("api/auth/logout", request, ct);
+                _logger.LogInformation("Logout API called");
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
-                _logger.LogWarnIf(Debug, "Logout API failed (ignored)");
-                _logger.LogError(ex, "Logout API exception");
+                _logger.LogWarning(ex, "Logout API failed (ignored)");
             }
             finally
             {
                 await _tokenStorage.RemoveTokenAsync();
                 _currentUserService.ClearUser();
 
-                if (_authStateProvider is CustomAuthStateProvider cp)
-                    cp.NotifyUserLogout();
+                if (_authStateProvider is CustomAuthStateProvider provider)
+                    provider.NotifyUserLogout();
 
-                _logger.LogInfoIf(Debug, "Client logout completed");
+                _logger.LogInformation("Client logout completed");
             }
         }
     }
