@@ -1,11 +1,10 @@
-﻿using AutoMapper;
+using AutoMapper;
+using FVN_REGISTER.Application.Interfaces.Histories;
+using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.Histories;
-using FVN_REGISTER.Contract.Interfaces.Histories;
-using FVN_REGISTER.Contract.Interfaces.Users;
 using FVN_REGISTER.Core.Configurations;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -44,7 +43,9 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (UserInfo == null) return Unauthorized();
 
-            var requestKind = kind.ToLower() == "ot" ? RequestKind.OT : RequestKind.Leave;
+            var requestKind = kind.Equals("ot", StringComparison.OrdinalIgnoreCase)
+                ? RequestKind.OT
+                : RequestKind.Leave;
 
             var filter = new HistoryFilterDto
             {
@@ -66,26 +67,41 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> GetDetail(string kind, int id, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
-            var requestKind = kind.ToLower() == "ot" ? RequestKind.OT : RequestKind.Leave;
+            var requestKind = kind.Equals("ot", StringComparison.OrdinalIgnoreCase)
+                ? RequestKind.OT
+                : RequestKind.Leave;
             var result = await _dispatcher.GetDetailAsync(requestKind, id, UserInfo, ct);
             return HandleResult(result);
         }
 
         [HttpGet("{kind}/balance")]
-        public async Task<IActionResult> GetBalance(string kind, [FromQuery] int? year, CancellationToken ct)
+        public async Task<IActionResult> GetBalance(
+            string kind,
+            [FromQuery] int? year,
+            CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
-            var requestKind = kind.ToLower() == "ot" ? RequestKind.OT : RequestKind.Leave;
-            var result = await _dispatcher.GetBalanceAsync(requestKind, year ?? DateTime.Now.Year, UserInfo, ct);
+            var requestKind = kind.Equals("ot", StringComparison.OrdinalIgnoreCase)
+                ? RequestKind.OT
+                : RequestKind.Leave;
+            var result = await _dispatcher.GetBalanceAsync(
+                requestKind, year ?? DateTime.Now.Year, UserInfo, ct);
             return HandleResult(result);
         }
 
         [HttpPost("{kind}/{id:int}/cancel")]
-        public async Task<IActionResult> Cancel(string kind, int id, [FromBody] CancelRequest req, CancellationToken ct)
+        public async Task<IActionResult> Cancel(
+            string kind,
+            int id,
+            [FromBody] CancelRequest req,
+            CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
-            var requestKind = kind.ToLower() == "ot" ? RequestKind.OT : RequestKind.Leave;
-            var result = await _dispatcher.CancelAsync(requestKind, id, req.Reason ?? "", UserInfo, ct);
+            var requestKind = kind.Equals("ot", StringComparison.OrdinalIgnoreCase)
+                ? RequestKind.OT
+                : RequestKind.Leave;
+            var result = await _dispatcher.CancelAsync(
+                requestKind, id, req.Reason ?? "", UserInfo, ct);
             return HandleResult(result);
         }
     }
