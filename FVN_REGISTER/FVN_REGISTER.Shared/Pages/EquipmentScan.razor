@@ -1,0 +1,26 @@
+@page "/equipment/scan/{Token}"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Equipment
+@using FVN_REGISTER.Shared.Services.Equipment
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IEquipmentClientService Equipment
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+@if (_loading) { <MudProgressCircular Indeterminate="true" /> }
+else if (_asset == null) { <MudAlert Severity="Severity.Warning">Không tìm thấy thiết bị hoặc QR chưa có hiệu lực.</MudAlert> }
+else {
+<MudText Typo="Typo.h5">@_asset.EquipmentName</MudText>
+<MudPaper Class="pa-4 my-3"><MudGrid><MudItem xs="12" md="6"><b>Mã thiết bị:</b> @_asset.EquipmentCode</MudItem><MudItem xs="12" md="6"><b>Mã tài sản:</b> @_asset.AssetCode</MudItem><MudItem xs="12" md="6"><b>Serial:</b> @_asset.SerialNumber</MudItem><MudItem xs="12" md="6"><b>Bộ phận:</b> @_asset.DeptCode</MudItem><MudItem xs="12" md="6"><b>Giá mua:</b> @_asset.PurchasePrice.ToString("N0")</MudItem><MudItem xs="12" md="6"><b>Ngày mua:</b> @_asset.PurchaseDate.ToString("dd/MM/yyyy")</MudItem><MudItem xs="12" md="6"><b>Khấu hao:</b> @_asset.ExpectedDepreciationDate.ToString("dd/MM/yyyy")</MudItem><MudItem xs="12" md="6"><b>Vị trí:</b> @_asset.Location</MudItem></MudGrid></MudPaper>
+<MudText Typo="Typo.h6">Lịch sử sửa chữa đã phê duyệt</MudText>
+<MudTable Items="_asset.RepairHistory" Dense="true" Hover="true"><HeaderContent><MudTh>Ngày</MudTh><MudTh>Nội dung</MudTh><MudTh>Đơn vị</MudTh><MudTh>Chi phí</MudTh><MudTh>Kết quả</MudTh></HeaderContent><RowTemplate><MudTd>@context.RepairDate.ToString("dd/MM/yyyy")</MudTd><MudTd>@context.RepairContent</MudTd><MudTd>@context.RepairVendor</MudTd><MudTd>@context.RepairCost?.ToString("N0")</MudTd><MudTd>@context.RepairResult</MudTd></RowTemplate></MudTable>
+<MudDivider Class="my-4" /><MudText Typo="Typo.h6">Thêm lịch sử sửa chữa</MudText>
+<MudGrid><MudItem xs="12" md="4"><MudDatePicker @bind-Date="_repairDate" Label="Ngày sửa" /></MudItem><MudItem xs="12" md="8"><MudTextField @bind-Value="_repair.RepairContent" Label="Nội dung sửa chữa" Required="true" /></MudItem><MudItem xs="12" md="4"><MudTextField @bind-Value="_repair.RepairVendor" Label="Đơn vị sửa chữa" /></MudItem><MudItem xs="12" md="4"><MudNumericField @bind-Value="_repair.RepairCost" Label="Chi phí" Min="0" /></MudItem><MudItem xs="12" md="4"><MudTextField @bind-Value="_repair.RepairResult" Label="Kết quả" /></MudItem><MudItem xs="12"><MudSelect T="string" @bind-Value="_repair.SelectedApproverCode" Label="Người phê duyệt" Required="true">@foreach (var a in _approvers) { <MudSelectItem Value="@a.ApproverCode">@a.ApproverName — L@a.Level</MudSelectItem> }</MudSelect></MudItem><MudItem xs="12"><MudTextField @bind-Value="_repair.Note" Label="Ghi chú" /><MudButton Class="mt-2" Color="Color.Primary" Variant="Variant.Filled" OnClick="CreateRepairAsync" Disabled="_busy">Tạo & gửi yêu cầu sửa chữa</MudButton></MudItem></MudGrid>
+}
+
+@code {
+ [Parameter] public string Token { get; set; } = string.Empty; private bool _loading = true; private bool _busy; private EquipmentAssetDto? _asset; private List<EquipmentApproverDto> _approvers = new(); private DateTime? _repairDate = DateTime.Today; private CreateEquipmentRepairDto _repair = new();
+ protected override async Task OnInitializedAsync() { var r = await Equipment.ScanAsync(Uri.UnescapeDataString(Token)); if (r.IsSuccess) { _asset = r.Data; if (_asset != null) { _repair.AssetId = _asset.Id; var a = await Equipment.GetApproversAsync(_asset.DeptCode); if (a.IsSuccess) _approvers = a.Data ?? new(); } } _loading = false; }
+ private async Task CreateRepairAsync() { _repair.RepairDate = _repairDate ?? DateTime.Today; _busy = true; var r = await Equipment.CreateRepairAsync(_repair); if (!r.IsSuccess) { _busy = false; Snackbar.Add(r.Message ?? "Không thể tạo yêu cầu.", Severity.Error); return; } var s = await Equipment.SubmitRepairAsync(r.Data!.Id); _busy = false; Snackbar.Add(s.IsSuccess ? "Đã gửi yêu cầu sửa chữa để phê duyệt." : s.Message ?? "Không thể gửi duyệt.", s.IsSuccess ? Severity.Success : Severity.Error); if (s.IsSuccess) Navigation.NavigateTo("/equipment"); }
+}
