@@ -1,201 +1,115 @@
-﻿@* ─────────────────────────────────────────────────────────────────────────────
-   File: FVN_REGISTER.Shared/Dialogs/LeaveTypes/LeaveTypeEditDialog.razor
-   Dùng IMudDialogInstance (MudBlazor v6+)
-───────────────────────────────────────────────────────────────────────────── *@
-@using FVN_REGISTER.Contract.ViewModels
-@using FVN_REGISTER.Contract.ViewModels.Leaves
-@using FVN_REGISTER.Core.Logging
+@using FVN_REGISTER.Contract.Dtos.LeaveTypes
 @using FVN_REGISTER.Shared.Services.Leaves
-@using FVN_REGISTER.Shared.Utils.Helpers
-@inherits AppComponentBase
-
 @inject ILeaveTypeClientService LeaveTypeService
 @inject ISnackbar Snackbar
 
 <MudDialog>
     <TitleContent>
         <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-            <MudIcon Icon="@(Model.IsNew
-                                                     ? Icons.Material.Filled.AddCircle
-                                                     : Icons.Material.Filled.Edit)"
-                     Color="Color.Primary" />
-            <MudText Typo="Typo.h6">
-                @(Model.IsNew ? "Thêm hình thức nghỉ" : "Chỉnh sửa hình thức nghỉ")
-            </MudText>
+            <MudIcon Icon="@(IsNew ? Icons.Material.Filled.AddCircle : Icons.Material.Filled.Edit)" Color="Color.Primary" />
+            <MudText Typo="Typo.h6">@(IsNew ? "Thêm hình thức nghỉ" : "Chỉnh sửa hình thức nghỉ")</MudText>
         </MudStack>
     </TitleContent>
 
     <DialogContent>
-        <MudForm @ref="_form" Model="@Model">
-
-            @* Mã *@
-            <MudTextField T="string"
-                          Label="Mã hình thức nghỉ (*)"
+        <MudForm @ref="_form">
+            <MudTextField T="string" Label="Mã hình thức nghỉ (*)"
                           @bind-Value="Model.LeaveTypeCode"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Dense"
-                          Class="mb-3"
-                          Disabled="@(!Model.IsNew)"
-                          HelperText="@(Model.IsNew ? "Mã sẽ không thể thay đổi sau khi tạo" : "Mã không thể thay đổi")"
-                          Required="true"
-                          RequiredError="Vui lòng nhập mã"
-                          MaxLength="50"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Tag" />
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3"
+                          Disabled="@(!IsNew)" Required="true" RequiredError="Vui lòng nhập mã"
+                          MaxLength="50" />
 
-            @* Tên tiếng Việt *@
-            <MudTextField T="string"
-                          Label="Tên hình thức nghỉ (*)"
+            <MudTextField T="string" Label="Tên hình thức nghỉ (*)"
                           @bind-Value="Model.LeaveTypeName"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Dense"
-                          Class="mb-3"
-                          Required="true"
-                          RequiredError="Vui lòng nhập tên"
-                          MaxLength="200"
-                          Counter="200"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Label" />
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3"
+                          Required="true" RequiredError="Vui lòng nhập tên" MaxLength="200" />
 
-            @* Tên tiếng Anh *@
-            <MudTextField T="string"
-                          Label="Tên tiếng Anh"
+            <MudTextField T="string" Label="Tên phụ"
                           @bind-Value="Model.LeaveTypeName2"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Dense"
-                          Class="mb-3"
-                          MaxLength="200"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Translate" />
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3"
+                          MaxLength="200" />
 
-            @* Mã HRM *@
-            <MudTextField T="string"
-                          Label="Mã HRM tương ứng"
-                          @bind-Value="Model.HrmCode"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Dense"
-                          Class="mb-4"
-                          MaxLength="50"
-                          HelperText="Để trống nếu không đồng bộ HRM"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Sync" />
+            <MudTextField T="string" Label="Mã HRM tương ứng"
+                          @bind-Value="Model.HRMCode"
+                          Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4"
+                          MaxLength="50" HelperText="Để trống nếu không đồng bộ HRM" />
 
             <MudDivider Class="mb-3" />
 
-            @* Switches *@
             <MudStack Row="true" Spacing="4" Class="mb-2">
                 <MudTooltip Text="Loại nghỉ này có bị trừ vào số ngày phép năm không?">
-                    <MudSwitch T="bool"
-                               @bind-Value="Model.TinhPhep"
+                    <MudSwitch T="bool" @bind-Value="Model.IsCountedAsLeave"
                                Color="Color.Primary"
-                               Label="@(Model.TinhPhep ? "Tính vào phép năm" : "Không tính phép")" />
+                               Label="@(Model.IsCountedAsLeave ? "Tính vào phép năm" : "Không tính phép")" />
                 </MudTooltip>
 
                 <MudTooltip Text="Hình thức nghỉ đang được sử dụng">
-                    <MudSwitch T="bool"
-                               @bind-Value="Model.IsActive"
+                    <MudSwitch T="bool" @bind-Value="Model.IsActive"
                                Color="Color.Success"
                                Label="@(Model.IsActive ? "Đang kích hoạt" : "Tạm dừng")" />
                 </MudTooltip>
             </MudStack>
 
-            @* Preview chip *@
-            <MudPaper Elevation="0"
-                      Class="pa-3 mt-2"
-                      Style="border:1px dashed #bdbdbd; border-radius:10px; background:#fafafa">
-                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">
-                    Xem trước:
-                </MudText>
+            <MudPaper Elevation="0" Class="pa-3 mt-2" Style="border:1px dashed #bdbdbd; border-radius:10px; background:#fafafa">
+                <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mb-2">Xem trước:</MudText>
                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
-                    <MudChip T="string"
-                             Color="@(Model.TinhPhep ? Color.Warning : Color.Default)"
-                             Size="Size.Small">
-                        @(Model.TinhPhep ? "Tính phép" : "Không tính")
+                    <MudChip T="string" Color="@(Model.IsCountedAsLeave ? Color.Warning : Color.Default)" Size="Size.Small">
+                        @(Model.IsCountedAsLeave ? "Tính phép" : "Không tính")
                     </MudChip>
-                    <MudChip T="string"
-                             Color="@(Model.IsActive ? Color.Success : Color.Error)"
-                             Size="Size.Small">
+                    <MudChip T="string" Color="@(Model.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
                         @(Model.IsActive ? "Đang dùng" : "Tạm dừng")
                     </MudChip>
-                    @if (!string.IsNullOrEmpty(Model.LeaveTypeCode))
+                    @if (!string.IsNullOrWhiteSpace(Model.LeaveTypeCode))
                     {
-                        <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Outlined">
-                            @Model.LeaveTypeCode
-                        </MudChip>
+                        <MudChip T="string" Color="Color.Primary" Size="Size.Small" Variant="Variant.Outlined">@Model.LeaveTypeCode</MudChip>
                     }
-                    @if (!string.IsNullOrEmpty(Model.LeaveTypeName))
+                    @if (!string.IsNullOrWhiteSpace(Model.LeaveTypeName))
                     {
-                        <MudText Typo="Typo.body2" Style="font-weight:600">
-                            @Model.LeaveTypeName
-                        </MudText>
+                        <MudText Typo="Typo.body2" Style="font-weight:600">@Model.LeaveTypeName</MudText>
                     }
                 </MudStack>
             </MudPaper>
-
         </MudForm>
     </DialogContent>
 
     <DialogActions>
-        <MudButton Variant="Variant.Text"
-                   Color="Color.Default"
-                   OnClick="Cancel"
-                   Disabled="_isSaving">
-            Hủy
-        </MudButton>
-
-        <MudButton Variant="Variant.Filled"
-                   Color="Color.Primary"
-                   StartIcon="@Icons.Material.Filled.Save"
-                   OnClick="Submit"
-                   Disabled="_isSaving">
-            @if (_isSaving)
-            {
-                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-1" />
-                <span>Đang lưu...</span>
-            }
-            else
-            {
-                <span>@(Model.IsNew ? "Thêm mới" : "Lưu thay đổi")</span>
-            }
+        <MudButton Variant="Variant.Text" OnClick="Cancel" Disabled="@_isSaving">Hủy</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Save"
+                   OnClick="Submit" Disabled="@_isSaving">
+            @(_isSaving ? "Đang lưu..." : (IsNew ? "Thêm mới" : "Lưu thay đổi"))
         </MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public LeaveTypeUpsertDto Model { get; set; } = new();
 
-    [Parameter] public LeaveTypeUpsertModel Model { get; set; } = new();
-
-    private MudForm _form = default!;
+    private MudForm? _form;
     private bool _isSaving;
+    private bool IsNew => Model.Id == 0;
 
     private void Cancel() => MudDialog.Cancel();
 
     private async Task Submit()
     {
-        await _form.ValidateAsync();
-        if (!_form.IsValid) return;
+        if (_form != null && !await _form.Validate()) return;
 
         _isSaving = true;
-        StateHasChanged();
-
         try
         {
-            var result = Model.IsNew
+            var result = IsNew
                 ? await LeaveTypeService.CreateAsync(Model)
-                : await LeaveTypeService.UpdateAsync(Model);
+                : await LeaveTypeService.UpdateAsync(Model.Id, Model);
 
-            if (result.IsSuccess)
-            {
-                Snackbar.Add(
-                    result.Message ?? (Model.IsNew ? "Thêm thành công" : "Cập nhật thành công"),
-                    Severity.Success);
-                MudDialog.Close(DialogResult.Ok(true));
-            }
-            else
+            if (!result.IsSuccess)
             {
                 Snackbar.Add(result.Message ?? "Lỗi hệ thống", Severity.Error);
+                return;
             }
+
+            Snackbar.Add(result.Message ?? (IsNew ? "Thêm thành công" : "Cập nhật thành công"), Severity.Success);
+            MudDialog.Close(DialogResult.Ok(true));
         }
         finally
         {
