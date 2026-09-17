@@ -6,7 +6,7 @@ using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
-namespace FVN_REGISTER.API.Services.Common
+namespace FVN_REGISTER.Infrastructure.Services.Common
 {
     public class AttachmentService : IAttachmentService
     {
