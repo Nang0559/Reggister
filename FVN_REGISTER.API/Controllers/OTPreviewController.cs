@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Contract.Requests.OT;
+using FVN_REGISTER.Contract.Responses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -22,7 +23,7 @@ public sealed class OTPreviewController : ControllerBase
     public async Task<IActionResult> Preview([FromBody] OTRequestUpsertDto model, CancellationToken ct)
     {
         if (model == null)
-            return BadRequest();
+            return BadRequest(ApiResponse<object>.Fail("Dữ liệu OT không hợp lệ."));
 
         var totalHours = model.Employees?.Sum(x => x.OTHours) ?? 0m;
         var context = ApprovalBuildContext.ForOT(
@@ -33,6 +34,6 @@ public sealed class OTPreviewController : ControllerBase
             otTypeCode: model.OTTypeCode ?? string.Empty);
 
         var steps = await _provider.BuildHierarchyAsync(context, ct);
-        return Ok(steps);
+        return Ok(ApiResponse<List<ApprovalStepSnapshotDto>>.Ok(steps));
     }
 }
