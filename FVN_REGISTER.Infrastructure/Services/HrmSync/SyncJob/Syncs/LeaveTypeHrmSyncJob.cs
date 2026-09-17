@@ -27,7 +27,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             LeaveTypeCode = s.EntityKey,
             LeaveTypeName = s.LeaveTypeName,
             LeaveTypeName2 = s.LeaveTypeName2,
-            TinhPhep = false,
+            IsCountedAsLeave = false,
             HRMCode = s.HRMCode
         };
 

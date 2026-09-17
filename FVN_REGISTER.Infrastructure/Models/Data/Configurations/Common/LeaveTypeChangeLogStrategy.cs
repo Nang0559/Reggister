@@ -18,7 +18,7 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.Common
             LeaveTypeCode = change.LeaveTypeCode,
             LeaveTypeName = change.LeaveTypeName ?? "",
             LeaveTypeName2 = change.LeaveTypeName2,
-            TinhPhep = change.TinhPhep ?? false,
+            IsCountedAsLeave = change.TinhPhep ?? false,
             HRMCode = change.HRMCode,
             IsActive = true,
             CreatedAt = DateTime.Now
@@ -28,7 +28,7 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.Common
         {
             entity.LeaveTypeName = change.LeaveTypeName ?? entity.LeaveTypeName;
             entity.LeaveTypeName2 = change.LeaveTypeName2;
-            entity.TinhPhep = change.TinhPhep ?? entity.TinhPhep;
+            entity.IsCountedAsLeave = change.TinhPhep ?? entity.IsCountedAsLeave;
             entity.HRMCode = change.HRMCode;
             entity.ModifiedAt = DateTime.Now;
             entity.ModifiedBy = -1;
