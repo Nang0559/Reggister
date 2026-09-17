@@ -6,7 +6,6 @@ namespace FVN_REGISTER.Core.Entities.Equipment;
 [Table("F03EquipmentRepairHistory")]
 public sealed class F03EquipmentRepairHistory : BaseAuditEntity
 {
-    [Key] public int Id { get; set; }
     public int AssetId { get; set; }
     public int RequestId { get; set; }
     public DateTime RepairDate { get; set; }
