@@ -6,6 +6,7 @@ using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Core.Configurations;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -20,12 +21,14 @@ namespace FVN_REGISTER.API.Controllers
         private readonly IOTAttendanceReconciliationService _reconciliation;
         private readonly IOTWorkerStatus _workerStatus;
         private readonly IDepartmentLookupService _departments;
+        private readonly IWebHostEnvironment _environment;
 
         public OTSyncController(
             IOTAttendanceStagingService staging,
             IOTAttendanceReconciliationService reconciliation,
             IOTWorkerStatus workerStatus,
             IDepartmentLookupService departments,
+            IWebHostEnvironment environment,
             ICurrentUserService currentUser,
             IUserLogService userLog,
             IMapper mapper,
@@ -37,12 +40,16 @@ namespace FVN_REGISTER.API.Controllers
             _reconciliation = reconciliation;
             _workerStatus = workerStatus;
             _departments = departments;
+            _environment = environment;
         }
 
         [HttpPost("sync")]
-        public async Task<IActionResult> TriggerSync([FromQuery] DateTime? date, CancellationToken ct)
+        public async Task<IActionResult> TriggerSync(
+            [FromQuery] DateTime? date,
+            CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
+
             var workDate = date ?? DateTime.Today.AddDays(-1);
             var count = await _staging.SyncAttendanceStagingAsync(workDate, ct);
             return Ok(ApiResponse<object>.Ok(
@@ -56,23 +63,31 @@ namespace FVN_REGISTER.API.Controllers
             => Ok(ApiResponse<OTWorkerStatusDto>.Ok(_workerStatus.GetStatus()));
 
         [HttpPost("worker-trigger")]
-        public async Task<IActionResult> TriggerWorkerNow([FromQuery] string? deptCode, CancellationToken ct)
+        public async Task<IActionResult> TriggerWorkerNow(
+            [FromQuery] string? deptCode,
+            CancellationToken ct)
         {
-            if (!User.IsInRole("SuperAdmin") && !User.IsInRole("Admin")) return Forbid();
+            if (!User.IsInRole("SuperAdmin") && !User.IsInRole("Admin"))
+                return Forbid();
+
             var workDate = DateTime.Today.AddDays(-1);
-            var result = await _reconciliation.ReconcileActualHoursAsync(workDate, deptCode, ct);
+            var result = await _reconciliation.ReconcileActualHoursAsync(
+                workDate, deptCode, ct);
             return Ok(ApiResponse<OTReconciliationResultDto>.Ok(result, result.Summary));
         }
 
         [HttpPost("worker-test-run")]
-        public async Task<IActionResult> TestWorkerRun([FromQuery] DateTime? date, CancellationToken ct)
+        public async Task<IActionResult> TestWorkerRun(
+            [FromQuery] DateTime? date,
+            CancellationToken ct)
         {
-            if (!HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment())
+            if (!_environment.IsDevelopment())
                 return Forbid();
 
             var workDate = date ?? DateTime.Today.AddDays(-1);
             var syncedCount = await _staging.SyncAttendanceStagingAsync(workDate, ct);
-            var result = await _reconciliation.ReconcileActualHoursAsync(workDate, null, ct);
+            var result = await _reconciliation.ReconcileActualHoursAsync(
+                workDate, null, ct);
 
             return Ok(ApiResponse<object>.Ok(new
             {
