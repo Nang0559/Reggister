@@ -1,34 +1,42 @@
-﻿
+﻿using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Emails;
 using FVN_REGISTER.Application.Interfaces.Leaves;
+using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Maps;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-
-
-
 namespace FVN_REGISTER.Infrastructure.Services.Approvals
 {
-
-    // ════════════════════════════════════════════════════════════════════
-    // Generic base — Leave và OT đều kế thừa, chỉ khác RequestType
-    // ════════════════════════════════════════════════════════════════════
+    /// <summary>
+    /// Generic timeout/escalation pipeline shared by Leave and Overtime.
+    ///
+    /// Business invariant:
+    /// - Timeout of an approval step is NOT a rejection.
+    /// - The timed-out step is recorded as Escalated.
+    /// - The next required pending step becomes the active approver.
+    /// - The newly active approver receives both email and in-app notification.
+    /// - A system escalation is idempotent because the current step is no longer Pending
+    ///   after its Escalated history has been persisted.
+    /// </summary>
     public abstract class ApprovalEscalationService<TSubject>
-       : BaseService<ApprovalEscalationService<TSubject>>, IApprovalEscalationService
-       where TSubject : class, IApprovalSubject
+        : BaseService<ApprovalEscalationService<TSubject>>, IApprovalEscalationService
+        where TSubject : class, IApprovalSubject
     {
         protected readonly IUnitOfWork Uow;
         protected readonly IApprovalProvider<TSubject> Provider;
         private readonly IEscalationRuleService _rule;
         private readonly IWorkingDayService _workingDay;
         private readonly IEmailService _email;
+        private readonly IApprovalNotificationService _notification;
+        private readonly IEmployeeUserResolver _userResolver;
 
         protected abstract RequestModule ModuleKind { get; }
 
@@ -38,6 +46,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             IEscalationRuleService rule,
             IWorkingDayService workingDay,
             IEmailService email,
+            IApprovalNotificationService notification,
+            IEmployeeUserResolver userResolver,
             ILogger<ApprovalEscalationService<TSubject>> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(logger, options)
@@ -47,6 +57,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             _rule = rule;
             _workingDay = workingDay;
             _email = email;
+            _notification = notification;
+            _userResolver = userResolver;
         }
 
         public async Task ProcessAsync(CancellationToken ct = default)
@@ -79,7 +91,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     .ToListAsync(ct);
 
                 var historyByRequest = histories.ToLookup(x => x.RequestId);
-
                 var registerDateMap = await GetRegisterDateMapAsync(activeIds, ct);
                 var deptCodeMap = await GetDeptCodeMapAsync(activeIds, ct);
 
@@ -96,7 +107,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                         .ToList();
 
                     var historiesOfRequest = historyByRequest[requestId].ToList();
-
                     var current = GetCurrentPendingStep(stepsOfRequest, historiesOfRequest);
                     if (current == null) continue;
 
@@ -109,10 +119,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     }
 
                     deptCodeMap.TryGetValue(requestId, out var deptCode);
-
                     var baseTime = GetBaseTime(currentStep, stepsOfRequest, historiesOfRequest, regDate);
 
-                    var changed = await ProcessStepAsync(requestId, currentStep, baseTime, deptCode ?? "ALL", ct);
+                    var changed = await ProcessStepAsync(
+                        requestId, currentStep, baseTime, deptCode ?? ApproveForDept.All, ct);
                     if (changed) anyChanged = true;
                 }
 
@@ -134,36 +144,62 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         }
 
         private async Task<bool> ProcessStepAsync(
-            int requestId, F03ApprovalStepSnapshot step, DateTime baseTime, string deptCode, CancellationToken ct)
+            int requestId,
+            F03ApprovalStepSnapshot step,
+            DateTime baseTime,
+            string deptCode,
+            CancellationToken ct)
         {
-            if (string.IsNullOrEmpty(step.ApproverEmail)) return false;
-
+            // Missing email must not block the business transition. In-app notification
+            // can still resolve the approver by EmployeeCode.
             var now = DateTime.Now;
             var rule = await _rule.GetRuleAsync(ModuleKind, step.Level, deptCode, ct);
+            if (rule == null) return false;
 
-            double elapsedHours = await _workingDay.GetWorkingHoursAsync(baseTime, now);
-            DateTime deadline = _rule.GetDeadline(baseTime, rule.DeadlineHour);
+            var elapsedHours = await _workingDay.GetWorkingHoursAsync(baseTime, now);
+            var deadline = _rule.GetDeadline(baseTime, rule.DeadlineHour);
 
+            // Hard deadline remains a business rejection. This is deliberately different
+            // from Escalated: after escalation, the next approval level owns the request.
             if (now >= deadline)
-                return await RecordSystemActionAsync(requestId, step, "AutoReject",
-                    $"Quá deadline {rule.DeadlineHour}h", ct);
+            {
+                return await RecordSystemActionAsync(
+                    requestId,
+                    step,
+                    "AutoReject",
+                    $"Quá deadline {rule.DeadlineHour}h",
+                    DecisionType.Rejected,
+                    ct);
+            }
 
             if (elapsedHours >= (double)rule.EscalateHours)
-                return await RecordSystemActionAsync(requestId, step, "Escalated",
-                    $"Quá {rule.EscalateHours}h làm việc", ct);
+            {
+                return await RecordSystemActionAsync(
+                    requestId,
+                    step,
+                    "Escalated",
+                    $"Quá {rule.EscalateHours}h làm việc",
+                    DecisionType.Escalated,
+                    ct);
+            }
 
             if (elapsedHours >= (double)rule.WarningHours)
             {
+                if (string.IsNullOrWhiteSpace(step.ApproverEmail)) return false;
+
                 var alreadyReminded = await Uow.Repository<F03ApprovalReminderLog>().Query()
                     .AnyAsync(x => x.RequestType == ModuleKind
                                 && x.RequestId == requestId
                                 && x.Level == step.Level
-                                && x.SentAt.Date == DateTime.Today, ct);
+                                && x.SentAt.Date == now.Date, ct);
 
                 if (alreadyReminded) return false;
 
-                await _email.QueueEmail(step.ApproverEmail, $"{ModuleKind}_REMINDER",
-                    new { requestId, step.Level }, ct);
+                await _email.QueueEmail(
+                    step.ApproverEmail,
+                    $"{ModuleKind}_REMINDER",
+                    new { requestId, step.Level },
+                    ct);
 
                 await Uow.Repository<F03ApprovalReminderLog>().AddAsync(new F03ApprovalReminderLog
                 {
@@ -180,7 +216,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         }
 
         private async Task<bool> RecordSystemActionAsync(
-            int requestId, F03ApprovalStepSnapshot step, string action, string comment, CancellationToken ct)
+            int requestId,
+            F03ApprovalStepSnapshot step,
+            string action,
+            string comment,
+            DecisionType decision,
+            CancellationToken ct)
         {
             await Uow.Repository<F03ApprovalHistory>().AddAsync(new F03ApprovalHistory
             {
@@ -189,7 +230,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 StepId = step.Id,
                 ApproverCode = SystemUser.Code,
                 ApproverName = SystemUser.DisplayName,
-                Decision = DecisionType.Rejected,
+                Decision = decision,
                 Comment = $"[{action}] {comment}",
                 ActionAt = DateTime.Now,
                 CreatedBy = SystemUser.Id
@@ -204,12 +245,94 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 CreatedBy = SystemUser.Id
             }, ct);
 
-            await _email.QueueEmail(step.ApproverEmail, $"{ModuleKind}_{action.ToUpper()}",
-                new { requestId, step.Level }, ct);
+            // Persist the transition before resolving the next step. This also makes the
+            // transition idempotent across worker runs: the current step is no longer Pending.
+            await Uow.SaveChangesAsync(ct);
+
+            if (!string.IsNullOrWhiteSpace(step.ApproverEmail))
+            {
+                await _email.QueueEmail(
+                    step.ApproverEmail,
+                    $"{ModuleKind}_{action.ToUpperInvariant()}",
+                    new { requestId, step.Level },
+                    ct);
+            }
 
             await ApplyStatusViaProviderAsync(requestId, ct);
 
+            if (decision == DecisionType.Escalated)
+                await NotifyNextApproverAsync(requestId, step, ct);
+
             return true;
+        }
+
+        private async Task NotifyNextApproverAsync(
+            int requestId,
+            F03ApprovalStepSnapshot escalatedStep,
+            CancellationToken ct)
+        {
+            var snapshot = await Uow.Repository<F03ApprovalSnapshot>().Query()
+                .Where(x => x.RequestType == ModuleKind && x.RequestId == requestId)
+                .Include(x => x.Steps)
+                .FirstOrDefaultAsync(ct);
+            if (snapshot == null) return;
+
+            var histories = await Uow.Repository<F03ApprovalHistory>().Query()
+                .Where(x => x.RequestType == ModuleKind && x.RequestId == requestId)
+                .ToListAsync(ct);
+
+            var calculated = ApprovalStepMapper.MapToCalculatedList(
+                snapshot.Steps.OrderBy(x => x.Level).ToList(), histories);
+
+            var next = calculated
+                .Where(x => x.IsRequired && x.Status == DecisionType.Pending)
+                .OrderBy(x => x.Level)
+                .FirstOrDefault();
+
+            if (next == null) return;
+
+            var nextStep = snapshot.Steps.FirstOrDefault(x => x.Level == next.Level);
+            if (nextStep == null) return;
+
+            // Email: use the same "new request" contract/template as the normal activation
+            // path so escalation does not depend on a new DB email-template code.
+            var subject = await Provider.GetSubjectAsync(requestId, ct);
+            var creatorName = subject?.EmployeeName ?? string.Empty;
+            if (!string.IsNullOrWhiteSpace(nextStep.ApproverEmail))
+            {
+                await _notification.NotifyNewRequestAsync(
+                    nextStep.ApproverCode,
+                    nextStep.ApproverEmail,
+                    nextStep.ApproverName,
+                    requestId,
+                    ModuleKind,
+                    creatorName,
+                    nextStep.Level,
+                    ct);
+            }
+
+            // In-app: explicit EmployeeCode -> UserId resolution -> notification persistence
+            // and SignalR, including when the new level has never previously opened the app.
+            await _notification.NotifyApproverInAppAsync(
+                nextStep.ApproverCode,
+                requestId,
+                ModuleKind,
+                creatorName,
+                nextStep.Level,
+                ct);
+
+            var oldUserId = await _userResolver.ResolveUserIdAsync(escalatedStep.ApproverCode, ct);
+            var newUserId = await _userResolver.ResolveUserIdAsync(nextStep.ApproverCode, ct);
+            if (newUserId is > 0)
+            {
+                await _notification.NotifyEscalatedInAppAsync(
+                    oldUserId ?? 0,
+                    newUserId.Value,
+                    nextStep.ApproverCode,
+                    requestId,
+                    ModuleKind,
+                    ct);
+            }
         }
 
         protected abstract Task<List<int>> GetActiveRequestIdsAsync(CancellationToken ct);
@@ -217,13 +340,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         protected abstract Task<Dictionary<int, string?>> GetDeptCodeMapAsync(List<int> ids, CancellationToken ct);
 
         private static (F03ApprovalStepSnapshot Step, ApprovalStepCalculatedDto Calculated)? GetCurrentPendingStep(
-            List<F03ApprovalStepSnapshot> steps, List<F03ApprovalHistory> histories)
+            List<F03ApprovalStepSnapshot> steps,
+            List<F03ApprovalHistory> histories)
         {
             var calculatedList = ApprovalStepMapper.MapToCalculatedList(steps, histories);
-
             var currentCalculated = calculatedList.FirstOrDefault(x => x.IsCurrentStep);
-            if (currentCalculated == null) return null;
-            if (currentCalculated.Status != DecisionType.Pending) return null;
+            if (currentCalculated == null || currentCalculated.Status != DecisionType.Pending)
+                return null;
 
             var step = steps.First(s => s.Level == currentCalculated.Level);
             return (step, currentCalculated);
@@ -235,21 +358,22 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             List<F03ApprovalHistory> histories,
             DateTime registerDate)
         {
-            if (currentStep.Level <= 1) return registerDate;
-
-            var prevStepId = allSteps
-                .Where(s => s.Level == currentStep.Level - 1)
-                .Select(s => s.Id)
+            // Level numbers are business identifiers, not necessarily contiguous.
+            // OT currently uses 3 -> 5 -> 6 -> 7, so searching for Level - 1 would
+            // incorrectly restart the timeout clock from RegisterDate at levels 5/6/7.
+            var previousStep = allSteps
+                .Where(s => s.IsRequired && s.Level < currentStep.Level)
+                .OrderByDescending(s => s.Level)
                 .FirstOrDefault();
 
-            if (prevStepId == 0) return registerDate;
+            if (previousStep == null) return registerDate;
 
-            var prevDecision = histories
-                .Where(h => h.StepId == prevStepId)
+            var previousDecision = histories
+                .Where(h => h.StepId == previousStep.Id)
                 .OrderByDescending(h => h.ActionAt)
                 .FirstOrDefault();
 
-            return prevDecision?.ActionAt ?? registerDate;
+            return previousDecision?.ActionAt ?? registerDate;
         }
 
         private async Task ApplyStatusViaProviderAsync(int requestId, CancellationToken ct)
@@ -271,6 +395,4 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             await Provider.ApplyOverallStatusAsync(requestId, calculated, ct);
         }
     }
-
-
 }
