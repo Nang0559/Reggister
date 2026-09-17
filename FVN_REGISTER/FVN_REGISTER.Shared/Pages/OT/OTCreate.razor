@@ -96,7 +96,7 @@ else if (_form != null)
                     {
                         <MudListItem T="OTSummaryDto" OnClick="@(() => Nav.NavigateTo($"/ot/detail/{request.Id}"))">
                             <MudText Typo="Typo.body2">@request.OTDate.ToString("dd/MM/yyyy") — @request.TotalHours.ToString("N1") h</MudText>
-                            <MudText Typo="Typo.caption">@request.StatusDisplay</MudText>
+                            <MudText Typo="Typo.caption">@request.Status</MudText>
                         </MudListItem>
                     }
                 </MudList>
