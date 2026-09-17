@@ -1,8 +1,11 @@
-﻿using FVN_REGISTER.Core.Constants;
-using System.Security.Permissions;
+using FVN_REGISTER.Core.Constants;
 
 namespace FVN_REGISTER.Contract.Dtos.Authentication
 {
+    /// <summary>
+    /// Canonical authenticated-user identity contract returned by the profile endpoint.
+    /// Token/login transport data belongs to AuthResultDto; this DTO is the client identity model.
+    /// </summary>
     public class UserIdentityDto
     {
         public int UserId { get; set; }
@@ -15,6 +18,9 @@ namespace FVN_REGISTER.Contract.Dtos.Authentication
         public string? Email { get; set; }
         public int LevelApprove { get; set; }
         public List<int> Functions { get; set; } = new();
-       
+
+        public bool IsLoggedIn { get; set; }
+        public int PermissionCode => Permission;
+        public bool IsAdmin => Permission == UserPermissionCodes.SuperAdmin || Permission == UserPermissionCodes.Admin;
     }
 }
