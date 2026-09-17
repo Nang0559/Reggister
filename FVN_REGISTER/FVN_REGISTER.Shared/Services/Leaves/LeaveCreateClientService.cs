@@ -1,11 +1,8 @@
-using FVN_REGISTER.Contract.Dtos.MasterData;
+using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Requests.Leaves;
 using FVN_REGISTER.Contract.Responses;
-using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Shared.Handlers;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.Shared.Services.Leaves
 {
@@ -13,21 +10,16 @@ namespace FVN_REGISTER.Shared.Services.Leaves
     {
         private readonly IHttpClientWithAuth _http;
         private readonly ILogger<LeaveCreateClientService> _logger;
-        private readonly IOptionsMonitor<AuthDebugOptions> _options;
-
-        private bool Debug => _options.CurrentValue.Enabled;
 
         public LeaveCreateClientService(
             IHttpClientWithAuth http,
-            ILogger<LeaveCreateClientService> logger,
-            IOptionsMonitor<AuthDebugOptions> options)
+            ILogger<LeaveCreateClientService> logger)
         {
             _http = http;
             _logger = logger;
-            _options = options;
         }
 
-        public async Task<ApiResponse<SystemMasterDataDto>> GetCombinedDataAsync(
+        public async Task<ApiResponse<LeaveCalendarDataDto>> GetCombinedDataAsync(
             string empCode,
             string deptCode,
             string cvCode,
@@ -36,23 +28,28 @@ namespace FVN_REGISTER.Shared.Services.Leaves
         {
             try
             {
-                _logger.LogDebugIf(Debug, "[LEAVE_CLIENT] GetCombinedData emp={Emp} year={Year}", empCode, year);
+                _logger.LogDebug(
+                    "[LEAVE_CLIENT] GetCombinedData emp={Emp} year={Year}",
+                    empCode,
+                    year);
 
                 var url = $"api/leavecalendar/data?empCode={Uri.EscapeDataString(empCode)}" +
                           $"&deptCode={Uri.EscapeDataString(deptCode)}" +
                           $"&cvCode={Uri.EscapeDataString(cvCode)}" +
                           $"&year={year}";
 
-                var result = await _http.GetAsync<SystemMasterDataDto>(url, ct);
+                var result = await _http.GetAsync<LeaveCalendarDataDto>(url, ct);
 
-                _logger.LogDebugIf(Debug, "[LEAVE_CLIENT] GetCombinedData ok={Ok}", result.IsSuccess);
+                _logger.LogDebug(
+                    "[LEAVE_CLIENT] GetCombinedData success={Success}",
+                    result.IsSuccess);
 
                 return result;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "[LEAVE_CLIENT] GetCombinedData error");
-                return ApiResponse<SystemMasterDataDto>.Fail("Không thể tải dữ liệu lịch");
+                return ApiResponse<LeaveCalendarDataDto>.Fail("Không thể tải dữ liệu lịch");
             }
         }
 
@@ -62,8 +59,14 @@ namespace FVN_REGISTER.Shared.Services.Leaves
         {
             try
             {
-                _logger.LogDebugIf(Debug, "[LEAVE_CLIENT] CreateLeave start={Start}", model.StartDate);
-                return await _http.PostAsync<object>("api/leavedays/create", model, ct);
+                _logger.LogDebug(
+                    "[LEAVE_CLIENT] CreateLeave start={Start}",
+                    model.StartDate);
+
+                return await _http.PostAsync<object>(
+                    "api/leavedays/create",
+                    model,
+                    ct);
             }
             catch (Exception ex)
             {
@@ -79,8 +82,14 @@ namespace FVN_REGISTER.Shared.Services.Leaves
         {
             try
             {
-                _logger.LogDebugIf(Debug, "[LEAVE_CLIENT] Cancel id={Id}", leaveId);
-                return await _http.PostAsync<object>($"api/leavedays/{leaveId}/cancel", new { reason }, ct);
+                _logger.LogDebug(
+                    "[LEAVE_CLIENT] Cancel id={Id}",
+                    leaveId);
+
+                return await _http.PostAsync<object>(
+                    $"api/leavedays/{leaveId}/cancel",
+                    new { reason },
+                    ct);
             }
             catch (Exception ex)
             {
@@ -96,8 +105,14 @@ namespace FVN_REGISTER.Shared.Services.Leaves
         {
             try
             {
-                _logger.LogDebugIf(Debug, "[LEAVE_CLIENT] CancelDetail detailId={Id}", detailId);
-                return await _http.PostAsync<object>($"api/leavedays/cancel-detail/{detailId}", new { reason }, ct);
+                _logger.LogDebug(
+                    "[LEAVE_CLIENT] CancelDetail detailId={Id}",
+                    detailId);
+
+                return await _http.PostAsync<object>(
+                    $"api/leavedays/cancel-detail/{detailId}",
+                    new { reason },
+                    ct);
             }
             catch (Exception ex)
             {
