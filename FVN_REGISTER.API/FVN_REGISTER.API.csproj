@@ -3,8 +3,6 @@
 		<TargetFramework>net9.0</TargetFramework>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
-
-		<!-- ★ THÊM 3 DÒNG NÀY ★ -->
 		<RuntimeIdentifier>win-x64</RuntimeIdentifier>
 		<SelfContained>true</SelfContained>
 		<PublishSingleFile>false</PublishSingleFile>
@@ -17,6 +15,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<ProjectReference Include="..\Application\FVN_REGISTER.Application.csproj" />
 		<ProjectReference Include="..\FVN_REGISTER.Core\FVN_REGISTER.Core.csproj" />
 		<ProjectReference Include="..\FVN_REGISTER.Infrastructure\FVN_REGISTER.Infrastructure.csproj" />
 		<ProjectReference Include="..\FVN_REGISTER.Models\FVN_REGISTER.Contract.csproj" />
