@@ -2,7 +2,7 @@
 
 > Đối chiếu implementation thực tế với bộ tài liệu `00_INDEX.md` → `06_NOTIFICATION_DIAGRAMS.md`.
 >
-> **Trạng thái:** kiến trúc API/Application/Infrastructure đã được refactor theo contract hiện tại. Chưa claim build/runtime thành công vì môi trường hiện tại không chạy solution trực tiếp.
+> **Trạng thái:** boundary kiến trúc đã được refactor. Chưa claim build/runtime thành công vì môi trường hiện tại không chạy solution trực tiếp.
 
 ## 1. Kiến trúc mục tiêu
 
@@ -31,8 +31,6 @@ flowchart LR
 
 ### API controllers
 
-Các controller chính đã chuyển khỏi legacy `Contract.Interfaces.*`, EF trực tiếp và Infrastructure implementation:
-
 - `AuthController` → `IAuthService` + `ISessionService`.
 - `ApprovalListController` → `IApprovalInboxService`.
 - `ApproverController` → `IApproverManagementService`.
@@ -41,7 +39,7 @@ Các controller chính đã chuyển khỏi legacy `Contract.Interfaces.*`, EF t
 - `DepartmentStatusController` → `IDepartmentStatusService`.
 - `NotificationController` → `INotificationService`.
 - `EmailQueueController` → `IEmailService`.
-- `EmailTemplateController` → `IEmailTemplateService`.
+- `EmailTemplateController` → `IEmailTemplateManagementService`.
 - `EmployeeManagementController` → `IEmployeeManagementService`.
 - `HistoryController` → `IHistoryDispatcher`.
 - `LeaveCalendarController` → `ILeaveQueryService`.
@@ -52,6 +50,8 @@ Các controller chính đã chuyển khỏi legacy `Contract.Interfaces.*`, EF t
 - `ReportController` → `IReportService` ports.
 - `UserManagementController` → `IUserManagementService`.
 - `DashboardController` → `IDashboardService`.
+
+Không controller nào trong danh sách trên query `DbContext` trực tiếp hoặc inject `IHubContext`/Infrastructure implementation.
 
 ### Auth/session boundary
 
@@ -73,7 +73,7 @@ sequenceDiagram
     N->>H: ForceLogout
 ```
 
-`AuthController` không còn nhận `FVNWEBAPPContext`, `IHubContext` hoặc query `UserSessions` trực tiếp. Remote revoke dùng `userId + sessionId`, không truyền token hash như raw refresh token.
+Remote revoke dùng `userId + sessionId`, không truyền token hash như raw refresh token.
 
 ### Approval workflow
 
@@ -89,7 +89,7 @@ flowchart LR
     RES[ApprovalEngineResolver] --> E
 ```
 
-Đã bổ sung implementation/DI cho `ApprovalWorkflowOrchestrator<TSubject>`, `ApprovalEngineResolver`, Leave/OT providers, engines, grouping policy, `IEmployeeUserResolver` và `IApprovalNotificationService`.
+Đã bổ sung implementation/DI cho workflow orchestrator, cross-module resolver, Leave/OT providers, engines, grouping policy, `IEmployeeUserResolver` và approval notification.
 
 ### Notification boundary
 
@@ -116,39 +116,52 @@ flowchart TD
     WORKER[OTAttendanceStagingWorker] --> STAGE
 ```
 
-`OTSyncController` sử dụng staging/reconciliation ports thay cho service legacy.
+### HRM Master Data Sync
+
+```mermaid
+flowchart TD
+    SRC[HRM Source Readers] --> IMP[Staging Importers]
+    IMP --> STG[(HRM Staging)]
+    STG --> JOB[Sync Jobs]
+    JOB --> DOMAIN[(F03 Domain Tables)]
+    RES1[Importer Resolver] --> IMP
+    RES2[Job Resolver] --> JOB
+    BG[HrmSyncBackgroundWorker] --> RES1
+    BG --> RES2
+    REVIEW[HrmSyncReviewQueryService] --> STG
+```
+
+Đã wire:
+
+- Department / Employee / LeaveType / Position source readers.
+- Department / Employee / LeaveType / Position staging importers.
+- Department / Employee / LeaveType / OTType / Position sync jobs.
+- `HrmStagingImporterResolver`.
+- `HrmSyncJobResolver`.
+- `HrmSyncReviewQueryService`.
+- `HrmSyncBackgroundWorker` chạy daily theo pipeline Import → Sync.
 
 ### Email queue
 
-`EmailQueueController` không truy cập EF. Queue administration đi qua `IEmailService` và `EmailQueueDto`. Application email contract không expose `F03LeaveDay`; approval email dùng `LeaveApprovalEmailDto`.
+`EmailQueueController` không truy cập EF. Queue administration đi qua `IEmailService` và `EmailQueueDto`. Approval email dùng `LeaveApprovalEmailDto`, không expose `F03LeaveDay` trong email application contract.
 
 ## 3. Composition root
 
-`FVN_REGISTER.API/Program.cs` là composition root duy nhất cho API.
+`FVN_REGISTER.API/Program.cs` là composition root duy nhất. Các nhóm chính:
 
 ```text
 Application ports
     ↓
 Infrastructure adapters
 
-IUnitOfWork              -> UnitOfWork
-DbContext                -> FVNWEBAPPContext
-IAuthService             -> AuthService
-ISessionService          -> SessionService
-IEmployeeUserResolver    -> EmployeeUserResolver
-ILeaveService            -> LeaveService
-ILeaveQueryService       -> LeaveQueryService
-IOTService               -> OTService
-IOTQueryService          -> OTQueryService
-IApprovalProvider<Leave> -> LeaveApprovalProvider
-IApprovalProvider<OT>    -> OTApprovalProvider
-IApprovalEngine<Leave>   -> ApprovalEngine<Leave>
-IApprovalEngine<OT>      -> ApprovalEngine<OT>
-IApprovalWorkflow<Leave> -> ApprovalWorkflowOrchestrator<Leave>
-IApprovalWorkflow<OT>    -> ApprovalWorkflowOrchestrator<OT>
-IApprovalEngineResolver  -> ApprovalEngineResolver
-INotificationService     -> NotificationService
-IApprovalNotification    -> ApprovalNotificationService
+Auth/session        -> AuthService / SessionService
+Leave               -> LeaveService / LeaveQueryService
+OT                  -> OTService / OTQueryService
+Approval            -> Provider / Engine / Workflow
+Notification        -> NotificationService / ApprovalNotificationService
+Email               -> EmailService / EmailTemplateManagementService
+HRM Sync            -> Readers / Importers / SyncJobs / Resolvers / Worker
+SignalR             -> NotificationHub + session notifier
 ```
 
 ## 4. Architecture rules — final
@@ -166,10 +179,11 @@ IApprovalNotification    -> ApprovalNotificationService
 11. Query service chỉ query/read; command service thực hiện mutation.
 12. Controller không tự resolve UserId của người khác; dùng `IEmployeeUserResolver`.
 13. SignalR chỉ xuất hiện ở Infrastructure.
+14. HRM import và sync không chạy trực tiếp từ Controller; worker/management gọi resolver/application port.
 
-## 5. Remaining verification — không phải architecture TODO
+## 5. Remaining verification — build/runtime only
 
-Cần kiểm tra bằng môi trường build/runtime của solution:
+Còn phải xác nhận bằng môi trường build/runtime của solution:
 
 - `dotnet restore`.
 - `dotnet build` toàn solution.
@@ -178,9 +192,10 @@ Cần kiểm tra bằng môi trường build/runtime của solution:
 - Integration test Leave/OT approval multi-level.
 - SignalR ForceLogout.
 - HRM attendance staging/reconciliation với database thật.
+- HRM daily sync với HRM source thật.
 - Contract compatibility với FE hiện tại.
 
-Nếu build phát hiện lỗi type/namespace do source legacy còn sót, sửa theo nguyên tắc **Application contract trước → Infrastructure adapter sau → API cuối**, không đưa Infrastructure trở lại Controller.
+Đây là **verification**, không phải lý do để đưa Infrastructure trở lại Controller. Nếu build phát hiện lỗi type/namespace, sửa theo thứ tự **Application contract → Infrastructure adapter → API**.
 
 ## 6. Status
 
@@ -188,18 +203,19 @@ Nếu build phát hiện lỗi type/namespace do source legacy còn sót, sửa 
 |---|---|
 | Project dependency direction | Hoàn tất về mặt kiến trúc |
 | API composition root | Hoàn tất về mặt cấu trúc |
-| Base/Dashboard/Approval controllers | Hoàn tất |
+| API controllers | Hoàn tất về boundary |
 | Auth/session boundary | Hoàn tất về boundary |
-| Leave controllers | Hoàn tất về boundary |
-| OT controllers | Hoàn tất về boundary |
-| OT staging/reconciliation boundary | Hoàn tất |
-| Notification boundary | Hoàn tất về boundary |
-| Email queue boundary | Hoàn tất về boundary |
-| Employee/user management | Hoàn tất về boundary |
-| Report/history boundary | Hoàn tất về boundary |
-| Approval workflow implementation | Hoàn tất về cấu trúc |
+| Leave boundary | Hoàn tất |
+| OT boundary | Hoàn tất |
+| OT staging/reconciliation | Hoàn tất |
+| Notification boundary | Hoàn tất |
+| Email queue/template boundary | Hoàn tất |
+| Employee/user management | Hoàn tất |
+| Report/history boundary | Hoàn tất |
+| Approval workflow | Hoàn tất về cấu trúc |
 | Cross-module approval resolver | Hoàn tất |
 | EmployeeCode → UserId resolver | Hoàn tất |
+| HRM Sync architecture + DI + worker | Hoàn tất về cấu trúc |
 | SignalR implementation location | Hoàn tất |
-| HRM Sync runtime audit | Cần verification với database thật |
 | Full solution build | Chưa xác nhận trong môi trường hiện tại |
+| Runtime/integration verification | Chưa xác nhận |
