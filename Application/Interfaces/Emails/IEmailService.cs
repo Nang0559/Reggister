@@ -1,5 +1,4 @@
 using FVN_REGISTER.Contract.Dtos.EmailTemplates;
-using FVN_REGISTER.Core.Entities.Leaves;
 using FVN_REGISTER.Core.Utils;
 
 namespace FVN_REGISTER.Application.Interfaces.Emails
@@ -23,34 +22,18 @@ namespace FVN_REGISTER.Application.Interfaces.Emails
         string RenderTemplate(string template, string jsonPayload);
 
         Task RetryFailedEmails(CancellationToken ct = default);
-
         Task<int> GetPendingCount(CancellationToken ct = default);
-
         Task<int> GetFailedCount(CancellationToken ct = default);
-
         Task<List<EmailQueueDto>> GetFailedEmails(CancellationToken ct = default);
-
-        Task<List<EmailQueueDto>> GetQueueAsync(
-            int take = 500,
-            CancellationToken ct = default);
-
-        Task RetryEmailBatchAsync(
-            IReadOnlyCollection<int> ids,
-            CancellationToken ct = default);
-
-        Task CancelEmailBatchAsync(
-            IReadOnlyCollection<int> ids,
-            CancellationToken ct = default);
-
+        Task<List<EmailQueueDto>> GetQueueAsync(int take = 500, CancellationToken ct = default);
+        Task RetryEmailBatchAsync(IReadOnlyCollection<int> ids, CancellationToken ct = default);
+        Task CancelEmailBatchAsync(IReadOnlyCollection<int> ids, CancellationToken ct = default);
         Task CancelEmail(int id, CancellationToken ct = default);
-
         Task ResendEmail(int id, CancellationToken ct = default);
 
         Task SendApprovalRequestAsync(
+            LeaveApprovalEmailDto data,
             string toEmail,
-            string recipientRole,
-            F03LeaveDay leave,
-            string employeeName,
             CancellationToken ct = default);
     }
 }
