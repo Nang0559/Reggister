@@ -12,8 +12,10 @@ flowchart TD
     B --> C[02_HRM_SYNC<br/>HRM + OT Attendance]
     B --> D[03_NOTIFICATION<br/>Approval → SignalR → UI]
     B --> E[04_DASHBOARD<br/>Aggregation → UI]
-    C --> F[05_SYNC_FLOW<br/>6 implementation layers]
-    D --> G[06_NOTIFICATION_DIAGRAMS<br/>Notification implementation]
+    B --> F[08_APPROVAL_ESCALATION<br/>Approval Levels + Timeout]
+    C --> G[05_SYNC_FLOW<br/>6 implementation layers]
+    D --> H[06_NOTIFICATION_DIAGRAMS<br/>Notification implementation]
+    F --> D
 ```
 
 - `00_INDEX.md`: bản đồ kiến trúc và dependency direction.
@@ -23,6 +25,7 @@ flowchart TD
 - `04_DASHBOARD.md`: request flow và module provider architecture.
 - `05_SYNC_FLOW.md`: chi tiết triển khai HRM Sync theo 6 tầng.
 - `06_NOTIFICATION_DIAGRAMS.md`: sequence và dependency chi tiết của Notification.
+- `08_APPROVAL_ESCALATION.md`: nghiệp vụ cấp approval, email/in-app, timeout và auto-escalation cho Leave/OT.
 
 ## 2. Tài liệu
 
@@ -34,6 +37,7 @@ flowchart TD
 | [04_DASHBOARD.md](./04_DASHBOARD.md) | Dashboard aggregation và module providers |
 | [05_SYNC_FLOW.md](./05_SYNC_FLOW.md) | Chi tiết tầng của pipeline HRM Sync, resolver, worker, management service và review flags |
 | [06_NOTIFICATION_DIAGRAMS.md](./06_NOTIFICATION_DIAGRAMS.md) | Notification sequence, identity mapping và dependency |
+| [08_APPROVAL_ESCALATION.md](./08_APPROVAL_ESCALATION.md) | Approval hierarchy, manual activation, timeout escalation, email + in-app/SignalR và idempotency |
 
 ## 3. Sơ đồ kiến trúc tổng thể
 
@@ -126,6 +130,9 @@ Diễn giải: các lớp phía trên định nghĩa model/contract/use-case; In
 - Module mới phải mở rộng bằng implementation + DI registration, không sửa orchestrator/worker/dispatcher dùng chung.
 - CRUD thủ công và HRM synchronization là hai luồng độc lập.
 - OT attendance reconciliation là **command-with-result**, không phải query thuần vì thao tác reconciliation có ghi dữ liệu.
+- Approval timeout dùng `DecisionType.Escalated`, không dùng `Rejected` để biểu diễn việc chuyển cấp.
+- Manual approve và auto-escalation đều phải kích hoạt notification cho approver kế tiếp qua email + in-app/SignalR.
+- Background escalation worker phải xử lý cả Leave và Overtime.
 
 ## 7. Namespace convention
 
@@ -150,3 +157,4 @@ Diễn giải: các lớp phía trên định nghĩa model/contract/use-case; In
 - Nội dung được chuẩn hóa từ TXT, không chủ động thay đổi business rule.
 - Các mục được TXT đánh dấu `TODO`, `CẦN XÁC NHẬN`, `CHƯA BUILD` vẫn được giữ lại và đánh dấu rõ.
 - Mermaid diagrams mô tả kiến trúc logic; khi implementation thực tế thay đổi, cập nhật Markdown cùng commit với thay đổi kiến trúc.
+- `08_APPROVAL_ESCALATION.md` là tài liệu chuẩn cho approval level, notification activation và timeout escalation; code phải tuân theo các invariants trong tài liệu này.
