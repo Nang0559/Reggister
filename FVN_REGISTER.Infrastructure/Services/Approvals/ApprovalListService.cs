@@ -1,5 +1,4 @@
-﻿
-using FVN_REGISTER.Application.Interfaces.Approvals;
+﻿using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Approvals;
@@ -13,9 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-
-
-namespace FVN_REGISTER.API.Services.Approvals
+namespace FVN_REGISTER.Infrastructure.Services.Approvals
 {
     /// <summary>
     /// Logic pending-list dùng chung cho mọi domain (Leave, OT, ...).
