@@ -2,25 +2,30 @@
 
 ## 1. Hai pipeline độc lập
 
+```mermaid
+flowchart TB
+    HRM[(HRM)]
+    subgraph A[Pipeline A — Master Data Sync]
+        HRM --> IMP[Trigger / IHrmStagingImporter]
+        IMP --> ST[F03StagingXxx]
+        ST --> JOB[HrmSyncJob<TStaging,TEntity>]
+        JOB --> MASTER[(F03 Master Data)]
+    end
+    subgraph B[Pipeline B — OT Attendance Reconciliation]
+        HRM --> ATT[usp_SyncAttendanceStaging]
+        ATT --> AST[F03AttendanceStaging]
+        AST --> AS[IOTAttendanceStagingService]
+        AS --> REC[IOTAttendanceReconciliationService]
+        REC --> OTSP[usp_SyncOTActualHours]
+        OTSP --> OT[(F03OTEmployee)]
+    end
+```
+
 ### Pipeline A — HRM Master Data Sync
 
 Đối tượng: `LeaveType`, `OTType`, `Department`, `Position`, `Employee`.
 
 Đặc điểm: dữ liệu tương đối ít thay đổi, cần theo dõi Insert/Update/Delete và nguồn thay đổi.
-
-```text
-HRM DB
- ├─ Trigger (real-time, khi bảng cho phép)
- │       └─ F03StagingEmployee / F03StagingXxx
- │
- └─ IHrmStagingImporter (poll/backfill)
-         └─ HrmImportWorker
-               └─ F03StagingXxx
-
-F03StagingXxx
-   → HrmSyncJob<TStaging,TEntity>
-   → F03* entity
-```
 
 `HrmSyncJob` không cần biết staging đến từ trigger hay importer.
 
@@ -28,19 +33,25 @@ F03StagingXxx
 
 Pipeline này **không sử dụng** `IHrmStagingEntity/HrmChangeAction` của Pipeline A.
 
-```text
-HRM attendance
-  → usp_SyncAttendanceStaging
-  → F03AttendanceStaging
-  → IOTAttendanceStagingService
-  → IOTAttendanceReconciliationService
-  → usp_SyncOTActualHours
-  → F03OTEmployee.ActualHours / ActualStartTime / ActualEndTime
-```
-
 Mỗi lần reconciliation là một thao tác ghi dữ liệu; vì vậy đây là command-with-result, không phải query thuần.
 
 ## 2. HRM staging importer
+
+```mermaid
+sequenceDiagram
+    participant H as HRM DB
+    participant R as IHrmSourceReader
+    participant I as HrmStagingImporterBase
+    participant S as F03StagingXxx
+    participant W as HrmImportWorker
+
+    W->>R: Read source
+    R->>I: Source rows
+    I->>I: Diff source keys
+    I->>I: Guard missing keys > 50%
+    I->>S: Insert Update/Delete staging
+    S-->>W: Ready for sync job
+```
 
 `IHrmSourceReader<TSourceRow>` đọc dữ liệu HRM. Implementation SQL dùng Dapper và có thể truy vấn cross-database bằng three-part name như `[HRM].[dbo].[tblXxx]`.
 
@@ -51,93 +62,83 @@ Mỗi lần reconciliation là một thao tác ghi dữ liệu; vì vậy đây 
 - dọn stale pending staging cùng loại trước khi ghi batch mới;
 - tạo staging `Update` cho source rows;
 - so sánh source keys với existing keys để sinh `Delete` cho key bị mất;
-- nếu số key mất vượt ngưỡng an toàn (tài liệu nguồn nêu `> 50%`) thì không phát Delete để tránh sự cố nguồn làm xóa hàng loạt.
+- nếu số key mất vượt ngưỡng an toàn (`> 50%`) thì không phát Delete để tránh sự cố nguồn làm xóa hàng loạt.
 
-Các hook:
-
-```text
-GetSourceKey(row)
-GetEntityKeySelector()
-MapToStaging(row)
-BuildDeleteStaging(key)
-```
+Các hook: `GetSourceKey`, `GetEntityKeySelector`, `MapToStaging`, `BuildDeleteStaging`.
 
 ## 3. Staging contract
 
-Mọi `F03StagingXxx` dùng contract chung:
-
-```text
-IHrmStagingEntity
- ├─ Id
- ├─ EntityKey
- ├─ Action : HrmChangeAction
- ├─ IsProcessed
- ├─ ErrorMessage
- ├─ CreatedAt
- └─ CreatedBy
+```mermaid
+classDiagram
+    class IHrmStagingEntity {
+        +int Id
+        +string EntityKey
+        +HrmChangeAction Action
+        +bool IsProcessed
+        +string ErrorMessage
+        +DateTime CreatedAt
+        +string CreatedBy
+    }
+    class F03StagingEmployee
+    class F03StagingDepartment
+    class F03StagingPosition
+    class F03StagingLeaveType
+    class F03StagingOTType
+    IHrmStagingEntity <|.. F03StagingEmployee
+    IHrmStagingEntity <|.. F03StagingDepartment
+    IHrmStagingEntity <|.. F03StagingPosition
+    IHrmStagingEntity <|.. F03StagingLeaveType
+    IHrmStagingEntity <|.. F03StagingOTType
 ```
 
 `Id` được đề xuất dùng làm tiebreaker khi `CreatedAt` trùng; trạng thái này vẫn cần xác nhận với model/database thực tế.
 
 ## 4. Generic HrmSyncJob
 
-```text
-IHrmSyncJob
-  ├─ EntityType
-  ├─ SyncOrder
-  ├─ IsBlockingDependency
-  └─ RunAsync(ct)
-
-HrmSyncJob<TStaging,TEntity>
+```mermaid
+flowchart TD
+    P[Pending staging<br/>!IsProcessed] --> O[OrderBy CreatedAt]
+    O --> G[GroupBy EntityKey]
+    G --> L[Latest = CreatedAt DESC + Id DESC]
+    L --> X[Mark older rows Superseded]
+    X --> E[LoadExistingEntitiesAsync]
+    E --> C{Action}
+    C -->|Delete| D[ApplyDelete]
+    C -->|Insert / Update| M{Entity exists?}
+    M -->|No| N[MapToNewEntity]
+    M -->|Yes| U[ApplyUpdate]
+    D --> A[AfterBatchAsync]
+    N --> A
+    U --> A
+    A --> SAVE[SaveChangesAsync guarded]
 ```
 
-### Algorithm
-
-1. Lấy staging chưa xử lý, order theo `CreatedAt`.
-2. Group theo `EntityKey`.
-3. Chọn bản mới nhất bằng `CreatedAt`, sau đó `Id` giảm dần.
-4. Các bản cũ hơn được đánh dấu `IsProcessed=true` và `Superseded by newer change`.
-5. Load entity hiện tại thành dictionary theo key.
-6. Xử lý từng change:
-   - `Delete` → `ApplyDelete` nếu entity tồn tại;
-   - `Insert/Update` → tạo mới bằng `MapToNewEntity` hoặc cập nhật bằng `ApplyUpdate`;
-   - lỗi từng dòng được ghi vào staging và `HrmSyncResult.Errors`.
-7. Chạy `AfterBatchAsync`.
-8. `SaveChangesAsync` phải được bọc xử lý lỗi; nếu transaction/batch save thất bại thì kết quả phải chuyển sang trạng thái lỗi, không để exception phá vỡ worker loop.
-
-Hooks:
-
-```text
-LoadExistingEntitiesAsync(keys, ct)
-MapToNewEntity(staging)
-ApplyUpdate(entity, staging) : bool
-ApplyDelete(entity, staging) : bool
-AfterBatchAsync(batchContext, ct)
-```
+`HrmSyncJob<TStaging,TEntity>` có `EntityType`, `SyncOrder`, `IsBlockingDependency`, `RunAsync(ct)` thông qua `IHrmSyncJob`.
 
 ## 5. Sync order và dependency
 
-Employee phụ thuộc Department/Position. Do đó job phải có thứ tự xác định thay vì phụ thuộc thứ tự DI registration.
-
-```text
-Department / Position
-        ↓
-     Employee
+```mermaid
+flowchart LR
+    D[Department] --> E[Employee]
+    P[Position] --> E
+    D --> W[SyncOrder]
+    P --> W
+    W --> E
 ```
 
-`IHrmSyncJobResolver.GetAll()` phải `OrderBy(j => j.SyncOrder)`.
+Employee phụ thuộc Department/Position. `IHrmSyncJobResolver.GetAll()` phải `OrderBy(j => j.SyncOrder)`; không phụ thuộc thứ tự registration của DI.
 
 Nếu một job có `IsBlockingDependency=true` và thất bại, `HrmSyncWorker` dừng chuỗi job còn lại; lỗi của từng job vẫn phải được catch/log riêng để worker không chết.
 
 ## 6. Source tracking
 
-```csharp
-// Giá trị minh họa theo tài liệu nguồn
-enum SyncSourceTags
-{
-    Hrm,
-    Manual
-}
+```mermaid
+flowchart LR
+    C[Entity mutation] --> H{Source}
+    H -->|HRM Sync| HRM[LastModifiedSource = Hrm]
+    H -->|Admin CRUD / Toggle| MAN[LastModifiedSource = Manual]
+    HRM --> RF[F03SyncReviewFlag nếu overwrite manual]
+    MAN --> RF
 ```
 
 Quy tắc:
@@ -148,115 +149,78 @@ Quy tắc:
 - `ApplyUpdate` phải xác định entity từng bị chỉnh tay trước khi ghi đè.
 - Khi HRM ghi đè thay đổi thủ công, `AfterBatchAsync` tạo `F03SyncReviewFlag`.
 
-Tài liệu nguồn cảnh báo rằng nếu `Hrm=0` là default enum và có nơi quên set field, entity mới có thể bị hiểu nhầm là HRM. Cần xác nhận enum/model thực tế trước khi đổi giá trị.
-
 ## 7. Management Service
 
-`CodeKeyedManagementService<TEntity,TKey,TDto,TUpsertDto>` cung cấp CRUD dùng chung cho domain có code key.
-
-### Create
-
-```text
-check duplicate code
-→ ToNewEntity
-→ LastModifiedSource = Manual
-→ Add
-→ SaveChanges
+```mermaid
+flowchart TD
+    ADMIN[Admin UI] --> API[Management API]
+    API --> S[CodeKeyedManagementService<TEntity,...>]
+    S --> V[Validation / IsInUse]
+    V --> MUT{Mutation}
+    MUT -->|Create| C[ToNewEntity + Manual]
+    MUT -->|Update| U[ApplyUpsert + Manual]
+    MUT -->|Toggle| T[SetIsActive + Manual]
+    MUT -->|Delete| D{HRM source / In use?}
+    D -->|Yes| BLOCK[Reject]
+    D -->|No| DEL[Delete]
+    C --> DB[(Persistence)]
+    U --> DB
+    T --> DB
+    DEL --> DB
 ```
 
-### Update
-
-```text
-check duplicate code (trừ chính entity)
-→ IsInUse guard nếu đổi code
-→ ApplyUpsert
-→ LastModifiedSource = Manual
-→ SaveChanges
-```
-
-### Toggle
-
-```text
-SetIsActive(!current)
-→ TouchModified
-→ LastModifiedSource = Manual
-```
-
-Việc set `LastModifiedSource=Manual` khi Toggle là điểm cần giữ để HRM sync nhận biết thay đổi Admin.
-
-### Delete
-
-Chặn nếu:
-
-- `LastModifiedSource == Hrm`;
-- entity đang được tham chiếu (`IsInUseAsync`).
-
-### SyncNow
-
-Admin có thể yêu cầu sync một domain qua:
-
-```text
-IHrmSyncJobResolver.Resolve(EntityType)
-→ job.RunAsync(ct)
-```
-
-Không tạo một engine sync thứ hai.
+`SyncNowAsync` dùng chính `IHrmSyncJobResolver.Resolve(EntityType)` và `RunAsync(ct)`, không tạo engine sync thứ hai.
 
 ## 8. Review flags
 
-```text
-F03SyncReviewFlag
- ├─ EntityType
- ├─ EntityKey
- ├─ FlagType
- └─ Message
+```mermaid
+flowchart LR
+    JOB[HrmSyncJob] --> FLAG[F03SyncReviewFlag]
+    FLAG --> Q[IHrmSyncReviewQueryService]
+    Q --> UI[Admin Review UI]
+    UI --> RES[Resolve / ResolveByEntity]
 ```
 
-Các flag được nêu trong tài liệu:
-
-- `ManualEditOverwrittenByHrm`
-- `ManualDeactivationOverwrittenByHrm`
-- `DeactivatedButStillReferenced`
+Các flag: `ManualEditOverwrittenByHrm`, `ManualDeactivationOverwrittenByHrm`, `DeactivatedButStillReferenced`.
 
 `IsResolved/ResolvedAt/ResolvedBy` vẫn là mục cần xác nhận.
 
 ## 9. OT attendance staging
 
-`F03AttendanceStaging` là staging riêng của Attendance, không dùng chung với `F03StagingEmployee`, `F03StagingPosition`, v.v.
+```mermaid
+sequenceDiagram
+    participant W as OTAttendanceStagingWorker
+    participant S as IOTAttendanceStagingService
+    participant R as IOTAttendanceReconciliationService
+    participant DB as SQL / F03 tables
+    participant A as Admin
 
-Services:
-
-```text
-IOTAttendanceStagingService
-  SyncAttendanceStagingAsync(workDate, ct)
-  IsStagingReadyAsync(workDate, ct)
-
-IOTAttendanceReconciliationService
-  ReconcileActualHoursAsync(date, deptCode, ct)
+    W->>S: SyncAttendanceStagingAsync(workDate)
+    S->>DB: usp_SyncAttendanceStaging
+    A->>R: ReconcileActualHoursAsync(date, dept)
+    R->>S: IsStagingReady / self-heal if needed
+    R->>DB: usp_SyncOTActualHours
+    DB-->>A: Reconciliation result
 ```
 
-Reconciliation service có thể tự kiểm tra staging và self-heal bằng cách sync staging trước khi gọi `usp_SyncOTActualHours`.
+`F03AttendanceStaging` là staging riêng của Attendance. Worker nightly chỉ sync staging; **không tự động reconciliation**.
 
 ## 10. Worker
 
-```text
-HrmImportWorker (~1h)
-  → IHrmStagingImporterResolver
-  → ImportAsync từng importer
-
-HrmSyncWorker (~30s)
-  → IHrmSyncJobResolver
-  → RunAsync theo SyncOrder
+```mermaid
+flowchart TD
+    I[HrmImportWorker ~1h] --> IR[IHrmStagingImporterResolver]
+    IR --> IMP[Importers]
+    S[HrmSyncWorker ~30s] --> JR[IHrmSyncJobResolver]
+    JR --> SORT[SyncOrder]
+    SORT --> JOB[Jobs]
+    JOB --> F{Failure?}
+    F -->|non-blocking| NEXT[Continue]
+    F -->|blocking dependency| STOP[Break current chain]
 ```
 
-Một importer/job lỗi không được làm worker chết. Tuy nhiên failure của job blocking dependency có thể dừng phần còn lại của chuỗi để bảo vệ FK/dependency.
+Một importer/job lỗi không được làm worker chết. Failure của blocking dependency có thể dừng phần còn lại của chuỗi để bảo vệ FK/dependency.
 
-## 11. OT staging worker
-
-`OTAttendanceStagingWorker` chạy theo lịch (tài liệu nêu 00:30) và **chỉ** gọi staging service.
-
-Nó không tự động chạy reconciliation. Reconciliation chỉ được kích hoạt khi Admin chủ động yêu cầu.
-
-## 12. Shared service
+## 11. Shared service
 
 `IDepartmentLookupService.GetActiveDepartmentsAsync()` là cross-cutting service dùng chung cho Leave, OT, Trip và Dashboard; không đặt trong `OTAttendanceReconciliationService`.
