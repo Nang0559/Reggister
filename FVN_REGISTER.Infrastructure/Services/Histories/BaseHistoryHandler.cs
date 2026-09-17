@@ -5,6 +5,7 @@ using FVN_REGISTER.Contract.Dtos.Histories;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Entities;
 using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Core.Extensions;
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Histories;
