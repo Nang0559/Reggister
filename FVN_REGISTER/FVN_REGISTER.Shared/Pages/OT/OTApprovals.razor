@@ -1,20 +1,16 @@
-﻿@page "/ot/approvals"
+@page "/ot/approvals"
 @attribute [Authorize]
-@using FVN_REGISTER.Contract.ViewModels
-@using FVN_REGISTER.Contract.Utils
-@using FVN_REGISTER.Contract.ViewModels.OT
-@using FVN_REGISTER.Shared.Services.OTs
-@using FVN_REGISTER.Shared.Services.Users
-@using FVN_REGISTER.Shared.Utils
-@using FVN_REGISTER.Shared.Utils.Helpers
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Contract.Core.Enums
+@using FVN_REGISTER.Shared.Components.OT
+@using FVN_REGISTER.Shared.Services.Approvals
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IDisposable
 
-@inject IOTClientService OTService
-@inject ICurrentUserClientService CurrentUser
-@inject ISnackbar Snackbar
+@inject IApprovalListClientService ApprovalService
 @inject NavigationManager Nav
+@inject ISnackbar Snackbar
 
 <PageTitle>Phê duyệt OT</PageTitle>
 
@@ -23,154 +19,68 @@
     Phê duyệt đơn OT
 </MudText>
 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-    Danh sách đơn OT đang chờ phê duyệt của bạn
+    Danh sách đơn OT đang chờ phê duyệt
 </MudText>
 
-<MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" Class="mb-4"
-         @bind-ActivePanelIndex="_activeLevel">
-
-    @* Tab: Tất cả *@
+<MudTabs Elevation="2" Rounded="true" Class="mb-4" @bind-ActivePanelIndex="_activeLevel">
     <MudTabPanel Icon="@Icons.Material.Filled.AllInclusive">
-        <TabContent>
-            <MudBadge Content="@_allPending.Count" Color="Color.Warning"
-                      Overlap="true" Visible="@(_allPending.Count > 0)">
-                <MudText>Tất cả</MudText>
-            </MudBadge>
-        </TabContent>
+        <TabContent><MudText>Tất cả (@_allPending.Count)</MudText></TabContent>
         <ChildContent>
-            <OTApprovalList Items="_allPending"
-                            IsLoading="_isLoading"
-                            OnRefresh="LoadPending"
-                            OnViewDetail="ViewDetail" />
+            <OTApprovalList Items="_allPending" IsLoading="_isLoading" OnRefresh="LoadPending" OnViewDetail="ViewDetail" />
         </ChildContent>
     </MudTabPanel>
-
-    @* Tab: Bước 3 — Sub-leader / Leader *@
-    <MudTabPanel Icon="@Icons.Material.Filled.SupervisorAccount">
-        <TabContent>
-            @{ var lv3 = PendingAtLevel(3); }
-            <MudBadge Content="@lv3.Count" Color="Color.Warning"
-                      Overlap="true" Visible="@(lv3.Count > 0)">
-                <MudText>Bước 3 – Sub-leader</MudText>
-            </MudBadge>
-        </TabContent>
-        <ChildContent>
-            <OTApprovalList Items="@PendingAtLevel(3)"
-                            Level="3"
-                            IsLoading="_isLoading"
-                            OnRefresh="LoadPending"
-                            OnViewDetail="ViewDetail" />
-        </ChildContent>
-    </MudTabPanel>
-
-    @* Tab: Bước 5 — Ast.Chief / Chief *@
-    <MudTabPanel Icon="@Icons.Material.Filled.ManageAccounts">
-        <TabContent>
-            @{ var lv5 = PendingAtLevel(5); }
-            <MudBadge Content="@lv5.Count" Color="Color.Warning"
-                      Overlap="true" Visible="@(lv5.Count > 0)">
-                <MudText>Bước 5 – Chief</MudText>
-            </MudBadge>
-        </TabContent>
-        <ChildContent>
-            <OTApprovalList Items="@PendingAtLevel(5)"
-                            Level="5"
-                            IsLoading="_isLoading"
-                            OnRefresh="LoadPending"
-                            OnViewDetail="ViewDetail" />
-        </ChildContent>
-    </MudTabPanel>
-
-    @* Tab: Bước 6 — A.MG / MG *@
-    <MudTabPanel Icon="@Icons.Material.Filled.AdminPanelSettings">
-        <TabContent>
-            @{ var lv6 = PendingAtLevel(6); }
-            <MudBadge Content="@lv6.Count" Color="Color.Warning"
-                      Overlap="true" Visible="@(lv6.Count > 0)">
-                <MudText>Bước 6 – MG</MudText>
-            </MudBadge>
-        </TabContent>
-        <ChildContent>
-            <OTApprovalList Items="@PendingAtLevel(6)"
-                            Level="6"
-                            IsLoading="_isLoading"
-                            OnRefresh="LoadPending"
-                            OnViewDetail="ViewDetail" />
-        </ChildContent>
-    </MudTabPanel>
-
-    @* Tab: Bước 7 — GM *@
-    <MudTabPanel Icon="@Icons.Material.Filled.Business">
-        <TabContent>
-            @{ var lv7 = PendingAtLevel(7); }
-            <MudBadge Content="@lv7.Count" Color="Color.Warning"
-                      Overlap="true" Visible="@(lv7.Count > 0)">
-                <MudText>Bước 7 – GM</MudText>
-            </MudBadge>
-        </TabContent>
-        <ChildContent>
-            <OTApprovalList Items="@PendingAtLevel(7)"
-                            Level="7"
-                            IsLoading="_isLoading"
-                            OnRefresh="LoadPending"
-                            OnViewDetail="ViewDetail" />
-        </ChildContent>
-    </MudTabPanel>
-
+    @foreach (var level in new[] { 3, 5, 6, 7 })
+    {
+        <MudTabPanel Icon="@Icons.Material.Filled.SupervisorAccount">
+            <TabContent><MudText>Bước @level (@PendingAtLevel(level).Count)</MudText></TabContent>
+            <ChildContent>
+                <OTApprovalList Items="@PendingAtLevel(level)" Level="@level" IsLoading="_isLoading" OnRefresh="LoadPending" OnViewDetail="ViewDetail" />
+            </ChildContent>
+        </MudTabPanel>
+    }
 </MudTabs>
 
 @code {
     private bool _isLoading = true;
-    private int _activeLevel = 0;
-    private List<OTRequestViewModel> _allPending = new();
+    private int _activeLevel;
+    private List<PendingApprovalItemDto> _allPending = new();
     private readonly CancellationTokenSource _cts = new();
 
-    // ── Lifecycle ───────────────────────────────────────────────
-    protected override async Task OnInitializedAsync()
-        => await LoadPending();
+    protected override async Task OnInitializedAsync() => await LoadPending();
+
+    private async Task LoadPending()
+    {
+        _isLoading = true;
+        try
+        {
+            var result = await ApprovalService.GetPendingAsync(_cts.Token);
+            if (result.IsSuccess && result.Data != null)
+            {
+                _allPending = result.Data.SelectMany(x => x.Requests)
+                    .Where(x => x.Kind == RequestModule.OT)
+                    .ToList();
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "Không tải được danh sách.", Severity.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[OT_APPROVAL] Load error");
+            Snackbar.Add("Lỗi tải danh sách chờ duyệt.", Severity.Error);
+        }
+        finally { _isLoading = false; }
+    }
+
+    private List<PendingApprovalItemDto> PendingAtLevel(int level) =>
+        _allPending.Where(x => x.CurrentApprovalLevel == level && x.CanApprove).ToList();
+
+    private void ViewDetail(int id) => Nav.NavigateTo($"/ot/detail/{id}");
 
     public void Dispose()
     {
         _cts.Cancel();
         _cts.Dispose();
     }
-
-    // ── Data ────────────────────────────────────────────────────
-    private async Task LoadPending()
-    {
-        _isLoading = true;
-        StateHasChanged();
-        try
-        {
-            var result = await OTService.GetPendingApprovalsAsync(0, _cts.Token);
-            if (result.IsSuccess && result.Data != null)
-                _allPending = result.Data;
-            else
-                Snackbar.Add(result.Message ?? "Không tải được danh sách.", Severity.Warning);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[OT_APPROVE] Load error");
-            Snackbar.Add("Lỗi tải danh sách chờ duyệt.", Severity.Error);
-        }
-        finally
-        {
-            _isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    // ── Navigation ──────────────────────────────────────────────
-    private void ViewDetail(int id) => Nav.NavigateTo($"/ot/detail/{id}");
-
-    // ── Filter theo level — dùng ApprovalSteps thay vì Level3IsApprove... ──
-    // Tìm bước đang chờ (IsRequired, chưa có IsApproved) và so level
-    private List<OTRequestViewModel> PendingAtLevel(int level) =>
-        _allPending
-            .Where(x => x.ApprovalSteps
-                .Any(s => s.Level == level
-                       && s.IsRequired
-                       && !s.IsSkipped
-                       && s.IsApproved == null))
-            .ToList();
 }
