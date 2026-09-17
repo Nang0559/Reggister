@@ -75,7 +75,7 @@ sequenceDiagram
 
     U->>API: POST /api/trips/{id}/submit
     API->>S: Submit(id)
-    S->>DB: Validate Draft/Returned
+    S->>DB: Validate Draft/NeedsRevision
     S->>DB: RequestStatus = Pending
     S->>O: InitApproval(Trip context)
     O->>P: BuildSnapshot
@@ -132,19 +132,19 @@ sequenceDiagram
 
 ## 7. Timeout escalation
 
-Trip được thiết kế để đi qua cùng approval infrastructure với Leave/OT:
+Trip hiện đã đi qua common approval model, nhưng **timeout worker chưa được bật riêng cho Trip** vì escalation policy của Trip chưa được chốt trong business rule. Không coi đây là đã hoàn thành production escalation.
 
 ```mermaid
 flowchart LR
-    W[Escalation Worker] --> S[Trip escalation service / common escalation pipeline]
-    S --> SNAP[Approval Snapshot]
-    S --> HIST[Approval History]
-    S --> ESC[F03EscalationLog]
-    S --> NEXT[Next Pending Step]
+    W[Escalation Worker] --> L[Leave / OT escalation]
+    W -. pending policy .-> T[Trip escalation]
+    T -. after policy .-> SNAP[Approval Snapshot]
+    SNAP --> HIST[F03ApprovalHistory]
+    HIST --> NEXT[Next Pending Step]
     NEXT --> N[Email + In-app/SignalR]
 ```
 
-Quy tắc bất biến:
+Quy tắc khi bật Trip escalation:
 
 - timeout escalation ghi `DecisionType.Escalated`;
 - không ghi `Rejected` để biểu diễn escalation;
@@ -191,7 +191,6 @@ flowchart TB
     SERVICE --> ENT
     SERVICE --> SUBJECT
     SERVICE --> CTX
-    SERVICE --> PROVIDER
     RESOLVER --> ENGINE
     ENGINE --> PROVIDER
     CONFIG --> ENT
@@ -239,9 +238,10 @@ flowchart LR
 - [x] Trip được route vào common approval engine.
 - [x] Submit kích hoạt notification approver đầu tiên.
 - [x] Manual approval kích hoạt notification level kế tiếp qua common engine.
+- [ ] Wire Trip timeout escalation vào background worker sau khi chốt policy.
 - [ ] Seed email templates `TRIP_APPROVED` / `TRIP_REJECTED`.
 - [ ] Chốt UI đăng ký công tác ở client.
-- [ ] Chốt business matrix Trip chính thức với HR/Management nếu khác `1 → 2 → 3`.
+- [ ] Chốt business matrix Trip chính thức nếu khác `1 → 2 → 3`.
 - [ ] Chạy EF/database deployment và integration test trên database thật.
 
 ## 14. Nguyên tắc kiến trúc
