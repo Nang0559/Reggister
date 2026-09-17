@@ -1,12 +1,12 @@
 ﻿
+using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Auths;
+using FVN_REGISTER.Application.Logging;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Authentication;
-using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Entities.Security;
-using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Infrastructure.Hubs;
@@ -51,7 +51,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             _hubContext = hubContext;
         }
 
-        // ================= LOGIN =================
         public async Task<ServiceResult<AuthResultDto>> Login(
             string employeeCode, string password,
             string deviceId, string deviceType, string? deviceName,
@@ -60,8 +59,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
         {
             try
             {
-                Logger.LogDebugIf(Debug, "[LOGIN] Attempt: {Emp} | Device={Device} | Ip={Ip}",
-                    employeeCode, deviceId, ipAddress);
+                Logger.LogDebugIf(Debug, "[LOGIN] Attempt: {Emp} | Device={Device} | Ip={Ip}", employeeCode, deviceId, ipAddress);
 
                 var user = await _uow.Repository<F03User>().Query()
                     .FirstOrDefaultAsync(x => x.EmployeeCode == employeeCode, ct);
@@ -93,14 +91,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                     return ServiceResult<AuthResultDto>.Fail("Sai mã nhân viên hoặc mật khẩu");
                 }
 
-                // Thành công
                 user.NumLoginFailed = 0;
                 user.LastLogin = DateTime.Now;
                 user.LockoutEndDate = null;
                 await _uow.SaveChangesAsync(ct);
 
                 var accessToken = await GenerateJwtTokenAsync(user, rememberMe, ct);
-                var refreshTokenRaw = GenerateRefreshTokenRaw();   // tách riêng, KHÔNG dùng chung JWT
+                var refreshTokenRaw = GenerateRefreshTokenRaw();
 
                 var kickedConnections = await _sessionService.RegisterSessionAsync(
                     user.IdUser, deviceType, deviceId, deviceName, refreshTokenRaw, rememberMe, ct);
@@ -136,7 +133,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             }
         }
 
-        // ================= PROFILE =================
         public async Task<ServiceResult<UserIdentityDto>> GetProfileAsync(int userId, CancellationToken ct = default)
         {
             try
@@ -154,8 +150,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                     .Select(x => x.IdFunction)
                     .ToListAsync(ct);
 
-                // 1 query duy nhất lấy cả Email lẫn PositionCode từ F03Employee — nguồn
-                // đúng, KHÔNG dùng F03User.Cvcode (đã loại bỏ khỏi luồng identity).
                 var emp = await _uow.Repository<F03Employee>().Query()
                     .Where(x => x.EmployeeCode == user.EmployeeCode)
                     .Select(x => new { x.EmailAddress, x.PositionCode })
@@ -211,7 +205,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             }
         }
 
-        // ================= CHANGE PASSWORD =================
         public async Task<ServiceResult> ChangePassword(
             string employeeCode, string currentPassword, string newPassword, CancellationToken ct = default)
         {
@@ -232,10 +225,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
 
                 user.Password = EncryptUtils.MD5(newPassword);
                 await _uow.SaveChangesAsync(ct);
-
-                // Đổi mật khẩu -> thu hồi mọi phiên đang đăng nhập (an toàn)
                 await _sessionService.RevokeAllAsync(user.IdUser, ct);
-
                 await _audit.LogAction("CHANGE_PASSWORD", user.IdUser, "Đổi mật khẩu thành công");
                 Logger.LogInfoIf(Debug, "[PASSWORD] Changed success: {Emp}", employeeCode);
                 return ServiceResult.Ok();
@@ -247,7 +237,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             }
         }
 
-        // ================= LOGOUT =================
         public async Task<ServiceResult> Logout(
             int userId, string? refreshToken, string? ipAddress, string? userAgent,
             CancellationToken ct = default)
@@ -255,10 +244,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             try
             {
                 Logger.LogDebugIf(Debug, "[LOGOUT] User: {UserId}", userId);
-
                 if (!string.IsNullOrEmpty(refreshToken))
                     await _sessionService.RevokeAsync(refreshToken, ct);
-
                 await _audit.LogLogout(userId, ipAddress, userAgent);
                 Logger.LogInfoIf(Debug, "[LOGOUT] Success: {UserId}", userId);
                 return ServiceResult.Ok();
@@ -270,13 +257,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             }
         }
 
-        // ================= REFRESH TOKEN =================
         public async Task<ServiceResult<string>> RefreshTokenAsync(string refreshToken, CancellationToken ct = default)
         {
             try
             {
                 Logger.LogDebugIf(Debug, "[REFRESH_TOKEN] Attempt");
-
                 var session = await _sessionService.ValidateSessionAsync(refreshToken, ct);
                 if (session == null)
                 {
@@ -290,11 +275,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 if (user == null || user.IsActive == false)
                     return ServiceResult<string>.Fail("Tài khoản không tồn tại hoặc đã bị khóa.");
 
-                // Dùng đúng RememberMe gốc lưu trong session — không hardcode
                 var newAccessToken = await GenerateJwtTokenAsync(user, session.RememberMe, ct);
-
                 Logger.LogInfoIf(Debug, "[REFRESH_TOKEN] Success for UserId: {UserId}", session.UserId);
-
                 return ServiceResult<string>.Ok(newAccessToken);
             }
             catch (Exception ex)
@@ -304,12 +286,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             }
         }
 
-        // ================= HELPERS =================
         private async Task HandleLoginFailedAsync(F03User user, CancellationToken ct)
         {
             const int maxFail = 5;
             user.NumLoginFailed++;
-
             Logger.LogWarnIf(Debug, "[LOGIN] Failed attempt {Count} for {Emp}", user.NumLoginFailed, user.EmployeeCode);
 
             if (user.NumLoginFailed >= maxFail)
@@ -328,24 +308,18 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             return Convert.ToBase64String(bytes);
         }
 
-        /// <summary>
-        /// Sinh JWT — ASYNC vì cần join F03Employee lấy PositionCode đúng nguồn
-        /// (F03User.Cvcode đã bị loại bỏ khỏi luồng identity). Gọi ở cả Login
-        /// và RefreshTokenAsync để claims luôn phản ánh dữ liệu nhân sự mới nhất.
-        /// </summary>
         private async Task<string> GenerateJwtTokenAsync(F03User user, bool rememberMe, CancellationToken ct)
         {
             var emp = await _uow.Repository<F03Employee>().Query()
-            .Where(e => e.EmployeeCode == user.EmployeeCode)
-            .Select(e => new { e.EmailAddress, e.PositionCode })
-            .FirstOrDefaultAsync(ct);
+                .Where(e => e.EmployeeCode == user.EmployeeCode)
+                .Select(e => new { e.EmailAddress, e.PositionCode })
+                .FirstOrDefaultAsync(ct);
 
             var jwtSettings = _configuration.GetSection("Jwt");
             var secretKey = jwtSettings["SecretKey"]
                 ?? throw new Exception("JWT Secret Key is not configured.");
 
             var key = Encoding.UTF8.GetBytes(secretKey);
-
             var claims = new List<Claim>
             {
                 new(ClaimTypes.NameIdentifier, user.IdUser.ToString()),
@@ -377,7 +351,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 NotBefore = DateTime.UtcNow.AddMinutes(-1),
                 IssuedAt = DateTime.UtcNow,
                 Expires = expires,
-                SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256),
+                SigningCredentials = new SigningCredentials(
+                    new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256),
                 Issuer = jwtSettings["Issuer"],
                 Audience = jwtSettings["Audience"]
             };
