@@ -1,13 +1,12 @@
 ﻿using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.HrmSync;
-using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Entities.HRM;
+
 using FVN_REGISTER.Core.Repositories;
-using FVN_REGISTER.Core.Utils;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using FVN_REGISTER.Core.Logging;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.HrmSync

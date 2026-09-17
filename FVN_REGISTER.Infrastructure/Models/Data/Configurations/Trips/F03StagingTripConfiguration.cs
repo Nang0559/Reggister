@@ -1,4 +1,4 @@
-﻿using FVN_REGISTER.Infrastructure.Models.Entities.Trips;
+﻿
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

@@ -4,12 +4,6 @@ using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Dtos.MasterData;
 using FVN_REGISTER.Application.Interfaces.Statics;
 using FVN_REGISTER.Application.Services.Common;
-using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Entities.Common;
-using FVN_REGISTER.Core.Entities.HR;
-using FVN_REGISTER.Core.Entities.Leaves;
-using FVN_REGISTER.Core.Entities.Views;
-using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Core.Utils; // TimeRange
 using Microsoft.EntityFrameworkCore;

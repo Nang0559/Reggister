@@ -1,4 +1,4 @@
-﻿using FVN_REGISTER.Infrastructure.Models.Entities.OT;
+﻿
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

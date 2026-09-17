@@ -1,12 +1,11 @@
 using FVN_REGISTER.Application.Interfaces.Emails;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.EmailTemplates;
-using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Entities.Common;
-using FVN_REGISTER.Core.Enums;
+
 
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Core.Utils;
+using FVN_REGISTER.Infrastructure.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

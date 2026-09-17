@@ -1,8 +1,7 @@
 ﻿using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Histories;
-using FVN_REGISTER.Core.Entities.Leaves;
-using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Infrastructure;
+using FVN_REGISTER.Infrastructure.Services.Histories;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
@@ -18,7 +17,7 @@ namespace FVN_REGISTER.API.Services.Histories
 
         protected override string CancelledStatus => LeaveStatus.Cancel;
 
-        protected override Expression<Func<F03leaveDay, bool>> BuildIdPredicate(int id)
+        protected override Expression<Func<F03LeaveDay, bool>> BuildIdPredicate(int id)
             => x => x.Id == id;
 
         public override async Task<ServiceResult<PaginationResult<HistoryItemDto>>> GetHistoryAsync(

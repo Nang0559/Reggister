@@ -1,9 +1,6 @@
 ﻿using FVN_REGISTER.Application.Interfaces.OTReasonCodes;
 using FVN_REGISTER.Contract.Dtos.OtReasons;
-using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Entities.OT;
 using FVN_REGISTER.Core.Repositories;
-using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using FVN_REGISTER.Application.Maps;
 using Microsoft.Extensions.Logging;

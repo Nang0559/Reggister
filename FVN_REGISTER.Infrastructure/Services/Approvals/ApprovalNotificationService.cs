@@ -1,16 +1,12 @@
 ﻿
 using FVN_REGISTER.Application.Factories;
-using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Emails;
 using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Rules;
 using FVN_REGISTER.Application.Services.Common;
-using FVN_REGISTER.Core.Configurations;
 
-using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Extensions;
-using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

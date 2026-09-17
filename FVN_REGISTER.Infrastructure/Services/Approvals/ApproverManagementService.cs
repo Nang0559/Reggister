@@ -1,19 +1,16 @@
-﻿using FVN_REGISTER.Application.Interfaces.Approvals;
+﻿
 using FVN_REGISTER.Application.Maps;
 using FVN_REGISTER.Application.Rules;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.Depts;
 using FVN_REGISTER.Contract.Dtos.OT;
-using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Constants;
-using FVN_REGISTER.Core.Entities.Approvers;
-using FVN_REGISTER.Core.Entities.HR;
-using FVN_REGISTER.Core.Enums;
+
 using FVN_REGISTER.Core.Extensions;
-using FVN_REGISTER.Core.Logging;
+
 using FVN_REGISTER.Core.Repositories;
-using FVN_REGISTER.Core.Utils;
+
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

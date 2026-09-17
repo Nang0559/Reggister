@@ -1,18 +1,14 @@
 ﻿using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Notifications;
-using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Entities.Common;
-using FVN_REGISTER.Core.Enums;
-using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Application.Maps;
-using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Infrastructure.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using FVN_REGISTER.Infrastructure.Utils;
 
 
 namespace FVN_REGISTER.Infrastructure.Services.Notifications

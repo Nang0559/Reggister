@@ -1,18 +1,11 @@
 ﻿using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Depts;
-using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Constants;
-using FVN_REGISTER.Core.Entities.HR;
-using FVN_REGISTER.Core.Entities.Leaves;
-using FVN_REGISTER.Core.Entities.Views;
-using FVN_REGISTER.Core.Enums;
-using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Diagnostics;
 
 
 

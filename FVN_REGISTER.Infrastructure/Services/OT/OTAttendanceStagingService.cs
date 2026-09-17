@@ -1,18 +1,13 @@
 ﻿// FVN_REGISTER.API/Services/OT/OTSyncService.cs
 
-using FVN_REGISTER.Application.Interfaces.Common;
+
 using FVN_REGISTER.Application.Interfaces.OT;
-using FVN_REGISTER.Application.Maps;
+
 using FVN_REGISTER.Application.Services.Common;
-using FVN_REGISTER.Contract.Dtos.Depts;
-using FVN_REGISTER.Contract.Dtos.OT;
-using FVN_REGISTER.Contract.Responses;
-using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Entities.HR;
-using FVN_REGISTER.Core.Logging;
+
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.Data.SqlClient;
-using Microsoft.EntityFrameworkCore;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Data;

@@ -1,8 +1,6 @@
 ﻿using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.OT;
-using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Extensions;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.Data.SqlClient;

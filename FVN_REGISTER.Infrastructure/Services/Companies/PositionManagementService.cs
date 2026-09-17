@@ -1,13 +1,7 @@
 ﻿using FVN_REGISTER.Application.Interfaces.Companies;
 using FVN_REGISTER.Application.Maps;
-using FVN_REGISTER.Application.Services.Common;
-using FVN_REGISTER.Contract.Dtos.Depts;
 using FVN_REGISTER.Contract.Dtos.Positions;
-using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Entities.HR;
-using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Core.Repositories;
-using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

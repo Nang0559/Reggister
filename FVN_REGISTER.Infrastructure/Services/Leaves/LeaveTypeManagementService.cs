@@ -1,12 +1,7 @@
 ﻿using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.LeaveTypes;
-using FVN_REGISTER.Core.Extensions;
-using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Entities.Leaves;
-using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Core.Repositories;
-using FVN_REGISTER.Core.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

@@ -1,12 +1,11 @@
-﻿using FVN_REGISTER.Application.Interfaces.Approvals;
+﻿
 using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Interfaces;
-using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Entities.Approvers;
+
 using FVN_REGISTER.Core.Interfaces;
-using FVN_REGISTER.Core.Logging;
+
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;

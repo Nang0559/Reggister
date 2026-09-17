@@ -2,11 +2,9 @@
 using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.MasterData;
-using FVN_REGISTER.Core.Configurations;
+
 using FVN_REGISTER.Core.Constants;
-using FVN_REGISTER.Core.Entities.Common;
-using FVN_REGISTER.Core.Enums;
-using FVN_REGISTER.Core.Logging;
+
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;

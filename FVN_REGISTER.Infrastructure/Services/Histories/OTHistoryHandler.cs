@@ -1,9 +1,8 @@
 ﻿
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Histories;
-using FVN_REGISTER.Core.Entities.OT;
-using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Infrastructure;
+using FVN_REGISTER.Infrastructure.Services.Histories;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 

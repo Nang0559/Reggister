@@ -4,16 +4,10 @@ using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Reports;
-using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Constants;
-using FVN_REGISTER.Core.Entities.Approvers;
-using FVN_REGISTER.Core.Entities.Common;
-using FVN_REGISTER.Core.Entities.HR;
-using FVN_REGISTER.Core.Entities.OT;
-using FVN_REGISTER.Core.Enums;
+
 using FVN_REGISTER.Core.Repositories;
-using FVN_REGISTER.Core.Utils;
-using FVN_REGISTER.Infrastructure;
+
 using FVN_REGISTER.Infrastructure.Services.Companies;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
