@@ -29,10 +29,10 @@
             <OTApprovalList Items="_allPending" IsLoading="_isLoading" OnRefresh="LoadPending" OnViewDetail="ViewDetail" />
         </ChildContent>
     </MudTabPanel>
-    @foreach (var level in new[] { 3, 5, 6, 7 })
+    @foreach (var level in ApprovalLevels)
     {
         <MudTabPanel Icon="@Icons.Material.Filled.SupervisorAccount">
-            <TabContent><MudText>Bước @level (@PendingAtLevel(level).Count)</MudText></TabContent>
+            <TabContent><MudText>Cấp @level (@PendingAtLevel(level).Count)</MudText></TabContent>
             <ChildContent>
                 <OTApprovalList Items="@PendingAtLevel(level)" Level="@level" IsLoading="_isLoading" OnRefresh="LoadPending" OnViewDetail="ViewDetail" />
             </ChildContent>
@@ -45,6 +45,13 @@
     private int _activeLevel;
     private List<PendingApprovalItemDto> _allPending = new();
     private readonly CancellationTokenSource _cts = new();
+
+    // Approval level is workflow data, not a hard-coded list of role/permission IDs.
+    private IEnumerable<int> ApprovalLevels => _allPending
+        .Where(x => x.CurrentApprovalLevel > 0)
+        .Select(x => x.CurrentApprovalLevel)
+        .Distinct()
+        .OrderBy(x => x);
 
     protected override async Task OnInitializedAsync() => await LoadPending();
 
@@ -64,6 +71,9 @@
             {
                 Snackbar.Add(result.Message ?? "Không tải được danh sách.", Severity.Warning);
             }
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
         }
         catch (Exception ex)
         {
