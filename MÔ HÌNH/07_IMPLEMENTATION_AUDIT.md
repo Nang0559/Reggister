@@ -15,7 +15,6 @@ flowchart LR
     HUB[SignalR]
 
     API --> APP
-    API --> INFRA
     API --> CONTRACT
     APP --> CORE
     APP --> CONTRACT
@@ -32,6 +31,15 @@ flowchart LR
 
 `BaseApiController` và `DashboardController` đã chuyển dependency từ `Contract.Interfaces.*` sang `Application.Interfaces.*`.
 
+Đợt refactor controller tiếp theo đã chuyển thêm:
+
+- `ApprovalListController` → `IApprovalInboxService` + `ApprovalActionDto`.
+- `ApproverController` → `IApproverManagementService` + `ApproverDto` + `RequestModule`.
+- `CommonController` → `IDepartmentLookupService`.
+- `DepartmentManagementController` → `IDepartmentManagementService` + `DepartmentDto/DepartmentUpsertDto`.
+- `DepartmentStatusController` → `IDepartmentStatusService`.
+- `NotificationController` → `Application.Interfaces.Notifications.INotificationService`.
+
 ### Composition Root
 
 `FVN_REGISTER.API/Program.cs` đã được chuẩn hóa theo nguyên tắc:
@@ -46,7 +54,13 @@ flowchart TD
     P --> HUB[Infrastructure.Hubs.NotificationHub]
 ```
 
-`Program.cs` không còn tham chiếu các namespace `FVN_REGISTER.API.Services.*` cũ.
+Các registration mới trong đợt này:
+
+```text
+IDepartmentLookupService -> DepartmentLookupService
+IDepartmentManagementService -> DepartmentManagementService
+IApprovalInboxService -> ApprovalInboxService
+```
 
 ### Unit of Work
 
@@ -60,6 +74,14 @@ Hub thực tế nằm tại `Infrastructure.Hubs.NotificationHub`; API compositi
 
 `IApprovalEngine<TSubject>` đã loại bỏ nested resolver trùng tên; cross-module resolver là interface cấp Application riêng.
 
+`ApprovalInboxService` cũng đã được đưa về namespace implementation đúng:
+
+```text
+FVN_REGISTER.Infrastructure.Services.Approvals
+```
+
+thay vì namespace cũ `FVN_REGISTER.API.Services.Approvals`.
+
 ### Infrastructure SignalR package
 
 Infrastructure dùng ASP.NET Core shared framework thay vì package `Microsoft.AspNetCore.SignalR.Core` phiên bản cũ.
@@ -68,11 +90,20 @@ Infrastructure dùng ASP.NET Core shared framework thay vì package `Microsoft.A
 
 ### P0 — API Controllers còn dependency legacy
 
-Một số controller khác vẫn dùng:
+Các controller chưa được chuyển hết vẫn cần audit theo từng contract thực tế, đặc biệt:
 
-```text
-FVN_REGISTER.Contract.Interfaces.*
-```
+- `AuthController`
+- `EmailQueueController`
+- `EmailTemplateController`
+- `EmployeeManagementController`
+- `HistoryController`
+- `LeaveCalendarController`
+- `LeaveDaysController`
+- `LeaveTypeManagementController`
+- `OTController`
+- `OTSyncController`
+- `ReportController`
+- `UserManagementController`
 
 Mục tiêu:
 
@@ -86,7 +117,7 @@ Infrastructure implementation
 
 Không để controller resolve trực tiếp implementation hoặc contract interface legacy.
 
-### P0 — API còn truy cập DbContext trực tiếp
+### P0 — AuthController còn truy cập DbContext trực tiếp
 
 `AuthController` hiện vẫn có phần quản lý session truy cập `FVNWEBAPPContext` trực tiếp. Đây là bước chuyển tiếp.
 
@@ -105,6 +136,14 @@ sequenceDiagram
     I->>U: Repository<F03UserSession>
     U->>DB: Query/Update
 ```
+
+Ngoài ra, `RevokeSession` hiện đang truyền giá trị `JwtToken` đã lưu/hash vào `RevokeAsync`, trong khi `ISessionService.RevokeAsync` nhận raw refresh token. Khi tách session boundary phải đổi sang revoke theo `sessionId + userId`, không dùng token hash như raw token.
+
+### P0 — Department hierarchy contract
+
+`DepartmentManagementController` đã chuyển sang Application service. Endpoint `/tree` hiện tạm trả `DepartmentDto` flat list vì `IDepartmentManagementService` hiện chưa có hierarchy DTO. Đây là điểm cần thiết kế tiếp nếu UI thực sự yêu cầu cây phòng ban.
+
+Không nên đưa `ViewModel` UI cũ vào Application chỉ để giữ tương thích.
 
 ### P1 — Approval cross-module resolver
 
@@ -134,7 +173,7 @@ Worker
 Management / Review
 ```
 
-với implementation hiện tại trong `Infrastructure/Services/HrmSync` và `Application/Interfaces/HrmSync`.
+với implementation hiện tại trong `FVN_REGISTER.Infrastructure/Services/HrmSync` và `Application/Interfaces/HrmSync`.
 
 ## 4. Quy tắc refactor bắt buộc
 
@@ -157,9 +196,16 @@ với implementation hiện tại trong `Infrastructure/Services/HrmSync` và `A
 | API composition root | Đã chuẩn hóa bước đầu |
 | Base API controller | Đã chuyển sang Application ports |
 | Dashboard controller | Đã chuyển sang Application ports |
+| ApprovalList controller | Đã chuyển |
+| Approver controller | Đã chuyển |
+| Common controller | Đã chuyển |
+| Department management controller | Đã chuyển, hierarchy DTO còn thiếu |
+| Department status controller | Đã chuyển |
+| Notification controller | Đã chuyển |
 | UnitOfWork registration | Đã chuẩn hóa |
 | SignalR Hub location | Đã chuẩn hóa về Infrastructure |
 | Approval interface | Đã dọn duplicate contract |
+| ApprovalInbox namespace | Đã sửa về Infrastructure |
 | Auth session boundary | Còn một bước tách EF khỏi Controller |
 | Toàn bộ Controllers | Chưa hoàn tất |
 | HRM Sync | Chưa hoàn tất audit implementation |
