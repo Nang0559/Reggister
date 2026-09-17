@@ -1,7 +1,6 @@
-﻿using AutoMapper;
+using AutoMapper;
+using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Authentication;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Contract.Interfaces.Users;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
@@ -41,9 +40,6 @@ namespace FVN_REGISTER.API.Controllers
             _options = options;
         }
 
-        // =============================
-        // HANDLE RESULT (GENERIC)
-        // =============================
         protected ActionResult HandleResult<T>(ServiceResult<T> result)
         {
             if (result == null)
@@ -74,9 +70,6 @@ namespace FVN_REGISTER.API.Controllers
             return BadRequest(apiResponse);
         }
 
-        // =============================
-        // HANDLE RESULT (NO DATA)
-        // =============================
         protected ActionResult HandleResult(ServiceResult result)
         {
             var apiResponse = ApiResponse<object>.FromResult(result);
@@ -98,9 +91,6 @@ namespace FVN_REGISTER.API.Controllers
             return BadRequest(apiResponse);
         }
 
-        // =============================
-        // PAGED RESULT
-        // =============================
         protected ActionResult HandlePagedResult<T>(ServiceResult<PaginationResult<T>> result)
         {
             if (result == null || result.Data == null)
@@ -115,9 +105,6 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(result);
         }
 
-        // =============================
-        // USER ACTION LOG
-        // =============================
         protected async Task LogActionAsync(string description)
         {
             var user = UserInfo;
@@ -138,9 +125,6 @@ namespace FVN_REGISTER.API.Controllers
             }
         }
 
-        // =============================
-        // DEBUG AUTH TEST
-        // =============================
         [HttpGet("test-auth")]
         [AllowAnonymous]
         public IActionResult TestAuth()
