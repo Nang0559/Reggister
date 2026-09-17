@@ -1,95 +1,63 @@
-﻿@* RequestDetailDialog.razor *@
-@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Contract.Dtos.Histories
+@using System.Text.Json
 
 <MudDialog>
     <TitleContent>
-        <MudText Typo="Typo.h6">
-            Chi tiết #@Detail?.Id –
-            @(Detail?.Kind == "leave" ? "Nghỉ phép" : "OT")
-        </MudText>
+        <MudText Typo="Typo.h6">Chi tiết #@Detail?.Id — @Detail?.Kind</MudText>
     </TitleContent>
     <DialogContent>
         @if (Detail != null)
         {
             <MudGrid>
-                <MudItem xs="6">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">NHÂN VIÊN</MudText>
-                    <MudText>@Detail.EmployeeName (@Detail.EmployeeCode)</MudText>
-                </MudItem>
-                <MudItem xs="6">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">TRẠNG THÁI</MudText>
-                    <MudText>@Detail.RequestStatus</MudText>
-                </MudItem>
-                @if (Detail.Kind == "leave")
-                {
-                    <MudItem xs="6">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">TỪ NGÀY</MudText>
-                        <MudText>@Detail.StartDate?.ToString("dd/MM/yyyy")</MudText>
-                    </MudItem>
-                    <MudItem xs="6">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">ĐẾN NGÀY</MudText>
-                        <MudText>@Detail.EndDate?.ToString("dd/MM/yyyy")</MudText>
-                    </MudItem>
-                }
-                else
-                {
-                    <MudItem xs="6">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">NGÀY OT</MudText>
-                        <MudText>@Detail.OTDate?.ToString("dd/MM/yyyy")</MudText>
-                    </MudItem>
-                    <MudItem xs="6">
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">TỔNG GIỜ OT</MudText>
-                        <MudText>@Detail.TotalOTHours?.ToString("N1") h</MudText>
-                    </MudItem>
-                }
-                <MudItem xs="12">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">LÝ DO</MudText>
-                    <MudText>@(Detail.Reason ?? "—")</MudText>
-                </MudItem>
+                <MudItem xs="6"><MudText Typo="Typo.caption">TRẠNG THÁI</MudText><MudText>@Detail.StatusDisplay</MudText></MudItem>
+                <MudItem xs="6"><MudText Typo="Typo.caption">NGÀY GỬI</MudText><MudText>@Detail.SubmittedAt.ToString("dd/MM/yyyy HH:mm")</MudText></MudItem>
             </MudGrid>
 
             <MudDivider Class="my-3" />
 
+            @if (Detail.Leave != null || Detail.OT != null)
+            {
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Chi tiết yêu cầu</MudText>
+                <MudPaper Elevation="0" Class="pa-3" Style="background:var(--mud-palette-background-grey);">
+                    <pre style="white-space:pre-wrap;word-break:break-word;margin:0;">@FormatPayload(Detail.Leave ?? (object?)Detail.OT)</pre>
+                </MudPaper>
+            }
+
+            <MudDivider Class="my-3" />
             <MudText Typo="Typo.subtitle2" Class="mb-2">Tiến trình phê duyệt</MudText>
             <MudTimeline TimelineAlign="TimelineAlign.Start">
-                @foreach (var lv in Detail.ApprovalLevels)
+                @foreach (var step in Detail.ApprovalSteps.OrderBy(x => x.Level))
                 {
-                    <MudTimelineItem
-                        Color="@(lv.IsApprove == true ? Color.Success
-                                : lv.IsApprove == false ? Color.Error
-                                : Color.Default)"
-                        Size="Size.Small">
+                    <MudTimelineItem Color="@GetStepColor(step.IsApproved)" Size="Size.Small">
                         <ItemContent>
-                            <MudText Typo="Typo.body2">
-                                <strong>@lv.LevelLabel</strong> – @lv.ApproverName
-                            </MudText>
+                            <MudText Typo="Typo.body2"><strong>Cấp @step.Level</strong> — @step.ApproverName</MudText>
                             <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                @lv.StatusText
-                                @if (lv.ApproveTime.HasValue)
-                                {
-                                    @($" lúc {lv.ApproveTime:HH:mm dd/MM/yyyy}")
-                                }
+                                @(step.IsApproved == true ? "Đã duyệt" : step.IsApproved == false ? "Từ chối" : "Chờ xử lý")
+                                @if (step.ApproveTime.HasValue) { @($" lúc {step.ApproveTime:HH:mm dd/MM/yyyy}") }
                             </MudText>
-                            @if (!string.IsNullOrEmpty(lv.Comment))
-                            {
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    "@lv.Comment"
-                                </MudText>
-                            }
+                            @if (!string.IsNullOrWhiteSpace(step.Comment)) { <MudText Typo="Typo.caption">@step.Comment</MudText> }
                         </ItemContent>
                     </MudTimelineItem>
                 }
             </MudTimeline>
         }
     </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="Close">Đóng</MudButton>
-    </DialogActions>
+    <DialogActions><MudButton OnClick="Close">Đóng</MudButton></DialogActions>
 </MudDialog>
 
 @code {
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
-    [Parameter] public ApprovalItemDetailDto? Detail { get; set; }
+    [Parameter] public HistoryItemDetailDto? Detail { get; set; }
 
     private void Close() => MudDialog.Close();
+
+    private static string FormatPayload(object? payload)
+        => payload == null ? "—" : JsonSerializer.Serialize(payload, new JsonSerializerOptions { WriteIndented = true });
+
+    private static Color GetStepColor(bool? approved) => approved switch
+    {
+        true => Color.Success,
+        false => Color.Error,
+        _ => Color.Default
+    };
 }
