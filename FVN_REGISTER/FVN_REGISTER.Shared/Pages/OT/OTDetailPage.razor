@@ -26,12 +26,7 @@ else if (_detail == null)
 else
 {
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
-        <div>
-            <MudText Typo="Typo.h5">Chi tiết đơn OT #@_detail.Id</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                @_detail.OTDate.ToString("dd/MM/yyyy") — @_detail.OTTypeCode — @_detail.Details.Count người
-            </MudText>
-        </div>
+        <div><MudText Typo="Typo.h5">Chi tiết đơn OT #@_detail.Id</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">@_detail.OTDate.ToString("dd/MM/yyyy") — @_detail.OTTypeCode — @_detail.Details.Count người</MudText></div>
         <MudChip T="string" Color="@GetStatusColor(_detail.RequestStatus)">@_detail.StatusText</MudChip>
     </MudStack>
 
@@ -39,53 +34,29 @@ else
         <MudItem xs="12" md="8">
             <MudCard Elevation="2" Class="mb-4">
                 <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1">Thông tin chung</MudText></CardHeaderContent></MudCardHeader>
-                <MudCardContent>
-                    <MudSimpleTable Dense="true">
-                        <tbody>
-                            <tr><td><strong>Ngày đăng ký</strong></td><td>@_detail.RegisterDate.ToString("dd/MM/yyyy HH:mm")</td></tr>
-                            <tr><td><strong>Ngày OT</strong></td><td>@_detail.OTDate.ToString("dd/MM/yyyy")</td></tr>
-                            <tr><td><strong>Loại OT</strong></td><td>@_detail.OTTypeCode</td></tr>
-                            <tr><td><strong>Người đăng ký</strong></td><td>@_detail.RequesterName (@_detail.RequesterCode)</td></tr>
-                            <tr><td><strong>Phòng ban</strong></td><td>@_detail.DeptName (@_detail.DeptCode)</td></tr>
-                            <tr><td><strong>Tổng giờ OT</strong></td><td>@_detail.TotalOtHours.ToString("N1") h</td></tr>
-                            <tr><td><strong>Mục đích</strong></td><td>@(_detail.OtPurpose ?? "—")</td></tr>
-                            <tr><td><strong>Mô tả</strong></td><td>@(_detail.Description ?? "—")</td></tr>
-                        </tbody>
-                    </MudSimpleTable>
-                </MudCardContent>
+                <MudCardContent><MudSimpleTable Dense="true"><tbody>
+                    <tr><td><b>Ngày đăng ký</b></td><td>@_detail.RegisterDate.ToString("dd/MM/yyyy HH:mm")</td></tr>
+                    <tr><td><b>Ngày OT</b></td><td>@_detail.OTDate.ToString("dd/MM/yyyy")</td></tr>
+                    <tr><td><b>Loại OT</b></td><td>@_detail.OTTypeCode</td></tr>
+                    <tr><td><b>Người đăng ký</b></td><td>@_detail.RequesterName (@_detail.RequesterCode)</td></tr>
+                    <tr><td><b>Phòng ban</b></td><td>@_detail.DeptName (@_detail.DeptCode)</td></tr>
+                    <tr><td><b>Tổng giờ OT</b></td><td>@_detail.TotalOtHours.ToString("N1") h</td></tr>
+                    <tr><td><b>Mục đích</b></td><td>@(_detail.OtPurpose ?? "—")</td></tr>
+                    <tr><td><b>Mô tả</b></td><td>@(_detail.Description ?? "—")</td></tr>
+                </tbody></MudSimpleTable></MudCardContent>
             </MudCard>
 
             <MudCard Elevation="2">
                 <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1">Danh sách nhân viên OT</MudText></CardHeaderContent></MudCardHeader>
-                <MudCardContent Class="pa-0">
-                    <MudTable Items="_detail.Details" Dense="true" Hover="true" Striped="true">
-                        <HeaderContent>
-                            <MudTh>Nhân viên</MudTh><MudTh>Giờ bắt đầu</MudTh><MudTh>Giờ kết thúc</MudTh>
-                            <MudTh>Giờ OT</MudTh><MudTh>Hạng mục</MudTh><MudTh>Validation</MudTh>
-                        </HeaderContent>
-                        <RowTemplate>
-                            <MudTd>
-                                <MudText Typo="Typo.body2"><strong>@context.EmployeeName</strong></MudText>
-                                <MudText Typo="Typo.caption">@context.EmployeeCode</MudText>
-                            </MudTd>
-                            <MudTd>@context.StartTime.ToString(@"hh\:mm")</MudTd>
-                            <MudTd>@context.EndTime.ToString(@"hh\:mm")</MudTd>
-                            <MudTd>@context.OTHours.ToString("N1") h</MudTd>
-                            <MudTd>
-                                @context.OTReasonCategoryCode
-                                @if (!string.IsNullOrWhiteSpace(context.OTReasonCategoryName)) { <span> — @context.OTReasonCategoryName</span> }
-                                @if (!string.IsNullOrWhiteSpace(context.OTReasonDetail)) { <div class="mud-text-secondary">@context.OTReasonDetail</div> }
-                            </MudTd>
-                            <MudTd>
-                                <MudChip T="string" Size="Size.Small" Color="@GetValidationColor(context.ValidationStatus)">
-                                    @context.ValidationStatus
-                                </MudChip>
-                                @if (!string.IsNullOrWhiteSpace(context.ValidationMessage))
-                                { <MudText Typo="Typo.caption">@context.ValidationMessage</MudText> }
-                            </MudTd>
-                        </RowTemplate>
-                    </MudTable>
-                </MudCardContent>
+                <MudCardContent Class="pa-0"><MudTable Items="_detail.Details" Dense="true" Hover="true" Striped="true">
+                    <HeaderContent><MudTh>Nhân viên</MudTh><MudTh>Giờ bắt đầu</MudTh><MudTh>Giờ kết thúc</MudTh><MudTh>Giờ OT</MudTh><MudTh>Hạng mục</MudTh><MudTh>Validation</MudTh></HeaderContent>
+                    <RowTemplate>
+                        <MudTd><MudText Typo="Typo.body2"><b>@context.EmployeeName</b></MudText><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd>
+                        <MudTd>@context.StartTime.ToString(@"hh\:mm")</MudTd><MudTd>@context.EndTime.ToString(@"hh\:mm")</MudTd><MudTd>@context.OTHours.ToString("N1") h</MudTd>
+                        <MudTd>@context.OTReasonCategoryCode @if (!string.IsNullOrWhiteSpace(context.OTReasonCategoryName)){<span> — @context.OTReasonCategoryName</span>} @if (!string.IsNullOrWhiteSpace(context.OTReasonDetail)){<div class="mud-text-secondary">@context.OTReasonDetail</div>}</MudTd>
+                        <MudTd><MudChip T="string" Size="Size.Small" Color="@GetValidationColor(context.ValidationStatus)">@context.ValidationStatus</MudChip>@if (!string.IsNullOrWhiteSpace(context.ValidationMessage)){<MudText Typo="Typo.caption">@context.ValidationMessage</MudText>}</MudTd>
+                    </RowTemplate>
+                </MudTable></MudCardContent>
             </MudCard>
         </MudItem>
 
@@ -96,13 +67,8 @@ else
                     @foreach (var step in _detail.ApprovalSteps.OrderBy(x => x.Level))
                     {
                         <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="2" Class="mb-3">
-                            <MudIcon Icon="@GetStepIcon(step.Status)" Color="@GetStepColor(step.Status)" />
-                            <div>
-                                <MudText Typo="Typo.body2"><strong>Cấp @step.Level</strong> — @step.RoleName</MudText>
-                                @if (!string.IsNullOrWhiteSpace(step.ApproverName)) { <MudText Typo="Typo.caption">@step.ApproverName</MudText> }
-                                @if (step.ActionAt.HasValue) { <MudText Typo="Typo.caption">@step.ActionAt.Value.ToString("dd/MM HH:mm")</MudText> }
-                                @if (!string.IsNullOrWhiteSpace(step.Comment)) { <MudText Typo="Typo.caption">@step.Comment</MudText> }
-                            </div>
+                            <MudIcon Icon="@(step.IsRequired ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)" Color="@(step.IsRequired ? Color.Primary : Color.Default)" />
+                            <div><MudText Typo="Typo.body2"><b>Cấp @step.Level</b> — @step.RoleName</MudText><MudText Typo="Typo.caption">@step.LevelName — @(step.ApproverName ?? "Chưa phân công")</MudText></div>
                         </MudStack>
                     }
                 </MudCardContent>
@@ -110,9 +76,7 @@ else
 
             @if (_detail.RequesterCode == CurrentUser.User?.EmployeeCode && !_detail.IsFinished)
             {
-                <MudButton Variant="Variant.Outlined" Color="Color.Error" FullWidth="true" OnClick="CancelOT" Disabled="_isCancelling">
-                    @(_isCancelling ? "Đang hủy..." : "Hủy đơn OT")
-                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Error" FullWidth="true" OnClick="CancelOT" Disabled="_isCancelling">@(_isCancelling ? "Đang hủy..." : "Hủy đơn OT")</MudButton>
             }
         </MudItem>
     </MudGrid>
@@ -120,10 +84,8 @@ else
 
 @code {
     [Parameter] public int Id { get; set; }
-
     private OTRequestDto? _detail;
-    private bool _isLoading = true;
-    private bool _isCancelling;
+    private bool _isLoading = true, _isCancelling;
     private readonly CancellationTokenSource _cts = new();
 
     protected override async Task OnInitializedAsync() => await LoadDetail();
@@ -135,62 +97,20 @@ else
         {
             if (!CurrentUser.IsLoggedIn) await CurrentUser.InitializeAsync();
             var result = await OTService.GetDetailAsync(Id, _cts.Token);
-            if (result.IsSuccess) _detail = result.Data;
-            else Snackbar.Add(result.Message ?? "Không tải được đơn OT.", Severity.Error);
+            if (result.IsSuccess) _detail = result.Data; else Snackbar.Add(result.Message ?? "Không tải được đơn OT.", Severity.Error);
         }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[OT_DETAIL] Load error Id={Id}", Id);
-            Snackbar.Add("Lỗi hệ thống.", Severity.Error);
-        }
+        catch (Exception ex) { Logger.LogError(ex, "[OT_DETAIL] Load error Id={Id}", Id); Snackbar.Add("Lỗi hệ thống.", Severity.Error); }
         finally { _isLoading = false; }
     }
 
     private async Task CancelOT()
     {
-        if (_detail == null) return;
         _isCancelling = true;
-        try
-        {
-            var result = await OTService.CancelAsync(Id, "Hủy từ trang chi tiết", _cts.Token);
-            Snackbar.Add(result.IsSuccess ? "Đã hủy đơn OT." : result.Message ?? "Lỗi hủy đơn.",
-                result.IsSuccess ? Severity.Success : Severity.Error);
-            if (result.IsSuccess) await LoadDetail();
-        }
+        try { var result = await OTService.CancelAsync(Id, "Hủy từ trang chi tiết", _cts.Token); Snackbar.Add(result.IsSuccess ? "Đã hủy đơn OT." : result.Message ?? "Lỗi hủy đơn.", result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) await LoadDetail(); }
         finally { _isCancelling = false; }
     }
 
-    private static Color GetStatusColor(ApprovalStatus status) => status switch
-    {
-        ApprovalStatus.Approved => Color.Success,
-        ApprovalStatus.Rejected => Color.Error,
-        ApprovalStatus.Cancelled => Color.Default,
-        _ => Color.Warning
-    };
-
-    private static Color GetValidationColor(ValidationStatus status) => status switch
-    {
-        ValidationStatus.Valid => Color.Success,
-        ValidationStatus.Warning => Color.Warning,
-        ValidationStatus.Invalid => Color.Error,
-        _ => Color.Default
-    };
-
-    private static Color GetStepColor(DecisionType status) => status switch
-    {
-        DecisionType.Approved => Color.Success,
-        DecisionType.Rejected => Color.Error,
-        DecisionType.Pending => Color.Warning,
-        _ => Color.Default
-    };
-
-    private static string GetStepIcon(DecisionType status) => status switch
-    {
-        DecisionType.Approved => Icons.Material.Filled.CheckCircle,
-        DecisionType.Rejected => Icons.Material.Filled.Cancel,
-        DecisionType.Pending => Icons.Material.Filled.HourglassEmpty,
-        _ => Icons.Material.Filled.RadioButtonUnchecked
-    };
-
+    private static Color GetStatusColor(ApprovalStatus status) => status switch { ApprovalStatus.Approved => Color.Success, ApprovalStatus.Rejected => Color.Error, ApprovalStatus.Cancelled => Color.Default, _ => Color.Warning };
+    private static Color GetValidationColor(ValidationStatus status) => status switch { ValidationStatus.Valid => Color.Success, ValidationStatus.Warning => Color.Warning, ValidationStatus.Invalid => Color.Error, _ => Color.Default };
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 }
