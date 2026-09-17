@@ -1,644 +1,180 @@
-﻿@* ─────────────────────────────────────────────────────────────────────────────
-   File: FVN_REGISTER.Shared/Pages/Admin/LeaveTypeManagement.razor
-   Route: /admin/leave-types
-───────────────────────────────────────────────────────────────────────────── *@
 @page "/admin/leave-types"
 @attribute [Authorize]
-@using FVN_REGISTER.Contract.Interfaces.Repositores
-@using FVN_REGISTER.Contract.ViewModels
-@using FVN_REGISTER.Contract.ViewModels.Leaves
-@using FVN_REGISTER.Core.Logging
-@using FVN_REGISTER.Shared.Components.LeaveTypes
+@using FVN_REGISTER.Contract.Dtos.LeaveTypes
 @using FVN_REGISTER.Shared.Services.Leaves
-@using FVN_REGISTER.Shared.Utils.Helpers
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 
 @inject ILeaveTypeClientService LeaveTypeService
-@inject IDialogService DialogService
 @inject ISnackbar Snackbar
 
 <PageTitle>Hình thức nghỉ - FCC</PageTitle>
 
-@* ─── HEADER ─────────────────────────────────────────────────── *@
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
-    <MudIcon Icon="@Icons.Material.Filled.EventNote"
-             Color="Color.Primary"
-             Size="Size.Large" />
     <div>
-        <MudText Typo="Typo.h5" Style="font-weight:700">Hình thức nghỉ phép</MudText>
-        <MudText Typo="Typo.caption" Color="Color.Secondary">
-            Quản lý các loại hình nghỉ: nghỉ phép, nghỉ bệnh, nghỉ việc riêng...
-        </MudText>
+        <MudText Typo="Typo.h5">Hình thức nghỉ phép</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">Quản lý loại nghỉ bằng contract DTO của Application/API.</MudText>
     </div>
     <MudSpacer />
-
-    @* Stats chips *@
-    <MudChip T="string" Color="Color.Success" Size="Size.Small" Icon="@Icons.Material.Filled.CheckCircle">
-        @_totalActive đang dùng
-    </MudChip>
-    <MudChip T="string" Color="Color.Default" Size="Size.Small" Icon="@Icons.Material.Filled.PauseCircle">
-        @_totalInactive tạm dừng
-    </MudChip>
-
-    <MudButton Variant="Variant.Filled"
-               Color="Color.Primary"
-               StartIcon="@Icons.Material.Filled.Add"
-               OnClick="OpenCreateDialog">
-        Thêm mới
-    </MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="StartCreate">Thêm mới</MudButton>
 </MudStack>
 
-@* ─── FILTER BAR ─────────────────────────────────────────────── *@
-<MudPaper Elevation="1" Class="pa-3 mb-4" Style="border-radius:12px">
-    <MudGrid AlignItems="AlignItems.Center">
-        <MudItem xs="12" sm="4">
-            <MudTextField T="string"
-                          @bind-Value="_searchText"
-                          Placeholder="Tìm kiếm theo tên, mã..."
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Dense"
-                          Clearable="true"
-                          Immediate="true"
-                          DebounceInterval="300"
-                          TextChanged="OnSearchChanged" />
+<MudPaper Class="pa-3 mb-4" Elevation="1">
+    <MudGrid>
+        <MudItem xs="12" sm="6">
+            <MudTextField T="string" @bind-Value="_search" Immediate="true" Clearable="true" Label="Tìm theo mã hoặc tên" Variant="Variant.Outlined" Margin="Margin.Dense" />
         </MudItem>
-
         <MudItem xs="12" sm="3">
-            <MudSelect T="bool?"
-                       Label="Tính phép năm"
-                       Value="_filterTinhPhep"
-                       ValueChanged="OnTinhPhepFilterChanged"
-                       Variant="Variant.Outlined"
-                       Margin="Margin.Dense"
-                       Clearable="true">
-                <MudSelectItem T="bool?" Value="@((bool?)true)">
-                    <MudIcon Icon="@Icons.Material.Filled.CheckCircle"
-                             Color="Color.Warning"
-                             Size="Size.Small" /> Tính phép
-                </MudSelectItem>
-                <MudSelectItem T="bool?" Value="@((bool?)false)">
-                    <MudIcon Icon="@Icons.Material.Filled.Cancel"
-                             Color="Color.Default"
-                             Size="Size.Small" /> Không tính
-                </MudSelectItem>
+            <MudSelect T="bool?" @bind-Value="_isActive" Label="Trạng thái" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                <MudSelectItem T="bool?" Value="true">Đang dùng</MudSelectItem>
+                <MudSelectItem T="bool?" Value="false">Tạm dừng</MudSelectItem>
             </MudSelect>
         </MudItem>
-
         <MudItem xs="12" sm="3">
-            <MudSelect T="bool?"
-                       Label="Trạng thái"
-                       Value="_filterIsActive"
-                       ValueChanged="OnActiveFilterChanged"
-                       Variant="Variant.Outlined"
-                       Margin="Margin.Dense"
-                       Clearable="true">
-                <MudSelectItem T="bool?" Value="@((bool?)true)">Đang sử dụng</MudSelectItem>
-                <MudSelectItem T="bool?" Value="@((bool?)false)">Tạm dừng</MudSelectItem>
+            <MudSelect T="bool?" @bind-Value="_isCountedAsLeave" Label="Tính phép" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                <MudSelectItem T="bool?" Value="true">Có</MudSelectItem>
+                <MudSelectItem T="bool?" Value="false">Không</MudSelectItem>
             </MudSelect>
-        </MudItem>
-
-        <MudItem xs="12" sm="2">
-            <MudButton Variant="Variant.Outlined"
-                       Color="Color.Default"
-                       StartIcon="@Icons.Material.Filled.Refresh"
-                       OnClick="ResetAndReload"
-                       FullWidth="true">
-                Làm mới
-            </MudButton>
         </MudItem>
     </MudGrid>
 </MudPaper>
 
-@* ─── CONTENT ────────────────────────────────────────────────── *@
-@if (_isLoading)
+@if (_editing)
 {
-    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-4" />
-    @for (int i = 0; i < 2; i++)
-    {
-        <MudSkeleton SkeletonType="SkeletonType.Rectangle"
-                     Height="200px"
-                     Class="mb-4"
-                     Style="border-radius:14px" />
-    }
-}
-else if (_isFiltered)
-{
-    @* ── VIEW PHẲNG KHI CÓ FILTER ── *@
-    <MudPaper Elevation="1" Style="border-radius:12px; overflow:hidden">
-        <MudTable Items="@_flatList"
-                  Dense="false"
-                  Hover="true"
-                  Striped="false"
-                  Loading="_isLoading"
-                  Filter="FilterFunc">
-            <ToolBarContent>
-                <MudText Typo="Typo.subtitle1" Style="font-weight:600">
-                    Kết quả lọc: @_flatList.Count hình thức
-                </MudText>
-            </ToolBarContent>
-            <HeaderContent>
-                <MudTh><MudTableSortLabel SortBy="new Func<LeaveTypeFlatViewModel, object>(x => x.LeaveTypeCode)">Mã</MudTableSortLabel></MudTh>
-                <MudTh><MudTableSortLabel SortBy="new Func<LeaveTypeFlatViewModel, object>(x => x.LeaveTypeName)">Tên hình thức</MudTableSortLabel></MudTh>
-                <MudTh>Tên tiếng Anh</MudTh>
-                <MudTh>Mã HRM</MudTh>
-                <MudTh>Tính phép</MudTh>
-                <MudTh>Trạng thái</MudTh>
-                <MudTh Style="text-align:center">Thao tác</MudTh>
-            </HeaderContent>
-            <RowTemplate>
-                <MudTd>
-                    <MudText Typo="Typo.body2"
-                             Style="font-family:monospace; font-weight:600; color:#1E88E5">
-                        @context.LeaveTypeCode
-                    </MudText>
-                </MudTd>
-                <MudTd>
-                    <MudText Typo="Typo.body2" Style="font-weight:500">
-                        @context.LeaveTypeName
-                    </MudText>
-                </MudTd>
-                <MudTd>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">
-                        @(context.LeaveTypeName2 ?? "—")
-                    </MudText>
-                </MudTd>
-                <MudTd>
-                    <MudText Typo="Typo.caption" Style="font-family:monospace">
-                        @(string.IsNullOrEmpty(context.HrmCode) ? "—" : context.HrmCode)
-                    </MudText>
-                </MudTd>
-                <MudTd>
-                    <MudChip T="string"
-                             Color="@(context.TinhPhep == true ? Color.Warning : Color.Default)"
-                             Size="Size.Small">
-                        @context.TinhPhepText
-                    </MudChip>
-                </MudTd>
-                <MudTd>
-                    <MudChip T="string"
-                             Color="@(context.IsActive ? Color.Success : Color.Error)"
-                             Size="Size.Small">
-                        @context.StatusText
-                    </MudChip>
-                </MudTd>
-                <MudTd Style="text-align:center">
-                    @RenderActions(context)
-                </MudTd>
-            </RowTemplate>
-            <NoRecordsContent>
-                <EmptyState Message="Không tìm thấy hình thức nghỉ phù hợp" />
-            </NoRecordsContent>
-        </MudTable>
+    <MudPaper Class="pa-4 mb-4" Elevation="2">
+        <MudText Typo="Typo.h6" Class="mb-3">@(_edit.Id == 0 ? "Thêm loại nghỉ" : "Chỉnh sửa loại nghỉ")</MudText>
+        <MudForm @ref="_form">
+            <MudGrid>
+                <MudItem xs="12" sm="3"><MudTextField @bind-Value="_edit.LeaveTypeCode" Label="Mã loại nghỉ *" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                <MudItem xs="12" sm="5"><MudTextField @bind-Value="_edit.LeaveTypeName" Label="Tên loại nghỉ *" Required="true" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                <MudItem xs="12" sm="4"><MudTextField @bind-Value="_edit.LeaveTypeName2" Label="Tên phụ" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                <MudItem xs="12" sm="3"><MudTextField @bind-Value="_edit.HRMCode" Label="HRM Code" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                <MudItem xs="6" sm="3"><MudCheckBox @bind-Value="_edit.IsCountedAsLeave" Label="Tính phép năm" /></MudItem>
+                <MudItem xs="6" sm="3"><MudCheckBox @bind-Value="_edit.IsActive" Label="Đang sử dụng" /></MudItem>
+            </MudGrid>
+        </MudForm>
+        <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+            <MudButton Variant="Variant.Text" OnClick="CancelEdit">Hủy</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_saving" OnClick="Save">@(_saving ? "Đang lưu..." : "Lưu")</MudButton>
+        </MudStack>
     </MudPaper>
+}
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
 }
 else
 {
-    @* ── TREE VIEW THEO NHÓM ACTIVE / INACTIVE ── *@
-    @if (!_groups.Any())
-    {
-        <MudPaper Elevation="0"
-                  Class="pa-10 text-center"
-                  Style="border:2px dashed #e0e0e0; border-radius:16px">
-            <MudIcon Icon="@Icons.Material.Filled.EventBusy"
-                     Size="Size.Large"
-                     Color="Color.Secondary" />
-            <MudText Typo="Typo.h6" Color="Color.Secondary" Class="mt-2">
-                Chưa có hình thức nghỉ nào
-            </MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-                Nhấn "Thêm mới" để bắt đầu cấu hình
-            </MudText>
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       StartIcon="@Icons.Material.Filled.Add"
-                       OnClick="OpenCreateDialog">
-                Thêm hình thức nghỉ đầu tiên
-            </MudButton>
-        </MudPaper>
-    }
-    else
-    {
-        @foreach (var group in _groups)
-        {
-            <MudPaper Elevation="2" Class="mb-5" Style="border-radius:14px; overflow:hidden">
-
-                @* ── Group header ── *@
-                <div style="@GetGroupHeaderStyle(group.IsActive) cursor:pointer; padding:12px 16px"
-                     @onclick="() => group.IsExpanded = !group.IsExpanded">
-                    <MudStack Row="true" AlignItems="AlignItems.Center">
-                        <MudIcon Icon="@(group.IsActive
-                                            ? Icons.Material.Filled.CheckCircle
-                                            : Icons.Material.Filled.PauseCircle)"
-                                 Style="color:white" />
-                        <div style="flex:1">
-                            <MudText Typo="Typo.subtitle1"
-                                     Style="color:white; font-weight:700">
-                                @group.GroupLabel
-                            </MudText>
-                            <MudText Typo="Typo.caption"
-                                     Style="color:rgba(255,255,255,0.8)">
-                                @group.TotalCount loại &nbsp;•&nbsp;
-                                @group.TinhPhepCount loại tính phép năm
-                            </MudText>
-                        </div>
-
-                        <MudChip T="string"
-                                 Size="Size.Small"
-                                 Style="background:rgba(255,255,255,0.2); color:white; font-weight:600">
-                            @group.TotalCount
-                        </MudChip>
-
-                        <MudIconButton Icon="@(group.IsExpanded
-                                                ? Icons.Material.Filled.ExpandLess
-                                                : Icons.Material.Filled.ExpandMore)"
-                                       Style="color:white"
-                                       Size="Size.Small" />
-                    </MudStack>
-                </div>
-
-                @* ── Group body ── *@
-                @if (group.IsExpanded)
-                {
-                    <div class="pa-4">
-                        <MudGrid Spacing="3">
-                            @foreach (var item in group.Items)
-                            {
-                                <MudItem xs="12" sm="6" md="4">
-                                    <MudPaper Elevation="0"
-                                              Style="@GetCardStyle(item)"
-                                              Class="pa-3"
-                                              @ondblclick="() => OpenDetailDialog(item)">
-
-                                        <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="2">
-
-                                            @* Icon tính phép *@
-                                            <MudTooltip Text="@item.TinhPhepText">
-                                                <MudAvatar Color="@(item.TinhPhep == true
-                                                                        ? Color.Warning
-                                                                        : Color.Default)"
-                                                           Size="Size.Medium"
-                                                           Style="font-size:0.75rem; flex-shrink:0; font-weight:700">
-                                                    @item.LeaveTypeCode.Substring(0,
-                                                        Math.Min(3, item.LeaveTypeCode.Length))
-                                                </MudAvatar>
-                                            </MudTooltip>
-
-                                            <div style="flex:1; min-width:0">
-                                                @* Tên *@
-                                                <MudText Typo="Typo.subtitle2"
-                                                         Style="font-weight:600;
-                                                                overflow:hidden;
-                                                                text-overflow:ellipsis;
-                                                                white-space:nowrap">
-                                                    @item.LeaveTypeName
-                                                </MudText>
-
-                                                @* Tên EN *@
-                                                @if (!string.IsNullOrEmpty(item.LeaveTypeName2))
-                                                {
-                                                    <MudText Typo="Typo.caption"
-                                                             Color="Color.Secondary"
-                                                             Style="overflow:hidden;
-                                                                    text-overflow:ellipsis;
-                                                                    white-space:nowrap;
-                                                                    display:block">
-                                                        @item.LeaveTypeName2
-                                                    </MudText>
-                                                }
-
-                                                @* Badges *@
-                                                <MudStack Row="true" Spacing="1" Class="mt-1" Wrap="Wrap.Wrap">
-                                                    <MudChip T="string"
-                                                             Color="@(item.TinhPhep == true
-                                                                         ? Color.Warning
-                                                                         : Color.Default)"
-                                                             Size="Size.Small"
-                                                             Style="height:20px; font-size:10px">
-                                                        @item.TinhPhepText
-                                                    </MudChip>
-
-                                                    @if (!string.IsNullOrEmpty(item.HrmCode))
-                                                    {
-                                                        <MudChip T="string"
-                                                                 Color="Color.Info"
-                                                                 Size="Size.Small"
-                                                                 Variant="Variant.Outlined"
-                                                                 Style="height:20px; font-size:10px">
-                                                            HRM: @item.HrmCode
-                                                        </MudChip>
-                                                    }
-                                                </MudStack>
-                                            </div>
-
-                                            @* 3-dot menu *@
-                                            <MudMenu Icon="@Icons.Material.Filled.MoreVert"
-                                                     Size="Size.Small"
-                                                     Dense="true"
-                                                     AnchorOrigin="Origin.BottomRight"
-                                                     TransformOrigin="Origin.TopRight">
-                                                <MudMenuItem Icon="@Icons.Material.Filled.Info"
-                                                             OnClick="@(() => OpenDetailDialog(item))">
-                                                    Xem chi tiết
-                                                </MudMenuItem>
-                                                <MudMenuItem Icon="@Icons.Material.Filled.Edit"
-                                                             OnClick="@(() => OpenEditDialog(item))">
-                                                    Chỉnh sửa
-                                                </MudMenuItem>
-                                                <MudMenuItem Icon="@(item.IsActive
-                                                                        ? Icons.Material.Filled.PauseCircle
-                                                                        : Icons.Material.Filled.PlayCircle)"
-                                                             OnClick="@(() => ToggleItem(item))">
-                                                    @(item.IsActive ? "Tạm dừng" : "Kích hoạt lại")
-                                                </MudMenuItem>
-                                                <MudDivider />
-                                                <MudMenuItem Icon="@Icons.Material.Filled.Delete"
-                                                             IconColor="Color.Error"
-                                                             OnClick="@(() => ConfirmDelete(item))">
-                                                    <MudText Color="Color.Error">Xóa</MudText>
-                                                </MudMenuItem>
-                                            </MudMenu>
-
-                                        </MudStack>
-                                    </MudPaper>
-                                </MudItem>
-                            }
-                        </MudGrid>
-                    </div>
-                }
-
-            </MudPaper>
-        }
-    }
+    <MudTable Items="FilteredItems" Hover="true" Dense="true" Striped="true">
+        <HeaderContent>
+            <MudTh>Mã</MudTh><MudTh>Tên</MudTh><MudTh>Tên phụ</MudTh><MudTh>HRM</MudTh><MudTh>Tính phép</MudTh><MudTh>Trạng thái</MudTh><MudTh>Thao tác</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="Mã">@context.LeaveTypeCode</MudTd>
+            <MudTd DataLabel="Tên">@context.LeaveTypeName</MudTd>
+            <MudTd DataLabel="Tên phụ">@(context.LeaveTypeName2 ?? "-")</MudTd>
+            <MudTd DataLabel="HRM">@(context.HRMCode ?? "-")</MudTd>
+            <MudTd DataLabel="Tính phép"><MudChip T="string" Size="Size.Small" Color="@(context.IsCountedAsLeave ? Color.Warning : Color.Default)">@(context.IsCountedAsLeave ? "Có" : "Không")</MudChip></MudTd>
+            <MudTd DataLabel="Trạng thái"><MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">@(context.IsActive ? "Đang dùng" : "Tạm dừng")</MudChip></MudTd>
+            <MudTd DataLabel="Thao tác">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" OnClick="@(() => StartEdit(context))" />
+                <MudIconButton Icon="@(context.IsActive ? Icons.Material.Filled.Pause : Icons.Material.Filled.PlayArrow)" Size="Size.Small" OnClick="@(() => Toggle(context))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => Delete(context))" />
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent><MudAlert Severity="Severity.Info">Không có dữ liệu phù hợp.</MudAlert></NoRecordsContent>
+    </MudTable>
 }
 
 @code {
-    // ── State ────────────────────────────────────────────────────
-    private List<LeaveTypeGroupViewModel> _groups = new();
-    private List<LeaveTypeFlatViewModel> _flatList = new();
+    private List<LeaveTypeDto> _items = new();
+    private string? _search;
+    private bool? _isActive;
+    private bool? _isCountedAsLeave;
+    private bool _loading;
+    private bool _editing;
+    private bool _saving;
+    private MudForm? _form;
+    private LeaveTypeUpsertDto _edit = new();
 
-    private bool _isLoading = true;
-    private bool _isFiltered = false;
+    private IEnumerable<LeaveTypeDto> FilteredItems => _items
+        .Where(x => !_isActive.HasValue || x.IsActive == _isActive.Value)
+        .Where(x => !_isCountedAsLeave.HasValue || x.IsCountedAsLeave == _isCountedAsLeave.Value)
+        .Where(x => string.IsNullOrWhiteSpace(_search)
+                 || x.LeaveTypeCode.Contains(_search, StringComparison.OrdinalIgnoreCase)
+                 || x.LeaveTypeName.Contains(_search, StringComparison.OrdinalIgnoreCase)
+                 || (x.LeaveTypeName2?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false))
+        .OrderBy(x => x.LeaveTypeCode);
 
-    private string? _searchText;
-    private bool? _filterTinhPhep;
-    private bool? _filterIsActive;
+    protected override async Task OnInitializedAsync() => await LoadAsync();
 
-    // Derived stats
-    private int _totalActive => _groups.Where(g => g.IsActive).Sum(g => g.TotalCount);
-    private int _totalInactive => _groups.Where(g => !g.IsActive).Sum(g => g.TotalCount);
-
-    private static readonly DialogOptions _dialogOpts = new()
+    private async Task LoadAsync()
     {
-        MaxWidth = MaxWidth.Small,
-        FullWidth = true,
-        CloseOnEscapeKey = true
-    };
-
-    private static readonly DialogOptions _detailOpts = new()
-    {
-        MaxWidth = MaxWidth.ExtraSmall,
-        FullWidth = true,
-        CloseOnEscapeKey = true
-    };
-
-    // ── Init ─────────────────────────────────────────────────────
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadTreeAsync();
-    }
-
-    private async Task LoadTreeAsync()
-    {
-        _isLoading = true;
-        StateHasChanged();
+        _loading = true;
         try
         {
-            var result = await LeaveTypeService.GetTreeAsync();
-            if (result.IsSuccess && result.Data != null)
-                _groups = result.Data;
-            else
-                Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
+            var result = await LeaveTypeService.GetListAsync(ct: CancellationToken.None);
+            if (result.IsSuccess && result.Data != null) _items = result.Data;
+            else Snackbar.Add(result.Message ?? "Không thể tải loại nghỉ.", Severity.Error);
         }
-        finally
+        finally { _loading = false; }
+    }
+
+    private void StartCreate() { _edit = new LeaveTypeUpsertDto { IsActive = true }; _editing = true; }
+
+    private void StartEdit(LeaveTypeDto item)
+    {
+        _edit = new LeaveTypeUpsertDto
         {
-            _isLoading = false;
-            StateHasChanged();
-        }
-    }
-
-    // ── Filter ───────────────────────────────────────────────────
-    private async Task OnSearchChanged(string? value)
-    {
-        _searchText = value;
-        await ApplyFilter();
-    }
-
-    private async Task OnTinhPhepFilterChanged(bool? value)
-    {
-        _filterTinhPhep = value;
-        await ApplyFilter();
-    }
-
-    private async Task OnActiveFilterChanged(bool? value)
-    {
-        _filterIsActive = value;
-        await ApplyFilter();
-    }
-
-    private bool HasApiFilter => _filterTinhPhep.HasValue || _filterIsActive.HasValue;
-
-    private async Task ApplyFilter()
-    {
-        // Nếu chỉ search text và không có filter API -> lọc trên tree local
-        if (!HasApiFilter && string.IsNullOrEmpty(_searchText))
-        {
-            _isFiltered = false;
-            return;
-        }
-
-        _isLoading = true;
-        _isFiltered = true;
-        StateHasChanged();
-
-        if (HasApiFilter)
-        {
-            // Gọi API với filter
-            var result = await LeaveTypeService.GetListAsync(_filterTinhPhep, _filterIsActive);
-            _flatList = result.IsSuccess && result.Data != null ? result.Data : new();
-        }
-        else
-        {
-            // Dùng data local, filter theo searchText
-            var result = await LeaveTypeService.GetListAsync();
-            _flatList = result.IsSuccess && result.Data != null ? result.Data : new();
-        }
-
-        _isLoading = false;
-        StateHasChanged();
-    }
-
-    private bool FilterFunc(LeaveTypeFlatViewModel item)
-    {
-        if (string.IsNullOrEmpty(_searchText)) return true;
-        var q = _searchText.ToLower();
-        return item.LeaveTypeCode.ToLower().Contains(q)
-            || item.LeaveTypeName.ToLower().Contains(q)
-            || (item.LeaveTypeName2?.ToLower().Contains(q) ?? false)
-            || (item.HrmCode?.ToLower().Contains(q) ?? false);
-    }
-
-    private async Task ResetAndReload()
-    {
-        _searchText = null;
-        _filterTinhPhep = null;
-        _filterIsActive = null;
-        _isFiltered = false;
-        await LoadTreeAsync();
-    }
-
-    // ── Dialogs ──────────────────────────────────────────────────
-    private async Task OpenCreateDialog()
-    {
-        var parameters = new DialogParameters
-        {
-            [nameof(LeaveTypeEditDialog.Model)] = new LeaveTypeUpsertModel()
+            Id = item.Id,
+            LeaveTypeCode = item.LeaveTypeCode,
+            LeaveTypeName = item.LeaveTypeName,
+            LeaveTypeName2 = item.LeaveTypeName2,
+            IsCountedAsLeave = item.IsCountedAsLeave,
+            HRMCode = item.HRMCode,
+            IsActive = item.IsActive
         };
-        var dialog = await DialogService.ShowAsync<LeaveTypeEditDialog>(
-            "", parameters, _dialogOpts);
-        var result = await dialog.Result;
-        if (result is { Canceled: false })
-            await LoadTreeAsync();
+        _editing = true;
     }
 
-    private async Task OpenEditDialog(LeaveTypeFlatViewModel item)
+    private void CancelEdit() { _editing = false; _edit = new LeaveTypeUpsertDto(); }
+
+    private async Task Save()
     {
-        var parameters = new DialogParameters
+        if (_form != null && !await _form.Validate()) return;
+        _saving = true;
+        try
         {
-            [nameof(LeaveTypeEditDialog.Model)] = new LeaveTypeUpsertModel
+            if (_edit.Id == 0)
             {
-                LeaveTypeId = item.LeaveTypeId,
-                LeaveTypeCode = item.LeaveTypeCode,
-                LeaveTypeName = item.LeaveTypeName,
-                LeaveTypeName2 = item.LeaveTypeName2,
-                TinhPhep = item.TinhPhep ?? false,
-                HrmCode = item.HrmCode,
-                IsActive = item.IsActive
+                var result = await LeaveTypeService.CreateAsync(_edit);
+                if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Tạo loại nghỉ thất bại.", Severity.Error); return; }
             }
-        };
-        var dialog = await DialogService.ShowAsync<LeaveTypeEditDialog>(
-            "", parameters, _dialogOpts);
-        var result = await dialog.Result;
-        if (result is { Canceled: false })
-        {
-            await LoadTreeAsync();
-            if (_isFiltered) await ApplyFilter();
+            else
+            {
+                var result = await LeaveTypeService.UpdateAsync(_edit.Id, _edit);
+                if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Cập nhật loại nghỉ thất bại.", Severity.Error); return; }
+            }
+            Snackbar.Add("Đã lưu loại nghỉ.", Severity.Success);
+            CancelEdit();
+            await LoadAsync();
         }
+        finally { _saving = false; }
     }
 
-    private async Task OpenDetailDialog(LeaveTypeFlatViewModel item)
+    private async Task Toggle(LeaveTypeDto item)
     {
-        var parameters = new DialogParameters
-        {
-            [nameof(LeaveTypeDetailDialog.Item)] = item
-        };
-        await DialogService.ShowAsync<LeaveTypeDetailDialog>(
-            "", parameters, _detailOpts);
+        var result = await LeaveTypeService.ToggleAsync(item.Id);
+        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể thay đổi trạng thái.", Severity.Error); return; }
+        await LoadAsync();
     }
 
-    // ── Toggle ───────────────────────────────────────────────────
-    private async Task ToggleItem(LeaveTypeFlatViewModel item)
+    private async Task Delete(LeaveTypeDto item)
     {
-        var result = await LeaveTypeService.ToggleAsync(item.LeaveTypeId);
-        if (result.IsSuccess)
-        {
-            Snackbar.Add(
-                result.Message ?? "Đã cập nhật trạng thái",
-                Severity.Success);
-            await LoadTreeAsync();
-            if (_isFiltered) await ApplyFilter();
-        }
-        else
-        {
-            Snackbar.Add(result.Message ?? "Lỗi cập nhật", Severity.Error);
-        }
-    }
-
-    // ── Delete ───────────────────────────────────────────────────
-    private async Task ConfirmDelete(LeaveTypeFlatViewModel item)
-    {
-        var confirm = await DialogService.ShowMessageBoxAsync(
-            "Xác nhận xóa",
-            $"Bạn có chắc muốn xóa hình thức nghỉ \"{item.LeaveTypeName}\"?\n" +
-            "Thao tác này không thể hoàn tác.",
-            yesText: "Xóa",
-            cancelText: "Hủy");
-
-        if (confirm != true) return;
-
-        var result = await LeaveTypeService.DeleteAsync(item.LeaveTypeId);
-        if (result.IsSuccess)
-        {
-            Snackbar.Add("Đã xóa hình thức nghỉ.", Severity.Success);
-            await LoadTreeAsync();
-            if (_isFiltered) await ApplyFilter();
-        }
-        else
-        {
-            Snackbar.Add(result.Message ?? "Lỗi xóa", Severity.Error);
-        }
-    }
-
-    // ── Render helper ─────────────────────────────────────────────
-    private RenderFragment RenderActions(LeaveTypeFlatViewModel item) => __builder =>
-    {
-        <MudIconButton Icon="@Icons.Material.Filled.Info"
-                       Size="Size.Small"
-                       Color="Color.Info"
-                       Title="Xem chi tiết"
-                       OnClick="@(() => OpenDetailDialog(item))" />
-        <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                       Size="Size.Small"
-                       Color="Color.Primary"
-                       Title="Chỉnh sửa"
-                       OnClick="@(() => OpenEditDialog(item))" />
-        <MudIconButton Icon="@(item.IsActive
-                                ? Icons.Material.Filled.PauseCircle
-                                : Icons.Material.Filled.PlayCircle)"
-                       Size="Size.Small"
-                       Color="@(item.IsActive ? Color.Warning : Color.Success)"
-                       Title="@(item.IsActive ? "Tạm dừng" : "Kích hoạt")"
-                       OnClick="@(() => ToggleItem(item))" />
-        <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                       Size="Size.Small"
-                       Color="Color.Error"
-                       Title="Xóa"
-                       OnClick="@(() => ConfirmDelete(item))" />
-    };
-
-    // ── Style helpers ────────────────────────────────────────────
-    private static string GetGroupHeaderStyle(bool isActive) =>
-        isActive
-            ? "background: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);"
-            : "background: linear-gradient(135deg, #757575 0%, #424242 100%);";
-
-    private static string GetCardStyle(LeaveTypeFlatViewModel item)
-    {
-        if (!item.IsActive)
-            return "border:1px solid #ffcdd2; border-radius:10px; background:#fff8f8; opacity:0.75";
-        if (item.TinhPhep == true)
-            return "border:1px solid #ffe0b2; border-radius:10px; background:#fffde7";
-        return "border:1px solid #e3f2fd; border-radius:10px; background:#fafafa";
+        var result = await LeaveTypeService.DeleteAsync(item.Id);
+        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể xóa loại nghỉ.", Severity.Error); return; }
+        Snackbar.Add("Đã xóa loại nghỉ.", Severity.Success);
+        await LoadAsync();
     }
 }
-
-@* ── Empty state helper component (inline) ── *@
-@* Nếu chưa có component EmptyState thì thay bằng: *@
-@*
-<MudStack AlignItems="AlignItems.Center" Class="pa-8">
-    <MudIcon Icon="@Icons.Material.Filled.SearchOff" Size="Size.Large" Color="Color.Secondary" />
-    <MudText Color="Color.Secondary">@Message</MudText>
-</MudStack>
-*@
