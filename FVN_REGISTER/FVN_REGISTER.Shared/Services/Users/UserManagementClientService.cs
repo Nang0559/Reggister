@@ -1,14 +1,9 @@
 ﻿using FVN_REGISTER.Contract.Dtos.Usermanagers;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Shared.Handlers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace FVN_REGISTER.Shared.Services.Users
 {
