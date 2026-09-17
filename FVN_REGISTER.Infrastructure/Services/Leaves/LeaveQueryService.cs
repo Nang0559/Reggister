@@ -1,5 +1,3 @@
-﻿
-
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Histories;
@@ -23,12 +21,11 @@ using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Core.Utils;
 using Microsoft.EntityFrameworkCore;
 
-
 namespace FVN_REGISTER.Infrastructure.Services.Leaves
 {
     public class LeaveQueryService
-     : BaseRequestQueryService<LeaveSummaryDto, LeaveBalanceDto, LeaveRequestDetailDto, LeaveRequestDto>,
-       ILeaveQueryService
+        : BaseRequestQueryService<LeaveSummaryDto, LeaveBalanceDto, LeaveRequestDetailDto, LeaveRequestDto>,
+          ILeaveQueryService
     {
         private readonly IApprovalProvider<LeaveApprovalSubject> _approvalProvider;
 
@@ -44,10 +41,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
         {
             _approvalProvider = approvalProvider;
         }
-
-        // ═══════════════════════════════════════════════════════════════
-        // KHUNG FULL DETAILS — chỉ còn 2 method base yêu cầu
-        // ═══════════════════════════════════════════════════════════════
 
         protected override async Task<LeaveRequestDto?> GetHeaderByIdAsync(int requestId, CancellationToken ct)
         {
@@ -69,8 +62,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                     .FirstOrDefaultAsync(d => d.DeptCode == entity.DeptCode, ct);
             }
 
-            // Chỉ build header thô — KHÔNG tự gắn Details/ApprovalSteps/Attachments,
-            // base.GetFullDetailsAsync() sẽ làm việc đó sau khi gọi hàm này
             return LeaveMapper.ToDto(entity, requester, department);
         }
 
@@ -83,10 +74,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
 
             return details.Select(LeaveMapper.ToDetailDto).ToList();
         }
-
-        // ═══════════════════════════════════════════════════════════════
-        // IRequestQueryService<LeaveSummaryDto, LeaveBalanceDto, LeaveRequestDto>
-        // ═══════════════════════════════════════════════════════════════
 
         public override async Task<List<WidgetCounterDto>> GetMyWidgetsAsync(
             string employeeCode, CancellationToken ct = default)
@@ -106,10 +93,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 .SumAsync(x => (decimal?)x.TotalLeaveDay, ct) ?? 0;
 
             return new List<WidgetCounterDto>
-        {
-            new() { Title = "Đơn nghỉ chờ duyệt", Value = pendingCount.ToString(), Icon = "PendingActions", Color = "Warning", Link = "/leave/history" },
-            new() { Title = "Ngày phép đã dùng", Value = usedThisYear.ToString("0.#"), Icon = "EventBusy", Color = "Info", Link = "/leave/history" }
-        };
+            {
+                new() { Title = "Đơn nghỉ chờ duyệt", Value = pendingCount.ToString(), Icon = "PendingActions", Color = "Warning", Link = "/leave/history" },
+                new() { Title = "Ngày phép đã dùng", Value = usedThisYear.ToString("0.#"), Icon = "EventBusy", Color = "Info", Link = "/leave/history" }
+            };
         }
 
         public override async Task<List<LeaveSummaryDto>> GetRecentSummaryAsync(
@@ -200,7 +187,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 .ToListAsync(ct);
 
             var dtos = items.Select(MapToSummary).ToList();
-
             return new PaginationResult<LeaveSummaryDto>(dtos, totalCount, page, pageSize);
         }
 
@@ -221,10 +207,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             return data.Select(LeaveMapper.ToDtoFromView).ToList();
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // ĐẶC THÙ LEAVE — không có ở base
-        // ═══════════════════════════════════════════════════════════════
-
         public async Task<SystemMasterDataDto> GetCombinedDataAsync(
             string empCode, string deptCode, string positionCode, int year, CancellationToken ct = default)
         {
@@ -242,7 +224,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             {
                 Title = h.Description,
                 Start = h.HolidayDate,
-                End = h.HolidayDate
+                End = h.HolidayDate,
+                Module = RequestModule.Leave,
+                Status = ApprovalStatus.Approved
             }).ToList();
 
             var workYears = await Uow.Repository<F03WorkYear>().Query()
@@ -258,6 +242,46 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                     IsActive = x.IsActive == true,
                 })
                 .ToListAsync(ct);
+
+            var leaveTypes = await Uow.Repository<F03LeaveType>().Query()
+                .AsNoTracking()
+                .Where(x => x.IsActive == true)
+                .OrderBy(x => x.LeaveTypeCode)
+                .Select(x => new FVN_REGISTER.Contract.Dtos.LeaveTypes.LeaveTypeDto
+                {
+                    Id = x.Id,
+                    LeaveTypeCode = x.LeaveTypeCode,
+                    LeaveTypeName = x.LeaveTypeName,
+                    LeaveTypeName2 = x.LeaveTypeName2,
+                    IsCountedAsLeave = x.IsCountedAsLeave,
+                    HRMCode = x.HRMCode,
+                    IsActive = x.IsActive
+                })
+                .ToListAsync(ct);
+
+            var leaveRequests = await Uow.Repository<VF03LeaveRequest>().Query()
+                .AsNoTracking()
+                .Where(x => x.EmployeeCode == empCode
+                         && x.IsActive == true
+                         && x.WorkYear == year)
+                .OrderBy(x => x.StartDate)
+                .ToListAsync(ct);
+
+            var leaveEvents = leaveRequests.Select(x => new LeaveCalendarEventDto
+            {
+                RequestId = x.Id,
+                LeaveCode = x.LeaveCode ?? string.Empty,
+                EmployeeCode = x.EmployeeCode,
+                RegisterDate = x.RegisterDate,
+                StartDate = x.StartDate,
+                EndDate = x.EndDate,
+                TotalDay = x.TotalDay,
+                TotalLeaveDay = x.TotalLeaveDay ?? 0,
+                LeaveTypeCode = x.LeaveTypeCode ?? string.Empty,
+                LeaveTypeName = x.LeaveTypeName ?? string.Empty,
+                Reason = x.LeaveReason ?? string.Empty,
+                Status = x.RequestStatus.ToString()
+            }).ToList();
 
             var ctx = ApprovalBuildContext.ForLeave(empCode, deptCode, positionCode, year);
             var snapshotSteps = await _approvalProvider.BuildHierarchyAsync(ctx, ct);
@@ -277,11 +301,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 CompanyHolidays = calendarEvents,
                 HolidaysNotCountLeave = holidaysNotCount,
                 FiscalYears = workYears,
+                LeaveTypes = leaveTypes,
+                LeaveEvents = leaveEvents,
                 DefaultApprovalFlow = defaultFlow
             };
         }
 
-        // ── helper nội bộ ──
         private static LeaveSummaryDto MapToSummary(VF03LeaveRequest x) => new()
         {
             Id = x.Id,
