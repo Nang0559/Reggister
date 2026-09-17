@@ -1,57 +1,47 @@
-﻿@page "/login"
-@using System.ComponentModel.DataAnnotations
+@page "/login"
+@using FVN_REGISTER.Contract.Requests.Auths
 @using FVN_REGISTER.Shared.Layout
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils
-@using FVN_REGISTER.Core.Logging
-@using FVN_REGISTER.Shared.Utils.Helpers
 
 @layout EmptyLayout
 @inherits AppComponentBase
-@inject ICurrentUserClientService _currentUserService
-@inject CustomAuthStateProvider _authStateProvider
-@inject IAuthClientService _authService
-@inject NavigationManager _nav
-@inject ISnackbar _snackbar
-@inject ITokenStorage _tokenStorage
+@inject ICurrentUserClientService CurrentUserService
+@inject CustomAuthStateProvider AuthStateProvider
+@inject IAuthClientService AuthService
+@inject NavigationManager Navigation
+@inject ISnackbar Snackbar
 
-<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center" Style="height: 100vh;">
-    <MudPaper Elevation="4" Class="pa-8" Width="100%" Style="max-width: 400px; border-radius: 12px;">
+<MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center" Style="height:100vh">
+    <MudPaper Elevation="4" Class="pa-8" Width="100%" Style="max-width:400px; border-radius:12px">
         <div class="d-flex flex-column align-center mb-6">
             <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Color="Color.Primary" Size="Size.Large" />
-            <MudText Typo="Typo.h5" Class="mt-2" Style="font-weight: bold; color: #1E88E5;">e-Approval System</MudText>
+            <MudText Typo="Typo.h5" Class="mt-2" Style="font-weight:bold; color:#1E88E5">e-Approval System</MudText>
             <MudText Typo="Typo.caption" Color="Color.Secondary">Hệ thống FCC Việt Nam - Đăng nhập</MudText>
         </div>
 
-        <EditForm Model="@_loginModel" OnValidSubmit="HandleLogin">
+        <EditForm Model="@_model" OnValidSubmit="HandleLogin">
             <DataAnnotationsValidator />
+            <ValidationSummary />
 
             <MudTextField T="string" Label="Mã nhân viên / UserName"
-                          @bind-Value="_loginModel.UserName"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Dense"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Person"
-                          For="@(() => _loginModel.UserName)"
+                          @bind-Value="_model.UserName"
+                          For="@(() => _model.UserName)"
+                          Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Person"
                           Class="mb-4" />
 
             <MudTextField T="string" Label="Mật khẩu"
-                          @bind-Value="_loginModel.Password"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Dense"
+                          @bind-Value="_model.Password"
+                          For="@(() => _model.Password)"
+                          Variant="Variant.Outlined" Margin="Margin.Dense"
                           InputType="@_passwordInput"
-                          Adornment="Adornment.End"
-                          AdornmentIcon="@_passwordInputIcon"
+                          Adornment="Adornment.End" AdornmentIcon="@_passwordInputIcon"
                           OnAdornmentClick="TogglePasswordVisibility"
-                          For="@(() => _loginModel.Password)"
                           Class="mb-6" />
 
-            <MudButton ButtonType="ButtonType.Submit"
-                       Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       FullWidth="true"
-                       Size="Size.Large"
-                       Disabled="@_isProcessing">
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary"
+                       FullWidth="true" Size="Size.Large" Disabled="_isProcessing">
                 @if (_isProcessing)
                 {
                     <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
@@ -71,86 +61,50 @@
 </MudContainer>
 
 @code {
-    private LoginRequest _loginModel = new();
-    private bool _isProcessing = false;
+    private LoginRequestDto _model = new();
+    private bool _isProcessing;
     private bool _passwordVisibility;
     private InputType _passwordInput = InputType.Password;
     private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
 
-    public class LoginRequest
-    {
-        [Required(ErrorMessage = "Mã nhân viên không được để trống")]
-        public string UserName { get; set; } = string.Empty;
-
-        [Required(ErrorMessage = "Mật khẩu không được để trống")]
-        public string Password { get; set; } = string.Empty;
-    }
-
     private void TogglePasswordVisibility()
     {
-        if (_passwordVisibility)
-        {
-            _passwordVisibility = false;
-            _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
-            _passwordInput = InputType.Password;
-        }
-        else
-        {
-            _passwordVisibility = true;
-            _passwordInputIcon = Icons.Material.Filled.Visibility;
-            _passwordInput = InputType.Text;
-        }
+        _passwordVisibility = !_passwordVisibility;
+        _passwordInput = _passwordVisibility ? InputType.Text : InputType.Password;
+        _passwordInputIcon = _passwordVisibility
+            ? Icons.Material.Filled.Visibility
+            : Icons.Material.Filled.VisibilityOff;
     }
 
     private async Task HandleLogin()
     {
         _isProcessing = true;
-        Logger.LogInfoIf(Debug, "[{Component}] Người dùng {User} đang thử đăng nhập...", ComponentName, _loginModel.UserName);
-
         try
         {
-            var result = await _authService.Login(_loginModel.UserName, _loginModel.Password);
-
-            if (result.IsSuccess && result.Data != null)
+            var result = await AuthService.Login(_model.UserName, _model.Password);
+            if (result.IsSuccess && result.Data != null && !string.IsNullOrWhiteSpace(result.Data.Token))
             {
-                var token = result.Data.Token!;
+                await CurrentUserService.InitializeAsync(result.Data.Token);
 
-                // THỨ TỰ CHUẨN:
-                // 1. Lưu vào Storage & Static Cache trước (để API Handler lấy được ngay)
-                await _tokenStorage.SetTokenAsync(token);
-                Logger.LogDebugIf(Debug, "[{Component}] Đã lưu Token vào bộ nhớ.", ComponentName);
+                if (AuthStateProvider is CustomAuthStateProvider provider)
+                    provider.NotifyUserLogin(result.Data.Token);
 
-                // 2. Load Profile User
-                await _currentUserService.InitializeAsync(token);
-
-                // 3. Thông báo thay đổi trạng thái Auth (Sau khi đã có Profile và Token)
-                if (_authStateProvider is CustomAuthStateProvider cp)
-                {
-                    cp.NotifyUserLogin(token);
-                }
-
-                _snackbar.Add("Xác thực thành công!", Severity.Success);
-                Logger.LogInfoIf(Debug, "[{Component}] Đăng nhập thành công, điều hướng về Home.", ComponentName);
-
-                // 4. Điều hướng (Nếu tắt Prerender thì không cần forceLoad)
-                _nav.NavigateTo("/", forceLoad: false);
+                Snackbar.Add("Xác thực thành công!", Severity.Success);
+                Navigation.NavigateTo("/", forceLoad: false);
             }
             else
             {
-                Logger.LogWarnIf(Debug, "[{Component}] Đăng nhập thất bại: {Msg}", ComponentName, result.Message);
-                _snackbar.Add(result.Message ?? "Mã nhân viên hoặc mật khẩu không đúng", Severity.Error);
+                Snackbar.Add(result.Message ?? "Mã nhân viên hoặc mật khẩu không đúng", Severity.Error);
             }
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "[{Component}] Lỗi kết nối API", ComponentName);
-            _snackbar.Add("Không thể kết nối đến máy chủ FCC", Severity.Error);
+            Logger.LogError(ex, "[{Component}] Login failed", ComponentName);
+            Snackbar.Add("Không thể kết nối đến máy chủ FCC", Severity.Error);
         }
         finally
         {
             _isProcessing = false;
         }
     }
-
-   
 }

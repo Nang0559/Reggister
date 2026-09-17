@@ -1,13 +1,9 @@
-﻿@* FVN_REGISTER.Shared/Pages/Admin/EmployeeManagement.razor *@
 @page "/admin/employees"
 @attribute [Authorize]
-@using FVN_REGISTER.Contract.Interfaces.Repositores
-@using FVN_REGISTER.Contract.ViewModels
-@using FVN_REGISTER.Contract.ViewModels.Departments
-@using FVN_REGISTER.Core.Logging
+@using FVN_REGISTER.Contract.Dtos.Depts
+@using FVN_REGISTER.Contract.Dtos.Employees
 @using FVN_REGISTER.Shared.Dialogs.Employees
 @using FVN_REGISTER.Shared.Services.Employees
-@using FVN_REGISTER.Shared.Utils.Helpers
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 
@@ -17,561 +13,206 @@
 
 <PageTitle>Quản lý nhân viên - FCC</PageTitle>
 
-@* ─── HEADER ─────────────────────────────────────────────────── *@
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
-    <MudIcon Icon="@Icons.Material.Filled.People"
-             Color="Color.Primary" Size="Size.Large" />
+    <MudIcon Icon="@Icons.Material.Filled.People" Color="Color.Primary" Size="Size.Large" />
     <div>
         <MudText Typo="Typo.h5" Style="font-weight:700">Quản lý Nhân viên</MudText>
-        <MudText Typo="Typo.caption" Color="Color.Secondary">
-            Xem thông tin, phép tồn và giờ OT theo từng bộ phận
-        </MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">Xem thông tin, phép tồn và giờ OT theo từng bộ phận</MudText>
     </div>
     <MudSpacer />
-    <MudButton Variant="Variant.Filled"
-               Color="Color.Primary"
-               StartIcon="@Icons.Material.Filled.PersonAdd"
-               OnClick="OpenCreateDialog">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="OpenCreateDialog">
         Thêm nhân viên
     </MudButton>
 </MudStack>
 
-@* ─── FILTER BAR ─────────────────────────────────────────────── *@
 <MudPaper Elevation="1" Class="pa-3 mb-4" Style="border-radius:12px">
     <MudGrid AlignItems="AlignItems.Center">
         <MudItem xs="12" sm="4">
-            <MudSelect T="string"
-                       Label="Lọc theo bộ phận"
-                       Value="_filterDept"
-                       ValueChanged="OnDeptFilterChanged"
-                       Variant="Variant.Outlined"
-                       Margin="Margin.Dense"
-                       Clearable="true"
-                       Adornment="Adornment.Start"
-                       AdornmentIcon="@Icons.Material.Filled.Business">
+            <MudSelect T="string" Label="Lọc theo bộ phận" Value="_filterDept" ValueChanged="OnDeptFilterChanged" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
                 @foreach (var dept in _departments)
                 {
                     <MudSelectItem Value="@dept.DeptCode">@dept.DeptName</MudSelectItem>
                 }
             </MudSelect>
         </MudItem>
-
         <MudItem xs="12" sm="4">
-            <MudTextField @bind-Value="_search"
-                          Label="Tìm theo tên / mã NV"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Dense"
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search"
-                          Immediate="true"
-                          DebounceInterval="350"
+            <MudTextField @bind-Value="_search" Label="Tìm theo tên / mã NV" Variant="Variant.Outlined" Margin="Margin.Dense"
+                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Immediate="true" DebounceInterval="350"
                           TextChanged="OnSearchChanged" />
         </MudItem>
-
         <MudItem xs="12" sm="2">
-            <MudSwitch T="bool"
-                       @bind-Value="_activeOnly"
-                       Label="Đang làm việc"
-                       Color="Color.Success"
-                       Class="mt-1" />
+            <MudSwitch T="bool" @bind-Value="_activeOnly" Label="Đang làm việc" Color="Color.Success" Class="mt-1" />
         </MudItem>
-
         <MudItem xs="12" sm="2">
-            <MudButton Variant="Variant.Outlined"
-                       Color="Color.Default"
-                       StartIcon="@Icons.Material.Filled.Refresh"
-                       OnClick="ResetFilter"
-                       FullWidth="true">
-                Xem tất cả
-            </MudButton>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetFilter" FullWidth="true">Xem tất cả</MudButton>
         </MudItem>
     </MudGrid>
 </MudPaper>
 
-@* ─── CONTENT ────────────────────────────────────────────────── *@
 @if (_isLoading)
 {
     <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-4" />
-    @for (int i = 0; i < 3; i++)
-    {
-        <MudSkeleton SkeletonType="SkeletonType.Rectangle"
-                     Height="80px" Class="mb-3"
-                     Style="border-radius:12px" />
-    }
+    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="100px" Class="mb-3" />
+    <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="100px" Class="mb-3" />
 }
 else if (_isFiltered)
 {
-    @* ── VIEW PHẲNG KHI CÓ FILTER ── *@
     <MudPaper Elevation="1" Style="border-radius:12px; overflow:hidden">
-        <MudTable Items="_flatList" Dense="true" Hover="true" Striped="true">
+        <MudTable Items="FilteredEmployees" Dense="true" Hover="true" Striped="true">
             <HeaderContent>
-                <MudTh>Mã NV</MudTh>
-                <MudTh>Họ tên</MudTh>
-                <MudTh>Phòng ban</MudTh>
-                <MudTh>Email</MudTh>
-                <MudTh Style="text-align:center">Phép tồn</MudTh>
-                <MudTh Style="text-align:center">Giờ OT (năm)</MudTh>
-                <MudTh Style="text-align:center">Trạng thái</MudTh>
-                <MudTh Style="text-align:center">Thao tác</MudTh>
+                <MudTh>Mã NV</MudTh><MudTh>Họ tên</MudTh><MudTh>Bộ phận</MudTh><MudTh>Email</MudTh>
+                <MudTh Style="text-align:center">Phép tồn</MudTh><MudTh Style="text-align:center">OT năm</MudTh>
+                <MudTh Style="text-align:center">Trạng thái</MudTh><MudTh Style="text-align:center">Thao tác</MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd>
-                    <MudText Typo="Typo.body2" Style="font-weight:500">
-                        @context.EmployeeCode
-                    </MudText>
-                </MudTd>
+                <MudTd>@context.EmployeeCode</MudTd>
                 <MudTd>
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                        <MudAvatar Color="Color.Primary" Size="Size.Small"
-                                   Style="font-size:0.75rem; width:28px; height:28px">
-                            @context.Avatar
-                        </MudAvatar>
+                        <MudAvatar Color="Color.Primary" Size="Size.Small">@GetInitials(context.EmployeeName)</MudAvatar>
                         <div>
-                            <MudText Typo="Typo.body2" Style="font-weight:600">
-                                @context.EmployeeName
-                            </MudText>
-                            @if (context.WorkingYears > 0)
-                            {
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    @context.WorkingYears năm kinh nghiệm
-                                </MudText>
-                            }
+                            <MudText Typo="Typo.body2" Style="font-weight:600">@context.EmployeeName</MudText>
+                            @if (context.WorkingYears > 0) { <MudText Typo="Typo.caption" Color="Color.Secondary">@context.WorkingYears năm kinh nghiệm</MudText> }
                         </div>
                     </MudStack>
                 </MudTd>
                 <MudTd>
                     <MudText Typo="Typo.body2">@context.DeptName</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        @context.CvName
-                    </MudText>
+                    @if (!string.IsNullOrWhiteSpace(context.PositionName)) { <MudText Typo="Typo.caption" Color="Color.Secondary">@context.PositionName</MudText> }
                 </MudTd>
-                <MudTd>
-                    <MudText Typo="Typo.caption">@context.EmailAddress</MudText>
-                </MudTd>
+                <MudTd>@context.EmailAddress</MudTd>
+                <MudTd Style="text-align:center"><MudText Style="font-weight:700">@context.RemainingLeave.ToString("N1")</MudText><MudText Typo="Typo.caption" Color="Color.Secondary">@context.LeaveDaysUsed.ToString("N1") / @context.TotalEntitledLeave.ToString("N1")</MudText></MudTd>
+                <MudTd Style="text-align:center"><MudText Style="font-weight:700">@context.OtHoursThisYear.ToString("N1") h</MudText><MudText Typo="Typo.caption" Color="Color.Secondary">@context.OtDaysThisYear ngày</MudText></MudTd>
+                <MudTd Style="text-align:center"><MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Error)" Size="Size.Small">@(context.IsActive ? "Đang làm việc" : "Đã nghỉ")</MudChip></MudTd>
                 <MudTd Style="text-align:center">
-                    <MudStack Spacing="0" AlignItems="AlignItems.Center">
-                        <MudText Typo="Typo.body2" Style="font-weight:600">
-                            @context.PhepTon.ToString("N1")
-                        </MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            @context.SoNgayDaNghi.ToString("N1") / @context.TongPhep.ToString("N1")
-                        </MudText>
-                    </MudStack>
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => OpenEditDialog(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.BarChart" Size="Size.Small" Color="Color.Info" OnClick="@(() => OpenOtDetailDialog(context))" />
+                    <MudIconButton Icon="@(context.IsActive ? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)" Size="Size.Small" Color="@(context.IsActive ? Color.Warning : Color.Success)" OnClick="@(() => ToggleEmployee(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => ConfirmDelete(context))" />
                 </MudTd>
-                <MudTd Style="text-align:center">
-                    <MudStack Spacing="0" AlignItems="AlignItems.Center">
-                        <MudText Typo="Typo.body2" Style="font-weight:600">
-                            @context.OtHoursThisYear.ToString("N1") h
-                        </MudText>
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            @context.OtDaysThisYear ngày
-                        </MudText>
-                    </MudStack>
-                </MudTd>
-                <MudTd Style="text-align:center">
-                    <MudChip T="string"
-                             Color="@(context.IsActive ? Color.Success : Color.Error)"
-                             Size="Size.Small">
-                        @context.StatusText
-                    </MudChip>
-                </MudTd>
-                <MudTd Style="text-align:center">
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                   Size="Size.Small" Color="Color.Primary"
-                                   Title="Chỉnh sửa"
-                                   OnClick="@(() => OpenEditDialog(context))" />
-                    <MudIconButton Icon="@Icons.Material.Filled.BarChart"
-                                   Size="Size.Small" Color="Color.Info"
-                                   Title="Xem OT chi tiết"
-                                   OnClick="@(() => OpenOtDetailDialog(context))" />
-                    <MudIconButton Icon="@(context.IsActive
-                                                                               ? Icons.Material.Filled.ToggleOff
-                                                                           : Icons.Material.Filled.ToggleOn)"
-                               Size="Size.Small"
-                               Color="@(context.IsActive ? Color.Warning : Color.Success)"
-                               Title="@(context.IsActive ? "Vô hiệu hóa" : "Kích hoạt")"
-                               OnClick="@(() => ToggleEmployee(context))" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                               Size="Size.Small" Color="Color.Error"
-                               Title="Xóa"
-                               OnClick="@(() => ConfirmDelete(context))" />
-            </MudTd>
-        </RowTemplate>
-        <NoRecordsContent>
-            <MudStack AlignItems="AlignItems.Center" Class="pa-8">
-                <MudIcon Icon="@Icons.Material.Filled.SearchOff"
-                         Size="Size.Large" Color="Color.Secondary" />
-                <MudText Color="Color.Secondary">
-                    Không tìm thấy nhân viên phù hợp
-                </MudText>
-            </MudStack>
-        </NoRecordsContent>
-    </MudTable>
-</MudPaper>
+            </RowTemplate>
+            <NoRecordsContent><MudText Color="Color.Secondary" Class="pa-6">Không tìm thấy nhân viên phù hợp.</MudText></NoRecordsContent>
+        </MudTable>
+    </MudPaper>
 }
 else
 {
-    @* ── TREE VIEW THEO BỘ PHẬN ── *@
-    @if (!_tree.Any())
+    @foreach (var dept in _tree)
     {
-        <MudPaper Elevation="0" Class="pa-8 text-center"
-                  Style="border:2px dashed #e0e0e0; border-radius:16px">
-            <MudIcon Icon="@Icons.Material.Filled.People"
-                     Size="Size.Large" Color="Color.Secondary" />
-            <MudText Typo="Typo.h6" Color="Color.Secondary" Class="mt-2">
-                Chưa có dữ liệu nhân viên
-            </MudText>
-        </MudPaper>
-    }
-    else
-    {
-        @foreach (var dept in _tree)
-        {
-            <MudPaper Elevation="2" Class="mb-4"
-                      Style="border-radius:14px; overflow:hidden">
-
-                @* ── Header bộ phận ── *@
-                <div style="background:linear-gradient(135deg,#1E88E5 0%,#1565C0 100%);
-                                        padding:12px 16px; cursor:pointer"
-                     @onclick="() => dept.IsExpanded = !dept.IsExpanded">
-                    <MudStack Row="true" AlignItems="AlignItems.Center">
-                        <MudIcon Icon="@Icons.Material.Filled.Business"
-                                 Style="color:white" />
-                        <div style="flex:1">
-                            <MudText Typo="Typo.subtitle1"
-                                     Style="color:white; font-weight:700">
-                                @dept.DeptName
-                            </MudText>
-                            <MudText Typo="Typo.caption"
-                                     Style="color:rgba(255,255,255,0.75)">
-                                @dept.DeptCode &nbsp;•&nbsp;
-                                @dept.TotalActive / @dept.Total đang làm việc
-                            </MudText>
-                        </div>
-
-                        <MudChip T="string" Size="Size.Small"
-                                 Style="background:rgba(255,255,255,0.2);color:white">
-                            @dept.Total người
-                        </MudChip>
-
-                        <MudIconButton Icon="@(dept.IsExpanded
-                                                                                       ? Icons.Material.Filled.ExpandLess
-                                                                           : Icons.Material.Filled.ExpandMore)"
-                                                                                                              Style="color:white" Size="Size.Small" />
-
-            @* stopPropagation để không trigger toggle collapse *@
-            <span @onclick:stopPropagation="true">
-                <MudIconButton Icon="@Icons.Material.Filled.PersonAdd"
-                               Style="color:white" Size="Size.Small"
-                               Title="Thêm nhân viên vào bộ phận này"
-                               OnClick="@(() => OpenCreateDialogForDept(
-                                                                                          dept.DeptCode, dept.DeptName))" />
-            </span>
-        </MudStack>
-    </div>
-
-    @* ── Body ── *@
-    @if (dept.IsExpanded)
-                {
-                    <div class="pa-3">
-                        @if (!dept.Employees.Any())
-                        {
-                            <MudText Typo="Typo.body2" Color="Color.Secondary"
-                                     Class="pa-4 text-center">
-                                Bộ phận này chưa có nhân viên nào
-                            </MudText>
-                        }
-                        else
-                        {
-                            <MudGrid Spacing="2">
-                                @foreach (var emp in dept.Employees)
-                                {
-                                    <MudItem xs="12" sm="6" md="4" lg="3">
-                                        <MudPaper Elevation="0"
-                                                  Style="@GetCardStyle(emp.IsActive)"
-                                                  Class="pa-3">
-                                            <MudStack Spacing="1">
-
-                                                @* Top row: avatar + name + menu *@
-                                                <MudStack Row="true"
-                                                          AlignItems="AlignItems.Start">
-                                                    <MudAvatar Color="Color.Primary"
-                                                               Size="Size.Medium"
-                                                               Style="font-size:0.85rem; flex-shrink:0">
-                                                        @emp.Avatar
-                                                    </MudAvatar>
-
-                                                    <div style="flex:1; min-width:0">
-                                                        <MudStack Row="true"
-                                                                  AlignItems="AlignItems.Center">
-                                                            <MudText Typo="Typo.subtitle2"
-                                                                     Style="font-weight:600;
-                                                                                                    overflow:hidden;
-                                                                                                    text-overflow:ellipsis;
-                                                                                                    white-space:nowrap">
-                                                                @emp.EmployeeName
-                                                            </MudText>
-                                                            @if (!emp.IsActive)
-                                                            {
-                                                                <MudChip T="string"
-                                                                         Size="Size.Small"
-                                                                         Color="Color.Error"
-                                                                         Style="height:18px; font-size:10px">
-                                                                    Nghỉ
-                                                                </MudChip>
-                                                            }
-                                                        </MudStack>
-                                                        <MudText Typo="Typo.caption"
-                                                                 Color="Color.Secondary">
-                                                            @emp.EmployeeCode
-                                                            @if (!string.IsNullOrEmpty(emp.CvName))
-                                                            {
-                                                                @(" • ")
-                                                                @emp.CvName
-                                                            }
-                                                        </MudText>
-                                                    </div>
-
-                                                    <MudMenu Icon="@Icons.Material.Filled.MoreVert"
-                                                             Size="Size.Small" Dense="true"
-                                                             AnchorOrigin="Origin.BottomRight"
-                                                             TransformOrigin="Origin.TopRight">
-                                                        <MudMenuItem Icon="@Icons.Material.Filled.Edit"
-                                                                     OnClick="@(() => OpenEditDialog(emp))">
-                                                            Chỉnh sửa
-                                                        </MudMenuItem>
-                                                        <MudMenuItem Icon="@Icons.Material.Filled.BarChart"
-                                                                     OnClick="@(() => OpenOtDetailDialog(emp))">
-                                                            Xem OT chi tiết
-                                                        </MudMenuItem>
-                                                        <MudMenuItem Icon="@(emp.IsActive
-                                                                                                                                                   ? Icons.Material.Filled.ToggleOff
-                                                                                                                           : Icons.Material.Filled.ToggleOn)"
-                                             OnClick="@(() => ToggleEmployee(emp))">
-                                    @(emp.IsActive ? "Vô hiệu hóa" : "Kích hoạt")
-                                </MudMenuItem>
-                                <MudDivider />
-                                <MudMenuItem Icon="@Icons.Material.Filled.Delete"
-                                             IconColor="Color.Error"
-                                             OnClick="@(() => ConfirmDelete(emp))">
-                                    <MudText Color="Color.Error">Xóa</MudText>
-                                </MudMenuItem>
-                            </MudMenu>
-                        </MudStack>
-
-                                                <MudDivider />
-
-                                                @* Stats: phép tồn + OT *@
-                                                <MudGrid Spacing="1">
-                                                    <MudItem xs="6">
-                                                        <MudTooltip Text="@($"Tổng phép: {emp.TongPhep:N1} | Đã nghỉ: {emp.SoNgayDaNghi:N1}")">
-                                                            <MudStack Spacing="0">
-                                                                <MudText Typo="Typo.caption"
-                                                                         Color="Color.Secondary">
-                                                                    Phép tồn
-                                                                </MudText>
-                                                                <MudStack Row="true"
-                                                                          AlignItems="AlignItems.Center"
-                                                                          Spacing="1">
-                                                                    <MudIcon Icon="@Icons.Material.Filled.BeachAccess"
-                                                                             Size="Size.Small"
-                                                                             Color="Color.Info" />
-                                                                    <MudText Typo="Typo.body2"
-                                                                             Style="font-weight:700">
-                                                                        @emp.PhepTon.ToString("N1")
-                                                                    </MudText>
-                                                                    <MudText Typo="Typo.caption"
-                                                                             Color="Color.Secondary">
-                                                                        ngày
-                                                                    </MudText>
-                                                                </MudStack>
-                                                            </MudStack>
-                                                        </MudTooltip>
-                                                    </MudItem>
-
-                                                    <MudItem xs="6">
-                                                        <MudTooltip Text="@($"OT năm {DateTime.Now.Year}: {emp.OtDaysThisYear} ngày")">
-                                                            <MudStack Spacing="0">
-                                                                <MudText Typo="Typo.caption"
-                                                                         Color="Color.Secondary">
-                                                                    Giờ OT
-                                                                </MudText>
-                                                                <MudStack Row="true"
-                                                                          AlignItems="AlignItems.Center"
-                                                                          Spacing="1">
-                                                                    <MudIcon Icon="@Icons.Material.Filled.AccessTime"
-                                                                             Size="Size.Small"
-                                                                             Color="Color.Warning" />
-                                                                    <MudText Typo="Typo.body2"
-                                                                             Style="font-weight:700">
-                                                                        @emp.OtHoursThisYear.ToString("N1")
-                                                                    </MudText>
-                                                                    <MudText Typo="Typo.caption"
-                                                                             Color="Color.Secondary">
-                                                                        h
-                                                                    </MudText>
-                                                                </MudStack>
-                                                            </MudStack>
-                                                        </MudTooltip>
-                                                    </MudItem>
-                                                </MudGrid>
-
-                                                @* Email *@
-                                                <MudText Typo="Typo.caption"
-                                                         Style="overflow:hidden; text-overflow:ellipsis;
-                                                                                        white-space:nowrap; display:block"
-                                                         Color="Color.Secondary">
-                                                    @emp.EmailAddress
-                                                </MudText>
-
+        var employees = GetVisibleEmployees(dept, _activeOnly);
+        <MudPaper Elevation="2" Class="mb-4" Style="border-radius:14px; overflow:hidden">
+            <div style="padding:12px 16px; cursor:pointer" @onclick="() => dept.IsExpanded = !dept.IsExpanded">
+                <MudStack Row="true" AlignItems="AlignItems.Center">
+                    <MudIcon Icon="@Icons.Material.Filled.Business" Color="Color.Primary" />
+                    <div style="flex:1"><MudText Typo="Typo.subtitle1" Style="font-weight:700">@dept.DeptName</MudText><MudText Typo="Typo.caption" Color="Color.Secondary">@dept.DeptCode • @employees.Count nhân viên</MudText></div>
+                    <MudIconButton Icon="@(dept.IsExpanded ? Icons.Material.Filled.ExpandLess : Icons.Material.Filled.ExpandMore)" Size="Size.Small" />
+                    <span @onclick:stopPropagation="true"><MudIconButton Icon="@Icons.Material.Filled.PersonAdd" Size="Size.Small" Color="Color.Primary" OnClick="@(() => OpenCreateDialogForDept(dept.DeptCode, dept.DeptName))" /></span>
+                </MudStack>
+            </div>
+            @if (dept.IsExpanded)
+            {
+                <div class="pa-3">
+                    @if (employees.Count == 0) { <MudText Color="Color.Secondary" Class="pa-4 text-center">Không có nhân viên phù hợp.</MudText> }
+                    else
+                    {
+                        <MudGrid Spacing="2">
+                            @foreach (var emp in employees)
+                            {
+                                <MudItem xs="12" sm="6" md="4" lg="3">
+                                    <MudPaper Elevation="0" Class="pa-3" Style="@GetCardStyle(emp.IsActive)">
+                                        <MudStack Spacing="1">
+                                            <MudStack Row="true" AlignItems="AlignItems.Start">
+                                                <MudAvatar Color="Color.Primary" Size="Size.Medium">@GetInitials(emp.EmployeeName)</MudAvatar>
+                                                <div style="flex:1; min-width:0"><MudText Typo="Typo.subtitle2" Style="font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">@emp.EmployeeName</MudText><MudText Typo="Typo.caption" Color="Color.Secondary">@emp.EmployeeCode</MudText></div>
+                                                <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small">
+                                                    <MudMenuItem Icon="@Icons.Material.Filled.Edit" OnClick="@(() => OpenEditDialog(emp))">Chỉnh sửa</MudMenuItem>
+                                                    <MudMenuItem Icon="@Icons.Material.Filled.BarChart" OnClick="@(() => OpenOtDetailDialog(emp))">Xem OT chi tiết</MudMenuItem>
+                                                    <MudMenuItem Icon="@(emp.IsActive ? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)" OnClick="@(() => ToggleEmployee(emp))">@(emp.IsActive ? "Vô hiệu hóa" : "Kích hoạt")</MudMenuItem>
+                                                    <MudDivider />
+                                                    <MudMenuItem Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error" OnClick="@(() => ConfirmDelete(emp))"><MudText Color="Color.Error">Xóa</MudText></MudMenuItem>
+                                                </MudMenu>
                                             </MudStack>
-                                        </MudPaper>
-                                    </MudItem>
-                        }
-                            </MudGrid>
-                        }
-                    </div>
-                }
-
-            </MudPaper>
-        }
+                                            @if (!string.IsNullOrWhiteSpace(emp.PositionName)) { <MudText Typo="Typo.caption" Color="Color.Secondary">@emp.PositionName</MudText> }
+                                            <MudDivider />
+                                            <MudGrid Spacing="1">
+                                                <MudItem xs="6"><MudText Typo="Typo.caption" Color="Color.Secondary">Phép tồn</MudText><MudText Style="font-weight:700">@emp.RemainingLeave.ToString("N1") ngày</MudText></MudItem>
+                                                <MudItem xs="6"><MudText Typo="Typo.caption" Color="Color.Secondary">Giờ OT</MudText><MudText Style="font-weight:700">@emp.OtHoursThisYear.ToString("N1") h</MudText></MudItem>
+                                            </MudGrid>
+                                            <MudText Typo="Typo.caption" Style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap" Color="Color.Secondary">@emp.EmailAddress</MudText>
+                                        </MudStack>
+                                    </MudPaper>
+                                </MudItem>
+                            }
+                        </MudGrid>
+                    }
+                </div>
+            }
+        </MudPaper>
     }
 }
 
 @code {
-    // ── State ────────────────────────────────────────────────────
-    private List<EmployeeDeptTreeViewModel> _tree = new();
-    private List<EmployeeCardViewModel> _flatList = new();
-    private List<DepartmentViewModel> _departments = new();
-
+    private List<EmployeeDeptTreeDto> _tree = new();
+    private List<DepartmentDto> _departments = new();
     private bool _isLoading = true;
-    private bool _isFiltered = false;
-
+    private bool _isFiltered;
     private string? _filterDept;
     private string _search = string.Empty;
     private bool _activeOnly = true;
 
-    // DialogOptions dùng chung
-    private static readonly DialogOptions _editDialogOptions = new()
-    {
-        MaxWidth = MaxWidth.Medium,
-        FullWidth = true,
-        CloseOnEscapeKey = true
-    };
+    private IEnumerable<EmployeeCardDto> FilteredEmployees => _tree.SelectMany(x => x.Employees)
+        .Where(x => string.IsNullOrWhiteSpace(_filterDept) || x.DeptCode == _filterDept)
+        .Where(x => string.IsNullOrWhiteSpace(_search) || x.EmployeeCode.Contains(_search, StringComparison.OrdinalIgnoreCase) || x.EmployeeName.Contains(_search, StringComparison.OrdinalIgnoreCase) || x.DeptName.Contains(_search, StringComparison.OrdinalIgnoreCase))
+        .Where(x => !_activeOnly || x.IsActive);
 
-    private static readonly DialogOptions _otDialogOptions = new()
-    {
-        MaxWidth = MaxWidth.Medium,
-        FullWidth = true,
-        CloseOnEscapeKey = true
-    };
+    private static List<EmployeeCardDto> GetVisibleEmployees(EmployeeDeptTreeDto dept, bool activeOnly)
+        => dept.Employees.Where(x => !activeOnly || x.IsActive).ToList();
 
-    // ── Init ─────────────────────────────────────────────────────
-    protected override async Task OnInitializedAsync()
-    {
-        var treeTask = EmployeeService.GetTreeAsync();
-        var cvTask = EmployeeService.GetCvListAsync();
-        await Task.WhenAll(treeTask, cvTask);
-
-        var treeResult = treeTask.Result;
-        if (treeResult.IsSuccess && treeResult.Data != null)
-            _tree = treeResult.Data;
-
-        // Departments cho filter suy ra từ tree (không cần API riêng)
-        _departments = _tree
-            .Select(t => new DepartmentViewModel
-            {
-                DeptCode = t.DeptCode,
-                DeptName = t.DeptName
-            })
-            .ToList();
-
-        _isLoading = false;
-    }
+    protected override async Task OnInitializedAsync() => await LoadTreeAsync();
 
     private async Task LoadTreeAsync()
     {
         _isLoading = true;
-        StateHasChanged();
         try
         {
-            var result = await EmployeeService.GetTreeAsync();
+            var result = await EmployeeService.GetTreeAsync(_search, _filterDept);
             if (result.IsSuccess && result.Data != null)
             {
                 _tree = result.Data;
-                // Cập nhật lại danh sách departments khi tree thay đổi
-                _departments = _tree
-                    .Select(t => new DepartmentViewModel
-                    {
-                        DeptCode = t.DeptCode,
-                        DeptName = t.DeptName
-                    })
-                    .ToList();
+                _departments = _tree.Select(x => new DepartmentDto { DeptCode = x.DeptCode, DeptName = x.DeptName })
+                    .GroupBy(x => x.DeptCode).Select(x => x.First()).OrderBy(x => x.DeptName).ToList();
             }
-            else
-            {
-                Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
-            }
+            else Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
         }
-        finally
-        {
-            _isLoading = false;
-            StateHasChanged();
-        }
+        finally { _isLoading = false; }
     }
 
-    // ── Filter ───────────────────────────────────────────────────
     private async Task OnDeptFilterChanged(string? value)
     {
         _filterDept = value;
-        await ApplyFilter();
+        _isFiltered = !string.IsNullOrWhiteSpace(_filterDept) || !string.IsNullOrWhiteSpace(_search);
+        await LoadTreeAsync();
     }
 
     private async Task OnSearchChanged(string value)
     {
         _search = value;
-        await ApplyFilter();
+        _isFiltered = !string.IsNullOrWhiteSpace(_filterDept) || !string.IsNullOrWhiteSpace(_search);
+        await LoadTreeAsync();
     }
 
-    private async Task ApplyFilter()
-    {
-        _isLoading = true;
-        StateHasChanged();
-
-        var result = await EmployeeService.GetTreeAsync(_search, _filterDept);
-        if (result.IsSuccess && result.Data != null)
-        {
-            _tree = result.Data;
-
-            _isFiltered = !string.IsNullOrEmpty(_search)
-                       || !string.IsNullOrEmpty(_filterDept);
-
-            // Flatten cây thành list khi đang filter để hiển thị dạng bảng
-            _flatList = _isFiltered
-                ? _tree.SelectMany(d => d.Employees).ToList()
-                : new List<EmployeeCardViewModel>();
-        }
-        else
-        {
-            Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
-        }
-
-        _isLoading = false;
-        StateHasChanged();
-    }
-
-    private async Task ResetFilter()
+    private void ResetFilter()
     {
         _filterDept = null;
         _search = string.Empty;
         _activeOnly = true;
         _isFiltered = false;
-        _flatList = new();
-        await LoadTreeAsync();
+        _ = LoadTreeAsync();
     }
 
-    // ── Helpers mở dialog (dùng chung) ───────────────────────────
-    private async Task ShowEditDialog(EmployeeFormViewModel model, bool lockDept)
+    private static readonly DialogOptions EditDialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
+    private static readonly DialogOptions OtDialogOptions = new() { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true };
+
+    private async Task ShowEditDialog(EmployeeUpsertDto model, bool lockDept)
     {
         var parameters = new DialogParameters
         {
@@ -579,102 +220,60 @@ else
             [nameof(EmployeeEditDialog.Departments)] = _departments,
             [nameof(EmployeeEditDialog.LockDept)] = lockDept
         };
-
-        var dialog = await DialogService.ShowAsync<EmployeeEditDialog>(
-            "", parameters, _editDialogOptions);
-
-        var result = await dialog.Result;
-        if (result is { Canceled: false })
-        {
-            await LoadTreeAsync();
-            if (_isFiltered) await ApplyFilter();
-        }
+        var dialog = await DialogService.ShowAsync<EmployeeEditDialog>(string.Empty, parameters, EditDialogOptions);
+        if ((await dialog.Result) is { Canceled: false }) await LoadTreeAsync();
     }
 
-    // ── Dialog: Thêm mới ─────────────────────────────────────────
-    private Task OpenCreateDialog()
-        => ShowEditDialog(new EmployeeFormViewModel { IsActive = true }, lockDept: false);
+    private Task OpenCreateDialog() => ShowEditDialog(new EmployeeUpsertDto { IsActive = true }, false);
+    private Task OpenCreateDialogForDept(string deptCode, string deptName) => ShowEditDialog(new EmployeeUpsertDto { DeptCode = deptCode, IsActive = true }, true);
 
-    // ── Dialog: Thêm mới theo bộ phận ────────────────────────────
-    private Task OpenCreateDialogForDept(string deptCode, string deptName)
-        => ShowEditDialog(
-            new EmployeeFormViewModel { IsActive = true, DeptCode = deptCode },
-            lockDept: true);
-
-    // ── Dialog: Sửa ──────────────────────────────────────────────
-    private Task OpenEditDialog(EmployeeCardViewModel emp)
-        => ShowEditDialog(new EmployeeFormViewModel
-        {
-            Id = emp.Id,
-            EmployeeCode = emp.EmployeeCode,
-            EmployeeName = emp.EmployeeName,
-            DeptCode = emp.DeptCode,
-            CvCode = emp.CvCode,
-            EmailAddress = emp.EmailAddress,
-            PhoneNumber = emp.PhoneNumber,
-            BirthDate = emp.BirthDate,
-            FirstWorkingDate = emp.FirstWorkingDate,
-            EndWorkingDate = emp.EndWorkingDate,
-            TongPhep = emp.TongPhep,
-            IsActive = emp.IsActive,
-            LevelApprove = emp.LevelApprove
-        }, lockDept: false);
-
-    // ── Dialog: OT chi tiết ──────────────────────────────────────
-    private async Task OpenOtDetailDialog(EmployeeCardViewModel emp)
+    private Task OpenEditDialog(EmployeeCardDto employee) => ShowEditDialog(new EmployeeUpsertDto
     {
-        var parameters = new DialogParameters
-        {
-            [nameof(EmployeeOtDetailDialog.Employee)] = emp
-        };
+        Id = employee.Id,
+        EmployeeCode = employee.EmployeeCode,
+        EmployeeName = employee.EmployeeName,
+        DeptCode = employee.DeptCode,
+        PositionCode = employee.PositionCode,
+        EmailAddress = employee.EmailAddress,
+        PhoneNumber = employee.PhoneNumber,
+        BirthDate = employee.BirthDate,
+        FirstWorkingDate = employee.FirstWorkingDate,
+        EndWorkingDate = employee.EndWorkingDate,
+        TotalLeaveDays = employee.TotalEntitledLeave,
+        IsActive = employee.IsActive,
+        LevelApprove = employee.LevelApprove
+    }, false);
 
-        await DialogService.ShowAsync<EmployeeOtDetailDialog>(
-            "", parameters, _otDialogOptions);
-        // Dialog OT chỉ xem, không cần reload sau khi đóng
+    private async Task OpenOtDetailDialog(EmployeeCardDto employee)
+    {
+        var parameters = new DialogParameters { [nameof(EmployeeOTDetailDialog.Employee)] = employee };
+        await DialogService.ShowAsync<EmployeeOTDetailDialog>(string.Empty, parameters, OtDialogOptions);
     }
 
-    // ── Toggle ───────────────────────────────────────────────────
-    private async Task ToggleEmployee(EmployeeCardViewModel emp)
+    private async Task ToggleEmployee(EmployeeCardDto employee)
     {
-        var result = await EmployeeService.ToggleAsync(emp.Id);
-        if (result.IsSuccess)
-        {
-            Snackbar.Add(result.Message ?? "Đã cập nhật", Severity.Success);
-            await LoadTreeAsync();
-            if (_isFiltered) await ApplyFilter();
-        }
-        else
-        {
-            Snackbar.Add(result.Message ?? "Lỗi", Severity.Error);
-        }
+        var result = await EmployeeService.ToggleAsync(employee.Id);
+        if (result.IsSuccess) { Snackbar.Add(result.Message ?? "Đã cập nhật", Severity.Success); await LoadTreeAsync(); }
+        else Snackbar.Add(result.Message ?? "Lỗi", Severity.Error);
     }
 
-    // ── Delete ───────────────────────────────────────────────────
-    private async Task ConfirmDelete(EmployeeCardViewModel emp)
+    private async Task ConfirmDelete(EmployeeCardDto employee)
     {
-        var confirm = await DialogService.ShowMessageBoxAsync(
-            "Xác nhận xóa",
-            $"Xóa nhân viên '{emp.EmployeeName}' ({emp.EmployeeCode})?",
-            yesText: "Xóa", cancelText: "Hủy");
-
+        var confirm = await DialogService.ShowMessageBoxAsync("Xác nhận xóa", $"Xóa nhân viên '{employee.EmployeeName}' ({employee.EmployeeCode})?", yesText: "Xóa", cancelText: "Hủy");
         if (confirm != true) return;
-
-        var result = await EmployeeService.DeleteAsync(emp.Id);
-        if (result.IsSuccess)
-        {
-            Snackbar.Add("Đã xóa nhân viên", Severity.Success);
-            await LoadTreeAsync();
-            if (_isFiltered) await ApplyFilter();
-        }
-        else
-        {
-            Snackbar.Add(result.Message ?? "Lỗi xóa", Severity.Error);
-        }
+        var result = await EmployeeService.DeleteAsync(employee.Id);
+        if (result.IsSuccess) { Snackbar.Add("Đã xóa nhân viên", Severity.Success); await LoadTreeAsync(); }
+        else Snackbar.Add(result.Message ?? "Lỗi xóa", Severity.Error);
     }
 
-    // ── UI Helpers ───────────────────────────────────────────────
-    private static string GetCardStyle(bool isActive) =>
-        isActive
-            ? "border:1px solid #e3f2fd; border-radius:10px; background:#fafafa"
-            : "border:1px solid #ffebee; border-radius:10px; background:#fff5f5; opacity:0.75";
+    private static string GetInitials(string? name)
+    {
+        if (string.IsNullOrWhiteSpace(name)) return "?";
+        var parts = name.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return parts.Length == 1 ? parts[0][..Math.Min(2, parts[0].Length)].ToUpperInvariant() : $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant();
+    }
+
+    private static string GetCardStyle(bool isActive) => isActive
+        ? "border:1px solid #e3f2fd; border-radius:10px; background:#fafafa"
+        : "border:1px solid #ffebee; border-radius:10px; background:#fff5f5; opacity:0.75";
 }

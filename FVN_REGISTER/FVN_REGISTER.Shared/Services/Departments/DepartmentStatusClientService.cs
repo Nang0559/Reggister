@@ -1,30 +1,21 @@
-﻿using FVN_REGISTER.Contract.Dtos.Depts;
-
-using FVN_REGISTER.Core.Configurations;
+using FVN_REGISTER.Contract.Dtos.Depts;
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Shared.Handlers;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using FVN_REGISTER.Core.Logging;
-using FVN_REGISTER.Contract.Responses;
 
 namespace FVN_REGISTER.Shared.Services.Departments
 {
-    public class DepartmentStatusClientService : IDepartmentStatusClientService
+    public sealed class DepartmentStatusClientService : IDepartmentStatusClientService
     {
         private readonly IHttpClientWithAuth _http;
         private readonly ILogger<DepartmentStatusClientService> _logger;
-        private readonly IOptionsMonitor<AuthDebugOptions> _options;
-
-        private bool Debug => _options.CurrentValue.Enabled;
 
         public DepartmentStatusClientService(
             IHttpClientWithAuth http,
-            ILogger<DepartmentStatusClientService> logger,
-            IOptionsMonitor<AuthDebugOptions> options)
+            ILogger<DepartmentStatusClientService> logger)
         {
             _http = http;
             _logger = logger;
-            _options = options;
         }
 
         public async Task<ApiResponse<List<DepartmentStatusDto>>> GetAllAsync(
@@ -37,16 +28,17 @@ namespace FVN_REGISTER.Shared.Services.Departments
                     ? $"api/department-status/all?date={date.Value:yyyy-MM-dd}"
                     : "api/department-status/all";
 
-                _logger.LogDebugIf(Debug, "[DEPT_STATUS_CLIENT] GetAll → {Url}", url);
-
                 var result = await _http.GetAsync<List<DepartmentStatusDto>>(url, ct);
-
                 if (!result.IsSuccess)
-                    _logger.LogWarnIf(Debug,
+                    _logger.LogWarning(
                         "[DEPT_STATUS_CLIENT] GetAll failed | Status={Status} | Msg={Msg}",
-                        result.StatusCode, result.Message);
-
+                        result.StatusCode,
+                        result.Message);
                 return result;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -63,20 +55,20 @@ namespace FVN_REGISTER.Shared.Services.Departments
             try
             {
                 var url = date.HasValue
-                    ? $"api/department-status/{deptCode}?date={date.Value:yyyy-MM-dd}"
-                    : $"api/department-status/{deptCode}";
-
-                _logger.LogDebugIf(Debug,
-                    "[DEPT_STATUS_CLIENT] GetByDept → {Url}", url);
+                    ? $"api/department-status/{Uri.EscapeDataString(deptCode)}?date={date.Value:yyyy-MM-dd}"
+                    : $"api/department-status/{Uri.EscapeDataString(deptCode)}";
 
                 var result = await _http.GetAsync<DepartmentStatusDto>(url, ct);
-
                 if (!result.IsSuccess)
-                    _logger.LogWarnIf(Debug,
+                    _logger.LogWarning(
                         "[DEPT_STATUS_CLIENT] GetByDept failed | Status={Status} | Msg={Msg}",
-                        result.StatusCode, result.Message);
-
+                        result.StatusCode,
+                        result.Message);
                 return result;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {

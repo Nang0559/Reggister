@@ -1,10 +1,8 @@
-﻿@* File: FVN_REGISTER.Shared/Pages/Admin/DepartmentManagement.razor *@
 @page "/admin/departments"
 @attribute [Authorize]
-@using FVN_REGISTER.Core.Logging
+@using FVN_REGISTER.Contract.Dtos.Depts
 @using FVN_REGISTER.Shared.Dialogs.Departments
 @using FVN_REGISTER.Shared.Services.Departments
-@using FVN_REGISTER.Shared.Utils.Helpers
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 
@@ -14,461 +12,165 @@
 
 <PageTitle>Quản lý Bộ phận - FCC</PageTitle>
 
-@* ─── HEADER ─────────────────────────────────────────────────── *@
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudIcon Icon="@Icons.Material.Filled.Business" Color="Color.Primary" Size="Size.Large" />
     <div>
         <MudText Typo="Typo.h5" Style="font-weight:700">Quản lý Bộ Phận</MudText>
-        <MudText Typo="Typo.caption" Color="Color.Secondary">
-            Cấu hình danh sách bộ phận trong công ty
-        </MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">Cấu hình danh sách bộ phận trong công ty</MudText>
     </div>
     <MudSpacer />
-    <MudButton Variant="Variant.Filled"
-               Color="Color.Primary"
-               StartIcon="@Icons.Material.Filled.AddBusiness"
-               OnClick="OpenCreateDialog">
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.AddBusiness" OnClick="OpenCreateDialog">
         Thêm Bộ Phận
     </MudButton>
 </MudStack>
 
-@* ─── FILTER BAR ─────────────────────────────────────────────── *@
 <MudPaper Elevation="1" Class="pa-3 mb-4" Style="border-radius:12px">
     <MudGrid AlignItems="AlignItems.Center">
         <MudItem xs="12" sm="6">
-            <MudSelect T="bool?"
-                       Label="Lọc theo trạng thái"
-                       Value="_filterActive"
-                       ValueChanged="OnActiveFilterChanged"
-                       Variant="Variant.Outlined"
-                       Margin="Margin.Dense"
-                       Clearable="true"
-                       AdornmentIcon="@Icons.Material.Filled.FilterAlt"
-                       Adornment="Adornment.Start">
+            <MudSelect T="bool?" Label="Lọc theo trạng thái" Value="_filterActive" ValueChanged="OnActiveFilterChanged"
+                       Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
                 <MudSelectItem T="bool?" Value="@((bool?)true)">Đang hoạt động</MudSelectItem>
                 <MudSelectItem T="bool?" Value="@((bool?)false)">Đã ngừng hoạt động</MudSelectItem>
             </MudSelect>
         </MudItem>
-
         <MudItem xs="12" sm="6">
-            <MudButton Variant="Variant.Outlined"
-                       Color="Color.Default"
-                       StartIcon="@Icons.Material.Filled.Refresh"
-                       OnClick="ResetFilter"
-                       FullWidth="true">
-                Xem tất cả
-            </MudButton>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="ResetFilter" FullWidth="true">Xem tất cả</MudButton>
         </MudItem>
     </MudGrid>
 </MudPaper>
 
-@* ─── CONTENT ────────────────────────────────────────────────── *@
 @if (_isLoading)
 {
     <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-4" />
-    @for (int i = 0; i < 3; i++)
-    {
-        <MudSkeleton SkeletonType="SkeletonType.Rectangle"
-                     Height="80px"
-                     Class="mb-3"
-                     Style="border-radius:12px" />
-    }
 }
-else if (_isFiltered)
+else
 {
-    @* ── VIEW PHẲNG KHI CÓ FILTER ── *@
     <MudPaper Elevation="1" Style="border-radius:12px; overflow:hidden">
-        <MudTable Items="_flatList"
-                  Dense="true"
-                  Hover="true"
-                  Striped="true"
-                  Loading="_isLoading">
+        <MudTable Items="_departments" Dense="true" Hover="true" Striped="true">
             <HeaderContent>
                 <MudTh>Mã bộ phận</MudTh>
                 <MudTh>Tên bộ phận</MudTh>
+                <MudTh Style="text-align:center">Nhân viên</MudTh>
+                <MudTh>Ngày tạo</MudTh>
                 <MudTh>Trạng thái</MudTh>
                 <MudTh Style="text-align:center">Thao tác</MudTh>
             </HeaderContent>
             <RowTemplate>
+                <MudTd><MudText Typo="Typo.body2" Style="font-weight:600">@context.DeptCode</MudText></MudTd>
+                <MudTd>@context.DeptName</MudTd>
+                <MudTd Style="text-align:center">@context.EmployeeCount</MudTd>
+                <MudTd>@context.CreatedAt.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd>
-                    <MudText Typo="Typo.body2" Style="font-weight:600">@context.DeptCode</MudText>
-                </MudTd>
-                <MudTd>
-                    <MudText Typo="Typo.body2">@context.DeptName</MudText>
-                </MudTd>
-                <MudTd>
-                    <MudChip T="string"
-                             Color="@(context.IsActive ? Color.Success : Color.Error)"
-                             Size="Size.Small">
-                        @context.StatusText
+                    <MudChip T="string" Color="@(context.IsActive ? Color.Success : Color.Error)" Size="Size.Small">
+                        @(context.IsActive ? "Đang hoạt động" : "Đã ngừng")
                     </MudChip>
                 </MudTd>
                 <MudTd Style="text-align:center">
-                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                   Size="Size.Small"
-                                   Color="Color.Primary"
-                                   Title="Chỉnh sửa"
-                                   OnClick="@(() => OpenEditDialog(context))" />
-
-                    <MudIconButton Icon="@(context.IsActive
-                                                                                  ? Icons.Material.Filled.ToggleOff
-                                                                              : Icons.Material.Filled.ToggleOn)"
-                               Size="Size.Small"
-                               Color="@(context.IsActive ? Color.Warning : Color.Success)"
-                               Title="@(context.IsActive ? "Vô hiệu hóa" : "Kích hoạt")"
-                               OnClick="@(() => ToggleDepartment(context))" />
-
-                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                                   Size="Size.Small"
-                                   Color="Color.Error"
-                                   Title="Xóa"
-                                   OnClick="@(() => ConfirmDelete(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Size="Size.Small" Color="Color.Primary" OnClick="@(() => OpenEditDialog(context))" />
+                    <MudIconButton Icon="@(context.IsActive ? Icons.Material.Filled.ToggleOff : Icons.Material.Filled.ToggleOn)" Size="Size.Small"
+                                   Color="@(context.IsActive ? Color.Warning : Color.Success)" OnClick="@(() => ToggleDepartment(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Size="Size.Small" Color="Color.Error" OnClick="@(() => ConfirmDelete(context))" />
                 </MudTd>
             </RowTemplate>
-            <NoRecordsContent>
-                <MudStack AlignItems="AlignItems.Center" Class="pa-8">
-                    <MudIcon Icon="@Icons.Material.Filled.SearchOff"
-                             Size="Size.Large"
-                             Color="Color.Secondary" />
-                    <MudText Color="Color.Secondary">Không tìm thấy bộ phận phù hợp</MudText>
-                </MudStack>
-            </NoRecordsContent>
+            <NoRecordsContent><MudText Color="Color.Secondary" Class="pa-6">Không có bộ phận.</MudText></NoRecordsContent>
         </MudTable>
     </MudPaper>
 }
-else
-{
-    @* ── TREE VIEW THEO TRẠNG THÁI ── *@
-    @if (_tree == null || !_tree.Groups.Any())
-    {
-        <MudPaper Elevation="0"
-                  Class="pa-8 text-center"
-                  Style="border: 2px dashed #e0e0e0; border-radius:16px">
-            <MudIcon Icon="@Icons.Material.Filled.Business"
-                     Size="Size.Large"
-                     Color="Color.Secondary" />
-            <MudText Typo="Typo.h6" Color="Color.Secondary" Class="mt-2">
-                Chưa có Bộ phận nào
-            </MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                Nhấn "Thêm Bộ Phận" để bắt đầu cấu hình
-            </MudText>
-        </MudPaper>
-    }
-    else
-    {
-        @foreach (var group in _tree.Groups)
-        {
-            <MudPaper Elevation="2" Class="mb-4" Style="border-radius:14px; overflow:hidden">
-
-                @* Header nhóm trạng thái *@
-                <div style="@GetGroupHeaderStyle(group.IsActive); padding: 12px 16px; cursor:pointer"
-                     @onclick="() => ToggleGroupExpand(group)">
-                    <MudStack Row="true" AlignItems="AlignItems.Center">
-                        <MudIcon Icon="@(group.IsActive
-                                                                             ? Icons.Material.Filled.CheckCircle
-                                                                 : Icons.Material.Filled.PauseCircle)"
-                     Style="color:white" />
-            <div style="flex:1">
-                <MudText Typo="Typo.subtitle1" Style="color:white; font-weight:700">
-                    @group.GroupName
-                </MudText>
-                <MudText Typo="Typo.caption" Style="color:rgba(255,255,255,0.75)">
-                    @group.Departments.Count bộ phận
-                </MudText>
-            </div>
-
-                        <MudChip T="string"
-                                 Size="Size.Small"
-                                 Style="background:rgba(255,255,255,0.2); color:white">
-                            @group.Departments.Count
-                        </MudChip>
-
-                        <MudIconButton Icon="@(_expandedGroups.Contains(group.IsActive)
-                                                                           ? Icons.Material.Filled.ExpandLess
-                                                                           : Icons.Material.Filled.ExpandMore)"
-                           Style="color:white"
-                           Size="Size.Small" />
-        </MudStack>
-    </div>
-
-                @* Body *@
-    @if (_expandedGroups.Contains(group.IsActive))
-                {
-                    <div class="pa-3">
-                        @if (!group.Departments.Any())
-                        {
-                            <MudText Typo="Typo.body2"
-                                     Color="Color.Secondary"
-                                     Class="pa-4 text-center">
-                                Không có bộ phận trong nhóm này
-                            </MudText>
-                        }
-                        else
-                        {
-                            <MudGrid Spacing="2">
-                                @foreach (var dept in group.Departments)
-                                {
-                                    <MudItem xs="12" sm="6" md="4">
-                                        <MudPaper Elevation="0"
-                                                  Style="@GetCardStyle(dept.IsActive)"
-                                                  Class="pa-3">
-                                            <MudStack Row="true" AlignItems="AlignItems.Start">
-
-                                                <MudAvatar Color="@(dept.IsActive? Color.Success: Color.Default)"
-                                                           Size="Size.Medium"
-                                                           Style="font-size:0.8rem; flex-shrink:0">
-                                                    @(dept.DeptName.Length > 0
-                                                                                ? dept.DeptName[0].ToString().ToUpper()
-                                                                                : "?")
-                        </MudAvatar>
-
-                                                <div style="flex:1; min-width:0">
-                                                    <MudStack Row="true" AlignItems="AlignItems.Center">
-                                                        <MudText Typo="Typo.subtitle2"
-                                                                 Style="font-weight:600;
-                                                                                                overflow:hidden;
-                                                                                                text-overflow:ellipsis;
-                                                                                                white-space:nowrap">
-                                                            @dept.DeptName
-                                                        </MudText>
-                                @if (!dept.IsActive)
-                                                        {
-                                                            <MudChip T="string"
-                                                                     Size="Size.Small"
-                                                                     Color="Color.Error"
-                                                                     Style="height:18px; font-size:10px">
-                                                                Tắt
-                                                            </MudChip>
-                                                        }
-                                                    </MudStack>
-                                                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                                        @dept.DeptCode
-                                                    </MudText>
-                                                </div>
-
-                                                <MudMenu Icon="@Icons.Material.Filled.MoreVert"
-                                                         Size="Size.Small"
-                                                         Dense="true"
-                                                         AnchorOrigin="Origin.BottomRight"
-                                                         TransformOrigin="Origin.TopRight">
-                                                    <MudMenuItem Icon="@Icons.Material.Filled.Edit"
-                                                                 OnClick="@(() => OpenEditDialog(dept))">
-                                                        Chỉnh sửa
-                                                    </MudMenuItem>
-                                                    <MudMenuItem Icon="@(dept.IsActive
-                                                                                                                                             ? Icons.Material.Filled.ToggleOff
-                                                                                                                     : Icons.Material.Filled.ToggleOn)"
-                                         OnClick="@(() => ToggleDepartment(dept))">
-                                @(dept.IsActive ? "Vô hiệu hóa" : "Kích hoạt")
-                            </MudMenuItem>
-                            <MudDivider />
-                            <MudMenuItem Icon="@Icons.Material.Filled.Delete"
-                                         IconColor="Color.Error"
-                                         OnClick="@(() => ConfirmDelete(dept))">
-                                <MudText Color="Color.Error">Xóa</MudText>
-                            </MudMenuItem>
-                        </MudMenu>
-                    </MudStack>
-                </MudPaper>
-            </MudItem>
-                        }
-                            </MudGrid>
-                        }
-                    </div>
-                }
-
-            </MudPaper>
-        }
-    }
-}
 
 @code {
-    // ── State ────────────────────────────────────────────────────
-    private DepartmentTreeViewModel? _tree;
-    private List<DepartmentItemViewModel> _flatList = new();
-    private readonly HashSet<bool> _expandedGroups = new() { true, false };
-
+    private List<DepartmentDto> _departments = new();
     private bool _isLoading = true;
-    private bool _isFiltered = false;
-
     private bool? _filterActive;
 
-    private static readonly DialogOptions _dialogOptions = new()
+    private static readonly DialogOptions DialogOptions = new()
     {
         MaxWidth = MaxWidth.Small,
         FullWidth = true,
         CloseOnEscapeKey = true
     };
 
-    // ── Init ─────────────────────────────────────────────────────
-    protected override async Task OnInitializedAsync()
-    {
-        await LoadTreeAsync();
-    }
+    protected override async Task OnInitializedAsync() => await LoadAsync();
 
-    private async Task LoadTreeAsync()
+    private async Task LoadAsync()
     {
         _isLoading = true;
-        StateHasChanged();
         try
         {
-            var result = await DepartmentService.GetTreeAsync();
+            var result = await DepartmentService.GetListAsync(_filterActive);
             if (result.IsSuccess && result.Data != null)
-                _tree = result.Data;
+                _departments = result.Data;
             else
                 Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
         }
-        finally
-        {
-            _isLoading = false;
-            StateHasChanged();
-        }
+        finally { _isLoading = false; }
     }
 
-    // ── Filter ───────────────────────────────────────────────────
-    private async Task OnActiveFilterChanged(bool? value)
+    private Task OnActiveFilterChanged(bool? value)
     {
         _filterActive = value;
-        await ApplyFilter();
+        return LoadAsync();
     }
 
-    private async Task ApplyFilter()
-    {
-        if (!_filterActive.HasValue)
-        {
-            _isFiltered = false;
-            return;
-        }
-
-        _isLoading = true;
-        _isFiltered = true;
-        StateHasChanged();
-
-        var result = await DepartmentService.GetListAsync(_filterActive);
-        if (result.IsSuccess && result.Data != null)
-            _flatList = result.Data;
-
-        _isLoading = false;
-        StateHasChanged();
-    }
-
-    private async Task ResetFilter()
+    private Task ResetFilter()
     {
         _filterActive = null;
-        _isFiltered = false;
-        await LoadTreeAsync();
+        return LoadAsync();
     }
 
-    private void ToggleGroupExpand(DepartmentGroupViewModel group)
-    {
-        if (!_expandedGroups.Remove(group.IsActive))
-            _expandedGroups.Add(group.IsActive);
-    }
-
-    // ── Dialog: Thêm mới ─────────────────────────────────────────
     private async Task OpenCreateDialog()
     {
         var parameters = new DialogParameters
         {
-            [nameof(DepartmentManagementEditDialog.Model)] = new DepartmentEditViewModel { IsActive = true }
+            [nameof(DepartmentManagementEditDialog.Model)] = new DepartmentUpsertDto { IsActive = true }
         };
-
-        var dialog = await DialogService.ShowAsync<DepartmentManagementEditDialog>("", parameters, _dialogOptions);
-        var result = await dialog.Result;
-
-        if (result is { Canceled: false })
+        var dialog = await DialogService.ShowAsync<DepartmentManagementEditDialog>(string.Empty, parameters, DialogOptions);
+        if ((await dialog.Result) is { Canceled: false })
         {
             Snackbar.Add("Đã thêm bộ phận thành công!", Severity.Success);
-            await ReloadCurrentView();
+            await LoadAsync();
         }
     }
 
-    // ── Dialog: Sửa ──────────────────────────────────────────────
-    private async Task OpenEditDialog(DepartmentItemViewModel item)
+    private async Task OpenEditDialog(DepartmentDto item)
     {
-        var model = new DepartmentEditViewModel
+        var model = new DepartmentUpsertDto
         {
             Id = item.Id,
             DeptCode = item.DeptCode,
             DeptName = item.DeptName,
             IsActive = item.IsActive
         };
-
-        var parameters = new DialogParameters
-        {
-            [nameof(DepartmentManagementEditDialog.Model)] = model
-        };
-
-        var dialog = await DialogService.ShowAsync<DepartmentManagementEditDialog>("", parameters, _dialogOptions);
-        var result = await dialog.Result;
-
-        if (result is { Canceled: false })
+        var parameters = new DialogParameters { [nameof(DepartmentManagementEditDialog.Model)] = model };
+        var dialog = await DialogService.ShowAsync<DepartmentManagementEditDialog>(string.Empty, parameters, DialogOptions);
+        if ((await dialog.Result) is { Canceled: false })
         {
             Snackbar.Add("Đã cập nhật bộ phận thành công!", Severity.Success);
-            await ReloadCurrentView();
+            await LoadAsync();
         }
     }
 
-    // ── Toggle ───────────────────────────────────────────────────
-    private async Task ToggleDepartment(DepartmentItemViewModel item)
+    private async Task ToggleDepartment(DepartmentDto item)
     {
         var result = await DepartmentService.ToggleAsync(item.Id);
-        if (result.IsSuccess)
-        {
-            Snackbar.Add(result.Message ?? "Đã cập nhật", Severity.Success);
-            await ReloadCurrentView();
-        }
-        else
-        {
-            Snackbar.Add(result.Message ?? "Lỗi", Severity.Error);
-        }
+        Snackbar.Add(result.Message ?? (result.IsSuccess ? "Đã cập nhật" : "Có lỗi xảy ra"), result.IsSuccess ? Severity.Success : Severity.Error);
+        if (result.IsSuccess) await LoadAsync();
     }
 
-    // ── Delete (dialog riêng dùng IMudDialogInstance) ─────────────
-    private async Task ConfirmDelete(DepartmentItemViewModel item)
+    private async Task ConfirmDelete(DepartmentDto item)
     {
         var parameters = new DialogParameters
         {
             [nameof(DepartmentManagementDeleteConfirmDialog.Department)] = item
         };
+        var dialog = await DialogService.ShowAsync<DepartmentManagementDeleteConfirmDialog>(string.Empty, parameters, DialogOptions);
+        if ((await dialog.Result) is not { Canceled: false }) return;
 
-        var dialog = await DialogService.ShowAsync<DepartmentManagementDeleteConfirmDialog>(
-            "", parameters, _dialogOptions);
-
-        var result = await dialog.Result;
-
-        if (result is { Canceled: false })
+        var result = await DepartmentService.DeleteAsync(item.Id);
+        if (result.IsSuccess)
         {
-            var deleteResult = await DepartmentService.DeleteAsync(item.Id);
-            if (deleteResult.IsSuccess)
-            {
-                Snackbar.Add("Đã xóa bộ phận", Severity.Success);
-                await ReloadCurrentView();
-            }
-            else
-            {
-                Snackbar.Add(deleteResult.Message ?? "Lỗi xóa", Severity.Error);
-            }
+            Snackbar.Add("Đã xóa bộ phận", Severity.Success);
+            await LoadAsync();
         }
+        else Snackbar.Add(result.Message ?? "Lỗi xóa", Severity.Error);
     }
-
-    private async Task ReloadCurrentView()
-    {
-        if (_isFiltered)
-            await ApplyFilter();
-        else
-            await LoadTreeAsync();
-    }
-
-    // ── UI Helpers ───────────────────────────────────────────────
-    private static string GetGroupHeaderStyle(bool isActive) =>
-        isActive
-            ? "background: linear-gradient(135deg, #43A047 0%, #2E7D32 100%);"
-            : "background: linear-gradient(135deg, #757575 0%, #424242 100%);";
-
-    private static string GetCardStyle(bool isActive) =>
-        isActive
-            ? "border:1px solid #e8f5e9; border-radius:10px; background:#fafafa"
-            : "border:1px solid #ffebee; border-radius:10px; background:#fff5f5; opacity:0.75";
 }

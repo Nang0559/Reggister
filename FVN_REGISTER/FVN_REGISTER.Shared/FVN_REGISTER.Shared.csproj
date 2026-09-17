@@ -17,11 +17,10 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.6" />
     <PackageReference Include="MudBlazor" Version="9.3.0" />
     <PackageReference Include="MudBlazor.ThemeManager" Version="4.0.0" />
-	  <PackageReference Include="Blazored.TextEditor" Version="1.0.2" />
+    <PackageReference Include="Blazored.TextEditor" Version="1.0.2" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\FVN_REGISTER.Core\FVN_REGISTER.Core.csproj" />
     <ProjectReference Include="..\..\FVN_REGISTER.Models\FVN_REGISTER.Contract.csproj" />
   </ItemGroup>
 

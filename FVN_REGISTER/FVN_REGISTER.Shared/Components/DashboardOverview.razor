@@ -1,4 +1,4 @@
-﻿
+@using FVN_REGISTER.Contract.Dtos.Dashboard
 
 @if (Data == null)
 {
@@ -10,53 +10,45 @@
 else
 {
     <MudGrid>
-        @if (Data.Widgets != null && Data.Widgets.Any())
+        @if (Data.Widgets.Any())
         {
-            @* RENDERING ĐỘNG TỪ DANH SÁCH WIDGET *@
             @foreach (var widget in Data.Widgets)
             {
                 <MudItem xs="6" sm="3">
-                    <MudPaper Class="@($"pa-4 mud-theme-{widget.Color.ToLower()}")"
+                    <MudPaper Class="@($"pa-4 mud-theme-{widget.Color.ToLowerInvariant()}")"
                               Elevation="4"
-                              Style="height:110px; border-radius: 12px; cursor: pointer;"
+                              Style="height:110px; border-radius:12px; cursor:pointer"
                               @onclick="@(() => OnWidgetClick(widget.Link))">
-
                         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                             <MudStack Spacing="0">
-                                <MudText Typo="Typo.subtitle2" Style="opacity: 0.8">@widget.Title</MudText>
+                                <MudText Typo="Typo.subtitle2" Style="opacity:0.8">@widget.Title</MudText>
                                 <MudText Typo="Typo.h4"><b>@widget.Value</b></MudText>
                             </MudStack>
-                            <MudIcon Icon="@widget.Icon" Size="Size.Large" Style="opacity: 0.5" />
+                            <MudIcon Icon="@widget.Icon" Size="Size.Large" Style="opacity:0.5" />
                         </MudStack>
-
                     </MudPaper>
                 </MudItem>
             }
         }
-        else
+        else if (Data.Leave?.Balance != null)
         {
-            @* DỰ PHÒNG: Nếu Widgets trống thì hiện các Card cơ bản dựa trên DTO lẻ *@
             <MudItem xs="6" sm="3">
-                <MudPaper Class="pa-4 mud-theme-primary" Elevation="4" Style="height:110px; border-radius: 12px;">
-                    <MudText Typo="Typo.subtitle2">Phép Tồn</MudText>
-                    <MudText Typo="Typo.h4"><b>@(Data.PersonalBalance?.Remaining.ToString("N1") ?? "0")</b></MudText>
+                <MudPaper Class="pa-4" Elevation="4" Style="height:110px; border-radius:12px">
+                    <MudText Typo="Typo.subtitle2">Phép tồn</MudText>
+                    <MudText Typo="Typo.h4"><b>@Data.Leave.Balance.Remaining.ToString("N1")</b></MudText>
                 </MudPaper>
             </MudItem>
-
-            @* Thêm các Card khác n... *@
         }
     </MudGrid>
 }
 
 @code {
-    [Parameter] public LeaveDashboardViewModel? Data { get; set; }
+    [Parameter] public DashboardDto? Data { get; set; }
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
     private void OnWidgetClick(string? link)
     {
-        if (!string.IsNullOrEmpty(link))
-        {
+        if (!string.IsNullOrWhiteSpace(link))
             Navigation.NavigateTo(link);
-        }
     }
 }

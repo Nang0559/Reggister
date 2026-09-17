@@ -1,5 +1,4 @@
-﻿@* File: FVN_REGISTER.Shared/Pages/Admin/EmployeeOtDetailDialog.razor *@
-@using FVN_REGISTER.Contract.ViewModels
+@using FVN_REGISTER.Contract.Dtos.Employees
 @using FVN_REGISTER.Shared.Services.Employees
 
 <MudDialog>
@@ -24,13 +23,10 @@
         }
         else if (_summary != null)
         {
-            @* Tổng năm *@
             <MudGrid Class="mb-4">
                 <MudItem xs="6" sm="3">
-                    <MudPaper Elevation="2" Class="pa-3 text-center"
-                              Style="border-radius:10px">
-                        <MudText Typo="Typo.h5" Style="font-weight:700"
-                                 Color="Color.Warning">
+                    <MudPaper Elevation="2" Class="pa-3 text-center" Style="border-radius:10px">
+                        <MudText Typo="Typo.h5" Style="font-weight:700" Color="Color.Warning">
                             @_summary.TotalHours.ToString("N1")
                         </MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">
@@ -38,12 +34,9 @@
                         </MudText>
                     </MudPaper>
                 </MudItem>
-
                 <MudItem xs="6" sm="3">
-                    <MudPaper Elevation="2" Class="pa-3 text-center"
-                              Style="border-radius:10px">
-                        <MudText Typo="Typo.h5" Style="font-weight:700"
-                                 Color="Color.Info">
+                    <MudPaper Elevation="2" Class="pa-3 text-center" Style="border-radius:10px">
+                        <MudText Typo="Typo.h5" Style="font-weight:700" Color="Color.Info">
                             @_summary.TotalDays
                         </MudText>
                         <MudText Typo="Typo.caption" Color="Color.Secondary">
@@ -53,7 +46,6 @@
                 </MudItem>
             </MudGrid>
 
-            @* Bảng theo tháng *@
             <MudTable Items="_summary.Monthly"
                       Dense="true"
                       Striped="true"
@@ -65,18 +57,10 @@
                     <MudTh Style="text-align:right">Số giờ</MudTh>
                 </HeaderContent>
                 <RowTemplate>
-                    <MudTd>
-                        <MudText Typo="Typo.body2">
-                            Tháng @context.Month
-                        </MudText>
-                    </MudTd>
+                    <MudTd>Tháng @context.Month</MudTd>
+                    <MudTd Style="text-align:right">@context.Days</MudTd>
                     <MudTd Style="text-align:right">
-                        <MudText Typo="Typo.body2">@context.Days</MudText>
-                    </MudTd>
-                    <MudTd Style="text-align:right">
-                        <MudText Typo="Typo.body2" Style="font-weight:600">
-                            @context.Hours.ToString("N1") h
-                        </MudText>
+                        <MudText Style="font-weight:600">@context.Hours.ToString("N1") h</MudText>
                     </MudTd>
                 </RowTemplate>
                 <NoRecordsContent>
@@ -97,9 +81,7 @@
                                 <MudText Style="font-weight:700">@_summary.TotalDays</MudText>
                             </MudTd>
                             <MudTd Style="text-align:right">
-                                <MudText Style="font-weight:700; color:#FF8F00">
-                                    @_summary.TotalHours.ToString("N1") h
-                                </MudText>
+                                <MudText Style="font-weight:700">@_summary.TotalHours.ToString("N1") h</MudText>
                             </MudTd>
                         </MudTFootRow>
                     }
@@ -108,29 +90,24 @@
         }
         else
         {
-            <MudAlert Severity="Severity.Info">
-                Không có dữ liệu OT cho nhân viên này.
-            </MudAlert>
+            <MudAlert Severity="Severity.Info">Không có dữ liệu OT cho nhân viên này.</MudAlert>
         }
     </DialogContent>
 
     <DialogActions>
-        <MudButton OnClick="Close" Variant="Variant.Filled" Color="Color.Default">
-            Đóng
-        </MudButton>
+        <MudButton OnClick="Close" Variant="Variant.Filled" Color="Color.Default">Đóng</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
-
     [Inject] private IEmployeeManagementClientService EmployeeService { get; set; } = default!;
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
 
-    [Parameter] public EmployeeCardViewModel? Employee { get; set; }
+    [Parameter] public EmployeeCardDto? Employee { get; set; }
 
     private bool _isLoading = true;
-    private EmployeeOtSummaryViewModel? _summary;
+    private EmployeeOtSummaryDto? _summary;
 
     protected override async Task OnInitializedAsync()
     {
@@ -141,7 +118,8 @@
         }
 
         var result = await EmployeeService.GetOtSummaryAsync(
-            Employee.EmployeeCode, DateTime.Now.Year);
+            Employee.EmployeeCode,
+            DateTime.Now.Year);
 
         if (result.IsSuccess)
             _summary = result.Data;

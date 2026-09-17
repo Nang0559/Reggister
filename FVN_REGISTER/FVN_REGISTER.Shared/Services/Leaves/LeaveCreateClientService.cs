@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Shared.Services.Leaves
 {
-    public class LeaveCreateClientService : ILeaveCreateClientService
+    public sealed class LeaveCreateClientService : ILeaveCreateClientService
     {
         private readonly IHttpClientWithAuth _http;
         private readonly ILogger<LeaveCreateClientService> _logger;
@@ -28,23 +28,16 @@ namespace FVN_REGISTER.Shared.Services.Leaves
         {
             try
             {
-                _logger.LogDebug(
-                    "[LEAVE_CLIENT] GetCombinedData emp={Emp} year={Year}",
-                    empCode,
-                    year);
-
                 var url = $"api/leavecalendar/data?empCode={Uri.EscapeDataString(empCode)}" +
                           $"&deptCode={Uri.EscapeDataString(deptCode)}" +
                           $"&cvCode={Uri.EscapeDataString(cvCode)}" +
                           $"&year={year}";
 
-                var result = await _http.GetAsync<LeaveCalendarDataDto>(url, ct);
-
-                _logger.LogDebug(
-                    "[LEAVE_CLIENT] GetCombinedData success={Success}",
-                    result.IsSuccess);
-
-                return result;
+                return await _http.GetAsync<LeaveCalendarDataDto>(url, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -59,14 +52,11 @@ namespace FVN_REGISTER.Shared.Services.Leaves
         {
             try
             {
-                _logger.LogDebug(
-                    "[LEAVE_CLIENT] CreateLeave start={Start}",
-                    model.StartDate);
-
-                return await _http.PostAsync<object>(
-                    "api/leavedays/create",
-                    model,
-                    ct);
+                return await _http.PostAsync<object>("api/leavedays/create", model, ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -82,14 +72,14 @@ namespace FVN_REGISTER.Shared.Services.Leaves
         {
             try
             {
-                _logger.LogDebug(
-                    "[LEAVE_CLIENT] Cancel id={Id}",
-                    leaveId);
-
                 return await _http.PostAsync<object>(
                     $"api/leavedays/{leaveId}/cancel",
-                    new { reason },
+                    new LeaveCancelRequestDto { Reason = reason },
                     ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -105,14 +95,14 @@ namespace FVN_REGISTER.Shared.Services.Leaves
         {
             try
             {
-                _logger.LogDebug(
-                    "[LEAVE_CLIENT] CancelDetail detailId={Id}",
-                    detailId);
-
                 return await _http.PostAsync<object>(
                     $"api/leavedays/cancel-detail/{detailId}",
-                    new { reason },
+                    new LeaveDetailCancelRequestDto { Reason = reason },
                     ct);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
             }
             catch (Exception ex)
             {

@@ -1,83 +1,72 @@
-﻿
+using FVN_REGISTER.Contract.Dtos.Employees;
 using FVN_REGISTER.Contract.Responses;
-using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Shared.Handlers;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-
 
 namespace FVN_REGISTER.Shared.Services.Employees
 {
-    public class EmployeeManagementClientService : IEmployeeManagementClientService
+    public sealed class EmployeeManagementClientService : IEmployeeManagementClientService
     {
+        private const string Base = "api/EmployeeManagement";
         private readonly IHttpClientWithAuth _http;
-        private readonly ILogger<EmployeeManagementClientService> _logger;
-        private readonly IOptionsMonitor<AuthDebugOptions> _options;
-        private bool Debug => _options.CurrentValue.Enabled;
 
-        private const string Base = "api/employeemanagement";
-
-        public EmployeeManagementClientService(
-            IHttpClientWithAuth http,
-            ILogger<EmployeeManagementClientService> logger,
-            IOptionsMonitor<AuthDebugOptions> options)
+        public EmployeeManagementClientService(IHttpClientWithAuth http)
         {
             _http = http;
-            _logger = logger;
-            _options = options;
         }
 
-        public Task<ApiResponse<List<EmployeeDeptTreeViewModel>>> GetTreeAsync(
+        public Task<ApiResponse<List<EmployeeDeptTreeDto>>> GetTreeAsync(
             string? searchTerm = null,
             string? deptCode = null,
             CancellationToken ct = default)
         {
-            var qs = new List<string>();
-            if (!string.IsNullOrEmpty(searchTerm))
-                qs.Add($"searchTerm={Uri.EscapeDataString(searchTerm)}");
-            if (!string.IsNullOrEmpty(deptCode))
-                qs.Add($"deptCode={Uri.EscapeDataString(deptCode)}");
+            var query = new List<string>();
+            if (!string.IsNullOrWhiteSpace(searchTerm))
+                query.Add($"searchTerm={Uri.EscapeDataString(searchTerm)}");
+            if (!string.IsNullOrWhiteSpace(deptCode))
+                query.Add($"deptCode={Uri.EscapeDataString(deptCode)}");
 
-            var url = qs.Any()
-                ? $"{Base}/tree?{string.Join("&", qs)}"
-                : $"{Base}/tree";
+            var url = query.Count == 0
+                ? $"{Base}/tree"
+                : $"{Base}/tree?{string.Join("&", query)}";
 
-            return _http.GetAsync<List<EmployeeDeptTreeViewModel>>(url, ct);
+            return _http.GetAsync<List<EmployeeDeptTreeDto>>(url, ct);
         }
 
-        public Task<ApiResponse<EmployeeCardViewModel>> GetByIdAsync(
-            int id, CancellationToken ct = default)
-            => _http.GetAsync<EmployeeCardViewModel>($"{Base}/{id}", ct);
-
-        public Task<ApiResponse<List<DepartmentViewModel>>> GetCvListAsync(
+        public Task<ApiResponse<EmployeeCardDto>> GetByIdAsync(
+            int id,
             CancellationToken ct = default)
-            => _http.GetAsync<List<DepartmentViewModel>>($"{Base}/cv-list", ct);
+            => _http.GetAsync<EmployeeCardDto>($"{Base}/{id}", ct);
 
-        public Task<ApiResponse<EmployeeOtSummaryViewModel>> GetOtSummaryAsync(
+        public Task<ApiResponse<EmployeeOtSummaryDto>> GetOtSummaryAsync(
             string employeeCode,
             int? year = null,
             CancellationToken ct = default)
         {
             var url = year.HasValue
-                ? $"{Base}/ot-summary/{employeeCode}?year={year}"
-                : $"{Base}/ot-summary/{employeeCode}";
-            return _http.GetAsync<EmployeeOtSummaryViewModel>(url, ct);
+                ? $"{Base}/ot-summary/{Uri.EscapeDataString(employeeCode)}?year={year.Value}"
+                : $"{Base}/ot-summary/{Uri.EscapeDataString(employeeCode)}";
+            return _http.GetAsync<EmployeeOtSummaryDto>(url, ct);
         }
 
         public Task<ApiResponse<object>> CreateAsync(
-            EmployeeFormViewModel model, CancellationToken ct = default)
+            EmployeeUpsertDto model,
+            CancellationToken ct = default)
             => _http.PostAsync<object>(Base, model, ct);
 
         public Task<ApiResponse<object>> UpdateAsync(
-            int id, EmployeeFormViewModel model, CancellationToken ct = default)
+            int id,
+            EmployeeUpsertDto model,
+            CancellationToken ct = default)
             => _http.PutAsync<object>($"{Base}/{id}", model, ct);
 
         public Task<ApiResponse<object>> ToggleAsync(
-            int id, CancellationToken ct = default)
-            => _http.PutAsync<object>($"{Base}/{id}/toggle", new { }, ct);
+            int id,
+            CancellationToken ct = default)
+            => _http.PatchAsync<object>($"{Base}/{id}/toggle", new { }, ct);
 
         public Task<ApiResponse<object>> DeleteAsync(
-            int id, CancellationToken ct = default)
+            int id,
+            CancellationToken ct = default)
             => _http.DeleteAsync<object>($"{Base}/{id}", ct);
     }
 }

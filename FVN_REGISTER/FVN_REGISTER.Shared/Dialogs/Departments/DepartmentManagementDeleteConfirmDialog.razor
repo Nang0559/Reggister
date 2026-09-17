@@ -1,5 +1,4 @@
-﻿@using FVN_REGISTER.Contract.ViewModels
-@using FVN_REGISTER.Contract.ViewModels.Departments
+@using FVN_REGISTER.Contract.Dtos.Depts
 
 <MudDialog>
     <TitleContent>
@@ -21,18 +20,14 @@
 
     <DialogActions>
         <MudButton OnClick="Cancel">Hủy</MudButton>
-        <MudButton Color="Color.Error" Variant="Variant.Filled" OnClick="Confirm">
-            Xóa
-        </MudButton>
+        <MudButton Color="Color.Error" Variant="Variant.Filled" OnClick="Confirm">Xóa</MudButton>
     </DialogActions>
 </MudDialog>
 
 @code {
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
-
-    [Parameter] public DepartmentItemViewModel? Department { get; set; }
+    [Parameter] public DepartmentDto? Department { get; set; }
 
     private void Confirm() => MudDialog.Close(DialogResult.Ok(true));
-
     private void Cancel() => MudDialog.Cancel();
 }

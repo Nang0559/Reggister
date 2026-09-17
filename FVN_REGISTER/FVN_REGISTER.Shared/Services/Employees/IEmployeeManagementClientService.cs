@@ -1,39 +1,39 @@
-﻿
-
-
+using FVN_REGISTER.Contract.Dtos.Employees;
 using FVN_REGISTER.Contract.Responses;
 
 namespace FVN_REGISTER.Shared.Services.Employees
 {
     public interface IEmployeeManagementClientService
     {
-        Task<ApiResponse<List<EmployeeDeptTreeViewModel>>> GetTreeAsync(
-         string? searchTerm = null,
-         string? deptCode = null,
-         CancellationToken ct = default);
-
-        Task<ApiResponse<EmployeeCardViewModel>> GetByIdAsync(
-            int id, CancellationToken ct = default);
-
-        Task<ApiResponse<List<DepartmentViewModel>>> GetCvListAsync(
+        Task<ApiResponse<List<EmployeeDeptTreeDto>>> GetTreeAsync(
+            string? searchTerm = null,
+            string? deptCode = null,
             CancellationToken ct = default);
 
-        Task<ApiResponse<EmployeeOtSummaryViewModel>> GetOtSummaryAsync(
+        Task<ApiResponse<EmployeeCardDto>> GetByIdAsync(
+            int id,
+            CancellationToken ct = default);
+
+        Task<ApiResponse<EmployeeOtSummaryDto>> GetOtSummaryAsync(
             string employeeCode,
             int? year = null,
             CancellationToken ct = default);
 
         Task<ApiResponse<object>> CreateAsync(
-            EmployeeFormViewModel model, CancellationToken ct = default);
+            EmployeeUpsertDto model,
+            CancellationToken ct = default);
 
         Task<ApiResponse<object>> UpdateAsync(
-            int id, EmployeeFormViewModel model, CancellationToken ct = default);
+            int id,
+            EmployeeUpsertDto model,
+            CancellationToken ct = default);
 
         Task<ApiResponse<object>> ToggleAsync(
-            int id, CancellationToken ct = default);
+            int id,
+            CancellationToken ct = default);
 
         Task<ApiResponse<object>> DeleteAsync(
-            int id, CancellationToken ct = default);
+            int id,
+            CancellationToken ct = default);
     }
-
 }

@@ -2,7 +2,8 @@ using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Requests.OT;
-using FVN_REGISTER.Core.Utils;
+using FVN_REGISTER.Contract.Responses;
+using FVN_REGISTER.Contract.Utils;
 
 namespace FVN_REGISTER.Shared.Services.OTs;
 
