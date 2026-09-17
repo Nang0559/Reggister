@@ -1,14 +1,18 @@
-﻿using FVN_REGISTER.Contract.Dtos.EmailTemplates;
+using FVN_REGISTER.Contract.Dtos.EmailTemplates;
+using FVN_REGISTER.Contract.Requests.Email;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Shared.Handlers;
 
-
 namespace FVN_REGISTER.Shared.Services.Emails
 {
-    public class EmailQueueClientService : IEmailQueueClientService
+    public sealed class EmailQueueClientService : IEmailQueueClientService
     {
         private readonly IHttpClientWithAuth _http;
-        public EmailQueueClientService(IHttpClientWithAuth http) => _http = http;
+
+        public EmailQueueClientService(IHttpClientWithAuth http)
+        {
+            _http = http;
+        }
 
         public Task<ApiResponse<List<EmailQueueDto>>> GetAllAsync(CancellationToken ct = default)
             => _http.GetAsync<List<EmailQueueDto>>("api/EmailQueue", ct);
@@ -17,13 +21,13 @@ namespace FVN_REGISTER.Shared.Services.Emails
             => _http.PostAsync<object>($"api/EmailQueue/{id}/retry", new { }, ct);
 
         public Task<ApiResponse<object>> RetryBatchAsync(List<int> ids, CancellationToken ct = default)
-            => _http.PostAsync<object>("api/EmailQueue/retry-batch", new { Ids = ids }, ct);
+            => _http.PostAsync<object>("api/EmailQueue/retry-batch", new BatchIdsRequestDto { Ids = ids }, ct);
 
         public Task<ApiResponse<object>> CancelAsync(int id, CancellationToken ct = default)
             => _http.PostAsync<object>($"api/EmailQueue/{id}/cancel", new { }, ct);
 
         public Task<ApiResponse<object>> CancelBatchAsync(List<int> ids, CancellationToken ct = default)
-            => _http.PostAsync<object>("api/EmailQueue/cancel-batch", new { Ids = ids }, ct);
+            => _http.PostAsync<object>("api/EmailQueue/cancel-batch", new BatchIdsRequestDto { Ids = ids }, ct);
 
         public Task<ApiResponse<object>> TriggerProcessAsync(CancellationToken ct = default)
             => _http.PostAsync<object>("api/EmailQueue/trigger", new { }, ct);
