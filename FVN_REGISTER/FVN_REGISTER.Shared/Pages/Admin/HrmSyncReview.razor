@@ -1,0 +1,94 @@
+@page "/admin/hrm-sync-review"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.HrmSync
+@using FVN_REGISTER.Shared.Services.HrmSync
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+
+@inject IHrmSyncReviewClientService ReviewService
+@inject ISnackbar Snackbar
+
+<PageTitle>HRM Sync Review</PageTitle>
+
+<MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudStack Spacing="0">
+        <MudText Typo="Typo.h5">HRM Sync — Xử lý xung đột</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Danh sách flag chưa xử lý từ quá trình đồng bộ HRM. Resolve chỉ đóng flag, không tự ghi đè dữ liệu nguồn.</MudText>
+    </MudStack>
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="@_loading">Làm mới</MudButton>
+</MudStack>
+
+<MudAlert Severity="Severity.Info" Class="mb-4">Còn <b>@_count</b> conflict chưa resolve.</MudAlert>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (!_items.Any())
+{
+    <MudAlert Severity="Severity.Success">Không có conflict HRM đang chờ xử lý.</MudAlert>
+}
+else
+{
+    <MudTable Items="_items" Dense="true" Hover="true" Striped="true">
+        <HeaderContent>
+            <MudTh>Entity</MudTh>
+            <MudTh>Key</MudTh>
+            <MudTh>Loại flag</MudTh>
+            <MudTh>Nội dung</MudTh>
+            <MudTh>Phát hiện</MudTh>
+            <MudTh></MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd>@context.EntityType</MudTd>
+            <MudTd><b>@context.EntityKey</b></MudTd>
+            <MudTd><MudChip T="string" Size="Size.Small" Color="Color.Warning">@context.FlagType</MudChip></MudTd>
+            <MudTd>@context.Message</MudTd>
+            <MudTd>@context.DetectedAt.ToString("dd/MM/yyyy HH:mm")</MudTd>
+            <MudTd>
+                <MudButton Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" OnClick="@(() => ResolveAsync(context))">Đã xử lý</MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<SyncReviewFlagDto> _items = new();
+    private int _count;
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = await ReviewService.GetUnresolvedAsync(ct: CancellationToken.None);
+            if (!result.IsSuccess || result.Data == null)
+            {
+                Snackbar.Add(result.Message ?? "Không tải được danh sách conflict HRM.", Severity.Error);
+                return;
+            }
+            _items = result.Data;
+
+            var count = await ReviewService.CountAsync();
+            _count = count.IsSuccess ? count.Data : _items.Count;
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task ResolveAsync(SyncReviewFlagDto item)
+    {
+        var result = await ReviewService.ResolveAsync(item.Id);
+        if (!result.IsSuccess)
+        {
+            Snackbar.Add(result.Message ?? "Không thể resolve flag.", Severity.Error);
+            return;
+        }
+
+        _items.Remove(item);
+        _count = Math.Max(0, _count - 1);
+        Snackbar.Add("Đã đánh dấu conflict là đã xử lý.", Severity.Success);
+    }
+}
