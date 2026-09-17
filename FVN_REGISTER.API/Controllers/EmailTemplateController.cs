@@ -14,15 +14,9 @@ namespace FVN_REGISTER.API.Controllers
     [Route("api/[controller]")]
     public class EmailTemplateController : BaseApiController
     {
-        private readonly IEmailTemplateService _templateService;
+        private readonly IEmailTemplateManagementService _templateService;
 
-        public EmailTemplateController(
-            IEmailTemplateService templateService,
-            ICurrentUserService currentUser,
-            IUserLogService userLog,
-            IMapper mapper,
-            ILogger<EmailTemplateController> logger,
-            IOptionsMonitor<AuthDebugOptions> options)
+        public EmailTemplateController(IEmailTemplateManagementService templateService, ICurrentUserService currentUser, IUserLogService userLog, IMapper mapper, ILogger<EmailTemplateController> logger, IOptionsMonitor<AuthDebugOptions> options)
             : base(currentUser, userLog, mapper, logger, options)
         {
             _templateService = templateService;
@@ -31,45 +25,30 @@ namespace FVN_REGISTER.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll(CancellationToken ct)
         {
-            if (UserInfo == null || !UserInfo.IsAdmin())
-                return Forbid();
-
-            var list = await _templateService.GetAllAsync(ct);
-            return Ok(ApiResponse<List<EmailTemplateDto>>.Ok(list));
+            if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
+            return Ok(ApiResponse<List<EmailTemplateDto>>.Ok(await _templateService.GetAllAsync(ct)));
         }
 
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id, CancellationToken ct)
         {
-            if (UserInfo == null || !UserInfo.IsAdmin())
-                return Forbid();
-
+            if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
             var item = await _templateService.GetByIdAsync(id, ct);
-            if (item == null)
-                return NotFound();
-
-            return Ok(ApiResponse<EmailTemplateDto>.Ok(item));
+            return item == null ? NotFound() : Ok(ApiResponse<EmailTemplateDto>.Ok(item));
         }
 
         [HttpPost("save")]
-        public async Task<IActionResult> Save(
-            [FromBody] EmailTemplateDto dto, CancellationToken ct)
+        public async Task<IActionResult> Save([FromBody] EmailTemplateDto dto, CancellationToken ct)
         {
-            if (UserInfo == null || !UserInfo.IsAdmin())
-                return Forbid();
-
-            var result = await _templateService.SaveAsync(dto, UserInfo.UserId, ct);
-            return HandleResult(result);
+            if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
+            return HandleResult(await _templateService.SaveAsync(dto, UserInfo.UserId, ct));
         }
 
         [HttpPost("{id:int}/toggle")]
         public async Task<IActionResult> Toggle(int id, CancellationToken ct)
         {
-            if (UserInfo == null || !UserInfo.IsAdmin())
-                return Forbid();
-
-            var result = await _templateService.ToggleActiveAsync(id, UserInfo.UserId, ct);
-            return HandleResult(result);
+            if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
+            return HandleResult(await _templateService.ToggleActiveAsync(id, UserInfo.UserId, ct));
         }
     }
 }
