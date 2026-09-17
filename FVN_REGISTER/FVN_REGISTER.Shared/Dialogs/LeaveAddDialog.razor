@@ -28,7 +28,7 @@
                 <MudPaper Class="mt-3 pa-2" Elevation="0" Outlined="true">
                     <MudText Typo="Typo.subtitle2" Class="mb-2">Chi tiết từng ngày</MudText>
                     <MudSimpleTable Dense="true" Striped="true">
-                        <thead><tr><th>Ngày</th><th>Loại nghỉ</th><th>Nửa ngày</th></tr></thead>
+                        <thead><tr><th>Ngày</th><th>Loại nghỉ</th><th>Thời lượng</th></tr></thead>
                         <tbody>
                             @foreach (var detail in _details)
                             {
@@ -42,7 +42,13 @@
                                             }
                                         </MudSelect>
                                     </td>
-                                    <td><MudCheckBox T="bool" Value="detail.IsHalfDay" ValueChanged="@(value => ChangeHalfDay(detail, value))" Size="Size.Small" /></td>
+                                    <td>
+                                        <MudSelect T="HalfDayType" Value="detail.HalfDayOption" ValueChanged="@(value => ChangeHalfDay(detail, value))" Dense="true" Margin="Margin.Dense">
+                                            <MudSelectItem Value="@HalfDayType.None">Cả ngày</MudSelectItem>
+                                            <MudSelectItem Value="@HalfDayType.Morning">Buổi sáng</MudSelectItem>
+                                            <MudSelectItem Value="@HalfDayType.Afternoon">Buổi chiều</MudSelectItem>
+                                        </MudSelect>
+                                    </td>
                                 </tr>
                             }
                         </tbody>
@@ -115,10 +121,10 @@
 
     private void ChangeLeaveType(LeaveRequestDetailUpsertDto detail, string code) => detail.LeaveTypeCode = code;
 
-    private void ChangeHalfDay(LeaveRequestDetailUpsertDto detail, bool value)
+    private void ChangeHalfDay(LeaveRequestDetailUpsertDto detail, HalfDayType value)
     {
-        detail.IsHalfDay = value;
-        detail.HalfDayOption = value ? HalfDayType.Morning : HalfDayType.None;
+        detail.HalfDayOption = value;
+        detail.IsHalfDay = value != HalfDayType.None;
     }
 
     private async Task Submit()
