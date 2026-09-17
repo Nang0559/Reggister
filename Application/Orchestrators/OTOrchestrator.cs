@@ -1,50 +1,37 @@
-﻿
-
+using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.OT;
+using FVN_REGISTER.Application.Logging;
+using FVN_REGISTER.Application.Maps;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Requests.OT;
-using FVN_REGISTER.Core.Configurations;
+using FVN_REGISTER.Contract.Utils;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Enums;
-using FVN_REGISTER.Core.Logging;
-using FVN_REGISTER.Core.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using FVN_REGISTER.Application.Maps;
-using FVN_REGISTER.Core.Constants;
 
 namespace FVN_REGISTER.Application.Orchestrators
 {
     /// <summary>
     /// Orchestrator cho nghiệp vụ Tăng ca (OT).
-    /// Điều phối:
-    ///   1) IOTValidator                                  - kiểm tra hợp lệ (giới hạn giờ OT, trùng lịch...)
-    ///   2) IOTService                                     - đọc/ghi thực thể OTRequest
-    ///   3) IOTQueryService                                - query tổng hợp phục vụ UI (balance, history...)
-    ///   4) IApprovalWorkflowOrchestrator&lt;OTRequestSubject&gt; - khởi tạo luồng duyệt (InitApprovalAsync)
-    ///   5) IOTSyncService                                 - đồng bộ đơn đã duyệt sang HRM/chấm công
-    ///
-    /// Approve/Reject/Pending-list KHÔNG nằm ở đây — dùng chung IApprovalWorkflowOrchestrator&lt;TSubject&gt;
-    /// qua orchestrator/controller Approval riêng.
+    /// Chỉ điều phối application ports; không truy cập DbContext/EF/Infrastructure.
     /// </summary>
     public class OTOrchestrator : BaseService<OTOrchestrator>, IOTOrchestrator
     {
         private readonly IOTService _otService;
         private readonly IOTQueryService _query;
         private readonly IOTValidator _validator;
-      
-        // SỬA: bỏ IOTSyncService — thay bằng service của domain Reconciliation riêng
         private readonly IOTAttendanceReconciliationService _reconciliation;
 
         public OTOrchestrator(
             IOTService otService,
             IOTQueryService query,
             IOTValidator validator,
-            
             IOTAttendanceReconciliationService reconciliation,
             ILogger<OTOrchestrator> logger,
             IOptionsMonitor<AuthDebugOptions> options)
@@ -53,13 +40,11 @@ namespace FVN_REGISTER.Application.Orchestrators
             _otService = otService;
             _query = query;
             _validator = validator;
-         
             _reconciliation = reconciliation;
         }
 
-        // ================= CREATE =================
         public async Task<ServiceResult<OTRequestDto>> CreateAsync(
-    OTRequestUpsertDto model, UserIdentityDto user, CancellationToken ct = default)
+            OTRequestUpsertDto model, UserIdentityDto user, CancellationToken ct = default)
         {
             try
             {
@@ -69,20 +54,16 @@ namespace FVN_REGISTER.Application.Orchestrators
                 if (!valResult.IsSuccess)
                     return ServiceResult<OTRequestDto>.Fail(valResult.Message ?? "Dữ liệu tăng ca không hợp lệ.");
 
-                // Service.CreateAsync ĐÃ tự gọi Workflow.InitApprovalAsync bên trong transaction của nó —
-                // KHÔNG được gọi lại ở đây. Orchestrator chỉ điều phối + reload.
                 var createResult = await _otService.CreateAsync(model, user, ct);
                 if (!createResult.IsSuccess)
                     return ServiceResult<OTRequestDto>.Fail(createResult.Message ?? "Không thể tạo đơn tăng ca.");
 
                 var otRequestId = createResult.Data;
-
                 var fullResult = await _query.GetFullDetailsAsync(otRequestId, ct);
                 if (!fullResult.IsSuccess || fullResult.Data == null)
                     return ServiceResult<OTRequestDto>.Fail("Đơn đã tạo nhưng không tải lại được chi tiết.");
 
-                Logger.LogInfoIf(Debug, "[ORCH][OT] Created & workflow started: OTId={OTId}", otRequestId);
-
+                Logger.LogInfoIf(Debug, "[ORCH][OT] Created: OTId={OTId}", otRequestId);
                 return ServiceResult<OTRequestDto>.Ok(fullResult.Data, "Đã gửi đơn tăng ca thành công.");
             }
             catch (Exception ex)
@@ -91,11 +72,8 @@ namespace FVN_REGISTER.Application.Orchestrators
             }
         }
 
-        // ================= UPDATE (diff-based: thêm/bớt người + sửa giờ) =================
         public async Task<ServiceResult<OTRequestDto>> UpdateAsync(
-            OTRequestUpsertDto model,
-            UserIdentityDto user,
-            CancellationToken ct = default)
+            OTRequestUpsertDto model, UserIdentityDto user, CancellationToken ct = default)
         {
             try
             {
@@ -156,17 +134,12 @@ namespace FVN_REGISTER.Application.Orchestrators
             }
         }
 
-        // ================= CANCEL =================
         public async Task<ServiceResult> CancelAsync(
-            int otRequestId,
-            string reason,
-            UserIdentityDto user,
-            CancellationToken ct = default)
+            int otRequestId, string reason, UserIdentityDto user, CancellationToken ct = default)
         {
             try
             {
                 Logger.LogDebugIf(Debug, "[ORCH][OT] Cancel start: Id={Id} User={User}", otRequestId, user.UserName);
-
                 var result = await _otService.CancelAsync(otRequestId, reason, user, ct);
 
                 if (result.IsSuccess)
@@ -182,7 +155,6 @@ namespace FVN_REGISTER.Application.Orchestrators
             }
         }
 
-        // ================= READ =================
         public async Task<ServiceResult<OTRequestDto>> GetDetailsAsync(
             int otRequestId, CancellationToken ct = default)
         {
@@ -197,9 +169,7 @@ namespace FVN_REGISTER.Application.Orchestrators
         }
 
         public async Task<ServiceResult<OTBalanceDto>> GetBalanceSummaryAsync(
-            string employeeCode,
-            int year,
-            CancellationToken ct = default)
+            string employeeCode, int year, CancellationToken ct = default)
         {
             try
             {
@@ -213,9 +183,7 @@ namespace FVN_REGISTER.Application.Orchestrators
         }
 
         public async Task<ServiceResult<List<OTSummaryDto>>> GetRecentHistoryAsync(
-            string employeeCode,
-            int limit = 5,
-            CancellationToken ct = default)
+            string employeeCode, int limit = 5, CancellationToken ct = default)
         {
             try
             {
@@ -243,15 +211,6 @@ namespace FVN_REGISTER.Application.Orchestrators
             }
         }
 
-        // ================= ATTENDANCE RECONCILIATION =================
-        // SỬA: thay hoàn toàn SyncApprovedAsync (IOTSyncService) bằng ReconcileActualHoursAsync
-        // (IOTAttendanceReconciliationService) — đây là COMMAND-WITH-RESULT, KHÔNG PHẢI QUERY:
-        // mỗi lần gọi sẽ UPDATE F03OTEmployee.ActualHours/ActualStartTime/ActualEndTime.
-        //
-        // ⚠️ Bên UI (OTAttendanceReconcilePage.razor) CHỈ được gọi hàm này khi Admin bấm nút
-        // "Đối chiếu ngay" — TUYỆT ĐỐI KHÔNG gọi trong OnInitializedAsync hay bất kỳ
-        // auto-refresh/timer nào. Orchestrator không tự chặn được việc này ở tầng service,
-        // trách nhiệm nằm ở tầng gọi (Controller/Blazor Page).
         public async Task<ServiceResult<OTReconciliationResultDto>> ReconcileActualHoursAsync(
             DateTime date, string? deptCode, CancellationToken ct = default)
         {
@@ -261,7 +220,6 @@ namespace FVN_REGISTER.Application.Orchestrators
                     "[ORCH][OT] Reconcile start: Date={Date} Dept={Dept}", date, deptCode ?? "ALL");
 
                 var result = await _reconciliation.ReconcileActualHoursAsync(date, deptCode, ct);
-
                 Logger.LogInfoIf(Debug,
                     "[ORCH][OT] Reconcile completed: Date={Date} Dept={Dept}", date, deptCode ?? "ALL");
 
