@@ -1,6 +1,7 @@
 ﻿
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Histories;
+using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Infrastructure;
 using FVN_REGISTER.Infrastructure.Services.Histories;
 using Microsoft.EntityFrameworkCore;
@@ -93,7 +94,7 @@ namespace FVN_REGISTER.API.Services.Histories
         public override async Task<ServiceResult<BalanceSummaryDto>> GetBalanceAsync(
             int year, UserIdentityDto user, CancellationToken ct)
         {
-            var validStatuses = OTStatus.ActiveStatuses
+            var validStatuses = RowStatus.ActiveStatuses
                 .Concat(new[] { OTStatus.Approved })
                 .ToArray();
 
