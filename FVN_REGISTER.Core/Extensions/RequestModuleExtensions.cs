@@ -1,4 +1,4 @@
-﻿using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Core.Enums;
 
 namespace FVN_REGISTER.Core.Extensions
 {
@@ -33,16 +33,19 @@ namespace FVN_REGISTER.Core.Extensions
             RequestModule.Trip => "/trips/detail",
             _ => "/dashboard"
         };
+
+        public static RequestModule ParseCode(string? code) => code?.ToUpperInvariant() switch
+        {
+            "LEAVE" => RequestModule.Leave,
+            "OT" => RequestModule.Overtime,
+            "TRIP" => RequestModule.Trip,
+            _ => RequestModule.Leave
+        };
+
         public static bool TryToRequestModule(this string code, out RequestModule module)
         {
-            switch (code.ToUpper())
-            {
-                case "LEAVE": module = RequestModule.Leave; return true;
-                case "OT": module = RequestModule.Overtime; return true;
-                case "TRIP": module = RequestModule.Trip; return true;
-                default: module = default; return false;
-            }
+            module = ParseCode(code);
+            return code.Equals(module.ToCode(), StringComparison.OrdinalIgnoreCase);
         }
-
     }
 }
