@@ -17,6 +17,7 @@ using FVN_REGISTER.Application.Interfaces.UserManagers;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Interfaces.Jobs;
 using FVN_REGISTER.Application.Models.Subjects;
+using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Application.Services.Statics;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Maps;
@@ -52,61 +53,49 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Text;
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
-
 var builder = WebApplication.CreateBuilder(args);
 
-var allowedOrigins = builder.Configuration
-    .GetSection("AllowedOrigins")
-    .Get<string[]>()
-    ?? new[]
-    {
-        "https://localhost:7264",
-        "http://localhost:5120",
-        "http://localhost:5017",
-        "https://localhost:7135"
-    };
-
-Console.WriteLine($"[STARTUP] CORS AllowedOrigins: {string.Join(", ", allowedOrigins)}");
+var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? new[]
+{
+    "https://localhost:7264",
+    "http://localhost:5120",
+    "http://localhost:5017",
+    "https://localhost:7135"
+};
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("FccCorsPolicy", policy =>
-    {
-        policy
-            .WithOrigins(allowedOrigins)
-            .AllowAnyMethod()
-            .AllowAnyHeader()
-            .AllowCredentials();
-    });
+    options.AddPolicy("FccCorsPolicy", policy => policy
+        .WithOrigins(allowedOrigins)
+        .AllowAnyMethod()
+        .AllowAnyHeader()
+        .AllowCredentials());
 });
 
 builder.Services.AddMemoryCache();
 builder.Services.Configure<AuthDebugOptions>(builder.Configuration.GetSection("AuthDebug"));
 builder.Services.Configure<AppOptions>(opts =>
-{
-    opts.SiteUrl = builder.Configuration["SiteUrl"] ?? "https://localhost:7264";
-});
+    opts.SiteUrl = builder.Configuration["SiteUrl"] ?? "https://localhost:7264");
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<FVNWEBAPPContext>(options => options.UseSqlServer(connectionString));
 builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<FVNWEBAPPContext>());
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
-
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSignalR();
 builder.Services.AddAutoMapper(typeof(MappingProfile).Assembly);
 
-// Application ports -> Infrastructure adapters
+// Common
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<INetworkService, NetworkService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IWorkingDayService, WorkingDayService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
-
 builder.Services.AddScoped<IDepartmentLookupService, DepartmentLookupService>();
 builder.Services.AddScoped<IDepartmentManagementService, DepartmentManagementService>();
 
+// Dashboard / Leave
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<ILeaveQueryService, LeaveQueryService>();
@@ -115,10 +104,12 @@ builder.Services.AddScoped<ILeaveValidator, LeaveValidator>();
 builder.Services.AddScoped<ILeaveEscalationService, LeaveEscalationService>();
 builder.Services.AddScoped<ILeaveService, LeaveService>();
 
+// Reports
 builder.Services.AddScoped<IReportService, LeaveReportService>();
 builder.Services.AddScoped<IReportService, OTReportService>();
 builder.Services.AddScoped<IReportDispatcher, ReportDispatcher>();
 
+// OT
 builder.Services.AddScoped<OTQueryService>();
 builder.Services.AddScoped<IOTQueryService, OTQueryService>();
 builder.Services.AddScoped<IOTValidator, OTValidator>();
@@ -128,6 +119,7 @@ builder.Services.AddScoped<IOTAttendanceReconciliationService, OTAttendanceRecon
 builder.Services.AddScoped<IDepartmentStatusService, DepartmentStatusService>();
 builder.Services.AddScoped<IOTTypeManagementService, OTTypeManagementService>();
 
+// Auth / users
 builder.Services.AddScoped<IAuditService, AuditService>();
 builder.Services.AddScoped<IAuthService, AuthService>();
 builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
@@ -136,18 +128,17 @@ builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<ISessionTerminationNotifier, SignalRSessionTerminationNotifier>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 builder.Services.AddScoped<IApproverManagementService, ApproverManagementService>();
-
 builder.Services.AddScoped<IEmployeeManagementService, EmployeeManagementService>();
 builder.Services.AddScoped<ILeaveTypeManagementService, LeaveTypeManagementService>();
 
+// History / email / notifications
 builder.Services.AddScoped<IHistoryHandler, LeaveHistoryHandler>();
 builder.Services.AddScoped<IHistoryHandler, OTHistoryHandler>();
 builder.Services.AddScoped<IHistoryDispatcher, HistoryDispatcher>();
-
 builder.Services.AddScoped<IEmailTemplateService, EmailTemplateService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
-// Approval pipeline: provider -> engine -> workflow boundary
+// Approval: provider -> engine -> workflow -> cross-module inbox/resolver
 builder.Services.AddScoped<LeaveApprovalProvider>();
 builder.Services.AddScoped<OTApprovalProvider>();
 builder.Services.AddScoped<IApprovalProvider<LeaveRequestSubject>>(sp => sp.GetRequiredService<LeaveApprovalProvider>());
@@ -157,8 +148,8 @@ builder.Services.AddScoped<IApprovalEngine<OTRequestSubject>, ApprovalEngine<OTR
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<LeaveRequestSubject>, ApprovalWorkflowOrchestrator<LeaveRequestSubject>>();
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<OTRequestSubject>, ApprovalWorkflowOrchestrator<OTRequestSubject>>();
 builder.Services.AddScoped<IApprovalEngineResolver, ApprovalEngineResolver>();
+builder.Services.AddScoped<IApprovalGroupingPolicy, ApprovalGroupingPolicy>();
 builder.Services.AddScoped<IApprovalInboxService, ApprovalInboxService>();
-
 builder.Services.AddScoped<IApprovalListDataSource<LeaveRequestViewModel>, LeaveApprovalListDataSource>();
 builder.Services.AddScoped<IApprovalListDataSource<OTRequestViewModel>, OTApprovalListDataSource>();
 builder.Services.AddScoped<ApprovalListService<LeaveRequestViewModel>>();
@@ -192,57 +183,23 @@ builder.Services.AddAuthentication(options =>
         {
             var path = context.HttpContext.Request.Path;
             if (!path.StartsWithSegments("/hubs")) return Task.CompletedTask;
-
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            var debug = context.HttpContext.RequestServices
-                .GetRequiredService<IOptionsMonitor<AuthDebugOptions>>()
-                .CurrentValue.Enabled;
-
+            var debug = context.HttpContext.RequestServices.GetRequiredService<IOptionsMonitor<AuthDebugOptions>>().CurrentValue.Enabled;
             var qs = context.Request.Query["access_token"].ToString();
-            if (!string.IsNullOrEmpty(qs))
-            {
-                context.Token = qs;
-                logger.LogDebugIf(debug, "[JWT] OnMessageReceived -> token from QS | Path={Path} | Len={Len}", path, qs.Length);
-                return Task.CompletedTask;
-            }
-
+            if (!string.IsNullOrEmpty(qs)) { context.Token = qs; return Task.CompletedTask; }
             var header = context.Request.Headers["Authorization"].ToString();
             if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase))
             {
                 context.Token = header["Bearer ".Length..].Trim();
-                logger.LogDebugIf(debug, "[JWT] OnMessageReceived -> token from Header | Path={Path} | Len={Len}", path, context.Token.Length);
-                return Task.CompletedTask;
+                logger.LogDebugIf(debug, "[JWT] Hub token from Authorization header | Len={Len}", context.Token.Length);
             }
-
-            logger.LogWarning("[JWT] OnMessageReceived -> no token found | Path={Path} | QS_keys={Keys}",
-                path, string.Join(",", context.Request.Query.Keys));
             return Task.CompletedTask;
         },
-        OnTokenValidated = context =>
-        {
-            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            var debug = context.HttpContext.RequestServices
-                .GetRequiredService<IOptionsMonitor<AuthDebugOptions>>()
-                .CurrentValue.Enabled;
-            var claims = string.Join(" | ", context.Principal?.Claims.Select(c => $"{c.Type}={c.Value}") ?? []);
-            logger.LogDebugIf(debug, "[JWT] TokenValidated | Claims={Claims}", claims);
-            return Task.CompletedTask;
-        },
+        OnTokenValidated = context => Task.CompletedTask,
         OnAuthenticationFailed = context =>
         {
             var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            logger.LogError(context.Exception, "[JWT] AuthenticationFailed | {ExType}: {ExMsg}",
-                context.Exception.GetType().Name, context.Exception.Message);
-            return Task.CompletedTask;
-        },
-        OnChallenge = context =>
-        {
-            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            var debug = context.HttpContext.RequestServices
-                .GetRequiredService<IOptionsMonitor<AuthDebugOptions>>()
-                .CurrentValue.Enabled;
-            logger.LogWarnIf(debug, "[JWT] Challenge | Path={Path} | Error={Error} | Desc={Desc}",
-                context.Request.Path, context.Error, context.ErrorDescription);
+            logger.LogError(context.Exception, "[JWT] AuthenticationFailed");
             return Task.CompletedTask;
         }
     };
@@ -250,7 +207,6 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
-
 builder.Services.AddHostedService<EmailBackgroundWorker>();
 builder.Services.AddHostedService<EscalationBackgroundWorker>();
 builder.Services.AddSingleton<OTAttendanceStagingWorker>();
@@ -259,43 +215,11 @@ builder.Services.AddSingleton<IOTWorkerStatus>(sp => sp.GetRequiredService<OTAtt
 
 var app = builder.Build();
 app.UsePathBase("/api");
-
-var appLogger = app.Services.GetRequiredService<ILogger<Program>>();
-var debugOptions = app.Services.GetRequiredService<IOptionsMonitor<AuthDebugOptions>>();
-bool IsDebug() => debugOptions.CurrentValue.Enabled;
-
-appLogger.LogInfoIf(IsDebug(), "[STARTUP] AuthDebug.Enabled={Debug} | Env={Env}", IsDebug(), app.Environment.EnvironmentName);
-
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-
-    app.MapGet("/test-notify/{userId}", async (
-        int userId,
-        INotificationService svc,
-        ILogger<Program> logger,
-        IOptionsMonitor<AuthDebugOptions> opts) =>
-    {
-        var debug = opts.CurrentValue.Enabled;
-        logger.LogInfoIf(debug, "[TEST] Creating test notification for UserId={UserId}", userId);
-        await svc.CreateAsync(new CreateNotificationDto
-        {
-            UserId = userId,
-            NotificationType = "TEST",
-            Title = "Test thông báo",
-            Body = "Nội dung test từ server",
-            ActionUrl = "/leave/history"
-        });
-        logger.LogInfoIf(debug, "[TEST] Notification created for UserId={UserId}", userId);
-        return Results.Ok(new { message = $"Sent to userId={userId}" });
-    });
-}
-
+if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.UseCors("FccCorsPolicy");
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notification");
-appLogger.LogInfoIf(IsDebug(), "[STARTUP] Pipeline ready | Hub=/hubs/notification");
 app.Run();
