@@ -1,4 +1,5 @@
 ﻿using FVN_REGISTER.Contract.Dtos.Positions;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Utils;
 
 

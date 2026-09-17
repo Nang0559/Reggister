@@ -1,6 +1,7 @@
 ﻿
 
 using FVN_REGISTER.Contract.Dtos.EmailTemplates;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Utils;
 
 namespace FVN_REGISTER.Application.Interfaces.EmailTemplates

@@ -3,7 +3,8 @@
 
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Histories;
-using FVN_REGISTER.Core.Utils;
+using FVN_REGISTER.Contract.Utils;
+
 
 namespace FVN_REGISTER.Application.Interfaces.Histories
 {

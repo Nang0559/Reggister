@@ -1,5 +1,6 @@
 ﻿using FVN_REGISTER.Contract.Dtos.OtReasons;
-using FVN_REGISTER.Core.Utils;
+using FVN_REGISTER.Contract.Utils;
+
 
 
 namespace FVN_REGISTER.Application.Interfaces.OTReasonCodes

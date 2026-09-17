@@ -3,6 +3,7 @@
 
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Reports;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Utils;
 
 namespace FVN_REGISTER.Application.Interfaces.Reports

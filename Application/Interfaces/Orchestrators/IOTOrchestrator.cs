@@ -5,6 +5,7 @@ using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Histories;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Requests.OT;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Utils;
 

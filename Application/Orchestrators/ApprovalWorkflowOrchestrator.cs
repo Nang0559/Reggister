@@ -1,13 +1,13 @@
 ﻿using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
-using FVN_REGISTER.Core.Logging;
-using FVN_REGISTER.Core.Configurations;
 using Microsoft.Extensions.Options;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using Microsoft.Extensions.Logging;
 using FVN_REGISTER.Application.Services.Common;
+using FVN_REGISTER.Application.Configuration;
+using FVN_REGISTER.Application.Logging;
 
 
 namespace FVN_REGISTER.Application.Orchestrators

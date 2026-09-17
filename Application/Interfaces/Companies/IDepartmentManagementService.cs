@@ -2,7 +2,8 @@
 
 
 using FVN_REGISTER.Contract.Dtos.Depts;
-using FVN_REGISTER.Core.Utils;
+using FVN_REGISTER.Contract.Utils;
+
 
 namespace FVN_REGISTER.Application.Interfaces.Companies
 {

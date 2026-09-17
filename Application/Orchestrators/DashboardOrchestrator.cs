@@ -7,6 +7,7 @@ using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Dashboard;
 using FVN_REGISTER.Contract.Responses;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Utils;

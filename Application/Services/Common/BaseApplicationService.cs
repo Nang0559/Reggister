@@ -1,5 +1,5 @@
-﻿using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Utils;
+﻿using FVN_REGISTER.Application.Configuration;
+using FVN_REGISTER.Contract.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
