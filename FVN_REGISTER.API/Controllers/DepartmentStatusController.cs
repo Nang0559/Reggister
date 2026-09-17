@@ -1,9 +1,7 @@
 using AutoMapper;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.Users;
-using FVN_REGISTER.Contract.Dtos.Depts;
 using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Logging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -34,8 +32,8 @@ namespace FVN_REGISTER.API.Controllers
             [FromQuery] DateTime? date,
             CancellationToken ct)
         {
-            var result = await _deptStatus.GetAllAsync(date ?? DateTime.Today, ct);
-            return HandleResult(result);
+            var result = await _deptStatus.GetAllDeptStatusAsync(date, ct);
+            return Ok(ApiResponse<object>.Ok(result));
         }
     }
 }
