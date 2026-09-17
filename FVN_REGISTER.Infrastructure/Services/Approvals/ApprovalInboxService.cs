@@ -1,5 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
+using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Approvals;
@@ -8,16 +9,11 @@ using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Core.Utils;
-using FVN_REGISTER.Infrastructure.Models.Subjects;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.Infrastructure.Services.Approvals
 {
-    /// <summary>
-    /// Gộp pending list xuyên module bằng cách gọi các approval workflow orchestrator.
-    /// Application chỉ biết IApprovalInboxService; implementation và DI nằm ở Infrastructure.
-    /// </summary>
     public class ApprovalInboxService : BaseService<ApprovalInboxService>, IApprovalInboxService
     {
         private readonly IApprovalWorkflowOrchestrator<LeaveRequestSubject> _leaveWorkflow;
@@ -43,11 +39,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         {
             try
             {
-                Logger.LogDebugIf(Debug, "[INBOX] GetPending: {Email}", user.Email);
-
                 var leaveItemsTask = _leaveWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct);
                 var otItemsTask = _otWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct);
-
                 await Task.WhenAll(leaveItemsTask, otItemsTask);
 
                 var byModule = new Dictionary<RequestModule, List<PendingApprovalItemDto>>
@@ -57,12 +50,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 };
 
                 var grouped = _groupingPolicy.BuildGroups(byModule);
-                var totalItems = byModule.Values.Sum(x => x.Count);
-                Logger.LogInfoIf(Debug,
-                    "[INBOX] GetPending DONE: {Count} items, {GroupCount} groups",
-                    totalItems,
-                    grouped.Count);
-
                 return ServiceResult<List<PendingApprovalGroupDto>>.Ok(grouped);
             }
             catch (Exception ex)
@@ -85,8 +72,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
 
             try
             {
-                var action = BuildActionDto(ids, kind, level, comment, isReject: false, user);
-
+                var action = BuildActionDto(ids, kind, level, comment, false, user);
                 var result = kind switch
                 {
                     RequestModule.Leave => await _leaveWorkflow.ApproveAsync(action, ct),
@@ -119,14 +105,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         {
             if (ids == null || ids.Count == 0)
                 return ServiceResult.Fail("Không có đơn nào được chọn.");
-
             if (string.IsNullOrWhiteSpace(comment))
                 return ServiceResult.Fail("Lý do từ chối không được để trống.");
 
             try
             {
-                var action = BuildActionDto(ids, kind, level, comment, isReject: true, user);
-
+                var action = BuildActionDto(ids, kind, level, comment, true, user);
                 var result = kind switch
                 {
                     RequestModule.Leave => await _leaveWorkflow.RejectAsync(action, ct),
