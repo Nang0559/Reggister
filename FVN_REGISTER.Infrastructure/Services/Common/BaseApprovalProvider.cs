@@ -15,122 +15,59 @@ using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.Infrastructure.Services.Common;
 
-public abstract class BaseApprovalProvider<TSubject, TProvider>
-    : BaseService<TProvider>
-    where TSubject : IApprovalSubject
-    where TProvider : class
+public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TProvider>
+    where TSubject : IApprovalSubject where TProvider : class
 {
     protected readonly IUnitOfWork _uow;
     protected readonly IEmailService _email;
     protected readonly IApprovalNotificationService _notification;
     protected readonly IEmployeeUserResolver _userResolver;
 
-    protected BaseApprovalProvider(
-        IUnitOfWork uow,
-        IEmailService email,
-        IApprovalNotificationService notification,
-        IEmployeeUserResolver userResolver,
-        ILogger<TProvider> logger,
-        IOptionsMonitor<AuthDebugOptions> options)
-        : base(logger, options)
-    {
-        _uow = uow;
-        _email = email;
-        _notification = notification;
-        _userResolver = userResolver;
-    }
+    protected BaseApprovalProvider(IUnitOfWork uow, IEmailService email, IApprovalNotificationService notification,
+        IEmployeeUserResolver userResolver, ILogger<TProvider> logger, IOptionsMonitor<AuthDebugOptions> options)
+        : base(logger, options) { _uow = uow; _email = email; _notification = notification; _userResolver = userResolver; }
 
     public abstract RequestModule RequestType { get; }
     protected abstract IReadOnlyList<(int Level, string LevelName, string RoleName)> LevelDefs { get; }
     protected abstract bool? ResolveRequired(int level, ApprovalBuildContext ctx);
 
-    public async Task<List<ApprovalStepSnapshotDto>> BuildHierarchyAsync(
-        ApprovalBuildContext ctx, CancellationToken ct)
+    public virtual async Task<List<ApprovalStepSnapshotDto>> BuildHierarchyAsync(ApprovalBuildContext ctx, CancellationToken ct)
     {
         var snapshotSteps = new List<ApprovalStepSnapshotDto>();
-
         foreach (var def in LevelDefs)
         {
             var required = ResolveRequired(def.Level, ctx);
             if (required == null) continue;
-
             var approver = await GetApproverForLevelAsync(def.Level, ctx.DeptCode, ct);
-            if (approver == null)
-            {
-                if (Debug)
-                {
-                    Logger.LogWarning(
-                        "[{Provider}] Không tìm được approver Level {Level} dept={Dept}",
-                        typeof(TProvider).Name, def.Level, ctx.DeptCode);
-                }
-                continue;
-            }
-
-            snapshotSteps.Add(new ApprovalStepSnapshotDto(
-                Level: def.Level,
-                LevelName: def.LevelName,
-                RoleName: def.RoleName,
-                ApproverCode: approver.ApproverCode,
-                ApproverName: approver.ApproverName,
-                ApproverEmail: approver.ApproverEmail,
-                IsRequired: required.Value));
+            if (approver == null) continue;
+            snapshotSteps.Add(new ApprovalStepSnapshotDto(def.Level, def.LevelName, def.RoleName,
+                approver.ApproverCode, approver.ApproverName, approver.ApproverEmail, required.Value));
         }
-
         return snapshotSteps;
     }
 
-    public virtual async Task<ApprovalSnapshotDto> BuildSnapshotAsync(
-        TSubject subject, ApprovalBuildContext ctx, CancellationToken ct)
-    {
-        var steps = await BuildHierarchyAsync(ctx, ct);
+    public virtual async Task<ApprovalSnapshotDto> BuildSnapshotAsync(TSubject subject, ApprovalBuildContext ctx, CancellationToken ct)
+        => new(subject.RequestId, RequestType, DateTime.Now, await BuildHierarchyAsync(ctx, ct));
 
-        return new ApprovalSnapshotDto(
-            RequestId: subject.RequestId,
-            ModuleName: RequestType,
-            CapturedAt: DateTime.Now,
-            Steps: steps);
-    }
-
-    protected async Task<F03Approver?> GetApproverForLevelAsync(
-        int level, string deptCode, CancellationToken ct)
+    protected async Task<F03Approver?> GetApproverForLevelAsync(int level, string deptCode, CancellationToken ct)
     {
-        var baseQuery = _uow.Repository<F03Approver>()
-            .Query()
-            .AsNoTracking()
+        var baseQuery = _uow.Repository<F03Approver>().Query().AsNoTracking()
             .Where(x => x.RequestType == RequestType && x.Level == level && x.IsActive == true);
-
         return await baseQuery.FirstOrDefaultAsync(x => x.ApproveForDeptCode == deptCode, ct)
             ?? await baseQuery.FirstOrDefaultAsync(x => x.ApproveForDeptCode == ApproveForDept.All, ct);
     }
 
-    protected async Task NotifyEmployeeInAppAsync(
-        TSubject subject, ApprovalStatus status, CancellationToken ct)
+    protected async Task NotifyEmployeeInAppAsync(TSubject subject, ApprovalStatus status, CancellationToken ct)
     {
         var creatorUserId = await _userResolver.ResolveUserIdAsync(subject.EmployeeCode, ct);
-        if (creatorUserId is null or <= 0)
-        {
-            if (Debug)
-            {
-                Logger.LogWarning(
-                    "[{Provider}] Bỏ qua in-app: không tìm thấy UserId cho {Code} | RequestId={Id}",
-                    typeof(TProvider).Name, subject.EmployeeCode, subject.RequestId);
-            }
-            return;
-        }
-
-        await _notification.NotifyCreatorInAppAsync(
-            creatorUserId: creatorUserId.Value,
-            creatorEmployeeCode: subject.EmployeeCode,
-            status: status.ToString(),
-            requestId: subject.RequestId,
-            requestType: RequestType,
-            ct: ct);
+        if (creatorUserId is null or <= 0) return;
+        await _notification.NotifyCreatorInAppAsync(creatorUserId.Value, subject.EmployeeCode,
+            status.ToString(), subject.RequestId, RequestType, ct);
     }
 
     public abstract Task<TSubject?> GetSubjectAsync(int requestId, CancellationToken ct);
     public abstract Task<List<TSubject>> GetSubjectsAsync(List<int> requestIds, CancellationToken ct);
     public abstract Task ApplyOverallStatusAsync(int requestId, IReadOnlyList<ApprovalStepCalculatedDto> allSteps, CancellationToken ct);
     public abstract Task NotifyStepCompletedAsync(TSubject subject, ApprovalStepCalculatedDto completedStep, bool isFullyApproved, CancellationToken ct);
-    public abstract Task<PendingApprovalItemDto> ToPendingItemAsync(
-        TSubject subject, List<ApprovalStepCalculatedDto> steps, bool canApprove, CancellationToken ct);
+    public abstract Task<PendingApprovalItemDto> ToPendingItemAsync(TSubject subject, List<ApprovalStepCalculatedDto> steps, bool canApprove, CancellationToken ct);
 }
