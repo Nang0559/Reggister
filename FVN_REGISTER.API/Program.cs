@@ -21,7 +21,6 @@ using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Core.Config;
-
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Infrastructure.Hubs;
 using FVN_REGISTER.Infrastructure.Repositories;
@@ -82,7 +81,6 @@ builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddSignalR();
 
-
 // Common / master data
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<INetworkService, NetworkService>();
@@ -115,6 +113,7 @@ builder.Services.AddScoped<IOTAttendanceStagingService, OTAttendanceStagingServi
 builder.Services.AddScoped<IOTAttendanceReconciliationService, OTAttendanceReconciliationService>();
 builder.Services.AddScoped<IDepartmentStatusService, DepartmentStatusService>();
 builder.Services.AddScoped<IOTTypeManagementService, OTTypeManagementService>();
+builder.Services.AddScoped<IOTEscalationService, OTEscalationService>();
 
 // Auth / users
 builder.Services.AddScoped<IAuditService, AuditService>();
