@@ -1,88 +1,47 @@
-﻿
+@using FVN_REGISTER.Contract.Dtos.OT
+@using FVN_REGISTER.Core.Enums
 
 <MudDialog>
-    <TitleContent>
-        <MudText Typo="Typo.h6">
-            <MudIcon Icon="@Icons.Material.Filled.EventNote" Class="mr-2" />
-            Đơn OT phòng ban ngày @OTDate.ToString("dd/MM/yyyy")
-        </MudText>
-    </TitleContent>
+    <TitleContent><MudText Typo="Typo.h6"><MudIcon Icon="@Icons.Material.Filled.EventNote" Class="mr-2" />Đơn OT phòng ban ngày @OTDate.ToString("dd/MM/yyyy")</MudText></TitleContent>
     <DialogContent>
         @if (TodayRequests.Any())
         {
-            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
-                Có @TodayRequests.Count đơn OT trong ngày này.
-            </MudText>
-
+            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Có @TodayRequests.Count đơn OT trong ngày này.</MudText>
             @foreach (var ot in TodayRequests)
             {
-                <MudCard Elevation="1" Class="mb-2"
-                         Style="@($"border-left:4px solid {OTStatus.GetColor(ot.RequestStatus)};")">
-                    <MudCardContent Class="pb-1">
+                <MudCard Elevation="1" Class="mb-2">
+                    <MudCardContent>
                         <MudGrid AlignItems="AlignItems.Center">
-                            <MudItem xs="12" sm="5">
-                                <MudText Typo="Typo.body2">
-                                    <strong>@ot.OTCode</strong> — @ot.EmployeeName
-                                </MudText>
-                                <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                    @ot.StartTimeText – @ot.EndTimeText
-                                    (@ot.TotalOTHours.ToString("N1")h) · @ot.EmployeeCount người
-                                </MudText>
+                            <MudItem xs="12" sm="6">
+                                <MudText Typo="Typo.body2"><strong>@ot.RequestCode</strong> — @(ot.EmployeeName ?? "—")</MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@ot.TotalHours.ToString("N1")h · @ot.EmployeeCount người</MudText>
                             </MudItem>
-                            <MudItem xs="6" sm="3">
-                                <MudChip T="string" Size="Size.Small" Label="true"
-                                         Style="@($"background:{OTStatus.GetColor(ot.RequestStatus)};color:#fff;")">
-                                    @ot.StatusText
-                                </MudChip>
-                            </MudItem>
-                            <MudItem xs="6" sm="4" Class="d-flex justify-end">
-                                <MudButton Variant="Variant.Outlined" Color="Color.Primary"
-                                           Size="Size.Small"
-                                           StartIcon="@Icons.Material.Filled.PersonAdd"
-                                           OnClick="@(() => JoinOT(ot))"
-                                           Disabled="@IsAlreadyIn(ot)">
-                                    @(IsAlreadyIn(ot) ? "Đã có trong đơn" : "Tham gia đơn này")
-                                </MudButton>
-                            </MudItem>
+                            <MudItem xs="6" sm="3"><MudChip T="string" Size="Size.Small" Color="@GetStatusColor(ot.Status)">@ot.Status</MudChip></MudItem>
+                            <MudItem xs="6" sm="3" Class="d-flex justify-end"><MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small" OnClick="@(() => JoinOT(ot))">Tham gia đơn</MudButton></MudItem>
                         </MudGrid>
                     </MudCardContent>
                 </MudCard>
             }
-
             <MudDivider Class="my-3" />
-            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                       StartIcon="@Icons.Material.Filled.Add"
-                       OnClick="CreateNew">
-                Tạo đơn OT mới trong ngày này
-            </MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateNew">Tạo đơn OT mới</MudButton>
         }
-        else
-        {
-            <MudAlert Severity="Severity.Info">
-                Chưa có đơn OT nào của phòng ban trong ngày này.
-            </MudAlert>
-        }
+        else { <MudAlert Severity="Severity.Info">Chưa có đơn OT nào của phòng ban trong ngày này.</MudAlert> }
     </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="@(() => MudDialog.Cancel())">Đóng</MudButton>
-    </DialogActions>
+    <DialogActions><MudButton OnClick="@(() => MudDialog.Cancel())">Đóng</MudButton></DialogActions>
 </MudDialog>
 
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
-
     [Parameter] public DateTime OTDate { get; set; }
-    [Parameter] public List<OTRequestViewModel> TodayRequests { get; set; } = new();
-    [Parameter] public string CurrentUserCode { get; set; } = "";
-
-    private bool IsAlreadyIn(OTRequestViewModel ot) =>
-        ot.Employees.Any(e => e.EmployeeCode == CurrentUserCode);
-
-    // Trả về OT được chọn để join
-    private void JoinOT(OTRequestViewModel ot) =>
-        MudDialog.Close(DialogResult.Ok(("join", ot.Id)));
-
-    // Trả về signal tạo mới
-    private void CreateNew() =>
-        MudDialog.Close(DialogResult.Ok(("new", 0)));
+    [Parameter] public List<OTSummaryDto> TodayRequests { get; set; } = new();
+    [Parameter] public string CurrentUserCode { get; set; } = string.Empty;
+    private void JoinOT(OTSummaryDto ot) => MudDialog.Close(DialogResult.Ok(("join", ot.Id)));
+    private void CreateNew() => MudDialog.Close(DialogResult.Ok(("new", 0)));
+    private static Color GetStatusColor(ApprovalStatus status) => status switch
+    {
+        ApprovalStatus.Approved => Color.Success,
+        ApprovalStatus.Rejected => Color.Error,
+        ApprovalStatus.Cancelled => Color.Default,
+        _ => Color.Warning
+    };
 }
