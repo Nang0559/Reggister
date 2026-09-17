@@ -44,9 +44,7 @@ global using LeaveApprovalSubject = FVN_REGISTER.Application.Models.Subjects.Lea
 global using IHistoryDispatcher = FVN_REGISTER.Application.Interfaces.Histories.IHistoryDispatcher;
 global using IHistoryHandler = FVN_REGISTER.Application.Interfaces.Histories.IHistoryHandler;
 global using IApprovalSubject = FVN_REGISTER.Application.Interfaces.Approvals.IApprovalSubject;
-global using IApprovalProvider = FVN_REGISTER.Application.Interfaces.Approvals.IApprovalProvider<>;
-global using IApprovalEngine = FVN_REGISTER.Application.Interfaces.Approvals.IApprovalEngine;
-global using Microsoft.Extensions.DependencyInjection.IServiceScopeFactory;
+global using Microsoft.Extensions.DependencyInjection;
 
 namespace FVN_REGISTER.Infrastructure.Models.Entities { }
 namespace FVN_REGISTER.Infrastructure.Models.Entities.Common { }
