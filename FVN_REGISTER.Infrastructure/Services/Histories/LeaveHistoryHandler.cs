@@ -1,8 +1,7 @@
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Histories;
-using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Extensions;
-using FVN_REGISTER.Infrastructure.Services.Histories;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Histories;
