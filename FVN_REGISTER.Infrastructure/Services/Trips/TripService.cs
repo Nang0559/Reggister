@@ -16,9 +16,7 @@ public sealed class TripService : ITripService
     private readonly ICurrentUserService _currentUser;
     private readonly IApprovalWorkflowOrchestrator<TripRequestSubject> _workflow;
 
-    public TripService(
-        IUnitOfWork uow,
-        ICurrentUserService currentUser,
+    public TripService(IUnitOfWork uow, ICurrentUserService currentUser,
         IApprovalWorkflowOrchestrator<TripRequestSubject> workflow)
     {
         _uow = uow;
@@ -30,15 +28,17 @@ public sealed class TripService : ITripService
     {
         var user = _currentUser.GetCurrentUser()
             ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
-
         ValidatePeriod(request.StartDate, request.EndDate);
+
+        var employeeCode = user.EmployeeCode
+            ?? throw new InvalidOperationException("Tài khoản chưa có EmployeeCode.");
 
         var entity = new F03TripRequest
         {
-            EmployeeCode = user.EmployeeCode ?? throw new InvalidOperationException("Tài khoản chưa có EmployeeCode."),
+            EmployeeCode = employeeCode,
             DeptCode = user.DeptCode,
             CreatedBy = user.UserId,
-            TripCode = $"TRIP-{DateTime.Now:yyyyMMdd-HHmmssfff}",
+            TripCode = $"TRIP-{Guid.NewGuid():N}"[..30],
             StartDate = request.StartDate,
             EndDate = request.EndDate,
             Destination = request.Destination.Trim(),
@@ -69,8 +69,8 @@ public sealed class TripService : ITripService
         if (!string.Equals(entity.EmployeeCode, user.EmployeeCode, StringComparison.OrdinalIgnoreCase) && !user.IsAdmin)
             throw new UnauthorizedAccessException("Bạn không có quyền gửi đăng ký này.");
 
-        if (entity.RequestStatus != ApprovalStatus.Draft && entity.RequestStatus != ApprovalStatus.Returned)
-            throw new InvalidOperationException("Chỉ đăng ký Nháp/Trả lại mới được gửi duyệt.");
+        if (entity.RequestStatus != ApprovalStatus.Draft && entity.RequestStatus != ApprovalStatus.NeedsRevision)
+            throw new InvalidOperationException("Chỉ đăng ký Nháp/NeedsRevision mới được gửi duyệt.");
 
         ValidatePeriod(entity.StartDate, entity.EndDate);
         if (string.IsNullOrWhiteSpace(entity.Destination) || string.IsNullOrWhiteSpace(entity.Purpose))
