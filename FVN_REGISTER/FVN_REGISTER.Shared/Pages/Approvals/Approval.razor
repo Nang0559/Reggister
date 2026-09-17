@@ -1,7 +1,9 @@
 @page "/approvals"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Dialogs.Approvals
+@using FVN_REGISTER.Shared.Dialogs
 @using FVN_REGISTER.Shared.Services.Approvals
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils.Helpers
@@ -19,7 +21,7 @@
     <MudStack Spacing="0">
         <MudText Typo="Typo.h5">Danh sách chờ phê duyệt</MudText>
         <MudText Typo="Typo.caption" Class="mud-text-secondary">
-            Tổng @_allItems.Count đơn — Nghỉ phép @_allItems.Count(x => x.Kind == RequestModule.Leave) — OT @_allItems.Count(x => x.Kind == RequestModule.OT)
+            Tổng @_allItems.Count đơn — Nghỉ phép @_allItems.Count(x => x.Kind == RequestModule.Leave) — OT @_allItems.Count(x => x.Kind == RequestModule.Overtime)
             @if (_loadedAt.HasValue) { <span> — @_loadedAt.Value.ToString("HH:mm:ss")</span> }
         </MudText>
     </MudStack>
@@ -29,7 +31,7 @@
                       Immediate="true" Style="min-width:220px" />
         <MudSelect T="RequestModule?" @bind-Value="_kindFilter" Label="Loại đơn" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Leave)">Nghỉ phép</MudSelectItem>
-            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.OT)">OT</MudSelectItem>
+            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Overtime)">OT</MudSelectItem>
         </MudSelect>
         <MudSwitch @bind-Value="_onlyCanApprove" Color="Color.Primary" Label="Chờ tôi duyệt" Size="Size.Small" />
         <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="_loading">Làm mới</MudButton>
@@ -65,7 +67,7 @@
             <MudTd DataLabel="Nhân viên">
                 <MudStack Spacing="0"><MudText Typo="Typo.body2"><b>@context.EmployeeName</b></MudText><MudText Typo="Typo.caption">@context.EmployeeCode — @context.DeptName</MudText></MudStack>
             </MudTd>
-            <MudTd DataLabel="Loại"><MudChip T="string" Size="Size.Small" Color="@(context.Kind == RequestModule.OT ? Color.Warning : Color.Info)">@context.KindDisplay</MudChip></MudTd>
+            <MudTd DataLabel="Loại"><MudChip T="string" Size="Size.Small" Color="@(context.Kind == RequestModule.Overtime ? Color.Warning : Color.Info)">@context.KindDisplay</MudChip></MudTd>
             <MudTd DataLabel="Thời gian">
                 @if (context.FromDate.HasValue)
                 {
@@ -139,10 +141,7 @@
         finally { _loading = false; }
     }
 
-    private async Task OnApproveSingle(PendingApprovalItemDto item)
-    {
-        await ApproveItems(new[] { item });
-    }
+    private async Task OnApproveSingle(PendingApprovalItemDto item) => await ApproveItems(new[] { item });
 
     private async Task OnBatchApprove()
     {
@@ -166,10 +165,7 @@
         finally { _processing = false; }
     }
 
-    private async Task OnRejectSingle(PendingApprovalItemDto item)
-    {
-        await RejectItems(new[] { item }, false);
-    }
+    private async Task OnRejectSingle(PendingApprovalItemDto item) => await RejectItems(new[] { item }, false);
 
     private async Task OpenBatchRejectDialog()
     {
