@@ -1,6 +1,4 @@
 @using FVN_REGISTER.Contract.Dtos.MasterData
-@using FVN_REGISTER.Contract.Dtos.LeaveTypes
-@using FVN_REGISTER.Contract.Core.Enums
 @using FVN_REGISTER.Contract.Requests.Leaves
 @using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.Leaves
@@ -9,67 +7,38 @@
 
 <MudDialog>
     <TitleContent>
-        <MudText Typo="Typo.h6">
-            <MudIcon Icon="@Icons.Material.Filled.EditCalendar" Class="mr-2" />
-            Đăng ký nghỉ phép
-        </MudText>
+        <MudText Typo="Typo.h6"><MudIcon Icon="@Icons.Material.Filled.EditCalendar" Class="mr-2" />Đăng ký nghỉ phép</MudText>
     </TitleContent>
 
     <DialogContent>
         <MudForm @ref="_form">
             <MudGrid Spacing="2">
-                <MudItem xs="12" sm="6">
-                    <MudDatePicker @bind-Date="_startDate" Label="Từ ngày *" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudDatePicker @bind-Date="_endDate" Label="Đến ngày *" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
+                <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_startDate" Label="Từ ngày *" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_endDate" Label="Đến ngày *" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
             </MudGrid>
 
-            <MudTextField @bind-Value="_reason"
-                          Label="Lý do nghỉ *"
-                          Lines="3"
-                          Required="true"
-                          RequiredError="Vui lòng nhập lý do"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Dense"
-                          Class="mt-3" />
+            <MudTextField @bind-Value="_reason" Label="Lý do nghỉ *" Lines="3" Required="true" RequiredError="Vui lòng nhập lý do" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
 
             @if (_details.Any())
             {
                 <MudPaper Class="mt-3 pa-2" Elevation="0" Outlined="true">
                     <MudText Typo="Typo.subtitle2" Class="mb-2">Chi tiết từng ngày</MudText>
                     <MudSimpleTable Dense="true" Striped="true">
-                        <thead>
-                            <tr>
-                                <th>Ngày</th>
-                                <th>Loại nghỉ</th>
-                                <th>Nửa ngày</th>
-                            </tr>
-                        </thead>
+                        <thead><tr><th>Ngày</th><th>Loại nghỉ</th><th>Nửa ngày</th></tr></thead>
                         <tbody>
                             @foreach (var detail in _details)
                             {
                                 <tr>
                                     <td>@detail.LeaveDate.ToString("dd/MM/yyyy")</td>
                                     <td>
-                                        <MudSelect T="string"
-                                                   Value="detail.LeaveTypeCode"
-                                                   ValueChanged="@(code => ChangeLeaveType(detail, code))"
-                                                   Dense="true"
-                                                   Margin="Margin.Dense">
+                                        <MudSelect T="string" Value="detail.LeaveTypeCode" ValueChanged="@(code => ChangeLeaveType(detail, code))" Dense="true" Margin="Margin.Dense">
                                             @foreach (var type in Model.LeaveTypes)
                                             {
                                                 <MudSelectItem Value="@type.LeaveTypeCode">@type.LeaveTypeName</MudSelectItem>
                                             }
                                         </MudSelect>
                                     </td>
-                                    <td>
-                                        <MudCheckBox T="bool"
-                                                     Value="detail.IsHalfDay"
-                                                     ValueChanged="@(value => ChangeHalfDay(detail, value))"
-                                                     Size="Size.Small" />
-                                    </td>
+                                    <td><MudCheckBox T="bool" Value="detail.IsHalfDay" ValueChanged="@(value => ChangeHalfDay(detail, value))" Size="Size.Small" /></td>
                                 </tr>
                             }
                         </tbody>
@@ -83,9 +52,7 @@
                     <MudText Typo="Typo.subtitle2">Quy trình phê duyệt dự kiến</MudText>
                     @foreach (var step in Model.DefaultApprovalFlow.OrderBy(x => x.Level))
                     {
-                        <MudText Typo="Typo.caption" Class="d-block">
-                            Cấp @step.Level — @step.RoleName — @(step.ApproverName ?? step.ApproverEmail ?? "Tự động xác định")
-                        </MudText>
+                        <MudText Typo="Typo.caption" Class="d-block">Cấp @step.Level — @step.RoleName — @(step.ApproverName ?? step.ApproverEmail ?? "Tự động xác định")</MudText>
                     }
                 </MudPaper>
             }
@@ -94,9 +61,7 @@
 
     <DialogActions>
         <MudButton OnClick="Cancel" Variant="Variant.Text">Đóng</MudButton>
-        <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled" Disabled="@_saving">
-            @(_saving ? "Đang gửi..." : "Gửi đơn")
-        </MudButton>
+        <MudButton OnClick="Submit" Color="Color.Primary" Variant="Variant.Filled" Disabled="@_saving">@(_saving ? "Đang gửi..." : "Gửi đơn")</MudButton>
     </DialogActions>
 </MudDialog>
 
@@ -117,34 +82,23 @@
 
     protected override void OnInitialized()
     {
-        if (DateTime.TryParse(DefaultStart, out var start))
-            _startDate = start;
-
-        if (DateTime.TryParse(DefaultEnd, out var end))
-            _endDate = end;
-        else
-            _endDate = _startDate;
-
+        if (DateTime.TryParse(DefaultStart, out var start)) _startDate = start;
+        if (DateTime.TryParse(DefaultEnd, out var end)) _endDate = end;
+        else _endDate = _startDate;
         RebuildDetails();
     }
 
     private void RebuildDetails()
     {
         _details.Clear();
-        if (!_startDate.HasValue || !_endDate.HasValue || _startDate > _endDate)
-            return;
-
+        if (!_startDate.HasValue || !_endDate.HasValue || _startDate > _endDate) return;
         var defaultType = Model.LeaveTypes.FirstOrDefault();
         if (defaultType == null) return;
 
         for (var date = _startDate.Value.Date; date <= _endDate.Value.Date; date = date.AddDays(1))
         {
-            if (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
-                continue;
-
-            if (Model.CompanyHolidays.Any(x => x.Start.Date == date))
-                continue;
-
+            if (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday) continue;
+            if (Model.CompanyHolidays.Any(x => x.Start.Date == date)) continue;
             _details.Add(new LeaveRequestDetailUpsertDto
             {
                 LeaveDate = date,
@@ -155,10 +109,7 @@
         }
     }
 
-    private void ChangeLeaveType(LeaveRequestDetailUpsertDto detail, string code)
-    {
-        detail.LeaveTypeCode = code;
-    }
+    private void ChangeLeaveType(LeaveRequestDetailUpsertDto detail, string code) => detail.LeaveTypeCode = code;
 
     private void ChangeHalfDay(LeaveRequestDetailUpsertDto detail, bool value)
     {
@@ -173,13 +124,11 @@
             Snackbar.Add("Khoảng ngày nghỉ không hợp lệ.", Severity.Warning);
             return;
         }
-
         if (string.IsNullOrWhiteSpace(_reason))
         {
             Snackbar.Add("Vui lòng nhập lý do nghỉ.", Severity.Warning);
             return;
         }
-
         if (!_details.Any())
         {
             Snackbar.Add("Khoảng ngày không có ngày làm việc hợp lệ.", Severity.Warning);
@@ -209,10 +158,7 @@
             await OnSaved.InvokeAsync();
             MudDialog.Close(DialogResult.Ok(true));
         }
-        finally
-        {
-            _saving = false;
-        }
+        finally { _saving = false; }
     }
 
     private void Cancel() => MudDialog.Cancel();
