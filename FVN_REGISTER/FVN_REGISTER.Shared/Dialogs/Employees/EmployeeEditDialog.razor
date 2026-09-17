@@ -1,6 +1,5 @@
-﻿@* File: FVN_REGISTER.Shared/Pages/Admin/EmployeeEditDialog.razor *@
-@using FVN_REGISTER.Contract.ViewModels
-@using FVN_REGISTER.Contract.ViewModels.Departments
+@using FVN_REGISTER.Contract.Dtos.Depts
+@using FVN_REGISTER.Contract.Dtos.Employees
 @using FVN_REGISTER.Shared.Services.Employees
 
 <MudDialog>
@@ -65,6 +64,17 @@
                 </MudItem>
 
                 <MudItem xs="12" sm="6">
+                    <MudSelect T="int?"
+                               Label="Giới tính"
+                               @bind-Value="Model.GenderCode"
+                               Variant="Variant.Outlined"
+                               Clearable="true">
+                        <MudSelectItem T="int?" Value="@((int?)1)">Nam</MudSelectItem>
+                        <MudSelectItem T="int?" Value="@((int?)2)">Nữ</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
                     <MudDatePicker Label="Ngày sinh"
                                    @bind-Date="Model.BirthDate"
                                    Variant="Variant.Outlined"
@@ -79,9 +89,16 @@
                 </MudItem>
 
                 <MudItem xs="12" sm="6">
+                    <MudDatePicker Label="Ngày nghỉ việc"
+                                   @bind-Date="Model.EndWorkingDate"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
                     <MudNumericField T="decimal"
                                      Label="Tổng phép năm (ngày)"
-                                     @bind-Value="Model.TongPhep"
+                                     @bind-Value="Model.TotalLeaveDays"
                                      Variant="Variant.Outlined"
                                      Min="0" Max="30" Step="0.5m" />
                 </MudItem>
@@ -127,12 +144,12 @@
     [Inject] private IEmployeeManagementClientService EmployeeService { get; set; } = default!;
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
 
-    [Parameter] public EmployeeFormViewModel Model { get; set; } = new() { IsActive = true };
-    [Parameter] public List<DepartmentViewModel> Departments { get; set; } = new();
-    [Parameter] public bool LockDept { get; set; } = false;
+    [Parameter] public EmployeeUpsertDto Model { get; set; } = new() { IsActive = true };
+    [Parameter] public List<DepartmentDto> Departments { get; set; } = new();
+    [Parameter] public bool LockDept { get; set; }
 
     private MudForm _form = default!;
-    private bool _isSaving = false;
+    private bool _isSaving;
 
     private async Task Submit()
     {
