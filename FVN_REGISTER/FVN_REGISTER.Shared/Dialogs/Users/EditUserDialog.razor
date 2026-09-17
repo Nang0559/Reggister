@@ -1,13 +1,10 @@
-﻿@* ═══════════════════════════════════════════════════════════
-   FILE: FVN_REGISTER.Shared/Components/Dialogs/EditUserDialog.razor
-═══════════════════════════════════════════════════════════ *@
 @using FVN_REGISTER.Contract.Dtos.Usermanagers
 
 <MudDialog>
     <TitleContent>
         <MudText Typo="Typo.h6">
             <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-2" />
-            Sửa quyền: <b>@Request.UserName</b>
+            Sửa quyền tài khoản
         </MudText>
     </TitleContent>
 
@@ -20,6 +17,11 @@
             <MudSelectItem Value="4">Approver</MudSelectItem>
             <MudSelectItem Value="5">User</MudSelectItem>
         </MudSelect>
+        <MudTextField @bind-Value="Request.DeptCode"
+                      Label="Mã phòng ban"
+                      Variant="Variant.Outlined"
+                      Margin="Margin.Dense"
+                      Class="mt-3" />
     </DialogContent>
 
     <DialogActions>
@@ -35,23 +37,8 @@
 @code {
     [CascadingParameter] IMudDialogInstance MudDialog { get; set; } = default!;
 
-    // Request kèm UserName để hiển thị tiêu đề
-    [Parameter] public EditUserDialogModel Request { get; set; } = new();
+    [Parameter] public UpdateUserRequest Request { get; set; } = new();
 
     private void Submit() => MudDialog.Close(DialogResult.Ok(Request));
     private void Cancel() => MudDialog.Cancel();
-
-    public class EditUserDialogModel
-    {
-        public int IdUser { get; set; }
-        public string UserName { get; set; } = string.Empty;
-        public int PermissionCode { get; set; }
-        public string? DeptCode { get; set; }
-    }
 }
-
-
-@* ═══════════════════════════════════════════════════════════
-   FILE: FVN_REGISTER.Shared/Components/Dialogs/ResetPasswordDialog.razor
-═══════════════════════════════════════════════════════════ *@
-@* Chú ý: tách thành file riêng trong thực tế *@
