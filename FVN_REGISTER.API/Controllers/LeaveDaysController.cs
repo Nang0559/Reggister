@@ -6,7 +6,6 @@ using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Requests.Leaves;
-using FVN_REGISTER.Contract.ViewModels.Approvals;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Utils;
@@ -25,15 +24,7 @@ namespace FVN_REGISTER.API.Controllers
         private readonly ILeaveQueryService _queryService;
         private readonly IApprovalWorkflowOrchestrator<LeaveRequestSubject> _workflow;
 
-        public LeaveDaysController(
-            ILeaveService leaveService,
-            ILeaveQueryService queryService,
-            IApprovalWorkflowOrchestrator<LeaveRequestSubject> workflow,
-            ICurrentUserService currentUser,
-            IUserLogService userLog,
-            IMapper mapper,
-            ILogger<LeaveDaysController> logger,
-            IOptionsMonitor<AuthDebugOptions> options)
+        public LeaveDaysController(ILeaveService leaveService, ILeaveQueryService queryService, IApprovalWorkflowOrchestrator<LeaveRequestSubject> workflow, ICurrentUserService currentUser, IUserLogService userLog, IMapper mapper, ILogger<LeaveDaysController> logger, IOptionsMonitor<AuthDebugOptions> options)
             : base(currentUser, userLog, mapper, logger, options)
         {
             _leaveService = leaveService;
@@ -64,26 +55,25 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpPost("approve")]
-        public async Task<IActionResult> Approve([FromBody] ApproveRequest req, CancellationToken ct)
+        public async Task<IActionResult> Approve([FromBody] ApprovalCommand request, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
-            return HandleResult(await _leaveService.ApproveAsync(req.Ids, req.Level, UserInfo, req.Comment, ct));
+            return HandleResult(await _leaveService.ApproveAsync(request.Ids, request.Level, UserInfo, request.Comment, ct));
         }
 
         [HttpPost("reject")]
-        public async Task<IActionResult> Reject([FromBody] ApproveRequest req, CancellationToken ct)
+        public async Task<IActionResult> Reject([FromBody] ApprovalCommand request, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
-            if (string.IsNullOrWhiteSpace(req.Comment)) return BadRequest(ApiResponse<object>.Fail("Lý do từ chối không được để trống."));
-            return HandleResult(await _leaveService.RejectAsync(req.Ids, req.Level, UserInfo, req.Comment!, ct));
+            if (string.IsNullOrWhiteSpace(request.Comment)) return BadRequest(ApiResponse<object>.Fail("Lý do từ chối không được để trống."));
+            return HandleResult(await _leaveService.RejectAsync(request.Ids, request.Level, UserInfo, request.Comment!, ct));
         }
 
         [HttpGet("pending")]
         public async Task<IActionResult> GetPending(CancellationToken ct)
         {
             if (UserInfo?.Email == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            var result = await _workflow.GetPendingForApproverAsync(UserInfo.Email, ct);
-            return Ok(ApiResponse<List<PendingApprovalItemDto>>.Ok(result));
+            return Ok(ApiResponse<List<PendingApprovalItemDto>>.Ok(await _workflow.GetPendingForApproverAsync(UserInfo.Email, ct)));
         }
 
         [HttpGet("pending-summary")]
@@ -91,10 +81,7 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (UserInfo?.Email == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             var items = await _workflow.GetPendingForApproverAsync(UserInfo.Email, ct);
-            var summary = items.GroupBy(x => x.CurrentApprovalLevel)
-                .OrderBy(x => x.Key)
-                .Select(x => new { Level = x.Key, Count = x.Count() })
-                .ToList();
+            var summary = items.GroupBy(x => x.CurrentApprovalLevel).OrderBy(x => x.Key).Select(x => new { Level = x.Key, Count = x.Count() }).ToList();
             return Ok(ApiResponse<object>.Ok(summary));
         }
 
@@ -102,8 +89,7 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> GetBalance(int year, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
-            return Ok(ApiResponse<LeaveBalanceDto>.Ok(
-                await _queryService.GetSimpleBalanceAsync(UserInfo.EmployeeCode ?? "", year, ct)));
+            return Ok(ApiResponse<LeaveBalanceDto>.Ok(await _queryService.GetSimpleBalanceAsync(UserInfo.EmployeeCode ?? "", year, ct)));
         }
 
         [HttpGet("details/{id:int}")]
@@ -117,14 +103,7 @@ namespace FVN_REGISTER.API.Controllers
             ApprovalStatus? parsedStatus = null;
             if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<ApprovalStatus>(status, true, out var statusValue)) parsedStatus = statusValue;
             var selectedYear = year ?? DateTime.Now.Year;
-            var result = await _queryService.GetPagedAsync(
-                UserInfo.DeptCode,
-                parsedStatus,
-                new DateTime(selectedYear, 1, 1),
-                new DateTime(selectedYear, 12, 31),
-                page,
-                pageSize,
-                ct);
+            var result = await _queryService.GetPagedAsync(UserInfo.DeptCode, parsedStatus, new DateTime(selectedYear, 1, 1), new DateTime(selectedYear, 12, 31), page, pageSize, ct);
             return HandleResult(ServiceResult<PaginationResult<LeaveSummaryDto>>.Ok(result));
         }
 
@@ -132,15 +111,11 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> GetRecent([FromQuery] int limit = 5, CancellationToken ct = default)
         {
             if (UserInfo?.EmployeeCode == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
-            var result = await _queryService.GetRecentSummaryAsync(UserInfo.EmployeeCode, limit, ct);
-            return Ok(ApiResponse<List<LeaveSummaryDto>>.Ok(result));
+            return Ok(ApiResponse<List<LeaveSummaryDto>>.Ok(await _queryService.GetRecentSummaryAsync(UserInfo.EmployeeCode, limit, ct)));
         }
     }
 
+    public record ApprovalCommand(List<int> Ids, int Level, string? Comment);
     public record CancelLeaveBody(string Reason);
-
-    public class CancelDetailRequest
-    {
-        public string Reason { get; set; } = "";
-    }
+    public class CancelDetailRequest { public string Reason { get; set; } = ""; }
 }
