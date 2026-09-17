@@ -55,14 +55,14 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpPost("approve")]
-        public async Task<IActionResult> Approve([FromBody] ApprovalCommand request, CancellationToken ct)
+        public async Task<IActionResult> Approve([FromBody] LeaveApprovalCommand request, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
             return HandleResult(await _leaveService.ApproveAsync(request.Ids, request.Level, UserInfo, request.Comment, ct));
         }
 
         [HttpPost("reject")]
-        public async Task<IActionResult> Reject([FromBody] ApprovalCommand request, CancellationToken ct)
+        public async Task<IActionResult> Reject([FromBody] LeaveApprovalCommand request, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
             if (string.IsNullOrWhiteSpace(request.Comment)) return BadRequest(ApiResponse<object>.Fail("Lý do từ chối không được để trống."));
@@ -93,8 +93,7 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpGet("details/{id:int}")]
-        public async Task<IActionResult> GetDetails(int id, CancellationToken ct)
-            => HandleResult(await _queryService.GetFullDetailsAsync(id, ct));
+        public async Task<IActionResult> GetDetails(int id, CancellationToken ct) => HandleResult(await _queryService.GetFullDetailsAsync(id, ct));
 
         [HttpGet("history")]
         public async Task<IActionResult> GetHistory([FromQuery] int? year, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
@@ -115,7 +114,7 @@ namespace FVN_REGISTER.API.Controllers
         }
     }
 
-    public record ApprovalCommand(List<int> Ids, int Level, string? Comment);
+    public record LeaveApprovalCommand(List<int> Ids, int Level, string? Comment);
     public record CancelLeaveBody(string Reason);
     public class CancelDetailRequest { public string Reason { get; set; } = ""; }
 }
