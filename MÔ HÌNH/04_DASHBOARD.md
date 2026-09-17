@@ -4,30 +4,50 @@
 
 Dashboard là read-only aggregation layer. Nó tổng hợp pending approvals và đóng góp dashboard từ từng module, sau đó trả một `DashboardResponse` cho Blazor client.
 
-## 2. Luồng request
+## 2. Sơ đồ tổng thể
 
-```text
-DashboardPage.razor / Home.razor
-        │ OnInitializedAsync
-        ▼
-IDashboardClientService
-        │
-        ▼
-DashboardClientService
-        │ HTTP GET api/dashboard
-        ▼
-DashboardController
-        ▼
-IDashboardOrchestrator
-        ▼
-DashboardOrchestrator
-        ▼
-DashboardResponse
-        ▼
-DashboardOverview.razor / UserDashboard.razor
+```mermaid
+flowchart LR
+    UI[DashboardPage / Home] --> CS[IDashboardClientService]
+    CS --> API[DashboardController]
+    API --> O[IDashboardOrchestrator]
+    O --> P[IModuleDashboardProvider[]]
+    O --> A[Pending Approval Aggregation]
+    O --> POL[DashboardWidgetPolicy]
+    P --> R[DashboardResponse]
+    A --> R
+    POL --> R
+    R --> UI
 ```
 
-## 3. DashboardOrchestrator
+## 3. Request sequence
+
+```mermaid
+sequenceDiagram
+    participant UI as Blazor Dashboard
+    participant C as DashboardClientService
+    participant API as DashboardController
+    participant O as DashboardOrchestrator
+    participant P as Module Providers
+    participant AP as Approval Aggregation
+    participant W as DashboardWidgetPolicy
+
+    UI->>C: Load dashboard
+    C->>API: GET api/dashboard
+    API->>O: GetOverviewAsync(user)
+    par Pending approvals
+        O->>AP: GetAllPendingAsync()
+    and Module contributions
+        O->>P: GetContributionAsync(user)
+    end
+    O->>W: Filter / order widgets
+    W-->>O: Allowed widgets
+    O-->>API: DashboardResponse
+    API-->>C: DTO response
+    C-->>UI: Render widgets
+```
+
+## 4. DashboardOrchestrator
 
 `DashboardOrchestrator` chịu trách nhiệm điều phối, không trực tiếp truy cập `DbContext`.
 
@@ -39,7 +59,19 @@ Các bước chính:
 4. áp dụng `DashboardWidgetPolicy` để lọc/sắp xếp widget theo user;
 5. dựng `DashboardResponse`.
 
-## 4. Module Dashboard Provider
+## 5. Module Dashboard Provider
+
+```mermaid
+flowchart TB
+    O[DashboardOrchestrator] --> P[IModuleDashboardProvider]
+    P --> L[LeaveDashboardProvider]
+    P --> OT[OTDashboardProvider]
+    P --> T[TripDashboardProvider - future]
+    L --> LQ[ILeaveQueryService]
+    L --> LS[IStatisticsService]
+    OT --> OQ[IOTQueryService]
+    T -. requires Trip Query service .-> TQ[Trip Query Service]
+```
 
 Contract:
 
@@ -49,94 +81,77 @@ IModuleDashboardProvider
         → Task<ModuleDashboardContribution>
 ```
 
-Mỗi module tự chịu trách nhiệm biết cách lấy dữ liệu dashboard của nó.
-
-Các implementation được tài liệu hóa:
-
-```text
-LeaveDashboardProvider
-  → ILeaveQueryService + IStatisticsService
-
-OTDashboardProvider
-  → IOTQueryService + ...
-
-TripDashboardProvider
-  → CHƯA BUILD; thêm khi Trip có Query service
-```
-
-Provider được đăng ký DI dạng collection.
+Mỗi module tự chịu trách nhiệm biết cách lấy dữ liệu dashboard của nó. Provider được đăng ký DI dạng collection.
 
 ### Nguyên tắc mở rộng
 
-Thêm module mới:
-
-```text
-new XxxDashboardProvider
-       +
-DI registration
+```mermaid
+flowchart LR
+    C[IModuleDashboardProvider] --> A[Existing modules]
+    C --> X[New XxxDashboardProvider]
+    X --> DI[DI registration]
+    O[DashboardOrchestrator] -. không sửa .-> X
 ```
 
-Không sửa `DashboardOrchestrator` chỉ để biết module mới.
+Thêm module mới không sửa `DashboardOrchestrator` chỉ để biết module mới.
 
-## 5. Contribution model
+## 6. Contribution model
 
-```text
-ModuleDashboardContribution
- ├─ Module : RequestModule
- ├─ Widgets : List<WidgetCounterDto>
- └─ Detail : object?
+```mermaid
+classDiagram
+    class ModuleDashboardContribution {
+        +RequestModule Module
+        +List~WidgetCounterDto~ Widgets
+        +object Detail
+    }
+    class WidgetCounterDto
+    ModuleDashboardContribution --> WidgetCounterDto
 ```
 
-`Detail` có thể khác kiểu giữa các module. Tài liệu tổng hợp yêu cầu khi đọc contribution phải dùng kiểm tra kiểu an toàn (`is` pattern) và log warning nếu kiểu không đúng, thay vì dùng `as` khiến lỗi bị im lặng.
+`Detail` có thể khác kiểu giữa các module. Khi đọc contribution phải dùng kiểm tra kiểu an toàn (`is` pattern) và log warning nếu kiểu không đúng, thay vì dùng `as` khiến lỗi bị im lặng.
 
-## 6. DashboardWidgetPolicy
+## 7. DashboardWidgetPolicy
 
-`DashboardWidgetPolicy` thuộc `Application/Policies`.
+```mermaid
+flowchart LR
+    C[Module Contributions] --> P[DashboardWidgetPolicy]
+    U[User / Permission Context] --> P
+    P --> F[Filter allowed widgets]
+    F --> S[Sort widgets]
+    S --> R[DashboardResponse]
+```
 
-Đây là pure logic:
+`DashboardWidgetPolicy` thuộc `Application/Policies`. Đây là pure logic: không I/O, không query DB, lọc widget theo quyền/context user và sắp xếp thứ tự widget.
 
-- không I/O;
-- không query DB;
-- lọc widget theo quyền/context user;
-- sắp xếp thứ tự widget.
-
-Vai trò tương tự `NotificationFactory`: domain/application policy không phụ thuộc Infrastructure.
-
-## 7. Approval aggregation
+## 8. Approval aggregation
 
 Dashboard cần pending approvals đa module nhưng không được query lại từng bảng Leave/OT.
 
-Mô hình chuẩn là reuse approval aggregation đã có trong D2:
-
-```text
-Approval handlers / dispatcher
-        ↓
-GetAllPendingAsync()
-        ↓
-DashboardOrchestrator
+```mermaid
+flowchart LR
+    D2[D2 Approval handlers / dispatcher] --> I[GetAllPendingAsync]
+    I --> O[DashboardOrchestrator]
+    O --> R[DashboardResponse]
 ```
 
-Trong bản tài liệu tổng hợp cũ, component được gọi là `IApprovalInboxService`; bản chốt D1→D5 mô tả cơ chế inbox đa module được gộp vào các approval handlers/dispatcher. Khi code thực tế được cập nhật, cần giữ một nguồn aggregation duy nhất để tránh duplicate query logic.
+Trong bản tài liệu tổng hợp cũ, component được gọi là `IApprovalInboxService`; bản chốt D1→D5 mô tả cơ chế inbox đa module được gộp vào approval handlers/dispatcher. Khi code thực tế được cập nhật, cần giữ một nguồn aggregation duy nhất để tránh duplicate query logic.
 
-## 8. Response boundary
+## 9. Response boundary
 
-```text
-Provider contributions
-        ↓
-DashboardWidgetPolicy
-        ↓
-DashboardResponse
-        ↓
-API
-        ↓
-DashboardClientService
-        ↓
-Blazor UI
+```mermaid
+flowchart LR
+    DB[(Data sources)] --> P[Providers]
+    P --> C[ModuleDashboardContribution]
+    C --> POL[DashboardWidgetPolicy]
+    POL --> R[DashboardResponse]
+    R --> API[API]
+    API --> CS[DashboardClientService]
+    CS --> UI[Blazor]
 ```
 
 Không trả EF entities từ provider/API.
 
-## 9. Namespace
+## 10. Namespace
 
 | Thành phần | Vị trí |
 |---|---|
@@ -150,7 +165,7 @@ Không trả EF entities từ provider/API.
 | Client service | `Shared/Services/Dashboards` |
 | Page | `Shared/Pages` / Blazor Pages |
 
-## 10. Trạng thái
+## 11. Trạng thái
 
 - Leave provider: đã được mô tả.
 - OT provider: đã được mô tả.
