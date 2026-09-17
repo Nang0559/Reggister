@@ -64,14 +64,8 @@ namespace FVN_REGISTER.Shared.Services.Users
                     if (_authStateProvider is CustomAuthStateProvider provider)
                         provider.NotifyUserLogin(token);
 
-                    _logger.LogInformation("Login success: {User}", username);
                     return result;
                 }
-
-                _logger.LogWarning(
-                    "Login failed: {User} | {Msg}",
-                    username,
-                    result?.Message);
 
                 return result ?? ApiResponse<AuthResultDto>.Fail("Sai tài khoản hoặc mật khẩu.");
             }
@@ -86,12 +80,12 @@ namespace FVN_REGISTER.Shared.Services.Users
             }
         }
 
-        public async Task<ApiResponse<AuthResultDto>> GetProfileAsync(
+        public async Task<ApiResponse<UserIdentityDto>> GetProfileAsync(
             CancellationToken ct = default)
         {
             try
             {
-                return await _authHttp.GetAsync<AuthResultDto>("api/auth/profile", ct);
+                return await _authHttp.GetAsync<UserIdentityDto>("api/auth/profile", ct);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -100,7 +94,7 @@ namespace FVN_REGISTER.Shared.Services.Users
             catch (Exception ex)
             {
                 _logger.LogError(ex, "GetProfile failed");
-                return ApiResponse<AuthResultDto>.Fail("Lỗi lấy thông tin người dùng.");
+                return ApiResponse<UserIdentityDto>.Fail("Lỗi lấy thông tin người dùng.");
             }
         }
 
@@ -158,9 +152,10 @@ namespace FVN_REGISTER.Shared.Services.Users
         {
             try
             {
-                var request = new LogoutRequestDto();
-                await _authHttp.PostAsync<object>("api/auth/logout", request, ct);
-                _logger.LogInformation("Logout API called");
+                await _authHttp.PostAsync<object>(
+                    "api/auth/logout",
+                    new LogoutRequestDto(),
+                    ct);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -177,8 +172,6 @@ namespace FVN_REGISTER.Shared.Services.Users
 
                 if (_authStateProvider is CustomAuthStateProvider provider)
                     provider.NotifyUserLogout();
-
-                _logger.LogInformation("Client logout completed");
             }
         }
     }
