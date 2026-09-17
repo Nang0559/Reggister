@@ -1,16 +1,15 @@
-﻿@page "/admin/ot-sync"
+@page "/admin/ot-sync"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Depts
 @using FVN_REGISTER.Contract.Dtos.OT
 @using FVN_REGISTER.Shared.Services.OTs
-@using FVN_REGISTER.Shared.Utils.Helpers
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IDisposable
 
 @inject IOTSyncClientService SyncService
 @inject ISnackbar Snackbar
-@inject IDeptClientService DeptService
+
 <PageTitle>Đồng bộ chấm công OT</PageTitle>
 
 <MudText Typo="Typo.h5" Class="mb-1">
@@ -18,579 +17,217 @@
     Đồng bộ giờ OT thực tế
 </MudText>
 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
-    Đọc dữ liệu chấm công từ HRM → đối chiếu với đơn OT đã đăng ký
+    Đồng bộ HRM và đối chiếu giờ OT theo ngày/phòng ban
 </MudText>
 
-@* ── WORKER STATUS ── *@
 <MudCard Elevation="2" Class="mb-4">
     <MudCardHeader>
-        <CardHeaderContent>
-            <MudText Typo="Typo.subtitle1">
-                <MudIcon Icon="@Icons.Material.Filled.MonitorHeart" Class="mr-1" />
-                Trạng thái Background Worker
-            </MudText>
-        </CardHeaderContent>
-        <CardHeaderActions>
-            <MudIconButton Icon="@Icons.Material.Filled.Refresh"
-                           OnClick="CheckWorkerStatus"
-                           Disabled="_checkingStatus" />
-        </CardHeaderActions>
+        <CardHeaderContent><MudText Typo="Typo.subtitle1"><MudIcon Icon="@Icons.Material.Filled.MonitorHeart" Class="mr-1" /> Trạng thái Background Worker</MudText></CardHeaderContent>
+        <CardHeaderActions><MudIconButton Icon="@Icons.Material.Filled.Refresh" OnClick="CheckWorkerStatus" Disabled="_checkingStatus" /></CardHeaderActions>
     </MudCardHeader>
     <MudCardContent>
         @if (_workerStatus == null)
         {
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                Bấm nút refresh để kiểm tra.
-            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Chưa tải trạng thái.</MudText>
         }
         else
         {
-            @* 🔥 FIX: dùng _workerStatus.Status (không phải StateText) để check màu *@
-            var chipColor = _workerStatus.State switch
-            {
-                "RUNNING" => Color.Success,
-                "WAITING" => Color.Info,
-                "ERROR" => Color.Error,
-                "STOPPED" => Color.Default,
-                _ => Color.Warning
-            };
-            var chipIcon = _workerStatus.State switch
-            {
-                "RUNNING" => Icons.Material.Filled.PlayCircle,
-                "WAITING" => Icons.Material.Filled.HourglassEmpty,
-                "ERROR" => Icons.Material.Filled.Error,
-                "STOPPED" => Icons.Material.Filled.StopCircle,
-                _ => Icons.Material.Filled.Help
-            };
-
-            <MudStack Spacing="2">
-                @* Hàng 1: trạng thái + mô tả *@
-                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                    <MudChip T="string"
-                             Color="@chipColor"
-                             Icon="@chipIcon"
-                             Label="true">
-                        @_workerStatus.State
-                    </MudChip>
-                    <MudText Typo="Typo.body2">@_workerStatus.StateText</MudText>
-                </MudStack>
-
-                @* Hàng 2: thời gian *@
-                <MudStack Row="true" Spacing="4" Wrap="Wrap.Wrap">
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        Lần chạy tiếp:
-                        @* 🔥 FIX: NextRunAt là DateTime? — format đúng *@
-                        <strong>
-                            @(_workerStatus.NextRunAt.HasValue
-                                                    ? _workerStatus.NextRunAt.Value.ToString("dd/MM/yyyy HH:mm")
-                                                    : "—")
-                    </strong>
-                </MudText>
-
-                @if (_workerStatus.LastRunAt.HasValue)
-                    {
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            Lần chạy trước:
-                            <strong>@_workerStatus.LastRunAt.Value.ToString("dd/MM/yyyy HH:mm")</strong>
-                        </MudText>
-                    }
-
-                    @if (_workerStatus.LastRunFinishedAt.HasValue)
-                    {
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">
-                            Hoàn thành lúc:
-                            <strong>@_workerStatus.LastRunFinishedAt.Value.ToString("HH:mm:ss")</strong>
-                        </MudText>
-                    }
-
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        Server time: @_workerStatus.ServerTime
-                    </MudText>
-                </MudStack>
-
-                @* Hàng 3: kết quả lần chạy gần nhất *@
-                @if (!string.IsNullOrEmpty(_workerStatus.LastRunResult))
-                {
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-                        <MudChip T="string" Size="Size.Small" Label="true"
-                                 Color="@(_workerStatus.LastRunResult == "OK"
-                                                                      ? Color.Success : Color.Error)">
-                    @_workerStatus.LastRunResult
-                </MudChip>
-                @if (!string.IsNullOrEmpty(_workerStatus.LastRunMessage))
-                        {
-                            <MudText Typo="Typo.caption">@_workerStatus.LastRunMessage</MudText>
-                        }
-                        @if (_workerStatus.LastSyncedCount.HasValue)
-                        {
-                            <MudChip T="string" Size="Size.Small" Color="Color.Info" Label="true">
-                                @_workerStatus.LastSyncedCount bản ghi cần xử lý
-                            </MudChip>
-                        }
-                    </MudStack>
-                }
+            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2" Wrap="Wrap.Wrap">
+                <MudChip T="string" Color="@GetWorkerColor(_workerStatus.State)">@_workerStatus.State</MudChip>
+                <MudText Typo="Typo.body2">@_workerStatus.StateText</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">Server: @_workerStatus.ServerTime</MudText>
+                @if (_workerStatus.LastRunAt.HasValue) { <MudText Typo="Typo.caption">Lần chạy: @_workerStatus.LastRunAt.Value.ToString("dd/MM HH:mm:ss")</MudText> }
             </MudStack>
         }
     </MudCardContent>
 </MudCard>
 
-@* ── TOOLBAR ── *@
 <MudCard Elevation="2" Class="mb-4">
     <MudCardContent>
         <MudGrid AlignItems="AlignItems.Center">
-
-            @* Ngày *@
             <MudItem xs="12" sm="3">
-                <MudDatePicker Label="Ngày cần đồng bộ"
-                               Date="_selectedDate"
-                               DateChanged="OnDateChanged"
-                               Variant="Variant.Outlined"
-                               Margin="Margin.Dense"
-                               DateFormat="dd/MM/yyyy" />
+                <MudDatePicker Label="Ngày cần đồng bộ" @bind-Date="_selectedDate" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" />
             </MudItem>
-
-            @* Multi-select phòng ban *@
             <MudItem xs="12" sm="4">
-                @if (_loadingDepts)
-                {
-                    <MudSkeleton Height="40px" Animation="Animation.Wave" />
-                }
-                else
-                {
-                    <MudSelect T="string"
-                               MultiSelection="true"
-                               SelectedValues="_selectedDeptCodes"
-                               SelectedValuesChanged="OnDeptsChanged"
-                               Label="Phòng ban (để trống = tất cả)"
-                               Variant="Variant.Outlined"
-                               Margin="Margin.Dense"
-                               Clearable="true"
-                               MultiSelectionTextFunc="@(_ => SelectedDeptsLabel)"
-                               MaxHeight="300"
-                               AnchorOrigin="Origin.BottomCenter"
-                               AdornmentIcon="@Icons.Material.Filled.Business">
-                        @foreach (var dept in _departments)
-                        {
-                            <MudSelectItem T="string" Value="@dept.DeptCode">
-                                @dept.DeptName
-                            </MudSelectItem>
-                        }
-                    </MudSelect>
-                }
-
-                @* Chips dept đã chọn *@
-                @if (_selectedDeptCodes.Any())
-                {
-                    <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" Class="mt-1">
-                        @foreach (var code in _selectedDeptCodes.ToList())
-                        {
-                            var name = _departments
-                            .FirstOrDefault(d => d.DeptCode == code)?.DeptName ?? code;
-                            <MudChip T="string"
-                                     Size="Size.Small"
-                                     Color="Color.Primary"
-                                     OnClose="@(() => RemoveDept(code))"
-                                     Text="@name" />
-                        }
-                    </MudStack>
-                }
+                <MudSelect T="string" @bind-Value="_selectedDept" Label="Phòng ban" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    @foreach (var dept in _departments)
+                    {
+                        <MudSelectItem Value="@dept.DeptCode">@dept.DeptName</MudSelectItem>
+                    }
+                </MudSelect>
             </MudItem>
-
-            @* Buttons *@
             <MudItem xs="12" sm="5">
                 <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
-                    <MudButton Variant="Variant.Outlined"
-                               Color="Color.Primary"
-                               StartIcon="@Icons.Material.Filled.Search"
-                               OnClick="LoadUnconfirmed"
-                               Disabled="_isLoading">
-                        Xem danh sách
-                    </MudButton>
-
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Warning"
-                               StartIcon="@Icons.Material.Filled.Sync"
-                               OnClick="TriggerSync"
-                               Disabled="_isSyncing">
+                    <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Sync" OnClick="TriggerSync" Disabled="_isSyncing">
                         @(_isSyncing ? "Đang sync..." : "Sync ngay")
                     </MudButton>
-
-                    <MudButton Variant="Variant.Filled"
-                               Color="Color.Secondary"
-                               StartIcon="@Icons.Material.Filled.BugReport"
-                               OnClick="TestWorkerRun"
-                               Disabled="_isTesting">
-                        @(_isTesting ? "Đang Chạy Thủ Công..." : "Thủ Công Worker")
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="TriggerWorker" Disabled="_isReconciling">
+                        @(_isReconciling ? "Đang đối chiếu..." : "Đối chiếu ngay")
+                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.BugReport" OnClick="TestWorkerRun" Disabled="_isTesting">
+                        @(_isTesting ? "Đang test..." : "Test worker")
                     </MudButton>
                 </MudStack>
             </MudItem>
-
         </MudGrid>
     </MudCardContent>
 </MudCard>
 
-@* ── KẾT QUẢ SYNC ── *@
 @if (_syncResult != null)
 {
-    <MudAlert Severity="@(_syncResult.IsSuccess? Severity.Success: Severity.Error)"
-              Class="mb-4" Dense="true">
-        <strong>@_syncResult.Message</strong>
-        <MudStack Row="true" Spacing="3" Class="mt-1">
-            <MudText Typo="Typo.caption">
-                Đọc từ HRM: <strong>@_syncResult.SyncedFromHRM</strong>
-            </MudText>
-            <MudText Typo="Typo.caption">
-                Cập nhật đơn: <strong>@_syncResult.SyncedCount</strong>
-            </MudText>
-            <MudText Typo="Typo.caption" Color="Color.Warning">
-                Cần xử lý: <strong>@_syncResult.UnconfirmedCount</strong>
-            </MudText>
-        </MudStack>
+    <MudAlert Severity="Severity.Success" Dense="true" Class="mb-4">
+        Đã đồng bộ ngày @_syncResult.WorkDate.ToString("dd/MM/yyyy"): <strong>@_syncResult.SyncedCount</strong> bản ghi.
     </MudAlert>
 }
 
-@* ── DANH SÁCH ── *@
-@if (_isLoading)
+@if (_testResult != null)
 {
-    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-4" />
-}
-else if (_items.Any())
-{
-    <MudText Typo="Typo.subtitle1" Class="mb-2">
-        Danh sách đối chiếu
-        <MudChip T="string" Size="Size.Small" Color="Color.Primary"
-                 Label="true" Class="ml-1">
-            @_items.Count bản ghi
-        </MudChip>
-    </MudText>
-
-    <MudDataGrid T="OTUnconfirmedDto"
-                 Items="_items"
-                 Dense="true"
-                 Hover="true"
-                 Striped="true"
-                 Filterable="true"
-                 QuickFilter="_quickFilter">
-        <ToolBarContent>
-            <MudTextField @bind-Value="_searchText"
-                          Placeholder="Tìm kiếm tên, mã NV, phòng ban..."
-                          Adornment="Adornment.Start"
-                          AdornmentIcon="@Icons.Material.Filled.Search"
-                          Variant="Variant.Outlined"
-                          Margin="Margin.Dense"
-                          Immediate="true"
-                          Class="mr-3" />
-        </ToolBarContent>
-        <Columns>
-            <PropertyColumn Property="x => x.DeptName" Title="Phòng ban" />
-            <PropertyColumn Property="x => x.FullName" Title="Họ tên" />
-            <PropertyColumn Property="x => x.EmployeeCode" Title="Mã NV" />
-
-            @* ✅ [THÊM] Ca làm việc *@
-            <PropertyColumn Property="x => x.ShiftName" Title="Ca" />
-
-            <PropertyColumn Property="x => x.CheckInText" Title="Giờ vào" />
-            <PropertyColumn Property="x => x.CheckOutText" Title="Giờ ra" />
-
-            @* ✅ [THÊM] Tổng giờ có mặt *@
-            <PropertyColumn Property="x => x.TotalHours" Title="Tổng giờ" Format="N2" />
-
-            <PropertyColumn Property="x => x.OTHoursActual"
-                            Title="OT thực tế" Format="N1" />
-            <PropertyColumn Property="x => x.OTHoursPlanned"
-                            Title="OT kế hoạch" Format="N1" />
-
-            @* ✅ [THÊM] Loại giờ — phân biệt HC thường / OT thường / OT lễ / OT CN / T7 *@
-            <TemplateColumn Title="Loại giờ">
-                <CellTemplate>
-                    @{
-                        var (stColor, stIcon, stLabel) = context.Item.ShiftType switch
-                        {
-                            "HC_NORMAL" => (Color.Default, Icons.Material.Filled.CheckCircleOutline, "Giờ HC"),
-                            "HC_OT" => (Color.Warning, Icons.Material.Filled.AccessTime, "OT thường"),
-                            "OT_HOLIDAY" => (Color.Error, Icons.Material.Filled.Celebration, "OT Lễ"),
-                            "OT_SUNDAY" => (Color.Secondary, Icons.Material.Filled.Weekend, "OT CN"),
-                            "OT_SATURDAY" => (Color.Info, Icons.Material.Filled.Weekend, "OT T7"),
-                            "NO_CHECKOUT" => (Color.Dark, Icons.Material.Filled.ErrorOutline, "Chưa Check-out"),
-                            _ => (Color.Default, Icons.Material.Filled.Help, context.Item.ShiftType ?? "—")
-                        };
-                    }
-                    @* ✅ [FIX] DTO không có HolidayDesc — dùng HolidayType *@
-                    <MudTooltip Text="@context.Item.HolidayType">
-                        <MudChip T="string" Size="Size.Small" Color="@stColor" Icon="@stIcon" Label="true">
-                            @stLabel
-                        </MudChip>
-                    </MudTooltip>
-                </CellTemplate>
-            </TemplateColumn>
-
-            <TemplateColumn Title="Tình huống">
-                <CellTemplate>
-                    @{
-                        var (chipColor, chipIcon) = context.Item.TinhHuong switch
-                        {
-                            "CHUA_CO_DON" => (Color.Error, Icons.Material.Filled.Warning),
-                            "DON_CHUA_DUYET" => (Color.Warning, Icons.Material.Filled.HourglassEmpty),
-                            "DA_XU_LY" => (Color.Success, Icons.Material.Filled.CheckCircle),
-                            _ => (Color.Info, Icons.Material.Filled.Info)
-                        };
-                    }
-                    <MudChip T="string" Size="Size.Small"
-                             Color="chipColor" Icon="@chipIcon" Label="true">
-                        @context.Item.TinhHuong
-                    </MudChip>
-                </CellTemplate>
-            </TemplateColumn>
-
-            <PropertyColumn Property="x => x.OTCode" Title="Mã đơn OT" />
-            <PropertyColumn Property="x => x.RequestStatus" Title="Trạng thái đơn" />
-        </Columns>
-    <PagerContent>
-        <MudDataGridPager T="OTUnconfirmedDto" />
-    </PagerContent>
-</MudDataGrid>
-}
-else if (_hasLoaded)
-{
-    <MudAlert Severity="Severity.Info">
-        Không có bản ghi nào cho ngày @(_selectedDate?.ToString("dd/MM/yyyy"))
-        @(SelectedDeptParam != null ? $" — {SelectedDeptsLabel}" : "").
+    <MudAlert Severity="Severity.Info" Dense="true" Class="mb-4">
+        <strong>Test worker:</strong> @_testResult.Reconciliation.Summary
     </MudAlert>
+}
+
+@if (_reconciliation != null)
+{
+    <MudCard Elevation="2" Class="mb-4">
+        <MudCardHeader><CardHeaderContent><MudText Typo="Typo.subtitle1">Kết quả đối chiếu — @_reconciliation.WorkDate.ToString("dd/MM/yyyy")</MudText></CardHeaderContent></MudCardHeader>
+        <MudCardContent>
+            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap" Class="mb-3">
+                <MudChip T="string">Tổng @_reconciliation.TotalRows</MudChip>
+                <MudChip T="string" Color="Color.Success">Đã xử lý @_reconciliation.ProcessedCount</MudChip>
+                <MudChip T="string" Color="Color.Warning">Chờ xác nhận @_reconciliation.PendingConfirmCount</MudChip>
+                <MudChip T="string" Color="Color.Error">Chưa có đơn @_reconciliation.NoRequestCount</MudChip>
+                <MudChip T="string" Color="Color.Info">Cảnh báo @_reconciliation.WarningCount</MudChip>
+            </MudStack>
+            <MudText Typo="Typo.caption" Class="mb-3">@_reconciliation.Summary</MudText>
+            <MudTable Items="_reconciliation.Items" Dense="true" Hover="true" Striped="true">
+                <HeaderContent>
+                    <MudTh>Phòng ban</MudTh><MudTh>Nhân viên</MudTh><MudTh>Ca</MudTh><MudTh>Giờ vào</MudTh><MudTh>Giờ ra</MudTh>
+                    <MudTh>OT thực tế</MudTh><MudTh>OT kế hoạch</MudTh><MudTh>Đơn OT</MudTh><MudTh>Tình trạng</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.DeptName</MudTd>
+                    <MudTd>@context.FullName (@context.EmployeeCode)</MudTd>
+                    <MudTd>@context.ShiftName</MudTd>
+                    <MudTd>@context.CheckInText</MudTd>
+                    <MudTd>@context.CheckOutText</MudTd>
+                    <MudTd>@context.OTHoursActual.ToString("N1")</MudTd>
+                    <MudTd>@context.OTHoursPlanned.ToString("N1")</MudTd>
+                    <MudTd>@(context.OTCode ?? "—")</MudTd>
+                    <MudTd><MudChip T="string" Size="Size.Small" Color="@GetReconColor(context.Status)">@context.StatusDisplay</MudChip></MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudCardContent>
+    </MudCard>
 }
 
 @code {
-    // ── State ────────────────────────────────────────────
     private DateTime? _selectedDate = DateTime.Today.AddDays(-1);
-    private string _searchText = "";
-
-    private bool _isLoading;
-    private bool _isSyncing;
-    private bool _isTesting;
-    private bool _checkingStatus;
-    private bool _hasLoaded;
-    private bool _loadingDepts;
-
-    private List<OTUnconfirmedDto> _items = new();
-    private OTSyncResultDto? _syncResult;
-    private OTWorkerStatusDto? _workerStatus;
-
-    // ── Dept multi-select ────────────────────────────────
-    private HashSet<string> _selectedDeptCodes = new();
+    private string? _selectedDept;
     private List<DeptOption> _departments = new();
-
-    private string SelectedDeptsLabel =>
-        _selectedDeptCodes.Count == 0
-            ? "Tất cả phòng ban"
-            : string.Join(", ", _departments
-                .Where(d => _selectedDeptCodes.Contains(d.DeptCode))
-                .Select(d => d.DeptName));
-
-    private string? SelectedDeptParam =>
-        _selectedDeptCodes.Count == 0
-            ? null
-            : string.Join(",", _selectedDeptCodes);
-
-    // ── Quick filter ─────────────────────────────────────
-    private Func<OTUnconfirmedDto, bool> _quickFilter =>
-        x => string.IsNullOrWhiteSpace(_searchText) ||
-             (x.FullName?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-             (x.DeptName?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-             (x.EmployeeCode?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false) ||
-             (x.TinhHuong?.Contains(_searchText, StringComparison.OrdinalIgnoreCase) ?? false);
-
+    private OTWorkerStatusDto? _workerStatus;
+    private OTSyncResponseDto? _syncResult;
+    private OTReconciliationResultDto? _reconciliation;
+    private OTWorkerTestRunResponseDto? _testResult;
+    private bool _checkingStatus;
+    private bool _isSyncing;
+    private bool _isReconciling;
+    private bool _isTesting;
     private readonly CancellationTokenSource _cts = new();
 
-    // ── Lifecycle ────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
-        await Task.WhenAll(
-            CheckWorkerStatus(),
-            LoadDepartments());
+        await LoadDepartments();
+        await CheckWorkerStatus();
     }
 
-    // ── Load Departments ─────────────────────────────────
     private async Task LoadDepartments()
     {
-        _loadingDepts = true;
-        try
-        {
-            // 🔥 Dùng service chung, có cache 10 phút
-            _departments = await DeptService.GetDepartmentsCachedAsync(_cts.Token);
-
-            Logger.LogInfoIf(Debug,
-                "[OT_SYNC_PAGE] Loaded {Count} departments", _departments.Count);
-
-            if (!_departments.Any())
-                Snackbar.Add("Không có phòng ban nào.", Severity.Warning);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[OT_SYNC_PAGE] LoadDepartments lỗi");
-            Snackbar.Add("Không thể tải danh sách phòng ban.", Severity.Warning);
-        }
-        finally
-        {
-            _loadingDepts = false;
-            StateHasChanged();
-        }
+        var result = await SyncService.GetDepartmentsAsync(_cts.Token);
+        if (result.IsSuccess && result.Data != null) _departments = result.Data;
+        else Snackbar.Add(result.Message ?? "Không tải được phòng ban.", Severity.Warning);
     }
 
-    // ── Dept helpers ─────────────────────────────────────
-    private void RemoveDept(string code)
-    {
-        _selectedDeptCodes.Remove(code);
-        StateHasChanged();
-    }
-
-    // ── Worker Status ────────────────────────────────────
     private async Task CheckWorkerStatus()
     {
         _checkingStatus = true;
         try
         {
             var result = await SyncService.GetWorkerStatusAsync(_cts.Token);
-            if (result.IsSuccess && result.Data != null)
-            {
-                var json = System.Text.Json.JsonSerializer.Serialize(result.Data);
-                _workerStatus = System.Text.Json.JsonSerializer
-                    .Deserialize<OTWorkerStatusDto>(json,
-                        new System.Text.Json.JsonSerializerOptions
-                        {
-                            PropertyNameCaseInsensitive = true
-                        });
-            }
+            if (result.IsSuccess) _workerStatus = result.Data;
+            else Snackbar.Add(result.Message ?? "Không tải được trạng thái worker.", Severity.Warning);
         }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[OT_SYNC_PAGE] CheckWorkerStatus lỗi");
-        }
-        finally
-        {
-            _checkingStatus = false;
-        }
+        finally { _checkingStatus = false; }
     }
 
-    // ── Load Unconfirmed ─────────────────────────────────
-    private async Task LoadUnconfirmed()
-    {
-        if (_selectedDate == null) return;
-
-        _isLoading = true;
-        _hasLoaded = false;
-        _items = new();
-
-        try
-        {
-            Logger.LogDebugIf(Debug,
-                "[OT_SYNC_PAGE] LoadUnconfirmed date={Date} depts={Depts}",
-                _selectedDate.Value.ToString("dd/MM/yyyy"),
-                SelectedDeptParam ?? "ALL");
-
-            var result = await SyncService.GetUnconfirmedAsync(
-                _selectedDate.Value, SelectedDeptParam, _cts.Token);
-
-            if (result.IsSuccess && result.Data != null)
-                _items = result.Data.Items;
-            else
-                Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu.", Severity.Error);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[OT_SYNC_PAGE] LoadUnconfirmed lỗi");
-            Snackbar.Add("Lỗi hệ thống.", Severity.Error);
-        }
-        finally
-        {
-            _isLoading = false;
-            _hasLoaded = true;
-        }
-    }
-
-    // ── Trigger Sync ─────────────────────────────────────
     private async Task TriggerSync()
     {
-        if (_selectedDate == null) return;
-
+        if (!_selectedDate.HasValue) return;
         _isSyncing = true;
-        _syncResult = null;
-
         try
         {
-            Snackbar.Add("Đang sync... khoảng 45 giây.", Severity.Info);
-
-            var result = await SyncService.SyncAsync(
-                _selectedDate.Value, SelectedDeptParam, _cts.Token);
-
-            _syncResult = result.Data;
-
+            var result = await SyncService.SyncAsync(_selectedDate.Value, _selectedDept, _cts.Token);
             if (result.IsSuccess)
             {
-                Snackbar.Add("Sync hoàn thành!", Severity.Success);
-                await LoadUnconfirmed();
+                _syncResult = result.Data;
+                Snackbar.Add($"Đã đồng bộ {result.Data?.SyncedCount ?? 0} bản ghi.", Severity.Success);
             }
-            else
-                Snackbar.Add(result.Message ?? "Lỗi sync.", Severity.Error);
+            else Snackbar.Add(result.Message ?? "Sync thất bại.", Severity.Error);
         }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[OT_SYNC_PAGE] TriggerSync lỗi");
-            Snackbar.Add("Lỗi hệ thống.", Severity.Error);
-        }
-        finally
-        {
-            _isSyncing = false;
-        }
+        finally { _isSyncing = false; }
     }
-    private Task OnDeptsChanged(IEnumerable<string> vals)
+
+    private async Task TriggerWorker()
     {
-        _selectedDeptCodes = vals.ToHashSet();
-        StateHasChanged();
-        return Task.CompletedTask;
+        _isReconciling = true;
+        try
+        {
+            var result = await SyncService.TriggerWorkerAsync(_selectedDept, _cts.Token);
+            if (result.IsSuccess)
+            {
+                _reconciliation = result.Data;
+                Snackbar.Add(result.Data?.Summary ?? "Đối chiếu hoàn thành.", Severity.Success);
+                await CheckWorkerStatus();
+            }
+            else Snackbar.Add(result.Message ?? "Đối chiếu thất bại.", Severity.Error);
+        }
+        finally { _isReconciling = false; }
     }
-    // ── Test Worker ──────────────────────────────────────
+
     private async Task TestWorkerRun()
     {
-        if (_selectedDate == null) return;
-
+        if (!_selectedDate.HasValue) return;
         _isTesting = true;
-        _syncResult = null;
-
         try
         {
-            Snackbar.Add("Đang chạy test worker...", Severity.Info);
-
-            var result = await SyncService.TestWorkerRunAsync(
-                _selectedDate.Value, _cts.Token);
-
-            _syncResult = result.Data;
-
+            var result = await SyncService.TestWorkerRunAsync(_selectedDate.Value, _cts.Token);
             if (result.IsSuccess)
             {
-                Snackbar.Add("Test worker hoàn thành!", Severity.Success);
-                await LoadUnconfirmed();
+                _testResult = result.Data;
+                _reconciliation = result.Data?.Reconciliation;
+                Snackbar.Add("Test worker hoàn thành.", Severity.Success);
             }
-            else
-                Snackbar.Add(result.Message ?? "Lỗi test.", Severity.Error);
+            else Snackbar.Add(result.Message ?? "Test worker thất bại.", Severity.Error);
         }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[OT_SYNC_PAGE] TestWorkerRun lỗi");
-            Snackbar.Add("Lỗi hệ thống.", Severity.Error);
-        }
-        finally
-        {
-            _isTesting = false;
-        }
+        finally { _isTesting = false; }
     }
 
-    // ── Helpers ──────────────────────────────────────────
-    private void OnDateChanged(DateTime? date) => _selectedDate = date;
-
-   
-
-    public void Dispose()
+    private static Color GetWorkerColor(string? state) => state switch
     {
-        _cts.Cancel();
-        _cts.Dispose();
-    }
+        "RUNNING" => Color.Success,
+        "WAITING" => Color.Info,
+        "ERROR" => Color.Error,
+        "STOPPED" => Color.Default,
+        _ => Color.Warning
+    };
+
+    private static Color GetReconColor(OTReconciliationStatus status) => status switch
+    {
+        OTReconciliationStatus.Processed => Color.Success,
+        OTReconciliationStatus.PendingConfirm => Color.Warning,
+        OTReconciliationStatus.NoRequest => Color.Error,
+        _ => Color.Info
+    };
+
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 }
