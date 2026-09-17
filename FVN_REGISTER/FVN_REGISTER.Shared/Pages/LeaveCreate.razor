@@ -4,18 +4,9 @@
 @using FVN_REGISTER.Contract.Dtos.MasterData
 @using FVN_REGISTER.Contract.Dtos.Leaves
 @using FVN_REGISTER.Shared.Components.Leaves
-@using FVN_REGISTER.Shared.Services.Leaves
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IAsyncDisposable
-
-@inject ILeaveCreateClientService LeaveService
-@inject ILeaveTypeClientService LeaveTypeService
-@inject ICurrentUserClientService CurrentUserService
-@inject IDialogService DialogService
-@inject ISnackbar Snackbar
-@inject IJSRuntime JS
-@inject NavigationManager Nav
 
 <PageTitle>Đăng ký nghỉ phép</PageTitle>
 
