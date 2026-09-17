@@ -1,5 +1,4 @@
-using FVN_REGISTER.Contract.Dtos.MasterData;
-
+using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Requests.Leaves;
 using FVN_REGISTER.Contract.Responses;
 
@@ -7,7 +6,7 @@ namespace FVN_REGISTER.Shared.Services.Leaves
 {
     public interface ILeaveCreateClientService
     {
-        Task<ApiResponse<SystemMasterDataDto>> GetCombinedDataAsync(
+        Task<ApiResponse<LeaveCalendarDataDto>> GetCombinedDataAsync(
             string empCode,
             string deptCode,
             string cvCode,
