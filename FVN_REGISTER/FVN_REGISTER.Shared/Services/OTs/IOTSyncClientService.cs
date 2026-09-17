@@ -15,6 +15,7 @@ namespace FVN_REGISTER.Shared.Services.OTs
             CancellationToken ct = default);
 
         Task<ApiResponse<OTReconciliationResultDto>> TriggerWorkerAsync(
+            DateTime date,
             string? deptCode = null,
             CancellationToken ct = default);
 
