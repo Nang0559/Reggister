@@ -1,9 +1,4 @@
-﻿@* FVN_REGISTER.Shared/Components/NotificationBell.razor *@
-@* Đặt vào MainLayout.razor, cạnh menu user *@
-
-@using FVN_REGISTER.Contract.Dtos
 @using FVN_REGISTER.Contract.Dtos.Notifications
-@using FVN_REGISTER.Shared.Services.Leaves
 @using FVN_REGISTER.Shared.Services.Notifications
 @using FVN_REGISTER.Shared.Utils
 @using Microsoft.AspNetCore.SignalR.Client
@@ -11,12 +6,10 @@
 @inject INotificationClientService NotifyService
 @inject ITokenStorage TokenStorage
 @inject NavigationManager Nav
-@implements IAsyncDisposable
 @inject IConfiguration Configuration
+@implements IAsyncDisposable
 
 <div style="position: relative; display: inline-flex;">
-
-    @* Bell icon với badge số *@
     <MudIconButton Icon="@Icons.Material.Filled.Notifications"
                    Color="Color.Inherit"
                    OnClick="TogglePanel"
@@ -24,147 +17,57 @@
 
     @if (NotifyService.UnreadCount > 0)
     {
-        <span style="
-                position: absolute;
-                top: 4px;
-                right: 4px;
-                background: #F44336;
-                color: white;
-                font-size: 10px;
-                font-weight: 500;
-                min-width: 16px;
-                height: 16px;
-                border-radius: 8px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                padding: 0 3px;
-                pointer-events: none;
-                line-height: 1;">
+        <span style="position:absolute; top:4px; right:4px; background:#F44336; color:white; font-size:10px; font-weight:500; min-width:16px; height:16px; border-radius:8px; display:flex; align-items:center; justify-content:center; padding:0 3px; pointer-events:none; line-height:1;">
             @(NotifyService.UnreadCount > 99 ? "99+" : NotifyService.UnreadCount.ToString())
         </span>
     }
 </div>
 
-@* Panel thông báo (dropdown) *@
 @if (_panelOpen)
 {
-    <MudPaper Elevation="8"
-              Style="
-                      position: fixed;
-                      top: 56px;
-                      right: 16px;
-                      width: 360px;
-                      max-height: 480px;
-                      z-index: 9999;
-                      display: flex;
-                      flex-direction: column;
-                      border-radius: 12px;
-                      overflow: hidden;">
-
-        @* Header panel *@
-        <div style="
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                padding: 12px 16px;
-                border-bottom: 1px solid var(--mud-palette-divider);">
+    <MudPaper Elevation="8" Style="position:fixed; top:56px; right:16px; width:360px; max-height:480px; z-index:9999; display:flex; flex-direction:column; border-radius:12px; overflow:hidden;">
+        <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--mud-palette-divider);">
             <MudText Typo="Typo.subtitle1"><b>Thông báo</b></MudText>
-            <div style="display: flex; gap: 4px;">
+            <div style="display:flex; gap:4px;">
                 @if (NotifyService.UnreadCount > 0)
                 {
-                    <MudButton Size="Size.Small"
-                               Variant="Variant.Text"
-                               Color="Color.Primary"
-                               OnClick="MarkAllRead">
-                        Đọc tất cả
-                    </MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" OnClick="MarkAllRead">Đọc tất cả</MudButton>
                 }
-                <MudIconButton Icon="@Icons.Material.Filled.Close"
-                               Size="Size.Small"
-                               OnClick="TogglePanel" />
+                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="TogglePanel" />
             </div>
         </div>
 
-        @* Danh sách thông báo *@
-        <div style="overflow-y: auto; flex: 1;">
+        <div style="overflow-y:auto; flex:1;">
             @if (_loading)
             {
-                <div style="padding: 24px; text-align: center;">
-                    <MudProgressCircular Size="Size.Small" Indeterminate="true" />
-                </div>
+                <div style="padding:24px; text-align:center;"><MudProgressCircular Size="Size.Small" Indeterminate="true" /></div>
             }
             else if (!NotifyService.Notifications.Any())
             {
-                <div style="padding: 32px; text-align: center;">
-                    <MudIcon Icon="@Icons.Material.Outlined.NotificationsNone"
-                             Style="font-size: 48px; opacity: 0.3;" />
-                    <MudText Typo="Typo.body2" Style="opacity: 0.5; margin-top: 8px;">
-                        Chưa có thông báo
-                    </MudText>
+                <div style="padding:32px; text-align:center;">
+                    <MudIcon Icon="@Icons.Material.Outlined.NotificationsNone" Style="font-size:48px; opacity:0.3;" />
+                    <MudText Typo="Typo.body2" Style="opacity:0.5; margin-top:8px;">Chưa có thông báo</MudText>
                 </div>
             }
             else
             {
                 @foreach (var item in NotifyService.Notifications)
                 {
-                    <div @key="item.Id"
-                         style="
-                                         display: flex;
-                                         gap: 12px;
-                                         padding: 12px 16px;
-                                         cursor: pointer;
-                                         background: @(item.IsRead ? "transparent" : "rgba(25,118,210,0.05)");
-                                         border-bottom: 1px solid var(--mud-palette-divider);
-                                         transition: background 0.2s;"
-                         @onclick="() => OnItemClick(item)">
-
-                        @* Icon loại thông báo *@
-                        <div style="
-                                        width: 36px;
-                                        height: 36px;
-                                        border-radius: 50%;
-                                        background: @GetIconBg(item.Color);
-                                        display: flex;
-                                        align-items: center;
-                                        justify-content: center;
-                                        flex-shrink: 0;">
-                            <MudIcon Icon="@GetMudIcon(item.NotificationType)"
-                                     Style="@($"color: {GetIconColor(item.Color)}; font-size: 18px;")" />
+                    <div @key="item.Id" style="display:flex; gap:12px; padding:12px 16px; cursor:pointer; background:@(item.IsRead ? "transparent" : "rgba(25,118,210,0.05)"); border-bottom:1px solid var(--mud-palette-divider); transition:background 0.2s;" @onclick="() => OnItemClick(item)">
+                        <div style="width:36px; height:36px; border-radius:50%; background:@GetIconBg(item.Color); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <MudIcon Icon="@GetMudIcon(item.NotificationType)" Style="@($"color:{GetIconColor(item.Color)}; font-size:18px;")" />
                         </div>
-
-                        @* Nội dung *@
-                        <div style="flex: 1; min-width: 0;">
-                            <div style="
-                                            font-size: 13px;
-                                            font-weight: @(item.IsRead ? "400" : "500");
-                                            color: var(--mud-palette-text-primary);
-                                            white-space: nowrap;
-                                            overflow: hidden;
-                                            text-overflow: ellipsis;">
-                                @item.Title
-                            </div>
+                        <div style="flex:1; min-width:0;">
+                            <div style="font-size:13px; font-weight:@(item.IsRead ? "400" : "500"); color:var(--mud-palette-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@item.Title</div>
                             @if (!string.IsNullOrEmpty(item.Body))
                             {
-                                <div style="font-size: 12px; color: var(--mud-palette-text-secondary); margin-top: 2px;">
-                                    @item.Body
-                                </div>
+                                <div style="font-size:12px; color:var(--mud-palette-text-secondary); margin-top:2px;">@item.Body</div>
                             }
-                            <div style="font-size: 11px; color: var(--mud-palette-text-disabled); margin-top: 4px;">
-                                @item.TimeAgo
-                            </div>
+                            <div style="font-size:11px; color:var(--mud-palette-text-disabled); margin-top:4px;">@item.TimeAgo</div>
                         </div>
-
-                        @* Chấm xanh chưa đọc *@
                         @if (!item.IsRead)
                         {
-                            <div style="
-                                                width: 8px;
-                                                height: 8px;
-                                                border-radius: 50%;
-                                                background: #1976D2;
-                                                margin-top: 4px;
-                                                flex-shrink: 0;" />
+                            <div style="width:8px; height:8px; border-radius:50%; background:#1976D2; margin-top:4px; flex-shrink:0;" />
                         }
                     </div>
                 }
@@ -172,17 +75,12 @@
         </div>
     </MudPaper>
 
-    @* Backdrop để đóng panel khi click ngoài *@
-    <div style="
-            position: fixed;
-            inset: 0;
-            z-index: 9998;"
-         @onclick="TogglePanel" />
+    <div style="position:fixed; inset:0; z-index:9998;" @onclick="TogglePanel" />
 }
 
 @code {
-    private bool _panelOpen = false;
-    private bool _loading = false;
+    private bool _panelOpen;
+    private bool _loading;
     private HubConnection? _hubConnection;
 
     protected override async Task OnInitializedAsync()
@@ -196,16 +94,14 @@
     {
         try
         {
-            // Lấy token để SignalR gửi kèm Authorization header
             var token = await TokenStorage.GetTokenAsync();
-
             var apiBase = GetApiBaseUrl();
 
             _hubConnection = new HubConnectionBuilder()
-                .WithUrl($"{apiBase}/hubs/notifications", options =>
+                .WithUrl($"{apiBase}/hubs/notification", options =>
                 {
                     if (!string.IsNullOrWhiteSpace(token))
-                        options.AccessTokenProvider = () => Task.FromResult<string?>(token);
+                        options.AccessTokenProvider = () => Task.FromResult<string?>(token.Trim().Trim('"'));
                 })
                 .WithAutomaticReconnect()
                 .Build();
@@ -213,45 +109,29 @@
             _hubConnection.On<NotificationPushDto>("ReceiveNotification", push =>
             {
                 NotifyService.HandlePush(push);
-                InvokeAsync(StateHasChanged);
+                _ = InvokeAsync(StateHasChanged);
             });
 
-            _hubConnection.On<int>("BadgeUpdated", _ =>
-            {
-                InvokeAsync(StateHasChanged);
-            });
-
+            _hubConnection.On<int>("BadgeUpdated", _ => _ = InvokeAsync(StateHasChanged));
             await _hubConnection.StartAsync();
         }
-        catch (Exception)
+        catch
         {
-            // SignalR lỗi → vẫn hoạt động bình thường qua REST polling
+            // SignalR is optional; REST notification operations remain available.
         }
     }
 
-    /// <summary>
-    /// Lấy base URL của API (khác với URL của Blazor Web/MAUI).
-    /// Web: đọc từ NavigationManager (same origin nếu dùng reverse proxy)
-    ///      hoặc hardcode từ appsettings nếu khác origin.
-    /// MAUI: đã cấu hình trong MauiProgram.cs.
-    /// Cách đơn giản nhất: truyền vào qua [Parameter] hoặc IConfiguration.
-    /// </summary>
     private string GetApiBaseUrl()
     {
         var baseUrl = Configuration["ApiSettings:BaseUrl"] ?? "https://localhost:7135/";
-
-        // Bỏ "/api/" ở cuối nếu có → lấy root URL
-        // "https://dangkyphep.fcc-vn.com.vn/api/" → "https://dangkyphep.fcc-vn.com.vn"
-        // "https://localhost:7135/"               → "https://localhost:7135"
         var uri = new Uri(baseUrl);
-        return $"{uri.Scheme}://{uri.Host}{(uri.IsDefaultPort ? "" : $":{uri.Port}")}";
+        return $"{uri.Scheme}://{uri.Host}{(uri.IsDefaultPort ? string.Empty : $":{uri.Port}")}";
     }
 
     private async Task TogglePanel()
     {
         _panelOpen = !_panelOpen;
-
-        if (_panelOpen && !NotifyService.Notifications.Any())
+        if (_panelOpen)
         {
             _loading = true;
             await NotifyService.LoadListAsync();
@@ -265,17 +145,18 @@
             await NotifyService.MarkReadAsync(item.Id);
 
         _panelOpen = false;
-
-        if (!string.IsNullOrEmpty(item.ActionUrl))
+        if (!string.IsNullOrWhiteSpace(item.ActionUrl))
             Nav.NavigateTo(item.ActionUrl);
     }
 
     private async Task MarkAllRead()
-        => await NotifyService.MarkAllReadAsync();
+    {
+        await NotifyService.MarkAllReadAsync();
+        _panelOpen = false;
+    }
 
-    private void OnNotifyChanged() => InvokeAsync(StateHasChanged);
+    private void OnNotifyChanged() => _ = InvokeAsync(StateHasChanged);
 
-    // Dùng hằng số MudBlazor thay vì string interpolation để tránh lỗi runtime
     private static string GetMudIcon(string type) => type switch
     {
         "LEAVE_PENDING" => Icons.Material.Filled.HourglassEmpty,
