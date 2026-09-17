@@ -17,14 +17,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
 {
     /// <summary>
     /// Generic timeout/escalation pipeline shared by Leave and Overtime.
-    ///
-    /// Business invariant:
-    /// - Timeout of an approval step is NOT a rejection.
-    /// - The timed-out step is recorded as Escalated.
-    /// - The next required pending step becomes the active approver.
-    /// - The newly active approver receives both email and in-app notification.
-    /// - A system escalation is idempotent because the current step is no longer Pending
-    ///   after its Escalated history has been persisted.
     /// </summary>
     public abstract class ApprovalEscalationService<TSubject>
         : BaseService<ApprovalEscalationService<TSubject>>, IApprovalEscalationService
@@ -111,7 +103,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     if (current == null) continue;
 
                     var currentStep = current.Value.Step;
-
                     if (!registerDateMap.TryGetValue(requestId, out var regDate))
                     {
                         Logger.LogWarnIf(Debug, "[ESC] Missing RegisterDate for RequestId={Id}", requestId);
@@ -121,9 +112,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     deptCodeMap.TryGetValue(requestId, out var deptCode);
                     var baseTime = GetBaseTime(currentStep, stepsOfRequest, historiesOfRequest, regDate);
 
-                    var changed = await ProcessStepAsync(
-                        requestId, currentStep, baseTime, deptCode ?? ApproveForDept.All, ct);
-                    if (changed) anyChanged = true;
+                    if (await ProcessStepAsync(
+                        requestId, currentStep, baseTime, deptCode ?? ApproveForDept.All, ct))
+                        anyChanged = true;
                 }
 
                 if (anyChanged)
@@ -150,8 +141,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             string deptCode,
             CancellationToken ct)
         {
-            // Missing email must not block the business transition. In-app notification
-            // can still resolve the approver by EmployeeCode.
             var now = DateTime.Now;
             var rule = await _rule.GetRuleAsync(ModuleKind, step.Level, deptCode, ct);
             if (rule == null) return false;
@@ -159,28 +148,20 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             var elapsedHours = await _workingDay.GetWorkingHoursAsync(baseTime, now);
             var deadline = _rule.GetDeadline(baseTime, rule.DeadlineHour);
 
-            // Hard deadline remains a business rejection. This is deliberately different
-            // from Escalated: after escalation, the next approval level owns the request.
+            // Hard deadline remains a business rejection. It is deliberately different
+            // from Escalated, which transfers the approval responsibility upward.
             if (now >= deadline)
             {
                 return await RecordSystemActionAsync(
-                    requestId,
-                    step,
-                    "AutoReject",
-                    $"Quá deadline {rule.DeadlineHour}h",
-                    DecisionType.Rejected,
-                    ct);
+                    requestId, step, "AutoReject",
+                    $"Quá deadline {rule.DeadlineHour}h", DecisionType.Rejected, ct);
             }
 
             if (elapsedHours >= (double)rule.EscalateHours)
             {
                 return await RecordSystemActionAsync(
-                    requestId,
-                    step,
-                    "Escalated",
-                    $"Quá {rule.EscalateHours}h làm việc",
-                    DecisionType.Escalated,
-                    ct);
+                    requestId, step, "Escalated",
+                    $"Quá {rule.EscalateHours}h làm việc", DecisionType.Escalated, ct);
             }
 
             if (elapsedHours >= (double)rule.WarningHours)
@@ -192,7 +173,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                                 && x.RequestId == requestId
                                 && x.Level == step.Level
                                 && x.SentAt.Date == now.Date, ct);
-
                 if (alreadyReminded) return false;
 
                 await _email.QueueEmail(
@@ -245,8 +225,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 CreatedBy = SystemUser.Id
             }, ct);
 
-            // Persist the transition before resolving the next step. This also makes the
-            // transition idempotent across worker runs: the current step is no longer Pending.
+            // Persist the transition before resolving the next step. This makes repeated
+            // worker ticks idempotent because the old step is no longer Pending.
             await Uow.SaveChangesAsync(ct);
 
             if (!string.IsNullOrWhiteSpace(step.ApproverEmail))
@@ -288,16 +268,16 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 .Where(x => x.IsRequired && x.Status == DecisionType.Pending)
                 .OrderBy(x => x.Level)
                 .FirstOrDefault();
-
             if (next == null) return;
 
             var nextStep = snapshot.Steps.FirstOrDefault(x => x.Level == next.Level);
             if (nextStep == null) return;
 
-            // Email: use the same "new request" contract/template as the normal activation
-            // path so escalation does not depend on a new DB email-template code.
             var subject = await Provider.GetSubjectAsync(requestId, ct);
             var creatorName = subject?.EmployeeName ?? string.Empty;
+
+            // Email uses the existing REQUEST_NEW template contract so escalation does not
+            // require a new template row just to activate the next approver.
             if (!string.IsNullOrWhiteSpace(nextStep.ApproverEmail))
             {
                 await _notification.NotifyNewRequestAsync(
@@ -311,16 +291,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     ct);
             }
 
-            // In-app: explicit EmployeeCode -> UserId resolution -> notification persistence
-            // and SignalR, including when the new level has never previously opened the app.
-            await _notification.NotifyApproverInAppAsync(
-                nextStep.ApproverCode,
-                requestId,
-                ModuleKind,
-                creatorName,
-                nextStep.Level,
-                ct);
-
+            // One in-app notification only: escalation-specific action (not a second
+            // generic Pending notification for the same activation).
             var oldUserId = await _userResolver.ResolveUserIdAsync(escalatedStep.ApproverCode, ct);
             var newUserId = await _userResolver.ResolveUserIdAsync(nextStep.ApproverCode, ct);
             if (newUserId is > 0)
@@ -382,7 +354,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 .Where(x => x.RequestType == ModuleKind && x.RequestId == requestId)
                 .Include(x => x.Steps)
                 .FirstOrDefaultAsync(ct);
-
             if (parent == null) return;
 
             var histories = await Uow.Repository<F03ApprovalHistory>().Query()
