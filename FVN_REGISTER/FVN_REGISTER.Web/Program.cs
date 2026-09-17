@@ -19,36 +19,18 @@ using FVN_REGISTER.Web.Components;
 using FVN_REGISTER.Web.Services.FVN_REGISTER.Web.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using MudBlazor.Services;
-#region DK
 
 var builder = WebApplication.CreateBuilder(args);
-
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
 builder.Services.AddMudServices();
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.Configure<AuthDebugOptions>(builder.Configuration.GetSection("AuthDebug"));
-
-builder.Services.AddAuthentication(options => options.DefaultScheme = "Cookies")
-    .AddCookie("Cookies", options =>
-    {
-        options.LoginPath = "/login";
-        options.AccessDeniedPath = "/access-denied";
-    });
-
-builder.Services.AddAuthorizationCore();
-builder.Services.AddCascadingAuthenticationState();
-builder.Services.AddScoped<CustomAuthStateProvider>();
-builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>());
-builder.Services.AddScoped<ITokenStorage, LocalStorageTokenService>();
-builder.Services.AddTransient<AuthHeaderHandler>();
-
-var baseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5017/";
-if (!baseUrl.EndsWith("/")) baseUrl += "/";
-
+builder.Services.AddAuthentication(options => options.DefaultScheme = "Cookies").AddCookie("Cookies", options => { options.LoginPath = "/login"; options.AccessDeniedPath = "/access-denied"; });
+builder.Services.AddAuthorizationCore(); builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddScoped<CustomAuthStateProvider>(); builder.Services.AddScoped<AuthenticationStateProvider>(sp => sp.GetRequiredService<CustomAuthStateProvider>()); builder.Services.AddScoped<ITokenStorage, LocalStorageTokenService>(); builder.Services.AddTransient<AuthHeaderHandler>();
+var baseUrl = builder.Configuration["ApiSettings:BaseUrl"] ?? "http://localhost:5017/"; if (!baseUrl.EndsWith("/")) baseUrl += "/";
 builder.Services.AddHttpClient<IAuthClientService, AuthClientService>(client => client.BaseAddress = new Uri(baseUrl));
-builder.Services.AddHttpClient<IHttpClientWithAuth, AuthorizedHttpClient>(client => client.BaseAddress = new Uri(baseUrl))
-    .AddHttpMessageHandler(sp => sp.GetRequiredService<AuthHeaderHandler>());
-
+builder.Services.AddHttpClient<IHttpClientWithAuth, AuthorizedHttpClient>(client => client.BaseAddress = new Uri(baseUrl)).AddHttpMessageHandler(sp => sp.GetRequiredService<AuthHeaderHandler>());
 builder.Services.AddScoped<ICurrentUserClientService, CurrentUserClientService>();
 builder.Services.AddScoped<IDashboardClientService, DashboardClientService>();
 builder.Services.AddScoped<ILeaveCreateClientService, LeaveCreateClientService>();
@@ -70,22 +52,11 @@ builder.Services.AddScoped<IEmployeeManagementClientService, EmployeeManagementC
 builder.Services.AddScoped<IDepartmentManagementClientService, DepartmentManagementClientService>();
 builder.Services.AddScoped<ILeaveTypeClientService, LeaveTypeClientService>();
 builder.Services.AddScoped<ITripClientService, TripClientService>();
+builder.Services.AddScoped<FVN_REGISTER.Shared.Services.Equipment.IEquipmentClientService, FVN_REGISTER.Shared.Services.Equipment.EquipmentClientService>();
 builder.Services.AddServerSideBlazor().AddCircuitOptions(options => options.DetailedErrors = true);
-
 var app = builder.Build();
-
-if (!app.Environment.IsDevelopment())
-{
-    app.UseExceptionHandler("/Error", true);
-    app.UseHsts();
-}
-
-app.UseStaticFiles();
-app.UseAntiforgery();
-app.UseAuthentication();
-app.UseAuthorization();
+if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/Error", true); app.UseHsts(); }
+app.UseStaticFiles(); app.UseAntiforgery(); app.UseAuthentication(); app.UseAuthorization();
 app.MapWhen(context => context.Request.Path.StartsWithSegments("/api"), apiApp => { });
 app.MapRazorComponents<App>().AddInteractiveServerRenderMode().AddAdditionalAssemblies(typeof(FVN_REGISTER.Shared._Imports).Assembly);
 app.Run();
-
-#endregion
