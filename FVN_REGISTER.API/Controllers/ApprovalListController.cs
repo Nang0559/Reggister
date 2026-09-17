@@ -1,27 +1,23 @@
-﻿using AutoMapper;
+using AutoMapper;
+using FVN_REGISTER.Application.Interfaces.Approvals;
+using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Approvals;
-using FVN_REGISTER.Contract.Interfaces.Approvals;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Contract.Interfaces.Users;
-using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Configurations;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Controllers
 {
-    // FVN_REGISTER.API/Controllers/ApprovalListController.cs
     [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class ApprovalListController : BaseApiController
     {
-        private readonly IApprovalInboxService _approvalList;
+        private readonly IApprovalInboxService _approvalInbox;
 
         public ApprovalListController(
-            IApprovalInboxService approvalList,
+            IApprovalInboxService approvalInbox,
             ICurrentUserService currentUser,
             IUserLogService userLog,
             IMapper mapper,
@@ -29,53 +25,62 @@ namespace FVN_REGISTER.API.Controllers
             IOptionsMonitor<AuthDebugOptions> options)
             : base(currentUser, userLog, mapper, logger, options)
         {
-            _approvalList = approvalList;
+            _approvalInbox = approvalInbox;
         }
 
         [HttpGet("pending")]
         public async Task<IActionResult> GetPending(CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
-            var result = await _approvalList.GetPendingAsync(UserInfo, ct);
-            return Ok(ApiResponse<PendingApprovalListDto>.Ok(result));
-        }
-        [HttpGet("{kind}/{id:int}")]
-        public async Task<IActionResult> GetById(string kind, int id, CancellationToken ct)
-        {
-            if (UserInfo == null) return Unauthorized();
-            var result = await _approvalList.GetByIdAsync(kind, id, UserInfo, ct);
+
+            var result = await _approvalInbox.GetPendingAsync(UserInfo, ct);
             return HandleResult(result);
         }
+
         [HttpPost("approve")]
         public async Task<IActionResult> Approve(
-     [FromBody] ApprovalActionRequest req,
-     CancellationToken ct)
+            [FromBody] ApprovalActionDto req,
+            CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
-            if (req.Ids == null || req.Ids.Count == 0)
+            if (req.RequestIds == null || req.RequestIds.Count == 0)
                 return BadRequest(ApiResponse<object>.Fail("Chưa chọn đơn nào."));
+            if (req.IsReject)
+                return BadRequest(ApiResponse<object>.Fail("Endpoint approve không nhận IsReject=true."));
 
-            var result = await _approvalList.ApproveItemsAsync(
-                req.Ids, req.Kind, req.Level, req.Comment, UserInfo, ct);
+            var result = await _approvalInbox.ApproveItemsAsync(
+                req.RequestIds,
+                req.Kind,
+                req.Level,
+                req.Comment,
+                UserInfo,
+                ct);
+
             return HandleResult(result);
         }
 
         [HttpPost("reject")]
         public async Task<IActionResult> Reject(
-            [FromBody] ApprovalActionRequest req,
+            [FromBody] ApprovalActionDto req,
             CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
-            if (req.Ids == null || req.Ids.Count == 0)
+            if (req.RequestIds == null || req.RequestIds.Count == 0)
                 return BadRequest(ApiResponse<object>.Fail("Chưa chọn đơn nào."));
             if (string.IsNullOrWhiteSpace(req.Comment))
                 return BadRequest(ApiResponse<object>.Fail("Vui lòng nhập lý do từ chối."));
+            if (!req.IsReject)
+                return BadRequest(ApiResponse<object>.Fail("Endpoint reject yêu cầu IsReject=true."));
 
-            var result = await _approvalList.RejectItemsAsync(
-                req.Ids, req.Kind, req.Level, req.Comment!, UserInfo, ct);
+            var result = await _approvalInbox.RejectItemsAsync(
+                req.RequestIds,
+                req.Kind,
+                req.Level,
+                req.Comment,
+                UserInfo,
+                ct);
+
             return HandleResult(result);
         }
     }
-
-   
 }
