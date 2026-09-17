@@ -1,11 +1,7 @@
-﻿@* FILE: FVN_REGISTER.Shared/Pages/Admin/Managers.razor *@
+@* FILE: FVN_REGISTER.Shared/Pages/Admin/Managers.razor *@
 @page "/admin/managers"
 @attribute [Authorize]
-@using FVN_REGISTER.Contract.Dtos.Requests
-@using FVN_REGISTER.Contract.Dtos.Requests.Users
 @using FVN_REGISTER.Contract.Dtos.Usermanagers
-@using FVN_REGISTER.Contract.Requests.Users
-@using FVN_REGISTER.Core.Logging
 @using FVN_REGISTER.Shared.Dialogs.Users
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils.Helpers
@@ -22,12 +18,10 @@
 
 <MudText Typo="Typo.h5" Class="mb-4">Quản lý tài khoản hệ thống</MudText>
 
-@* ── TOOLBAR ── *@
 <MudStack Row="true" Justify="Justify.SpaceBetween"
           AlignItems="AlignItems.Center" Class="mb-3" Wrap="Wrap.Wrap">
-
     <MudTextField @bind-Value="_search"
-                  Placeholder="Tìm theo tên, tài khoản, mã NV..."
+                  Placeholder="Tìm theo mã NV, họ tên, phòng ban..."
                   Adornment="Adornment.Start"
                   AdornmentIcon="@Icons.Material.Filled.Search"
                   Variant="Variant.Outlined"
@@ -43,7 +37,6 @@
     </MudButton>
 </MudStack>
 
-@* ── TABLE ── *@
 @if (_loading)
 {
     <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="mb-2" />
@@ -53,10 +46,10 @@
           Hover="true" Dense="true"
           Breakpoint="Breakpoint.Sm"
           Elevation="2"
-          T="UserManagementDto">
+          T="UserAccountDto">
     <HeaderContent>
-        <MudTh>Tài khoản</MudTh>
-        <MudTh>Họ tên / Mã NV</MudTh>
+        <MudTh>Mã NV</MudTh>
+        <MudTh>Họ tên</MudTh>
         <MudTh>Phòng ban</MudTh>
         <MudTh>Quyền</MudTh>
         <MudTh Style="text-align:center">Trạng thái</MudTh>
@@ -68,40 +61,28 @@
         <MudTd>
             <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                 <MudAvatar Size="Size.Small" Color="Color.Primary">
-                    @(context.UserName.FirstOrDefault().ToString().ToUpper())
+                    @((context.EmployeeCode ?? "?").FirstOrDefault().ToString().ToUpper())
                 </MudAvatar>
-                <MudText Typo="Typo.body2"><b>@context.UserName</b></MudText>
+                <MudText Typo="Typo.body2"><b>@context.EmployeeCode</b></MudText>
             </MudStack>
         </MudTd>
-
         <MudTd>
-            <MudStack Spacing="0">
-                <MudText Typo="Typo.body2">@(context.FullName ?? "—")</MudText>
-                <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                    @context.EmployeeCode
-                </MudText>
-            </MudStack>
+            <MudText Typo="Typo.body2">@(context.FullName ?? "—")</MudText>
         </MudTd>
-
         <MudTd>
-            <MudText Typo="Typo.body2">
-                @(context.DeptName ?? context.DeptCode ?? "—")
-            </MudText>
+            <MudText Typo="Typo.body2">@(context.DeptName ?? context.DeptCode ?? "—")</MudText>
         </MudTd>
-
         <MudTd>
-            <MudChip T="string" Size="Size.Small"
-                     Style="@GetPermChipStyle(context.PermissionCode)">
-                @context.PermissionName
+            <MudChip T="string" Size="Size.Small" Style="@GetPermChipStyle(context.PermissionCode)">
+                @(context.PermissionName ?? context.PermissionCode.ToString())
             </MudChip>
         </MudTd>
-
         <MudTd Style="text-align:center">
-            @if (context.IsActive != true)
+            @if (!context.IsActive)
             {
-                <MudChip T="string" Size="Size.Small" Color="Color.Default">Đã xóa</MudChip>
+                <MudChip T="string" Size="Size.Small" Color="Color.Default">Không hoạt động</MudChip>
             }
-            else if (context.LockoutEnable == true && context.LockoutEndDate > DateTime.Now)
+            else if (context.IsCurrentlyLocked)
             {
                 <MudChip T="string" Size="Size.Small" Color="Color.Error">Bị khóa</MudChip>
             }
@@ -110,54 +91,23 @@
                 <MudChip T="string" Size="Size.Small" Color="Color.Success">Hoạt động</MudChip>
             }
         </MudTd>
-
         <MudTd Style="text-align:center">
-            <MudText Typo="Typo.caption">
-                @(context.LastLogin?.ToString("dd/MM/yyyy HH:mm") ?? "Chưa đăng nhập")
-            </MudText>
+            <MudText Typo="Typo.caption">@(context.LastLogin?.ToString("dd/MM/yyyy HH:mm") ?? "Chưa đăng nhập")</MudText>
         </MudTd>
-
         <MudTd Style="text-align:center">
             <MudMenu Icon="@Icons.Material.Filled.MoreVert"
-                     Size="Size.Small"
-                     Dense="true"
+                     Size="Size.Small" Dense="true"
                      AnchorOrigin="Origin.BottomRight"
                      TransformOrigin="Origin.TopRight">
-                <MudMenuItem OnClick="@(() => OpenEditDialog(context))">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                        <MudIcon Icon="@Icons.Material.Filled.Edit" Size="Size.Small" />
-                        <MudText>Sửa quyền</MudText>
-                    </MudStack>
-                </MudMenuItem>
-
+                <MudMenuItem OnClick="@(() => OpenEditDialog(context))">Sửa quyền</MudMenuItem>
                 <MudMenuItem OnClick="@(() => ToggleLock(context))">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                        <MudIcon Icon="@(IsLocked(context)
-                                                                     ? Icons.Material.Filled.LockOpen
-                                                                     : Icons.Material.Filled.Lock)"
-                                 Size="Size.Small" />
-                        <MudText>@(IsLocked(context) ? "Mở khóa" : "Khóa tài khoản")</MudText>
-                    </MudStack>
+                    @(context.IsCurrentlyLocked ? "Mở khóa" : "Khóa tài khoản")
                 </MudMenuItem>
-
-                <MudMenuItem OnClick="@(() => OpenResetPasswordDialog(context))">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                        <MudIcon Icon="@Icons.Material.Filled.LockReset" Size="Size.Small" />
-                        <MudText>Reset mật khẩu</MudText>
-                    </MudStack>
-                </MudMenuItem>
-
+                <MudMenuItem OnClick="@(() => OpenResetPasswordDialog(context))">Reset mật khẩu</MudMenuItem>
                 <MudDivider />
-
                 <MudMenuItem OnClick="@(() => DeleteUser(context))"
-                             Disabled="@(context.PermissionCode == 1
-                                                                   || context.IdUser == CurrentUser.User?.UserId)">
-                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-                        <MudIcon Icon="@Icons.Material.Filled.DeleteOutline"
-                                 Size="Size.Small"
-                                 Color="Color.Error" />
-                        <MudText Color="Color.Error">Xóa tài khoản</MudText>
-                    </MudStack>
+                             Disabled="@(context.PermissionCode == 1 || context.IdUser == CurrentUser.User?.UserId)">
+                    <MudText Color="Color.Error">Xóa tài khoản</MudText>
                 </MudMenuItem>
             </MudMenu>
         </MudTd>
@@ -172,19 +122,16 @@
     private bool _loading;
     private string _search = string.Empty;
     private List<UserAccountDto> _users = new();
-    private CancellationTokenSource _cts = new();
+    private readonly CancellationTokenSource _cts = new();
 
     private IEnumerable<UserAccountDto> FilteredUsers =>
         string.IsNullOrWhiteSpace(_search)
             ? _users
             : _users.Where(u =>
-                (u.UserName?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (u.FullName?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 (u.EmployeeCode?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) ||
-                (u.DeptName?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false));
-
-    private static bool IsLocked(UserAccountDto u) =>
-        u.LockoutEnable == true && u.LockoutEndDate > DateTime.Now;
+                (u.FullName?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (u.DeptName?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false) ||
+                (u.DeptCode?.Contains(_search, StringComparison.OrdinalIgnoreCase) ?? false));
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -199,176 +146,111 @@
             else
                 Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu.", Severity.Error);
         }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[USER_MANAGER] Load error");
+            Snackbar.Add("Lỗi tải dữ liệu.", Severity.Error);
+        }
         finally { _loading = false; }
     }
 
-    // ── CREATE ───────────────────────────────────────────────────
     private async Task OpenCreateDialog()
     {
+        var request = new CreateUserRequest { PermissionCode = 5 };
         var parameters = new DialogParameters<CreateUserDialog>
         {
-            { x => x.Request, new CreateUserRequest { PermissionCode = 5 } }
+            { x => x.Request, request }
         };
-
-        var options = new DialogOptions
-        {
-            MaxWidth = MaxWidth.Small,
-            FullWidth = true,
-            CloseButton = true,
-            CloseOnEscapeKey = true
-        };
-
         var dialog = await DialogService.ShowAsync<CreateUserDialog>(
-            "Tạo tài khoản", parameters, options);
+            "Tạo tài khoản", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true, CloseOnEscapeKey = true });
 
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: CreateUserRequest req })
         {
             var response = await UserMgtService.CreateAsync(req, _cts.Token);
-            if (response.IsSuccess)
-            {
-                Snackbar.Add("Tạo tài khoản thành công!", Severity.Success);
-                await LoadAsync();
-            }
-            else
-            {
-                Snackbar.Add(response.Message ?? "Lỗi tạo tài khoản.", Severity.Error);
-            }
+            Snackbar.Add(response.IsSuccess ? "Tạo tài khoản thành công!" : response.Message ?? "Lỗi tạo tài khoản.",
+                response.IsSuccess ? Severity.Success : Severity.Error);
+            if (response.IsSuccess) await LoadAsync();
         }
     }
 
-    // ── EDIT ─────────────────────────────────────────────────────
     private async Task OpenEditDialog(UserAccountDto user)
     {
-        var model = new EditUserDialog.EditUserDialogModel
+        var request = new UpdateUserRequest
         {
             IdUser = user.IdUser,
-            UserName = user.UserName,
             PermissionCode = user.PermissionCode,
-            DeptCode = user.DeptCode
+            DeptCode = user.DeptCode,
+            FunctionIds = user.FunctionIds
         };
 
         var parameters = new DialogParameters<EditUserDialog>
         {
-            { x => x.Request, model }
+            { x => x.Request, request }
         };
-
-        var options = new DialogOptions
-        {
-            MaxWidth = MaxWidth.Small,
-            FullWidth = true,
-            CloseButton = true,
-            CloseOnEscapeKey = true
-        };
-
         var dialog = await DialogService.ShowAsync<EditUserDialog>(
-            "Sửa quyền", parameters, options);
+            "Sửa quyền tài khoản", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseButton = true, CloseOnEscapeKey = true });
 
         var result = await dialog.Result;
-        if (result is { Canceled: false, Data: EditUserDialog.EditUserDialogModel updated })
+        if (result is { Canceled: false, Data: UpdateUserRequest updated })
         {
-            var response = await UserMgtService.UpdateAsync(new UpdateUserRequest
-            {
-                IdUser = updated.IdUser,
-                PermissionCode = updated.PermissionCode,
-                DeptCode = updated.DeptCode
-            }, _cts.Token);
-
-            if (response.IsSuccess)
-            {
-                Snackbar.Add("Cập nhật thành công!", Severity.Success);
-                await LoadAsync();
-            }
-            else
-            {
-                Snackbar.Add(response.Message ?? "Lỗi cập nhật.", Severity.Error);
-            }
+            var response = await UserMgtService.UpdateAsync(updated, _cts.Token);
+            Snackbar.Add(response.IsSuccess ? "Cập nhật thành công!" : response.Message ?? "Lỗi cập nhật.",
+                response.IsSuccess ? Severity.Success : Severity.Error);
+            if (response.IsSuccess) await LoadAsync();
         }
     }
 
-    // ── RESET PASSWORD ───────────────────────────────────────────
     private async Task OpenResetPasswordDialog(UserAccountDto user)
     {
         var parameters = new DialogParameters<ResetPasswordDialog>
         {
-            { x => x.UserName, user.UserName }
+            { x => x.UserName, user.EmployeeCode }
         };
-
-        var options = new DialogOptions
-        {
-            MaxWidth = MaxWidth.ExtraSmall,
-            FullWidth = true,
-            CloseButton = true,
-            CloseOnEscapeKey = true
-        };
-
         var dialog = await DialogService.ShowAsync<ResetPasswordDialog>(
-            "Reset mật khẩu", parameters, options);
+            "Reset mật khẩu", parameters,
+            new DialogOptions { MaxWidth = MaxWidth.ExtraSmall, FullWidth = true, CloseButton = true, CloseOnEscapeKey = true });
 
         var result = await dialog.Result;
         if (result is { Canceled: false, Data: string newPassword })
         {
-            var response = await UserMgtService.ResetPasswordAsync(
-                user.IdUser, newPassword, _cts.Token);
-
-            if (response.IsSuccess)
-                Snackbar.Add("Reset mật khẩu thành công!", Severity.Success);
-            else
-                Snackbar.Add(response.Message ?? "Lỗi reset.", Severity.Error);
+            var response = await UserMgtService.ResetPasswordAsync(user.IdUser, newPassword, _cts.Token);
+            Snackbar.Add(response.IsSuccess ? "Reset mật khẩu thành công!" : response.Message ?? "Lỗi reset.",
+                response.IsSuccess ? Severity.Success : Severity.Error);
         }
     }
 
-    // ── TOGGLE LOCK ──────────────────────────────────────────────
     private async Task ToggleLock(UserAccountDto user)
     {
-        bool locked = IsLocked(user);
+        var locked = user.IsCurrentlyLocked;
         var confirm = await DialogService.ShowMessageBoxAsync(
             locked ? "Mở khóa tài khoản" : "Khóa tài khoản",
-            (MarkupString)(locked
-                ? $"Mở khóa tài khoản <b>{user.UserName}</b>?"
-                : $"Khóa tài khoản <b>{user.UserName}</b>?"),
-            yesText: locked ? "Mở khóa" : "Khóa",
-            cancelText: "Hủy");
-
+            locked ? $"Mở khóa tài khoản {user.EmployeeCode}?" : $"Khóa tài khoản {user.EmployeeCode}?",
+            yesText: locked ? "Mở khóa" : "Khóa", cancelText: "Hủy");
         if (confirm != true) return;
 
         var response = await UserMgtService.ToggleLockAsync(user.IdUser, _cts.Token);
-        if (response.IsSuccess)
-        {
-            Snackbar.Add(response.Message ?? "Thành công!", Severity.Success);
-            await LoadAsync();
-        }
-        else
-        {
-            Snackbar.Add(response.Message ?? "Lỗi.", Severity.Error);
-        }
+        Snackbar.Add(response.IsSuccess ? response.Message ?? "Thành công!" : response.Message ?? "Lỗi.",
+            response.IsSuccess ? Severity.Success : Severity.Error);
+        if (response.IsSuccess) await LoadAsync();
     }
 
-    // ── DELETE ───────────────────────────────────────────────────
     private async Task DeleteUser(UserAccountDto user)
     {
         var confirm = await DialogService.ShowMessageBoxAsync(
             "Xác nhận xóa",
-            (MarkupString)$"Xóa tài khoản <b>{user.UserName}</b>? Hành động này không thể hoàn tác.",
-            yesText: "Xóa",
-            
-            cancelText: "Hủy");
-
+            $"Xóa tài khoản {user.EmployeeCode}? Hành động này không thể hoàn tác.",
+            yesText: "Xóa", cancelText: "Hủy");
         if (confirm != true) return;
 
         var response = await UserMgtService.DeleteAsync(user.IdUser, _cts.Token);
-        if (response.IsSuccess)
-        {
-            Snackbar.Add("Đã xóa tài khoản.", Severity.Success);
-            await LoadAsync();
-        }
-        else
-        {
-            Snackbar.Add(response.Message ?? "Lỗi xóa.", Severity.Error);
-        }
+        Snackbar.Add(response.IsSuccess ? "Đã xóa tài khoản." : response.Message ?? "Lỗi xóa.",
+            response.IsSuccess ? Severity.Success : Severity.Error);
+        if (response.IsSuccess) await LoadAsync();
     }
 
-    // ── Helpers ──────────────────────────────────────────────────
     private static string GetPermChipStyle(int code) => code switch
     {
         1 => "background:#7B1FA2;color:white",
