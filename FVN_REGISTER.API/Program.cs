@@ -31,6 +31,7 @@ using FVN_REGISTER.Infrastructure.Repositories;
 using FVN_REGISTER.Infrastructure.Services.Approvals;
 using FVN_REGISTER.Infrastructure.Services.Auths;
 using FVN_REGISTER.Infrastructure.Services.Companies;
+using FVN_REGISTER.Infrastructure.Services.Common;
 using FVN_REGISTER.Infrastructure.Services.Emails;
 using FVN_REGISTER.Infrastructure.Services.Employees;
 using FVN_REGISTER.Infrastructure.Services.Histories;
@@ -96,8 +97,6 @@ builder.Services.AddDbContext<FVNWEBAPPContext>(options =>
     options.UseSqlServer(connectionString));
 
 // UnitOfWork is an Application port implemented by Infrastructure.
-// Register DbContext against the same scoped FVNWEBAPPContext instance so
-// UnitOfWork never creates a second DbContext in the same request.
 builder.Services.AddScoped<DbContext>(sp =>
     sp.GetRequiredService<FVNWEBAPPContext>());
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
