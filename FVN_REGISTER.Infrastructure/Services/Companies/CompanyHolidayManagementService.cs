@@ -9,9 +9,8 @@ using FVN_REGISTER.Core.Utils;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using System.Diagnostics;
 
-namespace FVN_REGISTER.API.Services.Companies
+namespace FVN_REGISTER.Infrastructure.Services.Companies
 {
     public class CompanyHolidayManagementService
         : BaseService<CompanyHolidayManagementService>, ICompanyHolidayManagementService
@@ -21,20 +20,15 @@ namespace FVN_REGISTER.API.Services.Companies
         public CompanyHolidayManagementService(
             IUnitOfWork uow,
             ILogger<CompanyHolidayManagementService> logger,
-            IOptionsMonitor<AuthDebugOptions> options
-        ) : base(logger, options)
+            IOptionsMonitor<AuthDebugOptions> options)
+            : base(logger, options)
         {
             _uow = uow;
         }
 
         public async Task<List<CompanyHolidayDto>> GetAllAsync(CancellationToken ct = default)
-        {
-            return await _uow.Repository<F03CompanyHoliday>().Query()
-                .AsNoTracking()
-                .OrderByDescending(x => x.HolidayDate)
-                .Select(x => ToDto(x))
-                .ToListAsync(ct);
-        }
+            => await _uow.Repository<F03CompanyHoliday>().Query().AsNoTracking()
+                .OrderByDescending(x => x.HolidayDate).Select(ToDto).ToListAsync(ct);
 
         public async Task<CompanyHolidayDto?> GetByIdAsync(int id, CancellationToken ct = default)
         {
@@ -43,32 +37,17 @@ namespace FVN_REGISTER.API.Services.Companies
         }
 
         public async Task<List<int>> GetWorkYearsAsync(CancellationToken ct = default)
-        {
-            return await _uow.Repository<F03WorkYear>().Query()
-                .AsNoTracking()
-                .Select(x => x.WorkYear)
-                .Distinct()
-                .OrderByDescending(x => x)
-                .ToListAsync(ct);
-        }
+            => await _uow.Repository<F03WorkYear>().Query().AsNoTracking()
+                .Select(x => x.WorkYear).Distinct().OrderByDescending(x => x).ToListAsync(ct);
 
         public async Task<ServiceResult<CompanyHolidayDto>> CreateAsync(
             CompanyHolidayDto model, int userId, CancellationToken ct = default)
         {
             try
             {
-                Logger.LogDebugIf(Debug, "[HOLIDAY] Create attempt");
-
                 var repo = _uow.Repository<F03CompanyHoliday>();
-
-                var exists = await repo.Query()
-                    .AnyAsync(x => x.HolidayDate.Date == model.HolidayDate.Date, ct);
-
-                if (exists)
-                {
-                    Logger.LogWarnIf(Debug, "[HOLIDAY] Duplicate date: {Date}", model.HolidayDate);
-                    return ServiceResult<CompanyHolidayDto>.Fail("Ngày nghỉ này đã tồn tại.");
-                }
+                var exists = await repo.Query().AnyAsync(x => x.HolidayDate.Date == model.HolidayDate.Date, ct);
+                if (exists) return ServiceResult<CompanyHolidayDto>.Fail("Ngày nghỉ này đã tồn tại.");
 
                 var entity = new F03CompanyHoliday
                 {
@@ -82,9 +61,6 @@ namespace FVN_REGISTER.API.Services.Companies
 
                 await repo.AddAsync(entity, ct);
                 await _uow.SaveChangesAsync(ct);
-
-                Logger.LogInfoIf(Debug, "[HOLIDAY] Created: {Date}", model.HolidayDate);
-
                 return ServiceResult<CompanyHolidayDto>.Ok(ToDto(entity));
             }
             catch (Exception ex)
@@ -99,16 +75,9 @@ namespace FVN_REGISTER.API.Services.Companies
         {
             try
             {
-                Logger.LogDebugIf(Debug, "[HOLIDAY] Update: {Id}", model.Id);
-
                 var repo = _uow.Repository<F03CompanyHoliday>();
                 var entity = await repo.GetByIdAsync(model.Id, ct);
-
-                if (entity == null)
-                {
-                    Logger.LogWarnIf(Debug, "[HOLIDAY] Not found: {Id}", model.Id);
-                    return ServiceResult<CompanyHolidayDto>.Fail("Không tìm thấy thông tin.");
-                }
+                if (entity == null) return ServiceResult<CompanyHolidayDto>.Fail("Không tìm thấy thông tin.");
 
                 entity.HolidayDate = model.HolidayDate;
                 entity.Description = model.Description;
@@ -118,9 +87,6 @@ namespace FVN_REGISTER.API.Services.Companies
                 entity.ModifiedAt = DateTime.Now;
 
                 await _uow.SaveChangesAsync(ct);
-
-                Logger.LogInfoIf(Debug, "[HOLIDAY] Updated: {Id}", model.Id);
-
                 return ServiceResult<CompanyHolidayDto>.Ok(ToDto(entity));
             }
             catch (Exception ex)
@@ -134,22 +100,12 @@ namespace FVN_REGISTER.API.Services.Companies
         {
             try
             {
-                Logger.LogDebugIf(Debug, "[HOLIDAY] Delete: {Id}", id);
-
                 var repo = _uow.Repository<F03CompanyHoliday>();
                 var entity = await repo.GetByIdAsync(id, ct);
-
-                if (entity == null)
-                {
-                    Logger.LogWarnIf(Debug, "[HOLIDAY] Not found: {Id}", id);
-                    return ServiceResult.Fail("Không tìm thấy.");
-                }
+                if (entity == null) return ServiceResult.Fail("Không tìm thấy.");
 
                 repo.Remove(entity);
                 await _uow.SaveChangesAsync(ct);
-
-                Logger.LogInfoIf(Debug, "[HOLIDAY] Deleted: {Id}", id);
-
                 return ServiceResult.Ok();
             }
             catch (Exception ex)
@@ -168,9 +124,7 @@ namespace FVN_REGISTER.API.Services.Companies
 
             foreach (var date in sundays)
             {
-                bool exists = await repo.Query()
-                    .AnyAsync(x => x.HolidayDate.Date == date.Date, ct);
-
+                bool exists = await repo.Query().AnyAsync(x => x.HolidayDate.Date == date.Date, ct);
                 if (!exists)
                 {
                     await repo.AddAsync(new F03CompanyHoliday
@@ -178,7 +132,7 @@ namespace FVN_REGISTER.API.Services.Companies
                         HolidayDate = date,
                         Description = "Chủ nhật",
                         Year = year,
-                        IsPaidLeave = false, // Chủ nhật thường không tính vào phép — xác nhận lại đúng nghiệp vụ
+                        IsPaidLeave = false,
                         CreatedBy = userId,
                         CreatedAt = DateTime.Now
                     }, ct);
@@ -204,7 +158,7 @@ namespace FVN_REGISTER.API.Services.Companies
             IsPaidLeave = e.IsPaidLeave
         };
 
-        private List<DateTime> GetSundays(int year)
+        private static List<DateTime> GetSundays(int year)
         {
             var list = new List<DateTime>();
             var date = new DateTime(year, 1, 1);
