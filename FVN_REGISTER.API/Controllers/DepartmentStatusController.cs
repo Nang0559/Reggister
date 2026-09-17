@@ -28,11 +28,9 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpGet("all")]
-        public async Task<IActionResult> GetAll(
-            [FromQuery] DateTime? date,
-            CancellationToken ct)
+        public async Task<IActionResult> GetAll([FromQuery] DateTime? date, CancellationToken ct)
         {
-            var result = await _deptStatus.GetAllDeptStatusAsync(date, ct);
+            var result = await _deptStatus.GetAllDeptStatusAsync(date ?? DateTime.Today, ct);
             return Ok(ApiResponse<object>.Ok(result));
         }
     }
