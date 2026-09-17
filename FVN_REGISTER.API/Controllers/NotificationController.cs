@@ -1,10 +1,9 @@
-﻿using AutoMapper;
-using FVN_REGISTER.Contract.Interfaces.Auths;
+using AutoMapper;
+using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Contract.Interfaces.Users;
 using FVN_REGISTER.Core.Configurations;
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
@@ -46,7 +45,6 @@ namespace FVN_REGISTER.API.Controllers
             return Ok(ApiResponse<object>.Ok(new { count }));
         }
 
-        // ✅ Đổi [HttpPatch] → [HttpPut] để dùng được IHttpClientWithAuth.PutAsync
         [HttpPut("{id}/read")]
         public async Task<IActionResult> MarkRead(int id, CancellationToken ct = default)
         {
@@ -55,7 +53,6 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(result);
         }
 
-        // ✅ Đổi [HttpPatch] → [HttpPut]
         [HttpPut("read-all")]
         public async Task<IActionResult> MarkAllRead(CancellationToken ct = default)
         {
