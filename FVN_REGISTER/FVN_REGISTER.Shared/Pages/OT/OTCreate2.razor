@@ -1,10 +1,7 @@
 ﻿@page "/ot/create2"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.OT
-@using FVN_REGISTER.Contract.Models
-@using FVN_REGISTER.Contract.ViewModels
-@using FVN_REGISTER.Contract.Utils
-@using FVN_REGISTER.Contract.ViewModels.OT
+@using FVN_REGISTER.Core.Entities.Approvers
 @using FVN_REGISTER.Shared.Services.OTs
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils.Helpers
@@ -1052,7 +1049,7 @@ else if (_model != null)
         }
     }
 
-    
+
 
     // ── Load balance sau khi thêm nhân viên ──────────────────────────────────
     private async Task LoadBalanceForEmployee(OTEmployeeModel emp)
@@ -1149,7 +1146,7 @@ else if (_model != null)
 
     private bool IsCurrentUser(string code) => code == (CurrentUser.User?.EmployeeCode ?? "");
 
-    private List<F03OTApprover> GetApproversForLevel(int level) =>
+    private List<F03Approver> GetApproversForLevel(int level) =>
         _approversByLevel.TryGetValue(level, out var list) ? list : new();
 
     // ── Init ──────────────────────────────────────────────────────────────────

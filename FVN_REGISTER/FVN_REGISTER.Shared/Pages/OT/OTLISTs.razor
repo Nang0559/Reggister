@@ -1,9 +1,7 @@
 ﻿@page "/ot/list"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Depts
-@using FVN_REGISTER.Contract.Utils
-@using FVN_REGISTER.Contract.ViewModels
-@using FVN_REGISTER.Contract.ViewModels.OT
+@using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Components.OT
 @using FVN_REGISTER.Shared.Services.OTs
 @using FVN_REGISTER.Shared.Services.Users
@@ -11,9 +9,10 @@
 
 @using FVN_REGISTER.Shared.Utils.Helpers
 @using Microsoft.AspNetCore.Authorization
+@using static FVN_REGISTER.Shared.Utils.IconConstants
 @* Bỏ @using FVN_REGISTER.Contract.Utils để tránh nhập nhằng PaginationResult.
    OTStatus vẫn dùng được qua fully-qualified hoặc thêm alias bên dưới *@
-@using static FVN_REGISTER.Contract.Utils.OTStatus
+
 @implements IDisposable
 @inherits AppComponentBase
 @inject IOTClientService OTService
@@ -612,8 +611,8 @@
     private static (Color color, string icon, string text) GetStatusChip(string? status)
         => status switch
         {
-            OTStatus.Approved => (Color.Success, Icons.Material.Filled.CheckCircle, "Hoàn tất"),
-            OTStatus.ApprovedLv3 => (Color.Info, Icons.Material.Filled.Looks3, "Cấp 3 duyệt"),
+            RowStatus.Approved => (Color.Success, Icons.Material.Filled.CheckCircle, "Hoàn tất"),
+            Status.ApprovedLv3 => (Color.Info, Icons.Material.Filled.Looks3, "Cấp 3 duyệt"),
             OTStatus.ApprovedLv5 => (Color.Info, Icons.Material.Filled.Looks5, "Cấp 5 duyệt"),
             OTStatus.ApprovedLv6 => (Color.Info, Icons.Material.Filled.Looks6, "Cấp 6 duyệt"),
             OTStatus.Rejected => (Color.Error, Icons.Material.Filled.Cancel, "Từ chối"),
