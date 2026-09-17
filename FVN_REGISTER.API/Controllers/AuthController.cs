@@ -1,17 +1,18 @@
-﻿using AutoMapper;
-using FVN_REGISTER.API.Hubs;
+using AutoMapper;
+using FVN_REGISTER.Application.Interfaces.Auths;
+using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Requests.Auths;
-using FVN_REGISTER.Contract.Interfaces.Auths;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Contract.Interfaces.Users;
-using FVN_REGISTER.Contract.Models.Data;
+using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Requests;
-using FVN_REGISTER.Core.Configurations;
+using FVN_REGISTER.Contract.Utils;
+using FVN_REGISTER.Infrastructure.Hubs;
+using FVN_REGISTER.Infrastructure.Models.Data;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using FVN_REGISTER.Core.Configurations;
 
 namespace FVN_REGISTER.API.Controllers
 {
@@ -33,7 +34,6 @@ namespace FVN_REGISTER.API.Controllers
             _authService = authService;
         }
 
-        // ─── LOGIN ───────────────────────────────────────────
         [HttpPost("login")]
         [AllowAnonymous]
         public async Task<IActionResult> Login(
@@ -46,10 +46,10 @@ namespace FVN_REGISTER.API.Controllers
             var result = await _authService.Login(
                 model.UserName,
                 model.Password,
-                model.DeviceId,    // ✅ THÊM
-                model.DeviceType,  // ✅ THÊM
-                model.DeviceName,  // ✅ THÊM
-                model.RememberMe,  // ✅ THÊM
+                model.DeviceId,
+                model.DeviceType,
+                model.DeviceName,
+                model.RememberMe,
                 ct);
 
             if (result.IsSuccess && result.Data != null)
@@ -60,9 +60,8 @@ namespace FVN_REGISTER.API.Controllers
 
             return HandleResult(result);
         }
-       
-        // ─── REFRESH TOKEN ───────────────────────────────────
-        [HttpPost("refresh")]                              // ✅ THÊM MỚI
+
+        [HttpPost("refresh")]
         [AllowAnonymous]
         public async Task<IActionResult> RefreshToken(
             [FromBody] RefreshTokenRequest request,
@@ -81,7 +80,6 @@ namespace FVN_REGISTER.API.Controllers
             return Ok(ApiResponse<object>.Ok(new { Token = result.Data }));
         }
 
-        // ─── PROFILE ─────────────────────────────────────────
         [HttpGet("profile")]
         public async Task<IActionResult> GetProfile(CancellationToken ct)
         {
@@ -112,11 +110,10 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(result);
         }
 
-        // ─── LOGOUT ──────────────────────────────────────────
         [HttpPost("logout")]
         [Authorize]
         public async Task<IActionResult> Logout(
-            [FromBody] LogoutRequest? request,  // ✅ THÊM body
+            [FromBody] LogoutRequest? request,
             CancellationToken ct)
         {
             if (UserInfo == null)
@@ -124,23 +121,23 @@ namespace FVN_REGISTER.API.Controllers
 
             var result = await _authService.Logout(
                 UserInfo.UserId,
-                request?.RefreshToken,          // ✅ THÊM
+                request?.RefreshToken,
                 ct);
 
             await LogActionAsync("Logout");
             return HandleResult(result);
         }
 
-        // ─── SESSIONS ────────────────────────────────────────
+        // NOTE: Session listing still reads the EF model directly in this transitional step.
+        // It is the next extraction target: API -> ISessionService -> Infrastructure repository.
         [HttpGet("sessions")]
         public async Task<IActionResult> GetSessions(
-            [FromServices] FVNWEBAPPContext db, // Inject DbContext trực tiếp hoặc qua Service để lấy data nhanh
+            [FromServices] FVNWEBAPPContext db,
             CancellationToken ct)
         {
             if (UserInfo == null)
                 return Unauthorized();
 
-            // Lấy danh sách session hiển thị cho người dùng, ẩn chuỗi mã JwtToken đi để bảo mật
             var sessions = await db.UserSessions
                 .AsNoTracking()
                 .Where(x => x.UserId == UserInfo.UserId && x.IsActive)
@@ -152,7 +149,6 @@ namespace FVN_REGISTER.API.Controllers
                     x.CreatedAt,
                     x.LastSeenAt,
                     IsCurrent = x.JwtToken == Request.Headers["Authorization"].ToString().Replace("Bearer ", "")
-                    // Thêm flag IsCurrent để Front-End biết thiết bị nào là thiết bị hiện tại đang cầm bấm xem
                 })
                 .OrderByDescending(x => x.LastSeenAt)
                 .ToListAsync(ct);
@@ -162,24 +158,27 @@ namespace FVN_REGISTER.API.Controllers
 
         [HttpDelete("sessions/{sessionId}")]
         public async Task<IActionResult> RevokeSession(
-    int sessionId,
-    [FromServices] FVNWEBAPPContext db,
-    [FromServices] ISessionService sessionService,
-    [FromServices] IHubContext<NotificationHub> hubContext, // 🌟 THÊM DÒNG NÀY
-    CancellationToken ct)
+            int sessionId,
+            [FromServices] FVNWEBAPPContext db,
+            [FromServices] ISessionService sessionService,
+            [FromServices] IHubContext<NotificationHub> hubContext,
+            CancellationToken ct)
         {
             if (UserInfo == null)
                 return Unauthorized();
 
             var targetSession = await db.UserSessions
-                .FirstOrDefaultAsync(x => x.Id == sessionId && x.UserId == UserInfo.UserId && x.IsActive, ct);
+                .FirstOrDefaultAsync(x =>
+                    x.Id == sessionId &&
+                    x.UserId == UserInfo.UserId &&
+                    x.IsActive,
+                    ct);
 
             if (targetSession == null)
                 return NotFound(ApiResponse<object>.Fail("Thiết bị không tồn tại hoặc đã đăng xuất."));
 
             await sessionService.RevokeAsync(targetSession.JwtToken, ct);
 
-            // 🌟 ĐỔI chữ _hubContext thành hubContext (bỏ dấu gạch dưới vì dùng biến local)
             if (!string.IsNullOrEmpty(targetSession.SignalRConnectionId))
             {
                 await hubContext.Clients.Client(targetSession.SignalRConnectionId)
@@ -190,7 +189,6 @@ namespace FVN_REGISTER.API.Controllers
         }
     }
 
-    // ─── Request Models ──────────────────────────────────
     public record RefreshTokenRequest(string RefreshToken);
     public record LogoutRequest(string? RefreshToken);
 }
