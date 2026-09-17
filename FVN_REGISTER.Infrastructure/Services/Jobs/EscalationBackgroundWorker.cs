@@ -1,18 +1,21 @@
-﻿
-
-using FVN_REGISTER.Application.Interfaces.Common;
+﻿using FVN_REGISTER.Application.Interfaces.Leaves;
+using FVN_REGISTER.Application.Interfaces.OT;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Infrastructure.Services.Jobs
 {
-    // Cần tạo file: EscalationBackgroundWorker.cs
+    /// <summary>
+    /// Runs the shared approval-timeout pipeline for every supported request module.
+    /// The worker interval is intentionally shorter than the escalation threshold so
+    /// a request is not left waiting for hours after its rule has expired.
+    /// </summary>
     public class EscalationBackgroundWorker : BackgroundService
     {
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<EscalationBackgroundWorker> _logger;
-        private readonly TimeSpan _period = TimeSpan.FromHours(4);
+        private readonly TimeSpan _period = TimeSpan.FromMinutes(15);
 
         public EscalationBackgroundWorker(
             IServiceProvider serviceProvider,
@@ -24,9 +27,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("[ESC_WORKER] Started, interval={Hours}h", _period.TotalHours);
+            _logger.LogInformation(
+                "[ESC_WORKER] Started, interval={Minutes}m",
+                _period.TotalMinutes);
 
-            // Chạy ngay lần đầu
             await DoWorkAsync(stoppingToken);
 
             try
@@ -40,7 +44,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
             }
             catch (OperationCanceledException)
             {
-                // App đang shutdown, bỏ qua
+                // App đang shutdown.
             }
 
             _logger.LogInformation("[ESC_WORKER] Stopped");
@@ -53,14 +57,18 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                 _logger.LogInformation("[ESC_WORKER] Running at {Time}", DateTimeOffset.Now);
 
                 await using var scope = _serviceProvider.CreateAsyncScope();
-                var escalationService = scope.ServiceProvider.GetRequiredService<ILeaveEscalationService>();
-                await escalationService.ProcessAsync(ct);
+
+                var leaveEscalation = scope.ServiceProvider.GetRequiredService<ILeaveEscalationService>();
+                await leaveEscalation.ProcessAsync(ct);
+
+                var otEscalation = scope.ServiceProvider.GetRequiredService<IOTEscalationService>();
+                await otEscalation.ProcessAsync(ct);
 
                 _logger.LogInformation("[ESC_WORKER] Completed at {Time}", DateTimeOffset.Now);
             }
             catch (OperationCanceledException)
             {
-                // Bỏ qua khi shutdown
+                // Bỏ qua khi shutdown.
             }
             catch (Exception ex)
             {
