@@ -4,9 +4,7 @@ using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Requests.OT;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Shared.Handlers;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.Shared.Services.OTs;
@@ -14,32 +12,31 @@ namespace FVN_REGISTER.Shared.Services.OTs;
 public sealed class OTClientService : IOTClientService
 {
     private readonly IHttpClientWithAuth _http;
-    private readonly ILogger<OTClientService> _logger;
     private readonly IOptionsMonitor<AuthDebugOptions> _options;
-    private bool Debug => _options.CurrentValue.Enabled;
     private const string Base = "api/OT";
 
-    public OTClientService(IHttpClientWithAuth http, ILogger<OTClientService> logger, IOptionsMonitor<AuthDebugOptions> options)
+    public OTClientService(IHttpClientWithAuth http, IOptionsMonitor<AuthDebugOptions> options)
     {
         _http = http;
-        _logger = logger;
         _options = options;
     }
 
     public Task<ApiResponse<object>> CreateOTRequestAsync(OTRequestUpsertDto request, CancellationToken ct = default)
         => _http.PostAsync<object>($"{Base}/create", request, ct);
 
-    public async Task<ApiResponse<object>> ApproveAsync(ApprovalActionDto request, CancellationToken ct = default)
-    {
-        request.IsReject = false;
-        return await _http.PostAsync<object>($"{Base}/approve", request, ct);
-    }
+    public Task<ApiResponse<object>> ApproveAsync(ApprovalActionDto request, CancellationToken ct = default)
+        => SendApprovalAsync($"{Base}/approve", request, ct);
 
-    public async Task<ApiResponse<object>> RejectAsync(ApprovalActionDto request, CancellationToken ct = default)
-    {
-        request.IsReject = true;
-        return await _http.PostAsync<object>($"{Base}/reject", request, ct);
-    }
+    public Task<ApiResponse<object>> RejectAsync(ApprovalActionDto request, CancellationToken ct = default)
+        => SendApprovalAsync($"{Base}/reject", request, ct);
+
+    private Task<ApiResponse<object>> SendApprovalAsync(string url, ApprovalActionDto request, CancellationToken ct)
+        => _http.PostAsync<object>(url, new
+        {
+            Ids = request.RequestIds,
+            Level = request.Level,
+            Comment = request.Comment
+        }, ct);
 
     public Task<ApiResponse<object>> CancelAsync(int otRequestId, string? reason, CancellationToken ct = default)
         => _http.PostAsync<object>($"{Base}/cancel/{otRequestId}", new { Reason = reason }, ct);
@@ -91,15 +88,8 @@ public sealed class OTClientService : IOTClientService
     public Task<ApiResponse<object>> GetOTDashboardAsync(CancellationToken ct = default)
         => _http.GetAsync<object>($"{Base}/dashboard", ct);
 
-    public Task<ApiResponse<OTValidationResultDto>> ValidateOTHoursAsync(
-        string employeeCode, DateTime otDate, decimal hours, string otType, CancellationToken ct = default)
-        => _http.PostAsync<OTValidationResultDto>($"{Base}/validate", new
-        {
-            EmployeeCode = employeeCode,
-            OTDate = otDate,
-            Hours = hours,
-            OTType = otType
-        }, ct);
+    public Task<ApiResponse<OTValidationResultDto>> ValidateOTHoursAsync(string employeeCode, DateTime otDate, decimal hours, string otType, CancellationToken ct = default)
+        => _http.PostAsync<OTValidationResultDto>($"{Base}/validate", new { EmployeeCode = employeeCode, OTDate = otDate, Hours = hours, OTType = otType }, ct);
 
     public Task<ApiResponse<object>> UpdateEmployeeOTInfoAsync(int otRequestId, List<OTEmployeeDto> employees, CancellationToken ct = default)
         => _http.PutAsync<object>($"{Base}/{otRequestId}/employees/update", employees, ct);
