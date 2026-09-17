@@ -1,8 +1,8 @@
 using AutoMapper;
+using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Jobs;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.Users;
-using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Core.Configurations;
 using Microsoft.AspNetCore.Authorization;
@@ -40,9 +40,7 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpPost("sync")]
-        public async Task<IActionResult> TriggerSync(
-            [FromQuery] DateTime? date,
-            CancellationToken ct)
+        public async Task<IActionResult> TriggerSync([FromQuery] DateTime? date, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
             var workDate = date ?? DateTime.Today.AddDays(-1);
@@ -58,24 +56,16 @@ namespace FVN_REGISTER.API.Controllers
             => Ok(ApiResponse<OTWorkerStatusDto>.Ok(_workerStatus.GetStatus()));
 
         [HttpPost("worker-trigger")]
-        public async Task<IActionResult> TriggerWorkerNow(
-            [FromQuery] string? deptCode,
-            CancellationToken ct)
+        public async Task<IActionResult> TriggerWorkerNow([FromQuery] string? deptCode, CancellationToken ct)
         {
-            if (!User.IsInRole("SuperAdmin") && !User.IsInRole("Admin"))
-                return Forbid();
-
+            if (!User.IsInRole("SuperAdmin") && !User.IsInRole("Admin")) return Forbid();
             var workDate = DateTime.Today.AddDays(-1);
             var result = await _reconciliation.ReconcileActualHoursAsync(workDate, deptCode, ct);
-            return Ok(ApiResponse<OTReconciliationResultDto>.Ok(
-                result,
-                result.Message));
+            return Ok(ApiResponse<OTReconciliationResultDto>.Ok(result, result.Summary));
         }
 
         [HttpPost("worker-test-run")]
-        public async Task<IActionResult> TestWorkerRun(
-            [FromQuery] DateTime? date,
-            CancellationToken ct)
+        public async Task<IActionResult> TestWorkerRun([FromQuery] DateTime? date, CancellationToken ct)
         {
             if (!HttpContext.RequestServices.GetRequiredService<IWebHostEnvironment>().IsDevelopment())
                 return Forbid();
