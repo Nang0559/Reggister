@@ -1,10 +1,13 @@
+using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.HrmSync;
+using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Application.Logging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Controllers;
 
-/// <summary>Admin review queue for HRM sync conflicts. Resolving a flag does not mutate source data.</summary>
 [Authorize]
 [ApiController]
 [Route("api/hrm-sync/review")]
