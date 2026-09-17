@@ -1,7 +1,7 @@
-using AutoMapper;
 using FVN_REGISTER.Application.Interfaces.Emails;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.EmailTemplates;
+using FVN_REGISTER.Contract.Requests.Email;
 using FVN_REGISTER.Core.Configurations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,10 +20,9 @@ namespace FVN_REGISTER.API.Controllers
             IEmailService emailService,
             ICurrentUserService currentUser,
             IUserLogService userLog,
-            IMapper mapper,
             ILogger<EmailQueueController> logger,
             IOptionsMonitor<AuthDebugOptions> options)
-            : base(currentUser, userLog, mapper, logger, options)
+            : base(currentUser, userLog, logger, options)
         {
             _emailService = emailService;
         }
@@ -32,9 +31,7 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> GetAll(CancellationToken ct)
         {
             if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
-
-            var list = await _emailService.GetQueueAsync(500, ct);
-            return Ok(ApiResponse<List<EmailQueueDto>>.Ok(list));
+            return Ok(ApiResponse<List<EmailQueueDto>>.Ok(await _emailService.GetQueueAsync(500, ct)));
         }
 
         [HttpPost("{id:int}/retry")]
@@ -46,10 +43,10 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpPost("retry-batch")]
-        public async Task<IActionResult> RetryBatch(
-            [FromBody] BatchIdsRequest req, CancellationToken ct)
+        public async Task<IActionResult> RetryBatch([FromBody] BatchIdsRequestDto req, CancellationToken ct)
         {
             if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
+            if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Danh sách ID không hợp lệ."));
             await _emailService.RetryEmailBatchAsync(req.Ids, ct);
             return Ok(ApiResponse.Ok($"Đã reset {req.Ids.Count} email."));
         }
@@ -63,10 +60,10 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpPost("cancel-batch")]
-        public async Task<IActionResult> CancelBatch(
-            [FromBody] BatchIdsRequest req, CancellationToken ct)
+        public async Task<IActionResult> CancelBatch([FromBody] BatchIdsRequestDto req, CancellationToken ct)
         {
             if (UserInfo == null || !UserInfo.IsAdmin()) return Forbid();
+            if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Danh sách ID không hợp lệ."));
             await _emailService.CancelEmailBatchAsync(req.Ids, ct);
             return Ok(ApiResponse.Ok($"Đã hủy {req.Ids.Count} email."));
         }
@@ -79,6 +76,4 @@ namespace FVN_REGISTER.API.Controllers
             return Ok(ApiResponse.Ok("Queue đã được xử lý."));
         }
     }
-
-    public record BatchIdsRequest(List<int> Ids);
 }
