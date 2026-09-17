@@ -23,7 +23,7 @@ public sealed class F03ApproverConfiguration : IEntityTypeConfiguration<F03Appro
         entity.Property(e => e.RequestType)
             .HasConversion(
                 v => v.ToCode(),
-                v => v.TryToRequestModule(out var module) ? module : RequestModule.Leave)
+                v => RequestModuleExtensions.ParseCode(v))
             .IsRequired()
             .HasMaxLength(20);
 
