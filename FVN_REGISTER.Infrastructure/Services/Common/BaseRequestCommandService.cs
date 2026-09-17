@@ -1,4 +1,4 @@
-﻿namespace FVN_REGISTER.Application.Services.Common
+namespace FVN_REGISTER.Infrastructure.Services.Common
 {
     using FVN_REGISTER.Application.Interfaces.Approvals;
     using FVN_REGISTER.Application.Interfaces.Common;
@@ -18,12 +18,6 @@
     using Microsoft.Extensions.Logging;
     using Microsoft.Extensions.Options;
 
-    /// <summary>
-    /// Base cho Command Service của domain có luồng Create/Approve/Reject/Cancel dùng chung
-    /// cơ chế Approval qua IApprovalWorkflowOrchestrator&lt;TSubject&gt;.
-    /// Domain (LeaveService, OTService...) chỉ cần implement CreateAsync (đặc thù nghiệp vụ)
-    /// và override các hook nếu cần; Approve/Reject/Cancel dùng chung logic ở đây.
-    /// </summary>
     public abstract class BaseRequestCommandService<TCreateModel, TEntity, TSubject>
         : BaseService<BaseRequestCommandService<TCreateModel, TEntity, TSubject>>,
           IRequestCommandService<TCreateModel>
@@ -33,7 +27,6 @@
         protected readonly IUnitOfWork Uow;
         protected readonly IApprovalWorkflowOrchestrator<TSubject> Workflow;
 
-        /// <summary>Module hiện tại (Leave/Overtime/Trip) — dùng để build ApprovalActionDto.</summary>
         protected abstract RequestModule ModuleKind { get; }
 
         protected BaseRequestCommandService(
@@ -47,20 +40,13 @@
             Workflow = workflow;
         }
 
-        // ================= CREATE =================
-        // Mỗi domain khác nhau hoàn toàn về entity/validator/detail nên để abstract.
-        // Domain tự lo: build entity, save, rồi PHẢI tự gọi Workflow.InitApprovalAsync(id, ctx, ct)
-        // sau khi entity có Id — Base không ép được bước này vì ApprovalBuildContext cần dữ liệu
-        // đặc thù domain (CvCode, DeptCode, Extra...) mà Base không biết.
         public abstract Task<ServiceResult<int>> CreateAsync(
             TCreateModel model, UserIdentityDto user, CancellationToken ct = default);
 
-        // ================= APPROVE (bulk) =================
         public virtual async Task<ServiceResult> ApproveAsync(
             List<int> ids, int level, UserIdentityDto user, string? comment, CancellationToken ct = default)
             => await ProcessBulkAsync(ids, level, user, comment, isReject: false, ct);
 
-        // ================= REJECT (bulk) =================
         public virtual async Task<ServiceResult> RejectAsync(
             List<int> ids, int level, UserIdentityDto user, string comment, CancellationToken ct = default)
         {
@@ -70,7 +56,6 @@
             return await ProcessBulkAsync(ids, level, user, comment, isReject: true, ct);
         }
 
-        // ================= CANCEL =================
         public virtual async Task<ServiceResult> CancelAsync(
             int requestId, string reason, UserIdentityDto user, CancellationToken ct = default)
         {
@@ -104,7 +89,6 @@
             }
         }
 
-        // ================= BULK CORE (dùng chung Approve/Reject) =================
         private async Task<ServiceResult> ProcessBulkAsync(
             List<int> ids, int level, UserIdentityDto user, string? comment, bool isReject, CancellationToken ct)
         {
@@ -129,9 +113,14 @@
                     ? await Workflow.RejectAsync(action, ct)
                     : await Workflow.ApproveAsync(action, ct);
 
-                Logger.LogInfoIf(Debug,
+                Logger.LogInfoIf(
+                    Debug,
                     "[{Component}] {Action} bulk Level={Level} {Success}/{Total} thành công",
-                    ComponentName, isReject ? "Reject" : "Approve", level, result.SuccessCount, result.TotalCount);
+                    ComponentName,
+                    isReject ? "Reject" : "Approve",
+                    level,
+                    result.SuccessCount,
+                    result.TotalCount);
 
                 return result.Success
                     ? ServiceResult.Ok(result.Message)
@@ -142,7 +131,7 @@
                 return InternalError(ex, isReject ? "Lỗi hệ thống khi từ chối đơn." : "Lỗi hệ thống khi duyệt đơn.");
             }
         }
-        // ================= ATTACH FILES (dùng chung mọi domain) =================
+
         public virtual async Task<ServiceResult> AttachFilesAsync(
             AttachFilesCommandDto command, UserIdentityDto user, CancellationToken ct = default)
         {
@@ -168,12 +157,12 @@
                 {
                     await attachRepo.AddAsync(new F03Attachment
                     {
-                        Module = ModuleKind,                    // ← đã sửa: lấy từ ModuleKind của domain
+                        Module = ModuleKind,
                         RequestId = command.Id,
                         FileName = a.FileName,
                         FilePath = a.FilePath,
-                        FileExtension = a.FileExtension,          // ← đã sửa: map đủ field
-                        FileSize = a.FileSize,                    // ← đã sửa: map đủ field
+                        FileExtension = a.FileExtension,
+                        FileSize = a.FileSize,
                         IsActive = true,
                         CreatedBy = user.UserId,
                         CreatedAt = DateTime.Now
@@ -182,8 +171,13 @@
 
                 await Uow.SaveChangesAsync(ct);
 
-                Logger.LogInfoIf(Debug, "[{Component}] Attached {Count} files to Id={Id} | Module={Module}",
-                    ComponentName, command.Attachments.Count, command.Id, ModuleKind);
+                Logger.LogInfoIf(
+                    Debug,
+                    "[{Component}] Attached {Count} files to Id={Id} | Module={Module}",
+                    ComponentName,
+                    command.Attachments.Count,
+                    command.Id,
+                    ModuleKind);
 
                 return ServiceResult.Ok("Đã đính kèm file thành công.");
             }
@@ -193,15 +187,11 @@
             }
         }
 
-        // ================= HOOKS (domain override) =================
-
-        /// <summary>Đơn đã ở trạng thái cuối (Approved/Rejected/Cancelled) hay chưa.</summary>
         protected virtual bool IsFinalized(TEntity entity)
             => entity.RequestStatus == ApprovalStatus.Approved
             || entity.RequestStatus == ApprovalStatus.Rejected
             || entity.RequestStatus == ApprovalStatus.Cancelled;
 
-        /// <summary>Áp dụng việc hủy lên entity — domain override nếu cần set thêm field riêng.</summary>
         protected virtual void ApplyCancel(TEntity entity, string reason, UserIdentityDto user)
         {
             entity.RequestStatus = ApprovalStatus.Cancelled;
