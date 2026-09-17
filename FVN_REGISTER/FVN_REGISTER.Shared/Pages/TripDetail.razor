@@ -1,0 +1,144 @@
+@page "/trip/{Id:int}"
+@attribute [Authorize]
+@namespace FVN_REGISTER.Shared.Pages
+@using FVN_REGISTER.Contract.Dtos.Trips
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.Trips
+@using Microsoft.AspNetCore.Authorization
+@inject ITripClientService TripService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inherits AppComponentBase
+
+<PageTitle>Chi tiết công tác</PageTitle>
+
+@if (_loading)
+{
+    <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+}
+else if (_item == null)
+{
+    <MudAlert Severity="Severity.Warning" Class="mt-4">Không tìm thấy đăng ký công tác.</MudAlert>
+}
+else
+{
+    <MudStack Spacing="2">
+        <MudPaper Class="pa-3" Elevation="1">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div>
+                    <MudText Typo="Typo.h6">
+                        <MudIcon Icon="@Icons.Material.Filled.FlightTakeoff" Class="mr-2" />
+                        @_item.TripCode
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">Chi tiết đăng ký công tác</MudText>
+                </div>
+                <MudChip T="string" Color="@GetStatusColor(_item.RequestStatus)" Label="true">
+                    @GetStatusText(_item.RequestStatus)
+                </MudChip>
+            </MudStack>
+        </MudPaper>
+
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Nhân viên</MudText><MudText>@(_item.EmployeeName ?? _item.EmployeeCode)</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Bộ phận</MudText><MudText>@(_item.DeptCode ?? "—")</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Từ ngày</MudText><MudText>@_item.StartDate.ToString("dd/MM/yyyy")</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Đến ngày</MudText><MudText>@_item.EndDate.ToString("dd/MM/yyyy")</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Địa điểm</MudText><MudText>@_item.Destination</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Khách hàng / đối tác</MudText><MudText>@(_item.CustomerOrPartner ?? "—")</MudText></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.caption">Mục đích</MudText><MudText Style="white-space:pre-wrap">@_item.Purpose</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Phương tiện</MudText><MudText>@(_item.TransportMethod ?? "—")</MudText></MudItem>
+                <MudItem xs="12" sm="6"><MudText Typo="Typo.caption">Chi phí dự kiến</MudText><MudText>@(_item.EstimatedCost.HasValue ? _item.EstimatedCost.Value.ToString("N0") + " ₫" : "—")</MudText></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.caption">Nhân viên đi cùng</MudText><MudText>@(_item.CompanionEmployeeCodes ?? "—")</MudText></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.caption">Lưu trú</MudText><MudText>@(_item.Accommodation ?? "—")</MudText></MudItem>
+                <MudItem xs="12"><MudText Typo="Typo.caption">Ghi chú</MudText><MudText Style="white-space:pre-wrap">@(_item.Note ?? "—")</MudText></MudItem>
+            </MudGrid>
+
+            <MudDivider Class="my-4" />
+            <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2">
+                @if (_item.RequestStatus == ApprovalStatus.Draft || _item.RequestStatus == ApprovalStatus.NeedsRevision || _item.RequestStatus == ApprovalStatus.Returned)
+                {
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit" Disabled="@_submitting" StartIcon="@Icons.Material.Filled.Send">
+                        @(_submitting ? "Đang gửi..." : "Gửi duyệt")
+                    </MudButton>
+                }
+                <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/trip/history"))">Quay lại</MudButton>
+            </MudStack>
+        </MudPaper>
+    </MudStack>
+}
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private TripRequestDto? _item;
+    private bool _loading = true;
+    private bool _submitting;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = await TripService.GetAsync(Id);
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể tải đăng ký.", Severity.Error);
+                return;
+            }
+
+            _item = result.Value;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task Submit()
+    {
+        if (_item == null || _submitting) return;
+
+        _submitting = true;
+        try
+        {
+            var result = await TripService.SubmitAsync(_item.Id);
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể gửi đăng ký.", Severity.Error);
+                return;
+            }
+
+            _item = result.Value ?? _item;
+            Snackbar.Add("Đã gửi đăng ký công tác vào quy trình phê duyệt.", Severity.Success);
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private static Color GetStatusColor(ApprovalStatus status) => status switch
+    {
+        ApprovalStatus.Approved => Color.Success,
+        ApprovalStatus.Rejected => Color.Error,
+        ApprovalStatus.Cancelled => Color.Default,
+        ApprovalStatus.InProgress => Color.Info,
+        ApprovalStatus.NeedsRevision => Color.Warning,
+        ApprovalStatus.Returned => Color.Warning,
+        ApprovalStatus.Draft => Color.Default,
+        _ => Color.Warning
+    };
+
+    private static string GetStatusText(ApprovalStatus status) => status switch
+    {
+        ApprovalStatus.Approved => "Đã duyệt",
+        ApprovalStatus.Rejected => "Từ chối",
+        ApprovalStatus.Cancelled => "Đã hủy",
+        ApprovalStatus.InProgress => "Đang xử lý",
+        ApprovalStatus.NeedsRevision => "Cần chỉnh sửa",
+        ApprovalStatus.Returned => "Trả lại",
+        ApprovalStatus.Draft => "Nháp",
+        _ => "Chờ duyệt"
+    };
+}
