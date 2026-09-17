@@ -12,8 +12,8 @@ global using FVN_REGISTER.Core.Enums;
 global using FVN_REGISTER.Application.Configuration;
 global using FVN_REGISTER.Application.Interfaces.Approvals;
 global using FVN_REGISTER.Application.Interfaces.Histories;
+global using FVN_REGISTER.Application.Logging;
 global using FVN_REGISTER.Application.Models.Subjects;
 
 global using FVN_REGISTER.Contract.Utils;
-
 global using Microsoft.Extensions.DependencyInjection;
