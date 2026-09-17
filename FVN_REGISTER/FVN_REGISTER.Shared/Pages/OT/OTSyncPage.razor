@@ -35,10 +35,10 @@
 <MudCard Elevation="2" Class="mb-4">
     <MudCardContent>
         <MudGrid AlignItems="AlignItems.Center">
-            <MudItem xs="12" sm="3"><MudDatePicker Label="Ngày cần đồng bộ" @bind-Date="_selectedDate" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" /></MudItem>
+            <MudItem xs="12" sm="3"><MudDatePicker Label="Ngày cần đồng bộ / đối chiếu" @bind-Date="_selectedDate" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" /></MudItem>
             <MudItem xs="12" sm="4"><MudSelect T="string" @bind-Value="_selectedDept" Label="Phòng ban" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">@foreach (var dept in _departments) { <MudSelectItem Value="@dept.DeptCode">@dept.DeptName</MudSelectItem> }</MudSelect></MudItem>
             <MudItem xs="12" sm="5"><MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
-                <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Sync" OnClick="TriggerSync" Disabled="_isSyncing">@(_isSyncing ? "Đang sync..." : "Sync ngay")</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Sync" OnClick="TriggerSync" Disabled="_isSyncing">@(_isSyncing ? "Đang sync..." : "Sync staging")</MudButton>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PlayArrow" OnClick="TriggerWorker" Disabled="_isReconciling">@(_isReconciling ? "Đang đối chiếu..." : "Đối chiếu ngay")</MudButton>
                 <MudButton Variant="Variant.Outlined" Color="Color.Secondary" StartIcon="@Icons.Material.Filled.BugReport" OnClick="TestWorkerRun" Disabled="_isTesting">@(_isTesting ? "Đang test..." : "Test worker")</MudButton>
             </MudStack></MudItem>
@@ -110,8 +110,9 @@
 
     private async Task TriggerWorker()
     {
+        if (!_selectedDate.HasValue) return;
         _isReconciling = true;
-        try { var result = await SyncService.TriggerWorkerAsync(_selectedDept, _cts.Token); if (result.IsSuccess) { _reconciliation = result.Data; Snackbar.Add(result.Data?.Summary ?? "Đối chiếu hoàn thành.", Severity.Success); await CheckWorkerStatus(); } else Snackbar.Add(result.Message ?? "Đối chiếu thất bại.", Severity.Error); }
+        try { var result = await SyncService.TriggerWorkerAsync(_selectedDate.Value, _selectedDept, _cts.Token); if (result.IsSuccess) { _reconciliation = result.Data; Snackbar.Add(result.Data?.Summary ?? "Đối chiếu hoàn thành.", Severity.Success); await CheckWorkerStatus(); } else Snackbar.Add(result.Message ?? "Đối chiếu thất bại.", Severity.Error); }
         finally { _isReconciling = false; }
     }
 
