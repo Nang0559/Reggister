@@ -1,9 +1,9 @@
-﻿// FVN_REGISTER.Shared/Services/Emails/EmailTemplateClientService.cs
-using FVN_REGISTER.Contract.Dtos;
+﻿
 using FVN_REGISTER.Contract.Dtos.EmailTemplates;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
+
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Core.Logging;
+
 using FVN_REGISTER.Shared.Handlers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;

@@ -1,10 +1,6 @@
-﻿using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Contract.ViewModels.Departments;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿
+
+using FVN_REGISTER.Contract.Responses;
 
 namespace FVN_REGISTER.Shared.Services.Departments
 {

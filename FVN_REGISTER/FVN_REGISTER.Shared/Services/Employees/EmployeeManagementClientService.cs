@@ -1,6 +1,5 @@
-﻿using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Contract.ViewModels;
-using FVN_REGISTER.Contract.ViewModels.Departments;
+﻿
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Shared.Handlers;
 using Microsoft.Extensions.Logging;

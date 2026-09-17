@@ -1,7 +1,9 @@
 ﻿using FVN_REGISTER.Contract.Interfaces.Repositores;
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
+using FVN_REGISTER.Core.Utils;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net;

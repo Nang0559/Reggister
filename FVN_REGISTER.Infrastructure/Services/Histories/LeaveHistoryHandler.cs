@@ -1,16 +1,13 @@
 ﻿using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Histories;
-using FVN_REGISTER.Contract.Interfaces.Histories;
-using FVN_REGISTER.Contract.Models.Data;
-using FVN_REGISTER.Contract.Models.Entities.Leaves;
-using FVN_REGISTER.Contract.Utils;
-using FVN_REGISTER.Contract.ViewModels.OT;
+using FVN_REGISTER.Core.Entities.Leaves;
+using FVN_REGISTER.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
 namespace FVN_REGISTER.API.Services.Histories
 {
-    public class LeaveHistoryHandler : BaseHistoryHandler<F03leaveDay>
+    public class LeaveHistoryHandler : BaseHistoryHandler<F03LeaveDay>
     {
         public LeaveHistoryHandler(FVNWEBAPPContext db) : base(db) { }
 

@@ -1,6 +1,6 @@
 ﻿using FVN_REGISTER.Contract.Dtos.EmailTemplates;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
-using System;
+using FVN_REGISTER.Contract.Responses;
+
 
 
 namespace FVN_REGISTER.Shared.Services.Emails

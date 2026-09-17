@@ -1,11 +1,7 @@
 ﻿using FVN_REGISTER.Contract.Dtos.EmailTemplates;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Shared.Handlers;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+
 
 namespace FVN_REGISTER.Shared.Services.Emails
 {
