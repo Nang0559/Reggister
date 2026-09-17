@@ -1,0 +1,261 @@
+@page "/trip/create"
+@attribute [Authorize]
+@namespace FVN_REGISTER.Shared.Pages
+@using FVN_REGISTER.Contract.Dtos.Trips
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.Trips
+@using Microsoft.AspNetCore.Authorization
+@inject ITripClientService TripService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+@inherits AppComponentBase
+
+<PageTitle>Đăng ký công tác</PageTitle>
+
+<MudStack Spacing="2">
+    <MudPaper Class="pa-3" Elevation="1">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+            <div>
+                <MudText Typo="Typo.h6">
+                    <MudIcon Icon="@Icons.Material.Filled.FlightTakeoff" Class="mr-2" />
+                    Đăng ký công tác
+                </MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Tạo nháp trước, sau đó gửi vào quy trình phê duyệt.
+                </MudText>
+            </div>
+            <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.History" Href="/trip/history">
+                Lịch sử
+            </MudButton>
+        </MudStack>
+    </MudPaper>
+
+    <MudPaper Class="pa-4" Elevation="1">
+        <MudForm @ref="_form">
+            <MudText Typo="Typo.subtitle1" Class="mb-2">Thông tin chuyến công tác</MudText>
+
+            <MudGrid Spacing="2">
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_startDate"
+                                   Label="Ngày bắt đầu *"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense"
+                                   Required="true"
+                                   RequiredError="Vui lòng chọn ngày bắt đầu" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_endDate"
+                                   Label="Ngày kết thúc *"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense"
+                                   Required="true"
+                                   RequiredError="Vui lòng chọn ngày kết thúc" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_destination"
+                                  Label="Địa điểm công tác *"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Required="true"
+                                  RequiredError="Vui lòng nhập địa điểm" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_customerOrPartner"
+                                  Label="Khách hàng / đối tác"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_purpose"
+                                  Label="Mục đích công tác *"
+                                  Lines="3"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense"
+                                  Required="true"
+                                  RequiredError="Vui lòng nhập mục đích" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudTextField @bind-Value="_transportMethod"
+                                  Label="Phương tiện"
+                                  Placeholder="Ô tô, máy bay, tàu..."
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField T="decimal?"
+                                     @bind-Value="_estimatedCost"
+                                     Label="Chi phí dự kiến (VNĐ)"
+                                     Variant="Variant.Outlined"
+                                     Margin="Margin.Dense"
+                                     Min="0"
+                                     HideSpinButtons="true" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_companionEmployeeCodes"
+                                  Label="Nhân viên đi cùng"
+                                  HelperText="Nhập mã nhân viên, phân cách bằng dấu phẩy"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_accommodation"
+                                  Label="Lưu trú"
+                                  Placeholder="Khách sạn / nơi ở dự kiến"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="_note"
+                                  Label="Ghi chú"
+                                  Lines="2"
+                                  Variant="Variant.Outlined"
+                                  Margin="Margin.Dense" />
+                </MudItem>
+            </MudGrid>
+
+            @if (!string.IsNullOrWhiteSpace(_validationMessage))
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">
+                    @_validationMessage
+                </MudAlert>
+            }
+
+            <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="2" Class="mt-4">
+                <MudButton Variant="Variant.Text" OnClick="Reset" Disabled="@_saving">Xóa nhập liệu</MudButton>
+                <MudButton Color="Color.Primary"
+                            Variant="Variant.Outlined"
+                            OnClick="SaveDraft"
+                            Disabled="@_saving"
+                            StartIcon="@Icons.Material.Filled.Save">
+                    Lưu nháp
+                </MudButton>
+                <MudButton Color="Color.Primary"
+                            Variant="Variant.Filled"
+                            OnClick="SaveAndSubmit"
+                            Disabled="@_saving"
+                            StartIcon="@Icons.Material.Filled.Send">
+                    Gửi duyệt
+                </MudButton>
+            </MudStack>
+        </MudForm>
+    </MudPaper>
+</MudStack>
+
+@code {
+    private MudForm? _form;
+    private DateTime? _startDate = DateTime.Today;
+    private DateTime? _endDate = DateTime.Today;
+    private string _destination = string.Empty;
+    private string _purpose = string.Empty;
+    private string? _customerOrPartner;
+    private string? _transportMethod;
+    private string? _companionEmployeeCodes;
+    private decimal? _estimatedCost;
+    private string? _accommodation;
+    private string? _note;
+    private string? _validationMessage;
+    private bool _saving;
+
+    private CreateTripRequestDto BuildRequest() => new()
+    {
+        StartDate = _startDate!.Value.Date,
+        EndDate = _endDate!.Value.Date,
+        Destination = _destination.Trim(),
+        Purpose = _purpose.Trim(),
+        CustomerOrPartner = Clean(_customerOrPartner),
+        TransportMethod = Clean(_transportMethod),
+        CompanionEmployeeCodes = Clean(_companionEmployeeCodes),
+        EstimatedCost = _estimatedCost,
+        Accommodation = Clean(_accommodation),
+        Note = Clean(_note)
+    };
+
+    private static string? Clean(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private bool ValidateInput()
+    {
+        _validationMessage = null;
+
+        if (!_startDate.HasValue || !_endDate.HasValue)
+            _validationMessage = "Vui lòng chọn đầy đủ ngày công tác.";
+        else if (_endDate.Value.Date < _startDate.Value.Date)
+            _validationMessage = "Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.";
+        else if (string.IsNullOrWhiteSpace(_destination))
+            _validationMessage = "Địa điểm công tác là bắt buộc.";
+        else if (string.IsNullOrWhiteSpace(_purpose))
+            _validationMessage = "Mục đích công tác là bắt buộc.";
+        else if (_estimatedCost < 0)
+            _validationMessage = "Chi phí dự kiến không được âm.";
+
+        return _validationMessage == null;
+    }
+
+    private async Task SaveDraft()
+    {
+        if (!ValidateInput()) return;
+
+        _saving = true;
+        try
+        {
+            var result = await TripService.CreateDraftAsync(BuildRequest());
+            if (!result.IsSuccess || result.Value == null)
+            {
+                Snackbar.Add(result.Message ?? "Lưu nháp thất bại.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add($"Đã lưu nháp {result.Value.TripCode}.", Severity.Success);
+            Navigation.NavigateTo($"/trip/history");
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private async Task SaveAndSubmit()
+    {
+        if (!ValidateInput()) return;
+
+        _saving = true;
+        try
+        {
+            var draft = await TripService.CreateDraftAsync(BuildRequest());
+            if (!draft.IsSuccess || draft.Value == null)
+            {
+                Snackbar.Add(draft.Message ?? "Không thể tạo đăng ký công tác.", Severity.Error);
+                return;
+            }
+
+            var submitted = await TripService.SubmitAsync(draft.Value.Id);
+            if (!submitted.IsSuccess)
+            {
+                Snackbar.Add(submitted.Message ?? "Không thể gửi đăng ký công tác.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Đã gửi đăng ký công tác vào quy trình phê duyệt.", Severity.Success);
+            Navigation.NavigateTo("/trip/history");
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Reset()
+    {
+        _startDate = DateTime.Today;
+        _endDate = DateTime.Today;
+        _destination = string.Empty;
+        _purpose = string.Empty;
+        _customerOrPartner = null;
+        _transportMethod = null;
+        _companionEmployeeCodes = null;
+        _estimatedCost = null;
+        _accommodation = null;
+        _note = null;
+        _validationMessage = null;
+    }
+}
