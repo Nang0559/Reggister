@@ -1,6 +1,6 @@
 ﻿using FVN_REGISTER.Contract.Dtos.Depts;
 using FVN_REGISTER.Contract.Dtos.OT;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Shared.Handlers;
@@ -35,9 +35,7 @@ namespace FVN_REGISTER.Shared.Services.OTs
             try
             {
                 var url = BuildUrl("api/OTSync/sync", date, deptCode);
-
                 _logger.LogInfoIf(Debug, "[OT_CLIENT] Sync → {Url}", url);
-
                 return await _http.PostAsync<OTSyncResultDto>(url, new { }, ct);
             }
             catch (Exception ex)
@@ -55,9 +53,7 @@ namespace FVN_REGISTER.Shared.Services.OTs
             try
             {
                 var url = BuildUrl("api/OTSync/unconfirmed", date, deptCode);
-
                 _logger.LogInfoIf(Debug, "[OT_CLIENT] GetUnconfirmed → {Url}", url);
-
                 return await _http.GetAsync<OTUnconfirmedListResponse>(url, ct);
             }
             catch (Exception ex)
@@ -66,14 +62,14 @@ namespace FVN_REGISTER.Shared.Services.OTs
                 return ApiResponse<OTUnconfirmedListResponse>.Fail("Không thể kết nối server.");
             }
         }
+
         public async Task<ApiResponse<OTWorkerStatusDto>> GetWorkerStatusAsync(
-         CancellationToken ct = default)
+            CancellationToken ct = default)
         {
             try
             {
                 _logger.LogDebugIf(Debug, "[OT_CLIENT] GetWorkerStatus");
-                return await _http.GetAsync<OTWorkerStatusDto>(
-                    "api/OTSync/worker-status", ct);
+                return await _http.GetAsync<OTWorkerStatusDto>("api/OTSync/worker-status", ct);
             }
             catch (Exception ex)
             {
@@ -83,7 +79,8 @@ namespace FVN_REGISTER.Shared.Services.OTs
         }
 
         public async Task<ApiResponse<OTSyncResultDto>> TestWorkerRunAsync(
-            DateTime date, CancellationToken ct = default)
+            DateTime date,
+            CancellationToken ct = default)
         {
             try
             {
@@ -97,15 +94,14 @@ namespace FVN_REGISTER.Shared.Services.OTs
                 return ApiResponse<OTSyncResultDto>.Fail("Không thể kết nối server.");
             }
         }
-        // OTSyncClientService.cs
+
         public async Task<ApiResponse<List<DeptOption>>> GetDepartmentsAsync(
             CancellationToken ct = default)
         {
             try
             {
                 _logger.LogDebugIf(Debug, "[OT_SYNC_CLIENT] GetDepartments");
-                return await _http.GetAsync<List<DeptOption>>(
-                    "api/otsync/departments", ct);
+                return await _http.GetAsync<List<DeptOption>>("api/otsync/departments", ct);
             }
             catch (Exception ex)
             {
@@ -113,6 +109,7 @@ namespace FVN_REGISTER.Shared.Services.OTs
                 return ApiResponse<List<DeptOption>>.Fail("Không thể tải danh sách phòng ban");
             }
         }
+
         private static string BuildUrl(string baseUrl, DateTime date, string? deptCode)
         {
             var url = $"{baseUrl}?date={date:yyyy-MM-dd}";
