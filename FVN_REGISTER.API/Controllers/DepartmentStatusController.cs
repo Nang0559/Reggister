@@ -1,4 +1,3 @@
-using AutoMapper;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Core.Configurations;
@@ -19,10 +18,9 @@ namespace FVN_REGISTER.API.Controllers
             IDepartmentStatusService deptStatus,
             ICurrentUserService currentUser,
             IUserLogService userLog,
-            IMapper mapper,
             ILogger<DepartmentStatusController> logger,
             IOptionsMonitor<AuthDebugOptions> options)
-            : base(currentUser, userLog, mapper, logger, options)
+            : base(currentUser, userLog, logger, options)
         {
             _deptStatus = deptStatus;
         }
