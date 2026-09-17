@@ -19,9 +19,9 @@ using FVN_REGISTER.Application.Interfaces.Jobs;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Contract.Dtos;
+using FVN_REGISTER.Contract.Dtos.Leaves;
+using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Maps;
-using FVN_REGISTER.Contract.ViewModels.Leaves;
-using FVN_REGISTER.Contract.ViewModels.OT;
 using FVN_REGISTER.Core.Config;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
@@ -56,10 +56,7 @@ var builder = WebApplication.CreateBuilder(args);
 
 var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? new[]
 {
-    "https://localhost:7264",
-    "http://localhost:5120",
-    "http://localhost:5017",
-    "https://localhost:7135"
+    "https://localhost:7264", "http://localhost:5120", "http://localhost:5017", "https://localhost:7135"
 };
 
 builder.Services.AddCors(options => options.AddPolicy("FccCorsPolicy", policy => policy
@@ -143,10 +140,10 @@ builder.Services.AddScoped<IApprovalWorkflowOrchestrator<OTRequestSubject>, Appr
 builder.Services.AddScoped<IApprovalEngineResolver, ApprovalEngineResolver>();
 builder.Services.AddScoped<IApprovalGroupingPolicy, ApprovalGroupingPolicy>();
 builder.Services.AddScoped<IApprovalInboxService, ApprovalInboxService>();
-builder.Services.AddScoped<IApprovalListDataSource<LeaveRequestViewModel>, LeaveApprovalListDataSource>();
-builder.Services.AddScoped<IApprovalListDataSource<OTRequestViewModel>, OTApprovalListDataSource>();
-builder.Services.AddScoped<ApprovalListService<LeaveRequestViewModel>>();
-builder.Services.AddScoped<ApprovalListService<OTRequestViewModel>>();
+builder.Services.AddScoped<IApprovalListDataSource<LeaveRequestDto>, LeaveApprovalListDataSource>();
+builder.Services.AddScoped<IApprovalListDataSource<OTRequestDto>, OTApprovalListDataSource>();
+builder.Services.AddScoped<ApprovalListService<LeaveRequestDto>>();
+builder.Services.AddScoped<ApprovalListService<OTRequestDto>>();
 
 builder.Services.AddAuthentication(options =>
 {
