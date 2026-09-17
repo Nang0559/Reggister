@@ -1,88 +1,129 @@
-﻿@page "/profile"
+@page "/profile"
+@attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Authentication
-@using FVN_REGISTER.Contract.Dtos.Usermanagers
-@using FVN_REGISTER.Shared.Handlers
 @using FVN_REGISTER.Shared.Services.Users
-@inject IHttpClientWithAuth _http
-@inject ISnackbar _snackbar
-@inject ICurrentUserClientService _user
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+
+@inject IAuthClientService AuthService
+@inject ICurrentUserClientService CurrentUserService
+@inject ISnackbar Snackbar
 
 <MudText Typo="Typo.h5" Class="mb-4">Hồ sơ cá nhân</MudText>
 
-<MudGrid>
-    <MudItem xs="12" sm="4">
-        <MudCard Elevation="2" Class="text-center pa-4">
-            <MudAvatar Style="height:150px; width:150px; font-size:2rem;" Color="Color.Primary" Variant="Variant.Filled" Class="mx-auto mb-3">
-                @if (string.IsNullOrEmpty(_model.Avatar))
-                {
-                    @_model.FullName?.Substring(0, 1).ToUpper()
-                }
-                else
-                {
-                    <MudImage Src="@_model.Avatar" />
-                }
-            </MudAvatar>
-            <MudText Typo="Typo.h6">@_model.FullName</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">@_model.EmployeeCode</MudText>
-        </MudCard>
-    </MudItem>
+@if (_isLoading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" />
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudCard Elevation="2" Class="text-center pa-4">
+                <MudAvatar Style="height:150px; width:150px; font-size:2rem;" Color="Color.Primary" Variant="Variant.Filled" Class="mx-auto mb-3">
+                    @if (string.IsNullOrWhiteSpace(_avatarUrl))
+                    {
+                        @GetInitials(_model.FullName)
+                    }
+                    else
+                    {
+                        <MudImage Src="@_avatarUrl" Alt="Ảnh đại diện" />
+                    }
+                </MudAvatar>
+                <MudText Typo="Typo.h6">@_model.FullName</MudText>
+                <MudText Typo="Typo.body2" Color="Color.Secondary">@_model.EmployeeCode</MudText>
+            </MudCard>
+        </MudItem>
 
-    <MudItem xs="12" sm="8">
-        <MudCard Elevation="2">
-            <MudCardContent>
-                <MudTextField Label="Tên đăng nhập" @bind-Value="_model.UserName" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
-                <MudTextField Label="Phòng ban" @bind-Value="_model.DeptCode" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
-                <MudTextField Label="Email liên lạc" @bind-Value="_model.Email" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="Dùng để nhận thông báo phê duyệt" Class="mb-4" />
-                <MudTextField Label="Đường dẫn ảnh đại diện (URL)" @bind-Value="_model.Avatar" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
-            </MudCardContent>
-            <MudCardActions>
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnSave" Disabled="_isSaving" StartIcon="@Icons.Material.Filled.Save">
-                    @(_isSaving ? "Đang lưu..." : "Lưu thay đổi")
-                </MudButton>
-            </MudCardActions>
-        </MudCard>
-    </MudItem>
-</MudGrid>
+        <MudItem xs="12" sm="8">
+            <MudCard Elevation="2">
+                <MudCardContent>
+                    <MudTextField Label="Tên đăng nhập" Value="@_model.UserName" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+                    <MudTextField Label="Phòng ban" Value="@_model.DeptCode" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+                    <MudTextField Label="Vị trí" Value="@_model.PositionCode" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+                    <MudTextField Label="Email liên lạc" @bind-Value="_model.Email" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="Dùng để nhận thông báo phê duyệt" Class="mb-4" />
+                    <MudTextField Label="Đường dẫn ảnh đại diện (URL)" @bind-Value="_avatarUrl" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
+                </MudCardContent>
+                <MudCardActions>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="OnSave" Disabled="@_isSaving" StartIcon="@Icons.Material.Filled.Save">
+                        @(_isSaving ? "Đang lưu..." : "Lưu thay đổi")
+                    </MudButton>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
 
 @code {
-    private AuthResultDto _model = new();
-    private bool _isSaving = false;
+    private UserIdentityDto _model = new();
+    private string? _avatarUrl;
+    private bool _isLoading = true;
+    private bool _isSaving;
 
     protected override async Task OnInitializedAsync()
     {
-        // 1. SỬA ĐƯỜNG DẪN: Phải có "auth" nếu Server đặt Route là api/auth
-        // 2. NHẬN DỮ LIỆU: GetAsync đã trả về ApiResponse<UserSessionDto> rồi
-        var response = await _http.GetAsync<AuthResultDto>("api/auth/profile");
+        try
+        {
+            var response = await AuthService.GetProfileAsync();
+            if (response.IsSuccess && response.Data != null)
+            {
+                _model = response.Data;
+                _avatarUrl = null;
+                return;
+            }
 
-        if (response.IsSuccess && response.Data != null)
-        {
-            _model = response.Data;
-            _model.FullName = _model.FullName?.Trim() ?? "";
+            Snackbar.Add(response.Message ?? "Không thể tải hồ sơ cá nhân.", Severity.Error);
         }
-        else if (response.IsUnauthorized)
+        catch (Exception ex)
         {
-            _snackbar.Add("Phiên đăng nhập hết hạn!", Severity.Error);
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
         }
     }
 
     private async Task OnSave()
     {
+        if (string.IsNullOrWhiteSpace(_model.Email))
+        {
+            Snackbar.Add("Vui lòng nhập email.", Severity.Warning);
+            return;
+        }
+
         _isSaving = true;
-        var request = new { Email = _model.Email, AvatarUrl = _model.Avatar };
-
-        // 1. SỬA ĐƯỜNG DẪN: Thêm "auth"
-        // 2. PutAsync đã trả về ApiResponse<object>, không cần đọc Content nữa
-        var result = await _http.PutAsync<object>("api/auth/profile/update", request);
-
-        if (result.IsSuccess)
+        try
         {
-            _snackbar.Add("Đã cập nhật hồ sơ thành công!", Severity.Success);
-            await _user.InitializeAsync();
+            var result = await AuthService.UpdateProfileAsync(_model.Email.Trim(), _avatarUrl);
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể cập nhật hồ sơ.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(result.Message ?? "Đã cập nhật hồ sơ thành công.", Severity.Success);
+            await CurrentUserService.InitializeAsync();
+
+            var refreshed = await AuthService.GetProfileAsync();
+            if (refreshed.IsSuccess && refreshed.Data != null)
+                _model = refreshed.Data;
         }
-        else
+        catch (Exception ex)
         {
-            _snackbar.Add(result.Message ?? "Có lỗi xảy ra!", Severity.Error);
+            Snackbar.Add(ex.Message, Severity.Error);
         }
-        _isSaving = false;
+        finally
+        {
+            _isSaving = false;
+        }
+    }
+
+    private static string GetInitials(string? fullName)
+    {
+        if (string.IsNullOrWhiteSpace(fullName)) return "?";
+        var parts = fullName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 1) return parts[0][0].ToString().ToUpperInvariant();
+        return $"{parts[0][0]}{parts[^1][0]}".ToUpperInvariant();
     }
 }
