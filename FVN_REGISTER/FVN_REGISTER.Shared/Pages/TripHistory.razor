@@ -75,7 +75,7 @@
                         </MudChip>
                     </MudTd>
                     <MudTd>
-                        @if (context.RequestStatus == ApprovalStatus.Draft || context.RequestStatus == ApprovalStatus.NeedsRevision || context.RequestStatus == ApprovalStatus.Returned)
+                        @if (context.RequestStatus == ApprovalStatus.Draft || context.RequestStatus == ApprovalStatus.NeedsRevision)
                         {
                             <MudButton Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" OnClick="@(() => Submit(context))">
                                 Gửi duyệt
@@ -155,7 +155,6 @@
         ApprovalStatus.Cancelled => Color.Default,
         ApprovalStatus.InProgress => Color.Info,
         ApprovalStatus.NeedsRevision => Color.Warning,
-        ApprovalStatus.Returned => Color.Warning,
         ApprovalStatus.Draft => Color.Default,
         _ => Color.Warning
     };
@@ -167,7 +166,6 @@
         ApprovalStatus.Cancelled => "Đã hủy",
         ApprovalStatus.InProgress => "Đang xử lý",
         ApprovalStatus.NeedsRevision => "Cần chỉnh sửa",
-        ApprovalStatus.Returned => "Trả lại",
         ApprovalStatus.Draft => "Nháp",
         _ => "Chờ duyệt"
     };
