@@ -1,4 +1,3 @@
-using AutoMapper;
 using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Users;
@@ -24,8 +23,15 @@ namespace FVN_REGISTER.API.Controllers
         private readonly ILeaveQueryService _queryService;
         private readonly IApprovalWorkflowOrchestrator<LeaveRequestSubject> _workflow;
 
-        public LeaveDaysController(ILeaveService leaveService, ILeaveQueryService queryService, IApprovalWorkflowOrchestrator<LeaveRequestSubject> workflow, ICurrentUserService currentUser, IUserLogService userLog, IMapper mapper, ILogger<LeaveDaysController> logger, IOptionsMonitor<AuthDebugOptions> options)
-            : base(currentUser, userLog, mapper, logger, options)
+        public LeaveDaysController(
+            ILeaveService leaveService,
+            ILeaveQueryService queryService,
+            IApprovalWorkflowOrchestrator<LeaveRequestSubject> workflow,
+            ICurrentUserService currentUser,
+            IUserLogService userLog,
+            ILogger<LeaveDaysController> logger,
+            IOptionsMonitor<AuthDebugOptions> options)
+            : base(currentUser, userLog, logger, options)
         {
             _leaveService = leaveService;
             _queryService = queryService;
@@ -93,7 +99,8 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpGet("details/{id:int}")]
-        public async Task<IActionResult> GetDetails(int id, CancellationToken ct) => HandleResult(await _queryService.GetFullDetailsAsync(id, ct));
+        public async Task<IActionResult> GetDetails(int id, CancellationToken ct)
+            => HandleResult(await _queryService.GetFullDetailsAsync(id, ct));
 
         [HttpGet("history")]
         public async Task<IActionResult> GetHistory([FromQuery] int? year, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
