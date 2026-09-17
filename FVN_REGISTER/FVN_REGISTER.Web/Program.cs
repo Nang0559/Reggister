@@ -12,6 +12,7 @@ using FVN_REGISTER.Shared.Services.HrmSync;
 using FVN_REGISTER.Shared.Services.Leaves;
 using FVN_REGISTER.Shared.Services.Notifications;
 using FVN_REGISTER.Shared.Services.OTs;
+using FVN_REGISTER.Shared.Services.Trips;
 using FVN_REGISTER.Shared.Services.Users;
 using FVN_REGISTER.Shared.Utils;
 using FVN_REGISTER.Web.Components;
@@ -62,13 +63,14 @@ builder.Services.AddScoped<IApprovalListClientService, ApprovalListClientService
 builder.Services.AddScoped<IApproverClientService, ApproverClientService>();
 builder.Services.AddScoped<IHistoryClientService, HistoryClientService>();
 builder.Services.AddScoped<IOTSyncClientService, OTSyncClientService>();
-builder.Services.AddServerSideBlazor().AddCircuitOptions(options => options.DetailedErrors = true);
 builder.Services.AddScoped<IDepartmentStatusClientService, DepartmentStatusClientService>();
 builder.Services.AddScoped<IEmailTemplateClientService, EmailTemplateClientService>();
 builder.Services.AddScoped<IEmailQueueClientService, EmailQueueClientService>();
 builder.Services.AddScoped<IEmployeeManagementClientService, EmployeeManagementClientService>();
 builder.Services.AddScoped<IDepartmentManagementClientService, DepartmentManagementClientService>();
 builder.Services.AddScoped<ILeaveTypeClientService, LeaveTypeClientService>();
+builder.Services.AddScoped<ITripClientService, TripClientService>();
+builder.Services.AddServerSideBlazor().AddCircuitOptions(options => options.DetailedErrors = true);
 
 var app = builder.Build();
 
