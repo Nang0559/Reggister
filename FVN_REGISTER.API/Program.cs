@@ -6,6 +6,7 @@ using FVN_REGISTER.Application.Interfaces.EmailTemplates;
 using FVN_REGISTER.Application.Interfaces.Emails;
 using FVN_REGISTER.Application.Interfaces.Employees;
 using FVN_REGISTER.Application.Interfaces.Histories;
+using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Interfaces.OT;
@@ -36,6 +37,11 @@ using FVN_REGISTER.Infrastructure.Services.Common;
 using FVN_REGISTER.Infrastructure.Services.Emails;
 using FVN_REGISTER.Infrastructure.Services.Employees;
 using FVN_REGISTER.Infrastructure.Services.Histories;
+using FVN_REGISTER.Infrastructure.Services.HrmSync;
+using FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.Importers;
+using FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.Readers;
+using FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.SourceRows;
+using FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs;
 using FVN_REGISTER.Infrastructure.Services.Jobs;
 using FVN_REGISTER.Infrastructure.Services.Leaves;
 using FVN_REGISTER.Infrastructure.Services.Notifications;
@@ -145,6 +151,24 @@ builder.Services.AddScoped<IApprovalListDataSource<OTRequestDto>, OTApprovalList
 builder.Services.AddScoped<ApprovalListService<LeaveRequestDto>>();
 builder.Services.AddScoped<ApprovalListService<OTRequestDto>>();
 
+// HRM Sync: Source Reader -> Staging Importer -> Sync Job -> Domain
+builder.Services.AddScoped<IHrmSourceReader<HrmDepartmentSourceRow>, HrmDepartmentSourceReader>();
+builder.Services.AddScoped<IHrmSourceReader<HrmEmployeeSourceRow>, HrmEmployeeSourceReader>();
+builder.Services.AddScoped<IHrmSourceReader<HrmLeaveTypeSourceRow>, HrmLeaveTypeSourceReader>();
+builder.Services.AddScoped<IHrmSourceReader<HrmPositionSourceRow>, HrmPositionSourceReader>();
+builder.Services.AddScoped<IHrmStagingImporter, DepartmentStagingImporter>();
+builder.Services.AddScoped<IHrmStagingImporter, EmployeeStagingImporter>();
+builder.Services.AddScoped<IHrmStagingImporter, LeaveTypeStagingImporter>();
+builder.Services.AddScoped<IHrmStagingImporter, PositionStagingImporter>();
+builder.Services.AddScoped<IHrmSyncJob, DepartmentHrmSyncJob>();
+builder.Services.AddScoped<IHrmSyncJob, EmployeeHrmSyncJob>();
+builder.Services.AddScoped<IHrmSyncJob, LeaveTypeHrmSyncJob>();
+builder.Services.AddScoped<IHrmSyncJob, OTTypeHrmSyncJob>();
+builder.Services.AddScoped<IHrmSyncJob, PositionHrmSyncJob>();
+builder.Services.AddScoped<IHrmStagingImporterResolver, HrmStagingImporterResolver>();
+builder.Services.AddScoped<IHrmSyncJobResolver, HrmSyncJobResolver>();
+builder.Services.AddScoped<IHrmSyncReviewQueryService, HrmSyncReviewQueryService>();
+
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -166,7 +190,6 @@ builder.Services.AddAuthentication(options =>
         NameClaimType = "unique_name",
         RoleClaimType = "role"
     };
-
     options.Events = new JwtBearerEvents
     {
         OnMessageReceived = context =>
@@ -191,6 +214,7 @@ builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddHostedService<EmailBackgroundWorker>();
 builder.Services.AddHostedService<EscalationBackgroundWorker>();
+builder.Services.AddHostedService<HrmSyncBackgroundWorker>();
 builder.Services.AddSingleton<OTAttendanceStagingWorker>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<OTAttendanceStagingWorker>());
 builder.Services.AddSingleton<IOTWorkerStatus>(sp => sp.GetRequiredService<OTAttendanceStagingWorker>());
