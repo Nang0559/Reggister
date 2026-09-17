@@ -1,166 +1,105 @@
 # FVN_REGISTER — Mô hình hệ thống
 
-> Bộ tài liệu Markdown được chuẩn hóa từ các tài liệu TXT hiện có trong thư mục `MÔ HÌNH`.
-
-## 1. Cách đọc tài liệu kiến trúc
-
-Bộ tài liệu được tổ chức theo nguyên tắc **từ tổng thể → pipeline → component → implementation**:
+## Bản đồ tài liệu
 
 ```mermaid
 flowchart TD
-    A[00_INDEX<br/>Architecture Map] --> B[01_FLOWS_TOTAL<br/>D1 → D5]
-    B --> C[02_HRM_SYNC<br/>HRM + OT Attendance]
-    B --> D[03_NOTIFICATION<br/>Approval → SignalR → UI]
-    B --> E[04_DASHBOARD<br/>Aggregation → UI]
-    B --> F[08_APPROVAL_ESCALATION<br/>Approval Levels + Timeout]
-    B --> G[09_TRIP<br/>Business Trip Registration]
-    C --> H[05_SYNC_FLOW<br/>6 implementation layers]
-    D --> I[06_NOTIFICATION_DIAGRAMS<br/>Notification implementation]
-    F --> D
-    G --> F
+ A[00_INDEX] --> B[01_FLOWS_TOTAL]
+ B --> C[02_HRM_SYNC]
+ B --> D[03_NOTIFICATION]
+ B --> E[04_DASHBOARD]
+ B --> F[08_APPROVAL_ESCALATION]
+ B --> G[09_TRIP]
+ B --> H[10_EQUIPMENT_REGISTER]
+ C --> I[05_SYNC_FLOW]
+ D --> J[06_NOTIFICATION_DIAGRAMS]
+ F --> D
+ G --> F
+ H --> F
+ H --> E
 ```
 
-- `00_INDEX.md`: bản đồ kiến trúc và dependency direction.
-- `01_FLOWS_TOTAL.md`: kiến trúc tổng thể D1 → D5.
-- `02_HRM_SYNC.md`: hai pipeline HRM Sync và OT Attendance ở mức service/application.
-- `03_NOTIFICATION.md`: notification từ Approval đến persistence, SignalR và Blazor.
-- `04_DASHBOARD.md`: request flow và module provider architecture.
-- `05_SYNC_FLOW.md`: chi tiết triển khai HRM Sync theo 6 tầng.
-- `06_NOTIFICATION_DIAGRAMS.md`: sequence và dependency chi tiết của Notification.
-- `08_APPROVAL_ESCALATION.md`: nghiệp vụ cấp approval, email/in-app, timeout và auto-escalation cho Leave/OT.
-- `09_TRIP.md`: đăng ký công tác, Trip request, approval integration và API.
+`08_APPROVAL_ESCALATION.md` là chuẩn approval chung. `09_TRIP.md` là chuẩn Trip. `10_EQUIPMENT_REGISTER.md` là chuẩn Sổ quản lý thiết bị, QR lifecycle và repair approval.
 
-## 2. Tài liệu
-
-| Tài liệu | Nội dung |
-|---|---|
-| [01_FLOWS_TOTAL.md](./01_FLOWS_TOTAL.md) | Kiến trúc tổng hợp D1 → D5 và các nguyên tắc xuyên suốt |
-| [02_HRM_SYNC.md](./02_HRM_SYNC.md) | HRM Master Data Sync và OT Attendance Reconciliation |
-| [03_NOTIFICATION.md](./03_NOTIFICATION.md) | Notification Pipeline, Factory, Service, SignalR và Blazor client |
-| [04_DASHBOARD.md](./04_DASHBOARD.md) | Dashboard aggregation và module providers |
-| [05_SYNC_FLOW.md](./05_SYNC_FLOW.md) | Chi tiết tầng của pipeline HRM Sync, resolver, worker, management service và review flags |
-| [06_NOTIFICATION_DIAGRAMS.md](./06_NOTIFICATION_DIAGRAMS.md) | Notification sequence, identity mapping và dependency |
-| [08_APPROVAL_ESCALATION.md](./08_APPROVAL_ESCALATION.md) | Approval hierarchy, manual activation, timeout escalation, email + in-app/SignalR và idempotency |
-| [09_TRIP.md](./09_TRIP.md) | Đăng ký công tác, Trip entity, API, approval provider và database deployment |
-
-## 3. Sơ đồ kiến trúc tổng thể
+## Kiến trúc tổng thể
 
 ```mermaid
 flowchart TB
-    subgraph Client[Presentation / Client]
-        UI[Blazor Pages / Components]
-        NS[Notification Client]
-        DS[Dashboard Client Service]
-    end
-
-    subgraph API[API Boundary]
-        CTRL[Controllers]
-        HUB[SignalR Hub]
-    end
-
-    subgraph APP[Application]
-        ORC[Orchestrators]
-        DISP[Approval Dispatcher / Handlers]
-        POL[Policies / Factories]
-        CONTRACT[Interfaces + DTO + Subject]
-    end
-
-    subgraph INFRA[Infrastructure]
-        SVC[Application Service Implementations]
-        JOB[Workers / Jobs]
-        EF[EF Core / UnitOfWork / SQL]
-        EXT[HRM / External Systems]
-    end
-
-    UI --> DS
-    UI --> CTRL
-    NS --> HUB
-    DS --> CTRL
-    CTRL --> CONTRACT
-    CTRL --> ORC
-    ORC --> DISP
-    ORC --> POL
-    ORC --> SVC
-    SVC --> EF
-    JOB --> SVC
-    JOB --> EXT
-    SVC --> HUB
-    HUB --> NS
-
-    APP -.->|contracts only| INFRA
+ subgraph Client[Presentation]
+  UI[Blazor Pages]
+  QR[QR Scanner]
+  DS[Dashboard Client]
+  NS[Notification Client]
+ end
+ subgraph API[API]
+  CTRL[Controllers]
+  HUB[SignalR]
+ end
+ subgraph APP[Application]
+  ORC[Approval Orchestrators]
+  CONTRACT[Interfaces + DTO + Subjects]
+ end
+ subgraph INFRA[Infrastructure]
+  SVC[Domain Services]
+  EF[EF Core / UnitOfWork]
+  QRGEN[QR Adapter]
+ end
+ DB[(SQL Server)]
+ UI --> CTRL
+ QR --> CTRL
+ DS --> CTRL
+ NS --> HUB
+ CTRL --> CONTRACT
+ CONTRACT --> ORC
+ ORC --> SVC
+ SVC --> EF
+ SVC --> QRGEN
+ EF --> DB
 ```
 
-> Quy ước mũi tên: request/runtime flow đi xuống; dependency architecture phải giữ chiều **Application → abstraction**, Infrastructure thực thi abstraction. Không để Application phụ thuộc ngược vào implementation cụ thể.
-
-## 4. Các pipeline chính
+## Equipment
 
 ```mermaid
 flowchart LR
-    D1[D1 HRM Master Data Sync] --> D2[D2 Leave / OT / Trip Request + Approval]
-    D2 --> D4[D4 Notification Pipeline]
-    D2 --> D3[D3 OT Attendance Reconciliation]
-    D3 --> D5[D5 Dashboard Aggregation]
-    D2 --> D5
-    D1 -. master data .-> D2
+ ADMIN[Admin] --> FUNC[F03Functions / F03UserFunctions]
+ ADMIN --> APPROVER[F03Approvers: Equipment]
+ USER[Authorized User] --> REG[Registration]
+ USER --> SCAN[Scan QR]
+ REG --> REQ[F03EquipmentRequest]
+ REQ --> APPROVAL[Common Approval Engine]
+ APPROVAL --> ASSET[F03EquipmentAsset]
+ SCAN --> ASSET
+ ASSET --> HISTORY[F03EquipmentRepairHistory]
+ HISTORY -. only after approval .-> APPROVAL
 ```
 
-## 5. Dependency direction
+QR token được sinh khi Draft để in/dán, nhưng chỉ request Approved mới tạo/activate asset. Repair history chính thức chỉ chứa record Approved.
+
+## Dependency direction
 
 ```mermaid
 flowchart BT
-    CORE[Core / Domain]
-    CONTRACT[Contract / DTO]
-    APP[Application / Interfaces]
-    INFRA[Infrastructure / Implementations]
-    API[API]
-    SHARED[Shared / Blazor]
-
-    CORE --> CONTRACT
-    CONTRACT --> APP
-    APP --> INFRA
-    APP --> API
-    CONTRACT --> SHARED
-    APP --> SHARED
+ CORE[Core] --> CONTRACT[Contract]
+ CONTRACT --> APP[Application]
+ APP --> INFRA[Infrastructure]
+ APP --> API[API]
+ CONTRACT --> SHARED[Shared]
+ APP --> SHARED
 ```
 
-Diễn giải: các lớp phía trên định nghĩa model/contract/use-case; Infrastructure cung cấp implementation. UI/API không được trở thành nơi chứa business persistence logic.
+Controller không query EF; Application không phụ thuộc Infrastructure. Module mới plug-in qua contract/service/provider và DI.
 
-## 6. Nguyên tắc kiến trúc
+## Namespace convention
 
-- Contract/Application định nghĩa interface và DTO; Infrastructure cung cấp EF/SQL/SignalR implementation.
-- Không có chiều phụ thuộc ngược từ Application về Infrastructure implementation.
-- Orchestrator không truy cập trực tiếp `DbContext`.
-- Entity không được lộ ra khỏi Application interface; giao tiếp qua DTO/Subject.
-- Module mới phải mở rộng bằng implementation + DI registration, không sửa orchestrator/worker/dispatcher dùng chung.
-- CRUD thủ công và HRM synchronization là hai luồng độc lập.
-- OT attendance reconciliation là **command-with-result**, không phải query thuần vì thao tác reconciliation có ghi dữ liệu.
-- Approval timeout dùng `DecisionType.Escalated`, không dùng `Rejected` để biểu diễn việc chuyển cấp.
-- Manual approve và auto-escalation đều phải kích hoạt notification cho approver kế tiếp qua email + in-app/SignalR.
-- Background escalation worker hiện xử lý Leave và Overtime; Trip timeout escalation cần được wire vào worker sau khi chốt escalation policy riêng cho Trip.
-- Trip request phải đi qua common approval engine; không tạo `TripApprovalEngine` riêng.
-
-## 7. Namespace convention
-
-| Thành phần | Namespace / vị trí |
+| Thành phần | Vị trí |
 |---|---|
-| Interface nghiệp vụ | `Application/Interfaces/{Domain}` |
-| Orchestrator | `Application/Orchestrators` |
-| Dispatcher | `Application/Dispatchers` |
-| Policy / Factory | `Application/Policies`, `Application/Factories` |
-| Subject generic | `Application/Models/Subjects` |
-| DTO | `Contract/Dtos/{Domain}` |
-| Response | `Contract/Responses` |
-| EF Entity | `Core/Entities/{Domain}` |
-| Implementation | `Infrastructure/Services/{Domain}` |
-| SignalR Hub | `Infrastructure/Hubs` |
-| Background Worker / Job | `Infrastructure/Jobs` |
-| Controller | `API/Controllers` |
-| Blazor Page / Client Service | `Shared/Pages`, `Shared/Services/{Domain}` |
-
-## 8. Trạng thái tài liệu
-
-- Nội dung được chuẩn hóa từ TXT, không chủ động thay đổi business rule.
-- Các mục được TXT đánh dấu `TODO`, `CẦN XÁC NHẬN`, `CHƯA BUILD` vẫn được giữ lại và đánh dấu rõ.
-- Mermaid diagrams mô tả kiến trúc logic; khi implementation thực tế thay đổi, cập nhật Markdown cùng commit với thay đổi kiến trúc.
-- `08_APPROVAL_ESCALATION.md` là tài liệu chuẩn cho approval level, notification activation và timeout escalation; code phải tuân theo các invariants trong tài liệu này.
-- `09_TRIP.md` là tài liệu chuẩn cho Trip registration implementation hiện tại.
+| Core entity | `FVN_REGISTER.Core/Entities/{Domain}` |
+| Enum | `FVN_REGISTER.Core/Enums` |
+| Contract DTO | `FVN_REGISTER.Models/Requests` + `Responses` |
+| Application interface | `Application/Interfaces/{Domain}` |
+| Subject | `Application/Models/Subjects` |
+| Infrastructure service | `FVN_REGISTER.Infrastructure/Services/{Domain}` |
+| EF configuration | `FVN_REGISTER.Infrastructure/Models/Data/Configurations/{Domain}` |
+| API controller | `FVN_REGISTER.API/Controllers` |
+| Shared client/page | `FVN_REGISTER/FVN_REGISTER.Shared/Services/{Domain}`, `Pages` |
+| Database script | `Database/{Domain}` |
