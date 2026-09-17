@@ -1,4 +1,6 @@
+@using FVN_REGISTER.Contract.Dtos.Approvals
 @using FVN_REGISTER.Contract.Dtos.Dashboard
+@using FVN_REGISTER.Core.Enums
 
 @if (Data == null)
 {
@@ -9,9 +11,9 @@
 }
 else
 {
-    <MudGrid>
-        @if (Data.Widgets.Any())
-        {
+    @if (Data.Widgets.Any())
+    {
+        <MudGrid Class="mb-4">
             @foreach (var widget in Data.Widgets)
             {
                 <MudItem xs="6" sm="3">
@@ -29,14 +31,85 @@ else
                     </MudPaper>
                 </MudItem>
             }
-        }
-        else if (Data.Leave?.Balance != null)
+        </MudGrid>
+    }
+
+    @if (Data.PendingApprovals.Any())
+    {
+        var pending = Data.PendingApprovals
+            .SelectMany(x => x.Requests)
+            .OrderBy(x => x.FromDate)
+            .Take(8)
+            .ToList();
+
+        <MudCard Elevation="2" Class="mb-4">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <MudText Typo="Typo.subtitle1">Đơn đang chờ tôi xử lý</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">@pending.Count đơn gần nhất</MudText>
+                </CardHeaderContent>
+                <CardHeaderActions>
+                    <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/approvals"))">Xem tất cả</MudButton>
+                </CardHeaderActions>
+            </MudCardHeader>
+            <MudCardContent Class="pa-0">
+                <MudList T="PendingApprovalItemDto" Dense="true">
+                    @foreach (var item in pending)
+                    {
+                        <MudListItem T="PendingApprovalItemDto" OnClick="@(() => Navigation.NavigateTo("/approvals"))">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Style="width:100%">
+                                <MudStack Spacing="0">
+                                    <MudText Typo="Typo.body2"><b>@item.EmployeeName</b> — @item.KindDisplay</MudText>
+                                    <MudText Typo="Typo.caption" Color="Color.Secondary">@item.EmployeeCode — @item.DeptName</MudText>
+                                </MudStack>
+                                <MudChip T="string" Size="Size.Small">Cấp @item.CurrentApprovalLevel</MudChip>
+                            </MudStack>
+                        </MudListItem>
+                    }
+                </MudList>
+            </MudCardContent>
+        </MudCard>
+    }
+
+    <MudGrid>
+        @if (Data.Leave?.Balance != null)
         {
-            <MudItem xs="6" sm="3">
-                <MudPaper Class="pa-4" Elevation="4" Style="height:110px; border-radius:12px">
-                    <MudText Typo="Typo.subtitle2">Phép tồn</MudText>
-                    <MudText Typo="Typo.h4"><b>@Data.Leave.Balance.Remaining.ToString("N1")</b></MudText>
-                </MudPaper>
+            <MudItem xs="12" md="6">
+                <MudCard Elevation="2">
+                    <MudCardHeader>
+                        <CardHeaderContent><MudText Typo="Typo.subtitle1">Phép của tôi</MudText></CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/history/leave"))">Lịch sử</MudButton>
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudGrid>
+                            <MudItem xs="4"><MudText Typo="Typo.caption">Được hưởng</MudText><MudText Typo="Typo.h6">@Data.Leave.Balance.Entitled?.ToString("N1")</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.caption">Đã dùng</MudText><MudText Typo="Typo.h6">@Data.Leave.Balance.Used?.ToString("N1")</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.caption">Còn lại</MudText><MudText Typo="Typo.h6">@Data.Leave.Balance.Remaining?.ToString("N1")</MudText></MudItem>
+                        </MudGrid>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        }
+
+        @if (Data.Overtime?.Balance != null)
+        {
+            <MudItem xs="12" md="6">
+                <MudCard Elevation="2">
+                    <MudCardHeader>
+                        <CardHeaderContent><MudText Typo="Typo.subtitle1">OT của tôi</MudText></CardHeaderContent>
+                        <CardHeaderActions>
+                            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => Navigation.NavigateTo("/history/ot"))">Lịch sử</MudButton>
+                        </CardHeaderActions>
+                    </MudCardHeader>
+                    <MudCardContent>
+                        <MudGrid>
+                            <MudItem xs="6"><MudText Typo="Typo.caption">OT tháng</MudText><MudText Typo="Typo.h6">@Data.Overtime.Balance.UsedHoursThisMonth.ToString("N1") / @Data.Overtime.Balance.MonthlyLimit.ToString("N1") h</MudText></MudItem>
+                            <MudItem xs="6"><MudText Typo="Typo.caption">OT năm</MudText><MudText Typo="Typo.h6">@Data.Overtime.Balance.UsedHoursThisYear.ToString("N1") / @Data.Overtime.Balance.YearlyLimit.ToString("N1") h</MudText></MudItem>
+                        </MudGrid>
+                    </MudCardContent>
+                </MudCard>
             </MudItem>
         }
     </MudGrid>
