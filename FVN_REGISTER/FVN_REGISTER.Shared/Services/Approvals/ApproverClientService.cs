@@ -1,205 +1,87 @@
-﻿
-using FVN_REGISTER.Core.Configurations;
-using FVN_REGISTER.Shared.Handlers;
-using Microsoft.Extensions.Logging;
-using FVN_REGISTER.Core.Logging;
-using Microsoft.Extensions.Options;
-
+using FVN_REGISTER.Contract.Dtos.Approvals;
+using FVN_REGISTER.Contract.Dtos.Depts;
+using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Responses;
-
+using FVN_REGISTER.Shared.Handlers;
 
 namespace FVN_REGISTER.Shared.Services.Approvals
 {
-    public class ApproverClientService : IApproverClientService
+    public sealed class ApproverClientService : IApproverClientService
     {
         private readonly IHttpClientWithAuth _http;
-        private readonly ILogger<ApproverClientService> _logger;
-        private readonly IOptionsMonitor<AuthDebugOptions> _options;
 
-        private bool Debug => _options.CurrentValue.Enabled;
-
-        public ApproverClientService(
-            IHttpClientWithAuth http,
-            ILogger<ApproverClientService> logger,
-            IOptionsMonitor<AuthDebugOptions> options)
+        public ApproverClientService(IHttpClientWithAuth http)
         {
             _http = http;
-            _logger = logger;
-            _options = options;
         }
 
-        // ================= TREE =================
-        public async Task<ApiResponse<List<ApproverTreeNodeViewModel>>> GetTreeAsync(
+        public Task<ApiResponse<List<ApproverTreeNodeDto>>> GetTreeAsync(
             CancellationToken ct = default)
-        {
-            try
-            {
-                _logger.LogDebugIf(Debug, "[APPROVER] GetTree start");
+            => _http.GetAsync<List<ApproverTreeNodeDto>>("api/Approver/tree", ct);
 
-                var result = await _http.GetAsync<List<ApproverTreeNodeViewModel>>(
-                    "api/Approver/tree", ct);
-
-                if (!result.IsSuccess)
-                    _logger.LogWarnIf(Debug, "[APPROVER] GetTree failed | {Msg}", result.Message);
-
-                return result;
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[APPROVER] GetTree exception");
-                return ApiResponse<List<ApproverTreeNodeViewModel>>.Fail("Không thể tải danh sách approver.");
-            }
-        }
-
-        // ================= LIST =================
-        public async Task<ApiResponse<List<ApproverViewModel>>> GetListAsync(
+        public Task<ApiResponse<List<ApproverDto>>> GetListAsync(
             string? deptCode,
             int? level,
             string? requestType,
             CancellationToken ct = default)
         {
-            try
+            var query = BuildQuery(new Dictionary<string, string?>
             {
-                var query = BuildQuery(new()
-                {
-                    ["deptCode"] = deptCode,
-                    ["level"] = level?.ToString(),
-                    ["requestType"] = requestType
-                });
+                ["deptCode"] = deptCode,
+                ["level"] = level?.ToString(),
+                ["requestType"] = requestType
+            });
 
-                _logger.LogDebugIf(Debug, "[APPROVER] GetList: {Query}", query);
-
-                return await _http.GetAsync<List<ApproverViewModel>>(
-                    $"api/Approver/list{query}", ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[APPROVER] GetList exception");
-                return ApiResponse<List<ApproverViewModel>>.Fail("Không thể tải danh sách.");
-            }
+            return _http.GetAsync<List<ApproverDto>>($"api/Approver/list{query}", ct);
         }
 
-        // ================= DEPARTMENTS =================
-        public async Task<ApiResponse<List<DepartmentViewModel>>> GetDepartmentsAsync(
+        public Task<ApiResponse<List<DepartmentDto>>> GetDepartmentsAsync(
             CancellationToken ct = default)
-        {
-            try
-            {
-                return await _http.GetAsync<List<DepartmentViewModel>>(
-                    "api/Approver/departments", ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[APPROVER] GetDepartments exception");
-                return ApiResponse<List<DepartmentViewModel>>.Fail("Không thể tải danh sách phòng ban.");
-            }
-        }
+            => _http.GetAsync<List<DepartmentDto>>("api/Approver/departments", ct);
 
-        // ================= EMPLOYEES =================
-        public async Task<ApiResponse<List<EmployeeSelectViewModel>>> GetEmployeesAsync(
+        public Task<ApiResponse<List<EmployeeSelectDto>>> GetEmployeesAsync(
             string? deptCode,
             CancellationToken ct = default)
         {
-            try
+            var query = BuildQuery(new Dictionary<string, string?>
             {
-                var query = BuildQuery(new() { ["deptCode"] = deptCode });
+                ["deptCode"] = deptCode
+            });
 
-                return await _http.GetAsync<List<EmployeeSelectViewModel>>(
-                    $"api/Approver/employees{query}", ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[APPROVER] GetEmployees exception");
-                return ApiResponse<List<EmployeeSelectViewModel>>.Fail("Không thể tải danh sách nhân viên.");
-            }
+            return _http.GetAsync<List<EmployeeSelectDto>>(
+                $"api/Approver/employees{query}", ct);
         }
 
-        // ================= CREATE =================
-        public async Task<ApiResponse<object>> CreateAsync(
-            ApproverViewModel model,
+        public Task<ApiResponse<object>> CreateAsync(
+            ApproverDto model,
             CancellationToken ct = default)
-        {
-            try
-            {
-                _logger.LogDebugIf(Debug,
-                    "[APPROVER] Create: {Name} Type={Type}",
-                    model.ApproveLevelName, model.RequestType);
+            => _http.PostAsync<object>("api/Approver", model, ct);
 
-                return await _http.PostAsync<object>("api/Approver", model, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[APPROVER] Create exception");
-                return ApiResponse<object>.Fail("Lỗi khi thêm approver.");
-            }
-        }
-
-        // ================= UPDATE =================
-        public async Task<ApiResponse<object>> UpdateAsync(
+        public Task<ApiResponse<object>> UpdateAsync(
             int id,
-            ApproverViewModel model,
+            ApproverDto model,
             CancellationToken ct = default)
-        {
-            try
-            {
-                _logger.LogDebugIf(Debug, "[APPROVER] Update Id={Id}", id);
+            => _http.PutAsync<object>($"api/Approver/{id}", model, ct);
 
-                return await _http.PutAsync<object>($"api/Approver/{id}", model, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[APPROVER] Update exception Id={Id}", id);
-                return ApiResponse<object>.Fail("Lỗi khi cập nhật approver.");
-            }
-        }
-
-        // ================= DELETE =================
-        public async Task<ApiResponse<object>> DeleteAsync(
+        public Task<ApiResponse<object>> DeleteAsync(
             int id,
             CancellationToken ct = default)
-        {
-            try
-            {
-                _logger.LogDebugIf(Debug, "[APPROVER] Delete Id={Id}", id);
+            => _http.DeleteAsync<object>($"api/Approver/{id}", ct);
 
-                return await _http.DeleteAsync<object>($"api/Approver/{id}", ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[APPROVER] Delete exception Id={Id}", id);
-                return ApiResponse<object>.Fail("Lỗi khi xóa approver.");
-            }
-        }
-
-        // ================= TOGGLE =================
-        public async Task<ApiResponse<object>> ToggleAsync(
+        public Task<ApiResponse<object>> ToggleAsync(
             int id,
             CancellationToken ct = default)
-        {
-            try
-            {
-                _logger.LogDebugIf(Debug, "[APPROVER] Toggle Id={Id}", id);
+            => _http.PatchAsync<object>($"api/Approver/{id}/toggle", new { }, ct);
 
-                // IHttpClientWithAuth chưa có PatchAsync sẵn — dùng PostAsync tới đúng route PATCH
-                // hoặc bổ sung PatchAsync vào IHttpClientWithAuth (xem mục 4 dưới)
-                return await _http.PatchAsync<object>($"api/Approver/{id}/toggle", new { }, ct);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "[APPROVER] Toggle exception Id={Id}", id);
-                return ApiResponse<object>.Fail("Lỗi khi đổi trạng thái approver.");
-            }
-        }
-
-        // ================= HELPER =================
         private static string BuildQuery(Dictionary<string, string?> parameters)
         {
             var parts = parameters
-                .Where(kv => !string.IsNullOrEmpty(kv.Value))
-                .Select(kv => $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value!)}")
+                .Where(kv => !string.IsNullOrWhiteSpace(kv.Value))
+                .Select(kv =>
+                    $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value!)}")
                 .ToList();
 
-            return parts.Count > 0 ? "?" + string.Join("&", parts) : "";
+            return parts.Count > 0 ? "?" + string.Join("&", parts) : string.Empty;
         }
     }
 }
