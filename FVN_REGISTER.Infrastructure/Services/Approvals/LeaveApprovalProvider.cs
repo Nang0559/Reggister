@@ -1,5 +1,4 @@
-﻿
-using FVN_REGISTER.Application.Interfaces.Approvals;
+﻿using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Emails;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Models.Subjects;
@@ -18,15 +17,11 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-
-namespace FVN_REGISTER.API.Services.Approvals
+namespace FVN_REGISTER.Infrastructure.Services.Approvals
 {
-    public class LeaveApprovalProvider
-        : BaseApprovalProvider<LeaveRequestSubject, LeaveApprovalProvider>,
-          IApprovalProvider<LeaveRequestSubject>
+    public class LeaveApprovalProvider : BaseApprovalProvider<LeaveRequestSubject, LeaveApprovalProvider>, IApprovalProvider<LeaveRequestSubject>
     {
         public override RequestModule RequestType => RequestModule.Leave;
-
         private const int SubLeaderStep = 1;
         private const int ManagerStep = 2;
         private const int GmStep = 3;
@@ -34,25 +29,16 @@ namespace FVN_REGISTER.API.Services.Approvals
         protected override IReadOnlyList<(int Level, string LevelName, string RoleName)> LevelDefs { get; } = new[]
         {
             (SubLeaderStep, "Sub-leader/Leader", "SubLeader"),
-            (ManagerStep,   "Manager",            "Manager"),
-            (GmStep,        "GM",                 "GM"),
+            (ManagerStep, "Manager", "Manager"),
+            (GmStep, "GM", "GM")
         };
 
-        public LeaveApprovalProvider(
-            IUnitOfWork uow,
-            IEmailService email,
-            IApprovalNotificationService notification,
-            IEmployeeUserResolver userResolver,
-            ILogger<LeaveApprovalProvider> logger,
-            IOptionsMonitor<AuthDebugOptions> options)
-            : base(uow, email, notification, userResolver, logger, options)
-        {
-        }
+        public LeaveApprovalProvider(IUnitOfWork uow, IEmailService email, IApprovalNotificationService notification, IEmployeeUserResolver userResolver, ILogger<LeaveApprovalProvider> logger, IOptionsMonitor<AuthDebugOptions> options)
+            : base(uow, email, notification, userResolver, logger, options) { }
 
         protected override bool? ResolveRequired(int level, ApprovalBuildContext ctx)
         {
-            bool isWorker = CvCodeRules.IsLv1Required(ctx.PositionCode);
-
+            var isWorker = CvCodeRules.IsLv1Required(ctx.PositionCode);
             return level switch
             {
                 SubLeaderStep => isWorker ? true : (bool?)null,
@@ -62,45 +48,26 @@ namespace FVN_REGISTER.API.Services.Approvals
             };
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // GET SUBJECT — dùng LeaveRequestSubject.From(), set thêm CvCode
-        // ═══════════════════════════════════════════════════════════════
-
-        public override async Task<LeaveRequestSubject?> GetSubjectAsync(
-            int requestId, CancellationToken ct)
+        public override async Task<LeaveRequestSubject?> GetSubjectAsync(int requestId, CancellationToken ct)
         {
-            var entity = await _uow.Repository<F03LeaveDay>()
-                .Query()
-                .AsNoTracking()
+            var entity = await _uow.Repository<F03LeaveDay>().Query().AsNoTracking()
                 .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct);
-
             if (entity == null) return null;
-
             var info = await GetEmployeeInfoAsync(entity.EmployeeCode, ct);
-
             var subject = LeaveRequestSubject.From(entity, info?.EmployeeName, info?.DeptCode);
-            subject.PositionCode = info?.PositionCode; // 
+            subject.PositionCode = info?.PositionCode;
             return subject;
         }
 
-        public override async Task<List<LeaveRequestSubject>> GetSubjectsAsync(
-            List<int> requestIds, CancellationToken ct)
+        public override async Task<List<LeaveRequestSubject>> GetSubjectsAsync(List<int> requestIds, CancellationToken ct)
         {
-            var entities = await _uow.Repository<F03LeaveDay>()
-                .Query()
-                .AsNoTracking()
-                .Where(x => requestIds.Contains(x.Id) && x.IsActive == true)
-                .ToListAsync(ct);
-
+            var entities = await _uow.Repository<F03LeaveDay>().Query().AsNoTracking()
+                .Where(x => requestIds.Contains(x.Id) && x.IsActive == true).ToListAsync(ct);
             var empCodes = entities.Select(e => e.EmployeeCode).Distinct().ToList();
-
-            var empMap = await _uow.Repository<F03Employee>()
-                .Query()
-                .AsNoTracking()
+            var empMap = await _uow.Repository<F03Employee>().Query().AsNoTracking()
                 .Where(e => empCodes.Contains(e.EmployeeCode))
                 .Select(e => new { e.EmployeeCode, e.EmployeeName, e.DeptCode, e.PositionCode })
                 .ToDictionaryAsync(e => e.EmployeeCode, e => e, ct);
-
             return entities.Select(x =>
             {
                 empMap.TryGetValue(x.EmployeeCode, out var info);
@@ -110,131 +77,67 @@ namespace FVN_REGISTER.API.Services.Approvals
             }).ToList();
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // APPLY OVERALL STATUS
-        // ═══════════════════════════════════════════════════════════════
-
-        public override async Task ApplyOverallStatusAsync(
-            int requestId,
-            IReadOnlyList<ApprovalStepCalculatedDto> allSteps,
-            CancellationToken ct)
+        public override async Task ApplyOverallStatusAsync(int requestId, IReadOnlyList<ApprovalStepCalculatedDto> allSteps, CancellationToken ct)
         {
-            var entity = await _uow.Repository<F03LeaveDay>()
-                .Query()
-                .FirstOrDefaultAsync(x => x.Id == requestId, ct);
-
-            if (entity == null)
-            {
-                Logger.LogWarnIf(Debug,
-                    "[LEAVE-PROVIDER] ApplyOverallStatus: không tìm thấy LeaveId={Id}", requestId);
-                return;
-            }
-
-            var newStatus = ComputeOverallStatus(allSteps);
-
-            Logger.LogDebugIf(Debug,
-                "[LEAVE-PROVIDER] LeaveId={Id}: {Old} → {New}",
-                requestId, entity.RequestStatus, newStatus);
-
-            entity.RequestStatus = newStatus; // ApprovalStatus enum, không phải string
+            var entity = await _uow.Repository<F03LeaveDay>().Query().FirstOrDefaultAsync(x => x.Id == requestId, ct);
+            if (entity == null) return;
+            entity.RequestStatus = ComputeOverallStatus(allSteps);
             entity.ModifiedAt = DateTime.Now;
-
             await _uow.SaveChangesAsync(ct);
         }
 
         private static ApprovalStatus ComputeOverallStatus(IReadOnlyList<ApprovalStepCalculatedDto> allSteps)
         {
             var required = allSteps.Where(s => s.IsRequired).OrderBy(s => s.Level).ToList();
-
-            if (required.Any(s => s.Status == DecisionType.Rejected))
-                return ApprovalStatus.Rejected;
-
-            if (required.Count > 0 && required.All(s => s.Status == DecisionType.Approved))
-                return ApprovalStatus.Approved;
-
-            bool anyApproved = required.Any(s => s.Status == DecisionType.Approved);
-            return anyApproved ? ApprovalStatus.InProgress : ApprovalStatus.Pending;
+            if (required.Any(s => s.Status == DecisionType.Rejected)) return ApprovalStatus.Rejected;
+            if (required.Count > 0 && required.All(s => s.Status == DecisionType.Approved)) return ApprovalStatus.Approved;
+            return required.Any(s => s.Status == DecisionType.Approved) ? ApprovalStatus.InProgress : ApprovalStatus.Pending;
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // NOTIFY
-        // ═══════════════════════════════════════════════════════════════
-
-        public override async Task NotifyStepCompletedAsync(
-        LeaveRequestSubject subject,
-        ApprovalStepCalculatedDto completedStep,
-        bool isFullyApproved,
-        CancellationToken ct)
+        public override async Task NotifyStepCompletedAsync(LeaveRequestSubject subject, ApprovalStepCalculatedDto completedStep, bool isFullyApproved, CancellationToken ct)
         {
             try
             {
                 if (isFullyApproved)
                 {
                     await NotifyEmployeeAsync(subject, ApprovalStatus.Approved, ct);
-                    await NotifyEmployeeInAppAsync(subject, ApprovalStatus.Approved, ct);   // THÊM
-                    Logger.LogInfoIf(Debug, "[LEAVE-PROVIDER] APPROVED: LeaveId={Id}", subject.RequestId);
+                    await NotifyEmployeeInAppAsync(subject, ApprovalStatus.Approved, ct);
                     return;
                 }
-
                 if (completedStep.Status == DecisionType.Rejected)
                 {
                     await NotifyEmployeeAsync(subject, ApprovalStatus.Rejected, ct);
-                    await NotifyEmployeeInAppAsync(subject, ApprovalStatus.Rejected, ct);   // THÊM
-                    Logger.LogInfoIf(Debug, "[LEAVE-PROVIDER] REJECTED: LeaveId={Id} Level={Lv}",
-                        subject.RequestId, completedStep.Level);
-                    return;
+                    await NotifyEmployeeInAppAsync(subject, ApprovalStatus.Rejected, ct);
                 }
-
-                Logger.LogDebugIf(Debug,
-                    "[LEAVE-PROVIDER] Level {Lv} approved, chờ cấp tiếp theo", completedStep.Level);
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex,
-                    "[LEAVE-PROVIDER] NotifyStepCompleted lỗi: LeaveId={Id}", subject.RequestId);
+                Logger.LogError(ex, "[LEAVE-PROVIDER] NotifyStepCompleted lỗi: LeaveId={Id}", subject.RequestId);
             }
         }
 
-        private async Task NotifyEmployeeAsync(
-        LeaveRequestSubject subject, ApprovalStatus status, CancellationToken ct)
+        private async Task NotifyEmployeeAsync(LeaveRequestSubject subject, ApprovalStatus status, CancellationToken ct)
         {
             var empEmail = await GetEmployeeEmailAsync(subject.EmployeeCode, ct);
             if (string.IsNullOrWhiteSpace(empEmail)) return;
-
             var templateCode = status == ApprovalStatus.Approved ? "LEAVE_APPROVED" : "LEAVE_REJECTED";
-
             await _email.QueueEmail(empEmail, templateCode, new
             {
                 subject.RequestId,
                 subject.EmployeeCode,
                 StartDate = subject.StartDate.ToString("dd/MM/yyyy"),
                 EndDate = subject.EndDate.ToString("dd/MM/yyyy"),
-                TotalDay = subject.TotalDay,
+                subject.TotalDay,
                 Status = status.ToDisplayName()
             }, ct);
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // TO PENDING ITEM
-        // ═══════════════════════════════════════════════════════════════
-
-        public override async Task<PendingApprovalItemDto> ToPendingItemAsync(
-            LeaveRequestSubject subject,
-            List<ApprovalStepCalculatedDto> steps,
-            bool canApprove,
-            CancellationToken ct)
+        public override async Task<PendingApprovalItemDto> ToPendingItemAsync(LeaveRequestSubject subject, List<ApprovalStepCalculatedDto> steps, bool canApprove, CancellationToken ct)
         {
-            string? deptName = null;
-            if (!string.IsNullOrEmpty(subject.DeptCode))
-            {
-                deptName = await _uow.Repository<F03Department>()
-                    .Query()
-                    .AsNoTracking()
-                    .Where(d => d.DeptCode == subject.DeptCode)
-                    .Select(d => d.DeptName)
-                    .FirstOrDefaultAsync(ct);
-            }
-
+            var deptName = string.IsNullOrEmpty(subject.DeptCode)
+                ? null
+                : await _uow.Repository<F03Department>().Query().AsNoTracking()
+                    .Where(d => d.DeptCode == subject.DeptCode).Select(d => d.DeptName).FirstOrDefaultAsync(ct);
             return new PendingApprovalItemDto
             {
                 RequestId = subject.RequestId,
@@ -251,31 +154,19 @@ namespace FVN_REGISTER.API.Services.Approvals
             };
         }
 
-        // ═══════════════════════════════════════════════════════════════
-        // HELPERS
-        // ═══════════════════════════════════════════════════════════════
-
-        private async Task<(string? EmployeeName, string? DeptCode, string? PositionCode)?> GetEmployeeInfoAsync(
-            string employeeCode, CancellationToken ct)
+        private async Task<(string? EmployeeName, string? DeptCode, string? PositionCode)?> GetEmployeeInfoAsync(string employeeCode, CancellationToken ct)
         {
-            var emp = await _uow.Repository<F03Employee>()
-                .Query()
-                .AsNoTracking()
+            var emp = await _uow.Repository<F03Employee>().Query().AsNoTracking()
                 .Where(e => e.EmployeeCode == employeeCode)
                 .Select(e => new { e.EmployeeName, e.DeptCode, e.PositionCode })
                 .FirstOrDefaultAsync(ct);
-
             return emp == null ? null : (emp.EmployeeName, emp.DeptCode, emp.PositionCode);
         }
 
-        private async Task<string?> GetEmployeeEmailAsync(string employeeCode, CancellationToken ct)
-        {
-            return await _uow.Repository<F03Employee>()
-                .Query()
-                .AsNoTracking()
+        private Task<string?> GetEmployeeEmailAsync(string employeeCode, CancellationToken ct)
+            => _uow.Repository<F03Employee>().Query().AsNoTracking()
                 .Where(e => e.EmployeeCode == employeeCode)
                 .Select(e => e.EmailAddress)
                 .FirstOrDefaultAsync(ct);
-        }
     }
 }
