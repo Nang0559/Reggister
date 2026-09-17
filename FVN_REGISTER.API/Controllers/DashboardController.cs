@@ -1,4 +1,3 @@
-using AutoMapper;
 using FVN_REGISTER.Application.Interfaces.Statics;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Authentication;
@@ -19,11 +18,10 @@ namespace FVN_REGISTER.API.Controllers
         public DashboardController(
             ICurrentUserService currentUser,
             IUserLogService userLog,
-            IMapper mapper,
             ILogger<DashboardController> logger,
             IOptionsMonitor<AuthDebugOptions> options,
             IDashboardService dashboardService)
-            : base(currentUser, userLog, mapper, logger, options)
+            : base(currentUser, userLog, logger, options)
         {
             _dashboardService = dashboardService;
         }
@@ -32,15 +30,10 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> GetDashboardData(CancellationToken ct)
         {
             if (UserInfo == null)
-            {
-                return Unauthorized(
-                    ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
-            }
+                return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
 
             var result = await _dashboardService.GetDashboardAsync(UserInfo, ct);
-
             await LogActionAsync("Xem dữ liệu Dashboard");
-
             return HandleResult(result);
         }
     }
