@@ -1,6 +1,7 @@
 @using FVN_REGISTER.Contract.Dtos.Approvals
 @using FVN_REGISTER.Contract.Dtos.Depts
 @using FVN_REGISTER.Contract.Dtos.OT
+@using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.Approvals
 
 <MudDialog>
@@ -22,7 +23,7 @@
                 <MudItem xs="12">
                     <MudSelect T="RequestModule" @bind-Value="Model.RequestType" Label="Loại đơn (*)" Variant="Variant.Outlined">
                         <MudSelectItem Value="@RequestModule.Leave">Nghỉ phép</MudSelectItem>
-                        <MudSelectItem Value="@RequestModule.OT">OT</MudSelectItem>
+                        <MudSelectItem Value="@RequestModule.Overtime">OT</MudSelectItem>
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12">
