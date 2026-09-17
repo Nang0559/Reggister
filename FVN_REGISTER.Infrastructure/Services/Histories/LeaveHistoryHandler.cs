@@ -1,123 +1,124 @@
-﻿using FVN_REGISTER.Contract.Dtos.Authentication;
+using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Histories;
-using FVN_REGISTER.Infrastructure;
+using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Core.Extensions;
 using FVN_REGISTER.Infrastructure.Services.Histories;
 using Microsoft.EntityFrameworkCore;
-using System.Linq.Expressions;
 
-namespace FVN_REGISTER.API.Services.Histories
+namespace FVN_REGISTER.Infrastructure.Services.Histories;
+
+public class LeaveHistoryHandler : BaseHistoryHandler<F03LeaveDay>
 {
-    public class LeaveHistoryHandler : BaseHistoryHandler<F03LeaveDay>
+    protected override RequestModule ModuleKind => RequestModule.Leave;
+
+    public LeaveHistoryHandler(FVNWEBAPPContext db) : base(db) { }
+
+    public override async Task<ServiceResult<PaginationResult<HistoryItemDto>>> GetHistoryAsync(
+        HistoryFilterDto filter, UserIdentityDto user, CancellationToken ct)
     {
-        public LeaveHistoryHandler(FVNWEBAPPContext db) : base(db) { }
+        var q = Db.VF03LeaveRequests
+            .AsNoTracking()
+            .Where(x => x.IsActive == true && x.EmployeeCode == user.EmployeeCode);
 
-        public override string Kind => RequestTypeDf.Leave;
+        if (filter.Year.HasValue)
+            q = q.Where(x => x.StartDate.Year == filter.Year.Value);
 
-        protected override string[] ActiveStatuses => LeaveStatus.ActiveStatuses;
-
-        protected override string CancelledStatus => LeaveStatus.Cancel;
-
-        protected override Expression<Func<F03LeaveDay, bool>> BuildIdPredicate(int id)
-            => x => x.Id == id;
-
-        public override async Task<ServiceResult<PaginationResult<HistoryItemDto>>> GetHistoryAsync(
-            HistoryFilterDto filter, UserIdentityDto user, CancellationToken ct)
+        if (!string.IsNullOrWhiteSpace(filter.Status) &&
+            Enum.TryParse<ApprovalStatus>(filter.Status, true, out var status))
         {
-            var q = Db.VF03LeaveRequests
-                .AsNoTracking()
-                .Where(x => x.IsActive == true && x.EmployeeCode == user.EmployeeCode);
+            q = q.Where(x => x.RequestStatus == status);
+        }
 
-            if (filter.Year.HasValue)
-                q = q.Where(x => x.StartDate.Year == filter.Year);
+        if (filter.FromDate.HasValue)
+            q = q.Where(x => x.StartDate >= filter.FromDate.Value);
 
-            if (!string.IsNullOrEmpty(filter.Status))
-                q = q.Where(x => x.RequestStatus == filter.Status);
+        if (filter.ToDate.HasValue)
+            q = q.Where(x => x.EndDate <= filter.ToDate.Value);
 
-            if (filter.FromDate.HasValue)
-                q = q.Where(x => x.StartDate >= filter.FromDate);
+        if (!string.IsNullOrWhiteSpace(filter.SearchText))
+        {
+            var s = filter.SearchText.ToLower();
+            q = q.Where(x =>
+                (x.LeaveReason != null && x.LeaveReason.ToLower().Contains(s)) ||
+                (x.EmployeeName != null && x.EmployeeName.ToLower().Contains(s)));
+        }
 
-            if (filter.ToDate.HasValue)
-                q = q.Where(x => x.EndDate <= filter.ToDate);
+        var total = await q.CountAsync(ct);
+        var data = await q
+            .OrderByDescending(x => x.CreatedAt)
+            .Skip((filter.Page - 1) * filter.PageSize)
+            .Take(filter.PageSize)
+            .ToListAsync(ct);
 
-            if (!string.IsNullOrWhiteSpace(filter.SearchText))
-            {
-                var s = filter.SearchText.ToLower();
-                q = q.Where(x =>
-                    (x.LeaveReason != null && x.LeaveReason.ToLower().Contains(s)) ||
-                    (x.EmployeeName != null && x.EmployeeName.ToLower().Contains(s)));
-            }
-
-            var total = await q.CountAsync(ct);
-
-            var data = await q
-                .OrderByDescending(x => x.CreatedAt)
-                .Skip((filter.Page - 1) * filter.PageSize)
-                .Take(filter.PageSize)
-                .ToListAsync(ct);
-
-            if (data.Count == 0)
-                return ServiceResult<PaginationResult<HistoryItemDto>>.Ok(
-                    new PaginationResult<HistoryItemDto>(new(), total, filter.Page, filter.PageSize));
-
-            var ids = data.Select(x => x.LeaveId).ToList();
-            var stepsMap = await GetApprovalStepsMapAsync(ids, ct);
-
-            var items = data.Select(x => new HistoryItemDto
-            {
-                Id = x.LeaveId,
-                Kind = RequestTypeDf.Leave,
-                EmployeeCode = x.EmployeeCode ?? "",
-                EmployeeName = x.EmployeeName,
-                DeptCode = x.DeptCode,
-                SubmittedAt = x.CreatedAt ?? DateTime.Now,
-                RequestStatus = x.RequestStatus ?? LeaveStatus.Pending,
-                StatusDisplay = LeaveStatus.GetDisplayName(x.RequestStatus ?? ""),
-                StatusColor = LeaveStatus.GetColor(x.RequestStatus ?? ""),
-                Reason = x.LeaveReason,
-                StartDate = x.StartDate,
-                EndDate = x.EndDate,
-                TotalDay = x.TotalDay,
-                TotalLeaveDay = x.TotalLeaveDay ?? 0,
-                LeaveTypeName = x.LeaveTypeName,
-                CanCancel = LeaveStatus.ActiveStatuses.Contains(x.RequestStatus ?? ""),
-                ApprovalSteps = stepsMap.GetValueOrDefault(x.LeaveId, new())
-            }).ToList();
-
+        if (data.Count == 0)
             return ServiceResult<PaginationResult<HistoryItemDto>>.Ok(
-                new PaginationResult<HistoryItemDto>(items, total, filter.Page, filter.PageSize));
-        }
+                new PaginationResult<HistoryItemDto>(new(), total, filter.Page, filter.PageSize));
 
-        public override async Task<ServiceResult<BalanceSummaryDto>> GetBalanceAsync(
-            int year, UserIdentityDto user, CancellationToken ct)
+        var ids = data.Select(x => x.Id).ToList();
+        var stepsMap = await GetApprovalStepsMapAsync(ids, ct);
+
+        var items = data.Select(x => new HistoryItemDto
         {
-            var phep = await Db.VF03phepTons
-                .AsNoTracking()
-                .FirstOrDefaultAsync(x =>
-                    x.EmployeeCode == user.EmployeeCode && x.WorkYear == year, ct);
+            Id = x.Id,
+            Kind = RequestModule.Leave,
+            EmployeeCode = x.EmployeeCode ?? string.Empty,
+            EmployeeName = x.EmployeeName,
+            DeptCode = x.DeptCode,
+            SubmittedAt = x.CreatedAt ?? DateTime.Now,
+            RequestStatus = x.RequestStatus.ToString(),
+            StatusDisplay = x.RequestStatus.ToDisplayName(),
+            StatusColor = GetStatusColor(x.RequestStatus),
+            Reason = x.LeaveReason,
+            StartDate = x.StartDate,
+            EndDate = x.EndDate,
+            TotalDay = x.TotalDay,
+            TotalLeaveDay = x.TotalLeaveDay ?? 0,
+            LeaveTypeName = x.LeaveTypeName,
+            CanCancel = ActiveStatuses.Contains(x.RequestStatus),
+            ApprovalSteps = stepsMap.GetValueOrDefault(x.Id, new())
+        }).ToList();
 
-            var pendingCount = await Db.F03leaveDays
-                .AsNoTracking()
-                .CountAsync(x =>
-                    x.EmployeeCode == user.EmployeeCode &&
-                    x.WorkYear == year &&
-                    x.IsActive == true &&
-                    LeaveStatus.ActiveStatuses.Contains(x.RequestStatus), ct);
-
-            return ServiceResult<BalanceSummaryDto>.Ok(new BalanceSummaryDto
-            {
-                Kind = RequestTypeDf.Leave,
-                Year = year,
-                Entitled = phep?.TongPhep ?? 0,
-                Used = phep?.SoNgayNghiPhep ?? 0,
-                Remaining = phep?.PhepTon ?? 0,
-                PendingCount = pendingCount
-            });
-        }
-
-        public override Task<ServiceResult<HistoryItemDetailDto>> GetDetailAsync(
-            int id, UserIdentityDto user, CancellationToken ct)
-            => throw new NotImplementedException("Cần implement GetDetailAsync cho Leave.");
-
-        // ❌ CancelAsync KHÔNG còn override — dùng nguyên bản chung ở BaseHistoryHandler
+        return ServiceResult<PaginationResult<HistoryItemDto>>.Ok(
+            new PaginationResult<HistoryItemDto>(items, total, filter.Page, filter.PageSize));
     }
+
+    public override async Task<ServiceResult<BalanceSummaryDto>> GetBalanceAsync(
+        int year, UserIdentityDto user, CancellationToken ct)
+    {
+        var balance = await Db.VF03LeaveBalances
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x =>
+                x.EmployeeCode == user.EmployeeCode && x.WorkYear == year, ct);
+
+        var pendingCount = await Db.LeaveDays
+            .AsNoTracking()
+            .CountAsync(x =>
+                x.EmployeeCode == user.EmployeeCode &&
+                x.WorkYear == year &&
+                x.IsActive == true &&
+                ActiveStatuses.Contains(x.RequestStatus), ct);
+
+        return ServiceResult<BalanceSummaryDto>.Ok(new BalanceSummaryDto
+        {
+            Kind = RequestModule.Leave,
+            Year = year,
+            Entitled = balance?.TotalEntitledLeave ?? 0,
+            Used = balance?.LeaveDaysUsed ?? 0,
+            Remaining = balance?.RemainingLeave ?? 0,
+            PendingCount = pendingCount
+        });
+    }
+
+    public override Task<ServiceResult<HistoryItemDetailDto>> GetDetailAsync(
+        int id, UserIdentityDto user, CancellationToken ct)
+        => throw new NotImplementedException("Cần implement GetDetailAsync cho Leave.");
+
+    private static string GetStatusColor(ApprovalStatus status) => status switch
+    {
+        ApprovalStatus.Approved => "success",
+        ApprovalStatus.Rejected => "error",
+        ApprovalStatus.Cancelled => "default",
+        ApprovalStatus.InProgress or ApprovalStatus.Escalated => "info",
+        _ => "warning"
+    };
 }
