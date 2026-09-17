@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Histories
 @using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Core.Extensions
 @using FVN_REGISTER.Shared.Components.OT
 @using FVN_REGISTER.Shared.Dialogs.Leaves
 @using FVN_REGISTER.Shared.Services.Histories
@@ -65,7 +66,7 @@
     </HeaderContent>
     <RowTemplate>
         <MudTd>@context.SubmittedAt.ToString("dd/MM/yyyy")</MudTd>
-        <MudTd>@context.Kind</MudTd>
+        <MudTd>@context.Kind.ToDisplayName()</MudTd>
         <MudTd>
             @if (context.Kind == RequestModule.Leave)
             { <span>@context.StartDate?.ToString("dd/MM/yyyy") → @context.EndDate?.ToString("dd/MM/yyyy")</span> }
@@ -86,8 +87,8 @@
 
 @code {
     [Parameter] public string KindCode { get; set; } = "leave";
-    private RequestModule Kind => string.Equals(KindCode, "ot", StringComparison.OrdinalIgnoreCase) ? RequestModule.OT : RequestModule.Leave;
-    private string Title => Kind == RequestModule.Leave ? "Lịch sử nghỉ phép" : "Lịch sử đăng ký OT";
+    private RequestModule Kind => KindCode.ToRequestModule();
+    private string Title => Kind.ToDisplayName();
     private MudTable<HistoryItemDto>? _table;
     private BalanceSummaryDto? _balance;
     private bool _loading;
