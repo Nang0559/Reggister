@@ -14,4 +14,6 @@ global using FVN_REGISTER.Application.Interfaces.Approvals;
 global using FVN_REGISTER.Application.Interfaces.Histories;
 global using FVN_REGISTER.Application.Models.Subjects;
 
+global using FVN_REGISTER.Contract.Utils;
+
 global using Microsoft.Extensions.DependencyInjection;
