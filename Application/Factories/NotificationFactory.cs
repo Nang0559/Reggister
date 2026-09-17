@@ -1,20 +1,25 @@
-﻿
-using FVN_REGISTER.Application.Factories;
 using FVN_REGISTER.Contract.Dtos.Notifications;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Extensions;
 
-
-
-namespace Application.Factories
+namespace FVN_REGISTER.Application.Factories
 {
-    public  class NotificationFactory: INotificationFactory
+    /// <summary>
+    /// Builds notification contracts from application approval events.
+    /// No transport, persistence or UI concerns belong here.
+    /// </summary>
+    public sealed class NotificationFactory : INotificationFactory
     {
         public CreateNotificationDto CreateApprovalNotification(
-     int userId, string? employeeCode, RequestModule module,
-     int requestId, NotificationAction action, int? level = null)
+            int userId,
+            string? employeeCode,
+            RequestModule module,
+            int requestId,
+            NotificationAction action,
+            int? level = null)
         {
-            string moduleName = module.ToDisplayName();
+            var moduleName = module.ToDisplayName();
+
             return new CreateNotificationDto
             {
                 UserId = userId,
@@ -45,22 +50,16 @@ namespace Application.Factories
         {
             NotificationAction.Pending =>
                 $"Bạn có đơn {moduleName} mới từ nhân viên cần xem xét.",
-
             NotificationAction.PendingNextLevel =>
                 $"Đơn {moduleName} đã được cấp trước phê duyệt, hiện đang chờ bạn (Cấp {level}) duyệt tiếp.",
-
             NotificationAction.Approved =>
                 $"Chúc mừng, đơn {moduleName} của bạn đã được phê duyệt hoàn tất.",
-
             NotificationAction.Rejected =>
                 $"Đơn {moduleName} của bạn đã bị từ chối. Vui lòng kiểm tra lại ý kiến từ người duyệt.",
-
             NotificationAction.Reminder =>
                 $"Đây là thông báo nhắc nhở về đơn {moduleName} của bạn đang ở trạng thái chờ duyệt.",
-
             NotificationAction.Escalated =>
                 $"Đơn {moduleName} đã vượt quá thời gian xử lý cho phép tại cấp {level}. Vui lòng kiểm tra ngay.",
-
             _ => $"Cập nhật trạng thái cho đơn {moduleName} của bạn."
         };
     }

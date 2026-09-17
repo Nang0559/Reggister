@@ -1,8 +1,10 @@
-﻿
-
-namespace FVN_REGISTER.Application.Interfaces.Repositores
+namespace FVN_REGISTER.Application.Models
 {
-    public class QueryOptionsDto
+    /// <summary>
+    /// Application-level query options shared by query use cases.
+    /// Persistence-specific repository options belong to Infrastructure.
+    /// </summary>
+    public sealed class QueryOptionsDto
     {
         public int PageNumber { get; set; } = 1;
         public int PageSize { get; set; } = 10;
