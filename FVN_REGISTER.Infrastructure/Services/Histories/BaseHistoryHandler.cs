@@ -1,11 +1,10 @@
-﻿using FVN_REGISTER.Contract.Dtos.Approvals;
+﻿using FVN_REGISTER.Application.Interfaces.Histories;
+using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Histories;
-using FVN_REGISTER.Contract.Interfaces.Histories;
-using FVN_REGISTER.Contract.Models.Data;
-using FVN_REGISTER.Contract.Models.Entities;
-using FVN_REGISTER.Contract.Models.FVN_REGISTER.Contract.Models;
-using FVN_REGISTER.Contract.Utils;
+using FVN_REGISTER.Core.Entities;
+using FVN_REGISTER.Core.Utils;
+using FVN_REGISTER.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.API.Services.Histories

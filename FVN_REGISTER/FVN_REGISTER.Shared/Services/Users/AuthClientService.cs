@@ -1,12 +1,11 @@
 ﻿using FVN_REGISTER.Contract.Dtos.Authentication;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Contract.Util;
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Shared.Handlers;
 using FVN_REGISTER.Shared.Utils;
 using Microsoft.AspNetCore.Components.Authorization;
-using Microsoft.Extensions.Configuration;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Net.Http.Json;

@@ -1,5 +1,4 @@
 ﻿using FVN_REGISTER.Contract.Dtos.Authentication;
-using FVN_REGISTER.Contract.Interfaces.Repositores;
 using FVN_REGISTER.Core.Configurations;
 using FVN_REGISTER.Core.Logging;
 using FVN_REGISTER.Shared.Handlers;

@@ -1,7 +1,7 @@
-﻿using FVN_REGISTER.Contract.Interfaces.Repositores;
-using FVN_REGISTER.Contract.ViewModels;
-using FVN_REGISTER.Contract.ViewModels.Departments;
+﻿
 
+
+using FVN_REGISTER.Contract.Responses;
 
 namespace FVN_REGISTER.Shared.Services.Employees
 {
