@@ -2,8 +2,9 @@ using AutoMapper;
 using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Histories;
-using FVN_REGISTER.Contract.Requests.Leaves;
+using FVN_REGISTER.Contract.Models.ApprovalModels;
 using FVN_REGISTER.Contract.Utils;
+using FVN_REGISTER.Contract.ViewModels.Approvals;
 using FVN_REGISTER.Core.Configurations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -31,11 +32,9 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpPost("create")]
-        public async Task<IActionResult> Create(
-            [FromBody] CreateLeaveRequestModel model, CancellationToken ct)
+        public async Task<IActionResult> Create([FromBody] CreateLeaveRequestModel model, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
-            await LogActionAsync($"Đăng ký nghỉ: {model.StartDate:dd/MM} - {model.EndDate:dd/MM}");
             return HandleResult(await _leaveService.CreateLeaveAsync(model, UserInfo, ct));
         }
 
@@ -64,8 +63,7 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> Reject([FromBody] ApproveRequest req, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
-            if (string.IsNullOrWhiteSpace(req.Comment))
-                return BadRequest(ApiResponse<object>.Fail("Lý do từ chối không được để trống."));
+            if (string.IsNullOrWhiteSpace(req.Comment)) return BadRequest(ApiResponse<object>.Fail("Lý do từ chối không được để trống."));
             return HandleResult(await _leaveService.RejectAsync(req.Ids, req.Level, UserInfo, req.Comment, ct));
         }
 
@@ -95,21 +93,10 @@ namespace FVN_REGISTER.API.Controllers
             => HandleResult(await _leaveService.GetDetailsAsync(id, ct));
 
         [HttpGet("history")]
-        public async Task<IActionResult> GetHistory(
-            [FromQuery] int? year,
-            [FromQuery] string? status,
-            [FromQuery] int page = 1,
-            [FromQuery] int pageSize = 20,
-            CancellationToken ct = default)
+        public async Task<IActionResult> GetHistory([FromQuery] int? year, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
         {
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
-            var filter = new HistoryFilterDto
-            {
-                Year = year,
-                Status = status,
-                Page = page,
-                PageSize = pageSize
-            };
+            var filter = new HistoryFilterDto { Year = year, Status = status, Page = page, PageSize = pageSize };
             return HandleResult(await _leaveService.GetHistoryAsync(filter, UserInfo, ct));
         }
 
