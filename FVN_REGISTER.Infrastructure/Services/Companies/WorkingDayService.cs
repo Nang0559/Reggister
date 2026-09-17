@@ -1,111 +1,96 @@
-﻿using FVN_REGISTER.Application.Interfaces.Common;
+using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 
-namespace FVN_REGISTER.Infrastructure.Services.Companies
+namespace FVN_REGISTER.Infrastructure.Services.Companies;
+
+public class WorkingDayService : IWorkingDayService
 {
-    public class WorkingDayService : IWorkingDayService
+    private readonly FVNWEBAPPContext _db;
+    private readonly IMemoryCache _cache;
+    private const string HolidayCacheKey = "CompanyHolidays_Set";
+
+    public WorkingDayService(FVNWEBAPPContext db, IMemoryCache cache)
     {
-        private readonly FVNWEBAPPContext _db;
-        private readonly IMemoryCache _cache;
-        private const string HOLIDAY_CACHE_KEY = "CompanyHolidays_Set";
+        _db = db;
+        _cache = cache;
+    }
 
-        public WorkingDayService(FVNWEBAPPContext db, IMemoryCache cache)
+    public async Task<int> GetWorkingDaysAsync(DateTime from, DateTime to)
+    {
+        if (from > to) return 0;
+
+        var holidays = await GetHolidaysAsync();
+        int count = 0;
+
+        for (var date = from.Date; date <= to.Date; date = date.AddDays(1))
         {
-            _db = db;
-            _cache = cache;
+            if (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday)
+                continue;
+
+            if (holidays.Contains(date))
+                continue;
+
+            count++;
         }
 
-        public async Task<int> GetWorkingDaysAsync(DateTime from, DateTime to)
+        return count;
+    }
+
+    public async Task<double> GetWorkingHoursAsync(DateTime from, DateTime to)
+    {
+        if (from >= to) return 0;
+
+        var holidays = await GetHolidaysAsync();
+        double totalHours = 0;
+
+        for (var date = from.Date; date <= to.Date; date = date.AddDays(1))
         {
-            if (from > to) return 0;
+            if (date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday || holidays.Contains(date))
+                continue;
 
-            var holidays = await _cache.GetOrCreateAsync(HOLIDAY_CACHE_KEY, async entry =>
+            var workStart = date.AddHours(8);
+            var workEnd = date.AddHours(17);
+            var lunchStart = date.AddHours(12);
+            var lunchEnd = date.AddHours(13);
+
+            var effectiveStart = from > workStart ? from : workStart;
+            var effectiveEnd = to < workEnd ? to : workEnd;
+
+            if (effectiveStart < effectiveEnd)
             {
-                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(1);
+                double hours = (effectiveEnd - effectiveStart).TotalHours;
 
-                var list = await _db.CompanyHolidays
-                    .AsNoTracking()
-                    .Where(x => x.HolidayDate != null)
-                    .Select(x => x.HolidayDate.Value.Date)
-                    .ToListAsync();
-
-                return new HashSet<DateTime>(list);
-            });
-
-            int count = 0;
-            DateTime startDate = from.Date;
-            DateTime endDate = to.Date;
-
-            for (var date = startDate; date <= endDate; date = date.AddDays(1))
-            {
-                if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday)
-                    continue;
-
-                if (holidays != null && holidays.Contains(date))
-                    continue;
-
-                count++;
-            }
-
-            return count;
-        }
-
-        public async Task<double> GetWorkingHoursAsync(DateTime from, DateTime to)
-        {
-            if (from >= to) return 0;
-
-            var holidays = await GetHolidaysAsync();
-            double totalHours = 0;
-
-            for (var date = from.Date; date <= to.Date; date = date.AddDays(1))
-            {
-                if (date.DayOfWeek == DayOfWeek.Saturday || date.DayOfWeek == DayOfWeek.Sunday || holidays.Contains(date))
-                    continue;
-
-                DateTime workStart = date.AddHours(8);
-                DateTime workEnd = date.AddHours(17);
-                DateTime lunchStart = date.AddHours(12);
-                DateTime lunchEnd = date.AddHours(13);
-
-                DateTime effectiveStart = from > workStart ? from : workStart;
-                DateTime effectiveEnd = to < workEnd ? to : workEnd;
-
-                if (effectiveStart < effectiveEnd)
+                if (effectiveStart < lunchEnd && effectiveEnd > lunchStart)
                 {
-                    double hours = (effectiveEnd - effectiveStart).TotalHours;
-
-                    if (effectiveStart < lunchEnd && effectiveEnd > lunchStart)
-                    {
-                        long overlapStart = Math.Max(effectiveStart.Ticks, lunchStart.Ticks);
-                        long overlapEnd = Math.Min(effectiveEnd.Ticks, lunchEnd.Ticks);
+                    long overlapStart = Math.Max(effectiveStart.Ticks, lunchStart.Ticks);
+                    long overlapEnd = Math.Min(effectiveEnd.Ticks, lunchEnd.Ticks);
+                    if (overlapEnd > overlapStart)
                         hours -= TimeSpan.FromTicks(overlapEnd - overlapStart).TotalHours;
-                    }
-
-                    totalHours += hours;
                 }
+
+                totalHours += hours;
             }
-
-            return Math.Round(totalHours, 2);
         }
 
-        private async Task<HashSet<DateTime>> GetHolidaysAsync()
+        return Math.Round(totalHours, 2);
+    }
+
+    private async Task<HashSet<DateTime>> GetHolidaysAsync()
+    {
+        var result = await _cache.GetOrCreateAsync(HolidayCacheKey, async entry =>
         {
-            var result = await _cache.GetOrCreateAsync(HOLIDAY_CACHE_KEY, async entry =>
-            {
-                entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(1);
+            entry.AbsoluteExpirationRelativeToNow = TimeSpan.FromDays(1);
 
-                var list = await _db.CompanyHolidays
-                    .AsNoTracking()
-                    .Where(x => x.HolidayDate.HasValue)
-                    .Select(x => x.HolidayDate!.Value.Date)
-                    .ToListAsync();
+            var list = await _db.CompanyHolidays
+                .AsNoTracking()
+                .Select(x => x.HolidayDate.Date)
+                .ToListAsync();
 
-                return new HashSet<DateTime>(list);
-            });
+            return new HashSet<DateTime>(list);
+        });
 
-            return result ?? new HashSet<DateTime>();
-        }
+        return result ?? new HashSet<DateTime>();
     }
 }

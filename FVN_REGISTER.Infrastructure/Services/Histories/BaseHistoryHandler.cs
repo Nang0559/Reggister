@@ -4,6 +4,7 @@ using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Histories;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Entities;
+using FVN_REGISTER.Core.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Histories;
@@ -18,7 +19,9 @@ public abstract class BaseHistoryHandler<TRequest> : IHistoryHandler
         Db = db;
     }
 
-    public abstract string Kind { get; }
+    protected abstract RequestModule ModuleKind { get; }
+
+    public string Kind => ModuleKind.ToCode();
 
     public abstract Task<ServiceResult<PaginationResult<HistoryItemDto>>> GetHistoryAsync(
         HistoryFilterDto filter,
@@ -35,8 +38,16 @@ public abstract class BaseHistoryHandler<TRequest> : IHistoryHandler
         UserIdentityDto user,
         CancellationToken ct);
 
-    protected abstract string[] ActiveStatuses { get; }
-    protected abstract string CancelledStatus { get; }
+    protected virtual ApprovalStatus[] ActiveStatuses =>
+    [
+        ApprovalStatus.Draft,
+        ApprovalStatus.Pending,
+        ApprovalStatus.InProgress,
+        ApprovalStatus.Escalated,
+        ApprovalStatus.NeedsRevision
+    ];
+
+    protected virtual ApprovalStatus CancelledStatus => ApprovalStatus.Cancelled;
 
     public virtual async Task<ServiceResult> CancelAsync(
         int id,
@@ -61,9 +72,9 @@ public abstract class BaseHistoryHandler<TRequest> : IHistoryHandler
         request.ModifiedAt = DateTime.Now;
         request.ModifiedBy = user.UserId;
 
-        var pendingSteps = await Db.F03ApprovalSteps
+        var pendingSteps = await Db.ApprovalSteps
             .Where(s => s.RequestId == id
-                     && s.RequestType == Kind
+                     && s.RequestType == ModuleKind
                      && s.Approved == null)
             .ToListAsync(ct);
 
@@ -83,9 +94,9 @@ public abstract class BaseHistoryHandler<TRequest> : IHistoryHandler
         int requestId,
         CancellationToken ct)
     {
-        return await Db.F03ApprovalSteps
+        return await Db.ApprovalSteps
             .AsNoTracking()
-            .Where(s => s.RequestType == Kind && s.RequestId == requestId)
+            .Where(s => s.RequestType == ModuleKind && s.RequestId == requestId)
             .OrderBy(s => s.Level)
             .Select(s => MapStep(s))
             .ToListAsync(ct);
@@ -95,9 +106,9 @@ public abstract class BaseHistoryHandler<TRequest> : IHistoryHandler
         List<int> requestIds,
         CancellationToken ct)
     {
-        var steps = await Db.F03ApprovalSteps
+        var steps = await Db.ApprovalSteps
             .AsNoTracking()
-            .Where(s => s.RequestType == Kind && requestIds.Contains(s.RequestId))
+            .Where(s => s.RequestType == ModuleKind && requestIds.Contains(s.RequestId))
             .OrderBy(s => s.Level)
             .Select(s => new { s.RequestId, Step = MapStep(s) })
             .ToListAsync(ct);
@@ -109,8 +120,6 @@ public abstract class BaseHistoryHandler<TRequest> : IHistoryHandler
 
     private static ApprovalStepDto MapStep(F03ApprovalStep s) => new()
     {
-        RequestType = s.RequestType,
-        RequestId = s.RequestId,
         Level = s.Level,
         RoleName = s.RoleName,
         ApproverCode = s.ApproverCode,
@@ -120,14 +129,11 @@ public abstract class BaseHistoryHandler<TRequest> : IHistoryHandler
         ApproveTime = s.ApprovedAt,
         Comment = s.Comment,
         IsRequired = s.Required,
-        IsSkipped = !s.Required && s.Approved == null,
         IsOverriddenByAdmin = s.IsOverriddenByAdmin,
         OverriddenByName = s.OverriddenByName,
         OverriddenAt = s.OverriddenAt
     };
 
     protected static bool CanUserCancel(string ownerEmployeeCode, UserIdentityDto user)
-        => ownerEmployeeCode == user.EmployeeCode
-        || user.IsAdmin()
-        || user.IsSuperAdmin();
+        => ownerEmployeeCode == user.EmployeeCode || user.IsAdmin;
 }
