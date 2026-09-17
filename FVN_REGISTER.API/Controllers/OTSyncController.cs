@@ -31,7 +31,6 @@ namespace FVN_REGISTER.API.Controllers
             IWebHostEnvironment environment,
             ICurrentUserService currentUser,
             IUserLogService userLog,
-           
             ILogger<OTSyncController> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(currentUser, userLog, logger, options)
@@ -64,13 +63,14 @@ namespace FVN_REGISTER.API.Controllers
 
         [HttpPost("worker-trigger")]
         public async Task<IActionResult> TriggerWorkerNow(
+            [FromQuery] DateTime? date,
             [FromQuery] string? deptCode,
             CancellationToken ct)
         {
             if (!User.IsInRole("SuperAdmin") && !User.IsInRole("Admin"))
                 return Forbid();
 
-            var workDate = DateTime.Today.AddDays(-1);
+            var workDate = date ?? DateTime.Today.AddDays(-1);
             var result = await _reconciliation.ReconcileActualHoursAsync(
                 workDate, deptCode, ct);
             return Ok(ApiResponse<OTReconciliationResultDto>.Ok(result, result.Summary));
