@@ -1,4 +1,3 @@
-using AutoMapper;
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Approvals;
@@ -20,10 +19,9 @@ namespace FVN_REGISTER.API.Controllers
             IApprovalInboxService approvalInbox,
             ICurrentUserService currentUser,
             IUserLogService userLog,
-            IMapper mapper,
             ILogger<ApprovalListController> logger,
             IOptionsMonitor<AuthDebugOptions> options)
-            : base(currentUser, userLog, mapper, logger, options)
+            : base(currentUser, userLog, logger, options)
         {
             _approvalInbox = approvalInbox;
         }
@@ -32,15 +30,11 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> GetPending(CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
-
-            var result = await _approvalInbox.GetPendingAsync(UserInfo, ct);
-            return HandleResult(result);
+            return HandleResult(await _approvalInbox.GetPendingAsync(UserInfo, ct));
         }
 
         [HttpPost("approve")]
-        public async Task<IActionResult> Approve(
-            [FromBody] ApprovalActionDto req,
-            CancellationToken ct)
+        public async Task<IActionResult> Approve([FromBody] ApprovalActionDto req, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
             if (req.RequestIds == null || req.RequestIds.Count == 0)
@@ -49,20 +43,12 @@ namespace FVN_REGISTER.API.Controllers
                 return BadRequest(ApiResponse<object>.Fail("Endpoint approve không nhận IsReject=true."));
 
             var result = await _approvalInbox.ApproveItemsAsync(
-                req.RequestIds,
-                req.Kind,
-                req.Level,
-                req.Comment,
-                UserInfo,
-                ct);
-
+                req.RequestIds, req.Kind, req.Level, req.Comment, UserInfo, ct);
             return HandleResult(result);
         }
 
         [HttpPost("reject")]
-        public async Task<IActionResult> Reject(
-            [FromBody] ApprovalActionDto req,
-            CancellationToken ct)
+        public async Task<IActionResult> Reject([FromBody] ApprovalActionDto req, CancellationToken ct)
         {
             if (UserInfo == null) return Unauthorized();
             if (req.RequestIds == null || req.RequestIds.Count == 0)
@@ -73,13 +59,7 @@ namespace FVN_REGISTER.API.Controllers
                 return BadRequest(ApiResponse<object>.Fail("Endpoint reject yêu cầu IsReject=true."));
 
             var result = await _approvalInbox.RejectItemsAsync(
-                req.RequestIds,
-                req.Kind,
-                req.Level,
-                req.Comment,
-                UserInfo,
-                ct);
-
+                req.RequestIds, req.Kind, req.Level, req.Comment, UserInfo, ct);
             return HandleResult(result);
         }
     }
