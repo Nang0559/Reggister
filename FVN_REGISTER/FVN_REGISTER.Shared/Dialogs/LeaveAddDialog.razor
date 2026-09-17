@@ -13,14 +13,9 @@
     <DialogContent>
         <MudForm @ref="_form">
             <MudGrid Spacing="2">
-                <MudItem xs="12" sm="6">
-                    <MudDatePicker @bind-Date="_startDate" @bind-Date:after="RebuildDetails" Label="Từ ngày *" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
-                <MudItem xs="12" sm="6">
-                    <MudDatePicker @bind-Date="_endDate" @bind-Date:after="RebuildDetails" Label="Đến ngày *" Variant="Variant.Outlined" Margin="Margin.Dense" />
-                </MudItem>
+                <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_startDate" @bind-Date:after="RebuildDetails" Label="Từ ngày *" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_endDate" @bind-Date:after="RebuildDetails" Label="Đến ngày *" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
             </MudGrid>
-
             <MudTextField @bind-Value="_reason" Label="Lý do nghỉ *" Lines="3" Required="true" RequiredError="Vui lòng nhập lý do" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
 
             @if (_details.Any())
@@ -43,7 +38,7 @@
                                         </MudSelect>
                                     </td>
                                     <td>
-                                        <MudSelect T="HalfDayType" Value="detail.HalfDayOption" ValueChanged="@(value => ChangeHalfDay(detail, value))" Dense="true" Margin="Margin.Dense">
+                                        <MudSelect T="HalfDayType" Value="@(detail.HalfDayOption ?? HalfDayType.None)" ValueChanged="@(value => ChangeHalfDay(detail, value))" Dense="true" Margin="Margin.Dense">
                                             <MudSelectItem Value="@HalfDayType.None">Cả ngày</MudSelectItem>
                                             <MudSelectItem Value="@HalfDayType.Morning">Buổi sáng</MudSelectItem>
                                             <MudSelectItem Value="@HalfDayType.Afternoon">Buổi chiều</MudSelectItem>
@@ -129,21 +124,9 @@
 
     private async Task Submit()
     {
-        if (_startDate == null || _endDate == null || _startDate > _endDate)
-        {
-            Snackbar.Add("Khoảng ngày nghỉ không hợp lệ.", Severity.Warning);
-            return;
-        }
-        if (string.IsNullOrWhiteSpace(_reason))
-        {
-            Snackbar.Add("Vui lòng nhập lý do nghỉ.", Severity.Warning);
-            return;
-        }
-        if (!_details.Any())
-        {
-            Snackbar.Add("Khoảng ngày không có ngày làm việc hợp lệ.", Severity.Warning);
-            return;
-        }
+        if (_startDate == null || _endDate == null || _startDate > _endDate) { Snackbar.Add("Khoảng ngày nghỉ không hợp lệ.", Severity.Warning); return; }
+        if (string.IsNullOrWhiteSpace(_reason)) { Snackbar.Add("Vui lòng nhập lý do nghỉ.", Severity.Warning); return; }
+        if (!_details.Any()) { Snackbar.Add("Khoảng ngày không có ngày làm việc hợp lệ.", Severity.Warning); return; }
 
         _saving = true;
         try
@@ -156,14 +139,8 @@
                 Reason = _reason.Trim(),
                 Details = _details.ToList()
             };
-
             var result = await LeaveService.CreateLeaveAsync(request);
-            if (!result.IsSuccess)
-            {
-                Snackbar.Add(result.Message ?? "Gửi đơn nghỉ thất bại.", Severity.Error);
-                return;
-            }
-
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Gửi đơn nghỉ thất bại.", Severity.Error); return; }
             Snackbar.Add("Đã gửi đơn nghỉ.", Severity.Success);
             await OnSaved.InvokeAsync();
             MudDialog.Close(DialogResult.Ok(true));
