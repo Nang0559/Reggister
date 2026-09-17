@@ -1,6 +1,6 @@
 @using FVN_REGISTER.Contract.Dtos.Leaves
-@using FVN_REGISTER.Shared.Services.Leaves
-@inject ILeaveCreateClientService LeaveService
+@using FVN_REGISTER.Core.Enums
+@inject FVN_REGISTER.Shared.Services.Leaves.ILeaveCreateClientService LeaveService
 @inject ISnackbar Snackbar
 
 <MudDialog>
@@ -55,8 +55,10 @@
     private string _cancelReason = string.Empty;
     private bool _isCancelling;
 
+    // Cancellation is allowed by the request workflow only before an approval
+    // decision has been processed. The API remains the source of truth.
     private bool CanCancel => Item != null &&
-        (Item.Status == "Pending" || Item.Status == "ApprovedLv1" || Item.Status == "InProgress");
+        string.Equals(Item.Status, ApprovalStatus.Pending.ToString(), StringComparison.OrdinalIgnoreCase);
 
     private async Task ConfirmCancel()
     {
@@ -70,7 +72,7 @@
         _isCancelling = true;
         try
         {
-            var result = await LeaveService.CancelLeaveAsync(Item.RequestId, _cancelReason);
+            var result = await LeaveService.CancelLeaveAsync(Item.RequestId, _cancelReason.Trim());
             if (!result.IsSuccess)
             {
                 Snackbar.Add(result.Message ?? "Hủy đơn thất bại", Severity.Error);
@@ -89,14 +91,14 @@
 
     private void Close() => MudDialog.Cancel();
 
-    private static string GetStatusText(string status) => status switch
+    private static string GetStatusText(string? status) => status switch
     {
-        "Approved" => "Đã duyệt",
-        "Rejected" => "Từ chối",
-        "ApprovedLv1" => "Đã duyệt cấp 1",
-        "ApprovedLv2" => "Đã duyệt cấp 2",
-        "Cancelled" => "Đã hủy",
-        "InProgress" => "Đang xử lý",
+        nameof(ApprovalStatus.Approved) => "Đã duyệt",
+        nameof(ApprovalStatus.Rejected) => "Từ chối",
+        nameof(ApprovalStatus.Cancelled) => "Đã hủy",
+        nameof(ApprovalStatus.InProgress) => "Đang xử lý",
+        nameof(ApprovalStatus.Draft) => "Nháp",
+        nameof(ApprovalStatus.Returned) => "Trả lại",
         _ => "Chờ duyệt"
     };
 }
