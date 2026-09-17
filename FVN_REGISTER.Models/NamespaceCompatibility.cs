@@ -1,5 +1,8 @@
-// Transitional compatibility for stale result-type namespaces during the DTO migration.
+// Transitional compatibility for stale namespaces during the DTO migration.
 namespace FVN_REGISTER.Contract.Models { }
+namespace FVN_REGISTER.Contract.Interfaces { }
+namespace FVN_REGISTER.Contract.Interfaces.Approvals { }
+namespace FVN_REGISTER.Contract.Interfaces.Histories { }
 
 namespace FVN_REGISTER.Contract.Utils
 {
