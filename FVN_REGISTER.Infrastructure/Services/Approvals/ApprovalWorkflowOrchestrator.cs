@@ -16,13 +16,16 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
     {
         private readonly IApprovalEngine<TSubject> _engine;
         private readonly IApprovalProvider<TSubject> _provider;
+        private readonly IApprovalNotificationService _notification;
 
         public ApprovalWorkflowOrchestrator(
             IApprovalEngine<TSubject> engine,
-            IApprovalProvider<TSubject> provider)
+            IApprovalProvider<TSubject> provider,
+            IApprovalNotificationService notification)
         {
             _engine = engine;
             _provider = provider;
+            _notification = notification;
         }
 
         public async Task InitApprovalAsync(
@@ -36,6 +39,32 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
 
             var snapshot = await _provider.BuildSnapshotAsync(subject, ctx, ct);
             await _engine.InitializeStepsAsync(requestId, snapshot, ct);
+
+            // Submit activates the first required step. Notify it immediately so the
+            // first approver receives both email and in-app/SignalR notification.
+            var first = await _engine.GetNextStepAsync(requestId, ct);
+            if (first == null) return;
+
+            if (!string.IsNullOrWhiteSpace(first.ApproverEmail))
+            {
+                await _notification.NotifyNewRequestAsync(
+                    first.ApproverCode,
+                    first.ApproverEmail,
+                    first.ApproverName,
+                    requestId,
+                    subject.Module,
+                    subject.EmployeeName ?? string.Empty,
+                    first.Level,
+                    ct);
+            }
+
+            await _notification.NotifyApproverInAppAsync(
+                first.ApproverCode,
+                requestId,
+                subject.Module,
+                subject.EmployeeName ?? string.Empty,
+                first.Level,
+                ct);
         }
 
         public Task<ApprovalActionResult> ApproveAsync(
