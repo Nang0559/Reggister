@@ -15,11 +15,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
     {
         private readonly IApprovalWorkflowOrchestrator<LeaveRequestSubject> _leaveWorkflow;
         private readonly IApprovalWorkflowOrchestrator<OTRequestSubject> _otWorkflow;
+        private readonly IApprovalWorkflowOrchestrator<TripRequestSubject> _tripWorkflow;
         private readonly IApprovalGroupingPolicy _groupingPolicy;
 
         public ApprovalInboxService(
             IApprovalWorkflowOrchestrator<LeaveRequestSubject> leaveWorkflow,
             IApprovalWorkflowOrchestrator<OTRequestSubject> otWorkflow,
+            IApprovalWorkflowOrchestrator<TripRequestSubject> tripWorkflow,
             IApprovalGroupingPolicy groupingPolicy,
             ILogger<ApprovalInboxService> logger,
             IOptionsMonitor<AuthDebugOptions> options)
@@ -27,6 +29,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         {
             _leaveWorkflow = leaveWorkflow;
             _otWorkflow = otWorkflow;
+            _tripWorkflow = tripWorkflow;
             _groupingPolicy = groupingPolicy;
         }
 
@@ -38,12 +41,14 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             {
                 var leaveItemsTask = _leaveWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct);
                 var otItemsTask = _otWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct);
-                await Task.WhenAll(leaveItemsTask, otItemsTask);
+                var tripItemsTask = _tripWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct);
+                await Task.WhenAll(leaveItemsTask, otItemsTask, tripItemsTask);
 
                 var byModule = new Dictionary<RequestModule, List<PendingApprovalItemDto>>
                 {
                     [RequestModule.Leave] = await leaveItemsTask,
-                    [RequestModule.Overtime] = await otItemsTask
+                    [RequestModule.Overtime] = await otItemsTask,
+                    [RequestModule.Trip] = await tripItemsTask
                 };
 
                 var grouped = _groupingPolicy.BuildGroups(byModule);
@@ -74,6 +79,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 {
                     RequestModule.Leave => await _leaveWorkflow.ApproveAsync(action, ct),
                     RequestModule.Overtime => await _otWorkflow.ApproveAsync(action, ct),
+                    RequestModule.Trip => await _tripWorkflow.ApproveAsync(action, ct),
                     _ => throw new NotSupportedException($"Module {kind} chưa được hỗ trợ ở Inbox.")
                 };
 
@@ -112,6 +118,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 {
                     RequestModule.Leave => await _leaveWorkflow.RejectAsync(action, ct),
                     RequestModule.Overtime => await _otWorkflow.RejectAsync(action, ct),
+                    RequestModule.Trip => await _tripWorkflow.RejectAsync(action, ct),
                     _ => throw new NotSupportedException($"Module {kind} chưa được hỗ trợ ở Inbox.")
                 };
 
