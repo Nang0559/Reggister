@@ -1,7 +1,7 @@
 using AutoMapper;
 using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.Users;
-using FVN_REGISTER.Contract.ViewModels.Leaves;
+using FVN_REGISTER.Contract.Dtos.LeaveTypes;
 using FVN_REGISTER.Core.Configurations;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,84 +16,45 @@ namespace FVN_REGISTER.API.Controllers
     {
         private readonly ILeaveTypeManagementService _leaveTypeService;
 
-        public LeaveTypeManagementController(
-            ILeaveTypeManagementService leaveTypeService,
-            ICurrentUserService currentUser,
-            IUserLogService userLog,
-            IMapper mapper,
-            ILogger<LeaveTypeManagementController> logger,
-            IOptionsMonitor<AuthDebugOptions> options)
+        public LeaveTypeManagementController(ILeaveTypeManagementService leaveTypeService, ICurrentUserService currentUser, IUserLogService userLog, IMapper mapper, ILogger<LeaveTypeManagementController> logger, IOptionsMonitor<AuthDebugOptions> options)
             : base(currentUser, userLog, mapper, logger, options)
         {
             _leaveTypeService = leaveTypeService;
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll(CancellationToken ct)
-        {
-            var result = await _leaveTypeService.GetAllAsync(ct);
-            return HandleResult(result);
-        }
+        public async Task<IActionResult> GetAll(CancellationToken ct) => HandleResult(await _leaveTypeService.GetAllAsync(ct));
 
         [HttpGet("filter")]
-        public async Task<IActionResult> GetFiltered(
-            [FromQuery] bool? tinhPhep,
-            [FromQuery] bool? isActive,
-            CancellationToken ct)
-        {
-            var result = await _leaveTypeService.GetFilteredAsync(tinhPhep, isActive, ct);
-            return HandleResult(result);
-        }
+        public async Task<IActionResult> GetFiltered([FromQuery] bool? tinhPhep, [FromQuery] bool? isActive, CancellationToken ct)
+            => HandleResult(await _leaveTypeService.GetFilteredAsync(tinhPhep, isActive, ct));
 
         [HttpPost]
-        public async Task<IActionResult> Create(
-            [FromBody] LeaveTypeUpsertModel model,
-            CancellationToken ct)
+        public async Task<IActionResult> Create([FromBody] LeaveTypeUpsertDto model, CancellationToken ct)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-            if (UserInfo == null)
-                return Unauthorized();
-
-            await LogActionAsync($"Thêm hình thức nghỉ: {model.LeaveTypeCode}");
-            var result = await _leaveTypeService.CreateAsync(model, UserInfo.UserId, ct);
-            return HandleResult(result);
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (UserInfo == null) return Unauthorized();
+            return HandleResult(await _leaveTypeService.CreateAsync(model, UserInfo.UserId, ct));
         }
 
         [HttpPut("{id:int}")]
-        public async Task<IActionResult> Update(
-            int id,
-            [FromBody] LeaveTypeUpsertModel model,
-            CancellationToken ct)
+        public async Task<IActionResult> Update(int id, [FromBody] LeaveTypeUpsertDto model, CancellationToken ct)
         {
-            if (!ModelState.IsValid)
-                return BadRequest(ModelState);
-            if (UserInfo == null)
-                return Unauthorized();
-
+            if (!ModelState.IsValid) return BadRequest(ModelState);
+            if (UserInfo == null) return Unauthorized();
             model.LeaveTypeId = id;
-            await LogActionAsync($"Sửa hình thức nghỉ: {model.LeaveTypeCode}");
-            var result = await _leaveTypeService.UpdateAsync(model, UserInfo.UserId, ct);
-            return HandleResult(result);
+            return HandleResult(await _leaveTypeService.UpdateAsync(model, UserInfo.UserId, ct));
         }
 
         [HttpPatch("{id:int}/toggle")]
         public async Task<IActionResult> Toggle(int id, CancellationToken ct)
         {
-            if (UserInfo == null)
-                return Unauthorized();
-
-            await LogActionAsync($"Toggle hình thức nghỉ ID={id}");
-            var result = await _leaveTypeService.ToggleAsync(id, UserInfo.UserId, ct);
-            return HandleResult(result);
+            if (UserInfo == null) return Unauthorized();
+            return HandleResult(await _leaveTypeService.ToggleAsync(id, UserInfo.UserId, ct));
         }
 
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id, CancellationToken ct)
-        {
-            await LogActionAsync($"Xóa hình thức nghỉ ID={id}");
-            var result = await _leaveTypeService.DeleteAsync(id, ct);
-            return HandleResult(result);
-        }
+            => HandleResult(await _leaveTypeService.DeleteAsync(id, ct));
     }
 }
