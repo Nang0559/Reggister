@@ -66,3 +66,27 @@ Chọn Mở tài liệu chi tiết để xem /huong-dan theo FeatureCode.
 - Import có lỗi: xem validation theo batch, sửa Excel rồi staging lại.
 - Approval không thực hiện được: kiểm tra trạng thái pending và scope.
 - Nội dung public không xuất hiện: kiểm tra Status và EffectiveFrom/EffectiveTo.
+
+## 8. OT và hạn mức giờ
+
+Luồng: **NHẬP OT → NGÀY → TUẦN → THÁNG → NĂM → SUBMIT → APPROVAL → RECONCILE**.
+
+1. Chọn ngày, loại OT và số giờ.
+2. Hệ thống kiểm tra giới hạn ngày.
+3. Kiểm tra tổng OT của tuần từ Thứ 2 đến Chủ nhật nếu doanh nghiệp đã cấu hình Weekly rule.
+4. Kiểm tra hạn mức tháng; mặc định hiện tại 40 giờ/tháng nếu chưa có rule riêng.
+5. Kiểm tra hạn mức năm; mặc định 200 giờ/năm và ngưỡng tối đa hiện tại 300 giờ/năm.
+6. Nếu vượt ngưỡng năm tiêu chuẩn, hệ thống yêu cầu xử lý theo policy đặc biệt; không được vượt ngưỡng tối đa.
+7. Submit và theo dõi Approval/đối soát.
+
+Trên Workspace, OT cá nhân hiển thị **tuần / tháng / năm** dưới dạng đã dùng so với hạn mức. Hạn mức tuần chỉ hiển thị khi có Weekly rule.
+
+## 9. Trung tâm thông tin cá nhân
+
+Workspace hiển thị:
+- OT đã dùng trong tuần, tháng, năm.
+- Hạn mức và số giờ còn lại khi có cấu hình.
+- Tổng phép được hưởng, đã nghỉ và còn lại.
+- Ngày nghỉ đã duyệt sắp tới và tổng số ngày của các đợt nghỉ sắp tới.
+
+Request Pending không được coi là lịch nghỉ chắc chắn; chỉ ngày nghỉ Approved mới xuất hiện trong “sắp nghỉ”.
