@@ -97,7 +97,8 @@ WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Permissions p WHERE p.PermissionCode=v.Per
 
 -- =========================
 -- Employees / users
--- Password values are TEST ONLY. Change them before production.
+-- Passwords below are stored using the same MD5 format required by EncryptUtils.PwdCompare.
+-- Plain-text passwords must never be stored in F03Users.Password.
 -- =========================
 INSERT dbo.F03Employees(IsActive,CreatedBy,EmployeeCode,EmployeeName,DeptCode,PositionCode,BirthDate,GenderCode,EmailAddress,PhoneNumber,FirstWorkingDate,TotalLeaveDays,EmployeeNo,LevelApprove)
 SELECT 1,0,v.Code,v.Name,v.Dept,v.Position,v.Birth,v.GenderId,v.Email,v.Phone,v.StartDate,v.LeaveDays,v.EmpNo,v.LevelApprove
@@ -111,7 +112,7 @@ FROM (VALUES
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Employees e WHERE e.EmployeeCode=v.Code);
 
 INSERT dbo.F03Users(IsActive,CreatedBy,Password,EmployeeCode,FullName,PermissionCode,LockoutEnable,NumLoginFailed,LevelApprove,DeptCode,Cvcode)
-SELECT 1,0,N'Test@123',v.Code,v.Name,v.PermissionCode,1,0,v.LevelApprove,v.Dept,v.Position
+SELECT 1,0,N'f925916e2754e5e03f75dd58a5733251',v.Code,v.Name,v.PermissionCode,1,0,v.LevelApprove,v.Dept,v.Position
 FROM (VALUES
 (N'E0001',N'Nguyen Van An',1,0,N'IT',N'EMP'),
 (N'E0002',N'Tran Thi Binh',1,1,N'IT',N'SL'),
@@ -120,6 +121,13 @@ FROM (VALUES
 (N'E0005',N'Hoang Van Em',3,4,N'PROD',N'GM')
 ) AS v(Code,Name,PermissionCode,LevelApprove,Dept,Position)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Users u WHERE u.EmployeeCode=v.Code);
+
+-- Keep existing test users consistent when the seed is re-run.
+-- Test password for E0001..E0005: Test@123
+UPDATE u
+SET u.Password=N'f925916e2754e5e03f75dd58a5733251'
+FROM dbo.F03Users u
+WHERE u.EmployeeCode IN (N'E0001',N'E0002',N'E0003',N'E0004',N'E0005');
 
 INSERT dbo.F03LeaveBalances(IsActive,CreatedBy,EmployeeCode,WorkYear,TotalDays)
 SELECT 1,0,v.Code,YEAR(@Now),v.Days FROM (VALUES
@@ -223,5 +231,5 @@ WHERE NOT EXISTS(SELECT 1 FROM dbo.F03EscalationRules r WHERE r.RequestModule=v.
 COMMIT;
 GO
 PRINT N'FVN_REGISTER test seed completed.';
-PRINT N'Test users: E0001..E0005 / password: Test@123 (TEST ONLY).';
+PRINT N'Test users: E0001..E0005 / password: Test@123 (stored as MD5 hash, TEST ONLY).';
 GO
