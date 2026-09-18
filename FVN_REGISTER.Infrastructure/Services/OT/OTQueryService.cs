@@ -300,12 +300,50 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             foreach (var emp in model.Employees)
             {
                 var balance = await GetBalanceAsync(emp.EmployeeCode, model.OTDate.Year, model.OTDate.Month, ct);
-                CheckLimit(result, emp, OTLimitType.Daily, balance.UsedHoursToday, balance.DailyLimit, emp.OTHours);
+
+                // Daily must be calculated against the requested OT date, not DateTime.Today.
+                var usedOnRequestedDate = await Uow.Repository<VF03OTRequest>().Query()
+                    .AsNoTracking()
+                    .Where(x => x.EmployeeCode == emp.EmployeeCode
+                        && x.IsActive == true
+                        && x.RequestStatus == ApprovalStatus.Approved
+                        && x.OTDate.Date == model.OTDate.Date)
+                    .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
+
+                CheckLimit(result, emp, OTLimitType.Daily, usedOnRequestedDate, balance.DailyLimit, emp.OTHours);
+
+                // Weekly window is always Monday 00:00 through the following Monday.
+                var weekOffset = (7 + (int)model.OTDate.DayOfWeek - (int)DayOfWeek.Monday) % 7;
+                var weekStart = model.OTDate.Date.AddDays(-weekOffset);
+                var weekEnd = weekStart.AddDays(7);
+                var usedThisWeek = await Uow.Repository<VF03OTRequest>().Query()
+                    .AsNoTracking()
+                    .Where(x => x.EmployeeCode == emp.EmployeeCode
+                        && x.IsActive == true
+                        && x.RequestStatus == ApprovalStatus.Approved
+                        && x.OTDate >= weekStart && x.OTDate < weekEnd)
+                    .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
+
+                var weeklyRule = await Uow.Repository<F03OTLimitRule>().Query()
+                    .AsNoTracking()
+                    .Where(r => r.IsActive == true && r.LimitType == OTLimitType.Weekly
+                        && (r.PositionCode == null || r.PositionCode == (await GetEmployeePositionCodeAsync(emp.EmployeeCode, ct)))
+                        && (r.DeptCode == null || r.DeptCode == (await GetEmployeeDeptCodeAsync(emp.EmployeeCode, ct))))
+                    .OrderByDescending(r => r.PositionCode != null && r.DeptCode != null)
+                    .ThenByDescending(r => r.DeptCode != null)
+                    .ThenByDescending(r => r.PositionCode != null)
+                    .FirstOrDefaultAsync(ct);
+
+                if (weeklyRule != null)
+                    CheckLimit(result, emp, OTLimitType.Weekly, usedThisWeek, weeklyRule.LimitHours, emp.OTHours);
+
                 CheckLimit(result, emp, OTLimitType.Monthly, balance.UsedHoursThisMonth, balance.MonthlyLimit, emp.OTHours);
                 CheckLimit(result, emp, OTLimitType.Yearly, balance.UsedHoursThisYear, balance.YearlyLimit, emp.OTHours);
 
                 if (balance.IsNearMonthlyLimit)
                     result.Warnings.Add($"{emp.EmployeeCode}: gần đạt giới hạn giờ OT tháng này ({balance.RemainingMonthly}h còn lại).");
+                if (weeklyRule != null && usedThisWeek + emp.OTHours > weeklyRule.LimitHours * 0.9m)
+                    result.Warnings.Add($"{emp.EmployeeCode}: gần đạt giới hạn giờ OT tuần này ({weeklyRule.LimitHours - usedThisWeek - emp.OTHours}h còn lại sau đăng ký).");
             }
 
             result.IsValid = result.Errors.Count == 0;
@@ -433,6 +471,16 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .Where(e => e.EmployeeCode == employeeCode)
                 .Select(e => e.DeptCode)
                 .FirstOrDefaultAsync(ct) ?? string.Empty;
+        }
+
+        private async Task<string?> GetEmployeePositionCodeAsync(
+            string employeeCode, CancellationToken ct = default)
+        {
+            return await Uow.Repository<F03Employee>().Query()
+                .AsNoTracking()
+                .Where(e => e.EmployeeCode == employeeCode)
+                .Select(e => e.PositionCode)
+                .FirstOrDefaultAsync(ct);
         }
 
         public async Task<List<OTBalanceDto>> GetDeptNearLimitAsync(
