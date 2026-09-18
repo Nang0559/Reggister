@@ -127,6 +127,18 @@ SELECT 1,0,v.Code,YEAR(@Now),v.Days FROM (VALUES
 ) AS v(Code,Days)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03LeaveBalances b WHERE b.EmployeeCode=v.Code AND b.WorkYear=YEAR(@Now));
 
+-- Functions required by F03UserFunctions mappings
+INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail)
+SELECT 1,0,v.FunctionCode,v.FunctionName,v.Detail
+FROM (VALUES
+(1001,N'Leave Register',N'Create and manage leave requests'),
+(1002,N'Leave Approval',N'Approve and reject leave requests'),
+(1003,N'Overtime Register',N'Create and manage overtime requests'),
+(1004,N'Trip Register',N'Create and manage business trip requests'),
+(1005,N'Equipment Register',N'Create and manage equipment requests')
+) AS v(FunctionCode,FunctionName,Detail)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.FunctionCode);
+
 -- Permission/function mapping
 INSERT dbo.F03UserFunctions(IdUser,IdPermission,IdFunction)
 SELECT u.IdUser,p.IdPermission,f.IdFunction
