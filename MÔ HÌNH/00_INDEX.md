@@ -112,5 +112,6 @@ Controller không query EF; Application không phụ thuộc Infrastructure. Mod
 ## Security & Dashboard
 - `12_SECURITY_RBAC.md` — RBAC, ownership và ranh giới HRM/FVN security.
 - `13_DASHBOARD_CAPABILITIES.md` — dashboard theo capability và provider authorization.
+- `17_OT_LEAVE_LIMITS.md` — hạn mức OT ngày/tuần/tháng/năm và thông tin phép trên Workspace.
 
 - Phase 3 — Capability + Data Scope: `12_SECURITY_RBAC.md` (Section Phase 3)
