@@ -1,4 +1,5 @@
 @using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.Approvals
 
 @inject IApprovalListClientService ApprovalService
@@ -21,7 +22,7 @@
     {
         @foreach (var item in Items)
         {
-            var level = Level > 0 ? Level : item.CurrentApprovalLevel;
+            var level = Level > 0 ? Level : GetCurrentApprovalLevel(item);
             <MudCard Elevation="2" Class="mb-2">
                 <MudCardContent>
                     <MudGrid AlignItems="AlignItems.Center">
@@ -31,7 +32,7 @@
                         </MudItem>
                         <MudItem xs="12" sm="3">
                             <MudText Typo="Typo.body2">@(item.FromDate?.ToString("dd/MM/yyyy") ?? "—")</MudText>
-                            <MudText Typo="Typo.caption" Color="Color.Secondary">@item.TotalUnits.ToString("N1") @item.UnitDisplay</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">@item.TotalUnits.ToString("N1") @GetUnitLabel(item.Kind)</MudText>
                         </MudItem>
                         <MudItem xs="12" sm="3"><OTApprovalProgressBar Steps="@item.ApprovalSteps" /></MudItem>
                         <MudItem xs="12" sm="2" Class="d-flex justify-end">
@@ -60,33 +61,69 @@
 
     private bool _busy;
 
+    private static int GetCurrentApprovalLevel(PendingApprovalItemDto item) =>
+        item.ApprovalSteps
+            .OrderBy(x => x.Level)
+            .FirstOrDefault(x => x.IsApproved == null && x.IsRequired)?.Level ?? 0;
+
+    private static string GetUnitLabel(RequestModule kind) => kind switch
+    {
+        RequestModule.Overtime => "giờ",
+        RequestModule.Trip => "ngày",
+        _ => "ngày"
+    };
+
     private async Task Approve(PendingApprovalItemDto item)
     {
         _busy = true;
         try
         {
-            var result = await ApprovalService.ApproveAsync(new List<int> { item.RequestId }, item.Kind,
-                Level > 0 ? Level : item.CurrentApprovalLevel, null);
-            Snackbar.Add(result.IsSuccess ? "Đã duyệt thành công." : result.Message ?? "Duyệt thất bại.",
+            var level = Level > 0 ? Level : GetCurrentApprovalLevel(item);
+            var result = await ApprovalService.ApproveAsync(
+                new List<int> { item.RequestId }, item.Kind, level, null);
+
+            Snackbar.Add(
+                result.IsSuccess ? "Đã duyệt thành công." : result.Message ?? "Duyệt thất bại.",
                 result.IsSuccess ? Severity.Success : Severity.Error);
-            if (result.IsSuccess) await OnRefresh.InvokeAsync();
+
+            if (result.IsSuccess)
+                await OnRefresh.InvokeAsync();
         }
-        finally { _busy = false; }
+        finally
+        {
+            _busy = false;
+        }
     }
 
     private async Task Reject(PendingApprovalItemDto item)
     {
-        var confirmed = await DialogService.ShowMessageBoxAsync("Từ chối đơn", "Bạn có chắc muốn từ chối đơn này?", yesText: "Từ chối", cancelText: "Hủy");
-        if (confirmed != true) return;
+        var confirmed = await DialogService.ShowMessageBoxAsync(
+            "Từ chối đơn",
+            "Bạn có chắc muốn từ chối đơn này?",
+            yesText: "Từ chối",
+            cancelText: "Hủy");
+
+        if (confirmed != true)
+            return;
+
         _busy = true;
         try
         {
-            var result = await ApprovalService.RejectAsync(new List<int> { item.RequestId }, item.Kind,
-                Level > 0 ? Level : item.CurrentApprovalLevel, "Từ chối từ danh sách OT");
-            Snackbar.Add(result.IsSuccess ? "Đã từ chối." : result.Message ?? "Từ chối thất bại.",
+            var level = Level > 0 ? Level : GetCurrentApprovalLevel(item);
+            var result = await ApprovalService.RejectAsync(
+                new List<int> { item.RequestId }, item.Kind, level,
+                "Từ chối từ danh sách OT");
+
+            Snackbar.Add(
+                result.IsSuccess ? "Đã từ chối." : result.Message ?? "Từ chối thất bại.",
                 result.IsSuccess ? Severity.Success : Severity.Error);
-            if (result.IsSuccess) await OnRefresh.InvokeAsync();
+
+            if (result.IsSuccess)
+                await OnRefresh.InvokeAsync();
         }
-        finally { _busy = false; }
+        finally
+        {
+            _busy = false;
+        }
     }
 }
