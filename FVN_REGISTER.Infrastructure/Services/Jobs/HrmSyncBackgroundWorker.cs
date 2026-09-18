@@ -8,15 +8,26 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
     {
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<HrmSyncBackgroundWorker> _logger;
+        private readonly IConfiguration _configuration;
 
-        private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(5);
+        private static readonly TimeSpan DefaultPollInterval = TimeSpan.FromMinutes(5);
 
         public HrmSyncBackgroundWorker(
             IServiceScopeFactory scopeFactory,
-            ILogger<HrmSyncBackgroundWorker> logger)
+            ILogger<HrmSyncBackgroundWorker> logger,
+            IConfiguration configuration)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
+            _configuration = configuration;
+        }
+
+        private TimeSpan GetPollInterval()
+        {
+            var minutes = _configuration.GetValue<int?>("HrmSync:PollMinutes");
+            return minutes is > 0 and <= 1440
+                ? TimeSpan.FromMinutes(minutes.Value)
+                : DefaultPollInterval;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -56,7 +67,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
 
                 try
                 {
-                    await Task.Delay(PollInterval, stoppingToken);
+                    await Task.Delay(GetPollInterval(), stoppingToken);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
