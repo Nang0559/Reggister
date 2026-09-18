@@ -82,7 +82,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Emails
                     {
                         Code = dto.Code.Trim().ToUpper(),
                         Subject = dto.Subject,
-                        Body = dto.Body,
+                        Body = dto.Body ?? string.Empty,
                         IsActive = dto.IsActive,
                         CreatedBy = userId,
                         CreatedAt = DateTime.Now
@@ -97,7 +97,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Emails
                         return ServiceResult.Fail("Không tìm thấy template.");
 
                     entity.Subject = dto.Subject;
-                    entity.Body = dto.Body;
+                    entity.Body = dto.Body ?? string.Empty;
                     entity.IsActive = dto.IsActive;
                     entity.ModifiedBy = userId;
                     entity.ModifiedAt = DateTime.Now;

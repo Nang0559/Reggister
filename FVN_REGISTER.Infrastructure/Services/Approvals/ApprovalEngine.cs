@@ -47,7 +47,7 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
                     Level = s.Level,
                     ApproverCode = s.ApproverCode ?? string.Empty,
                     ApproverName = s.ApproverName ?? string.Empty,
-                    ApproverEmail = s.ApproverEmail??string.Empty,
+                    ApproverEmail = s.ApproverEmail ?? string.Empty,
                     RoleName = s.RoleName,
                     IsRequired = s.IsRequired
                 })
@@ -153,18 +153,21 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
         var next = await GetNextStepAsync(requestId, ct);
         if (next == null) return;
 
-        if (!string.IsNullOrWhiteSpace(next.ApproverEmail))
+        if (!string.IsNullOrWhiteSpace(next.ApproverCode) && !string.IsNullOrWhiteSpace(next.ApproverEmail))
         {
             await _notification.NotifyNewRequestAsync(
-                next.ApproverCode,
-                next.ApproverEmail,
-                next.ApproverName,
+                next.ApproverCode!,
+                next.ApproverEmail!,
+                next.ApproverName ?? string.Empty,
                 requestId,
                 Module,
                 subject.EmployeeName ?? string.Empty,
                 next.Level,
                 ct);
         }
+
+        if (string.IsNullOrWhiteSpace(next.ApproverCode))
+            return;
 
         await _notification.NotifyApproverInAppAsync(
             next.ApproverCode,
