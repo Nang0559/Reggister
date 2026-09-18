@@ -37,9 +37,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
             var widgets = new List<WidgetCounterDto>(
                 await _leaveQuery.GetMyWidgetsAsync(user.EmployeeCode!, ct));
 
-            var balanceTask = _leaveQuery.GetSimpleBalanceAsync(
+            var personalBalance = await _leaveQuery.GetSimpleBalanceAsync(
                 user.EmployeeCode!, year, ct);
-            var recentTask = _leaveQuery.GetRecentSummaryAsync(
+            var recentSummary = await _leaveQuery.GetRecentSummaryAsync(
                 user.EmployeeCode!, 5, ct);
 
             AbsenceWarningDto? deptWarning = null;
@@ -66,13 +66,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
                 }
             }
 
-            await Task.WhenAll(balanceTask, recentTask);
-
             var detail = new LeaveDashboardDto
             {
                 Widgets = widgets,
-                PersonalBalance = await balanceTask,
-                RecentRequests = await recentTask,
+                PersonalBalance = personalBalance,
+                RecentRequests = recentSummary,
                 DeptWarning = deptWarning,
                 DepartmentStatistics = departmentStatistics
             };
