@@ -1,6 +1,5 @@
 ﻿using Blazored.LocalStorage;
-using FVN_REGISTER.Contract.Interfaces.Histories;
-using FVN_REGISTER.Core.Configurations;
+using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Shared.Handlers;
 using FVN_REGISTER.Shared.Services.Approvals;
 using FVN_REGISTER.Shared.Services.Dashboards;
