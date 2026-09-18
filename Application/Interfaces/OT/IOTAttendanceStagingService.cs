@@ -7,8 +7,9 @@ namespace FVN_REGISTER.Application.Interfaces.OT
 {
     /// <summary>
     /// Đồng bộ dữ liệu chấm công thô từ HRM (qua usp_SyncAttendanceStaging) vào F03AttendanceStaging.
-    /// Độc lập hoàn toàn với pipeline HrmSyncJob/IHrmStagingImporter (đó là master data,
-    /// đây là dữ liệu giao dịch hàng ngày — 2 cơ chế khác nhau).
+    /// Đây là pipeline giao dịch hàng ngày, tách khỏi HrmSyncJob/IHrmStagingImporter.
+    /// Lưu ý: usp_SyncAttendanceStaging vẫn có runtime dependency vào
+    /// usp_SyncHrmShiftMaster để bảo đảm F03 shift master được refresh trước khi resolve.
     /// </summary>
     public interface IOTAttendanceStagingService
     {
