@@ -212,4 +212,50 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         await _sessionService.RevokeAllAsync(userId, ct);
         return await GetSnapshotAsync(userId, ct);
     }
+    public async Task<SecurityRoleDto> SetRoleFunctionsAsync(
+        int roleCode,
+        IReadOnlyCollection<int> functionCodes,
+        int actorUserId,
+        CancellationToken ct = default)
+    {
+        if (functionCodes == null)
+            throw new InvalidOperationException("FunctionCodes không hợp lệ.");
+
+        var role = await _uow.Repository<F03Role>().Query()
+            .FirstOrDefaultAsync(x => x.RoleCode == roleCode && x.IsActive, ct);
+
+        if (role == null)
+            throw new InvalidOperationException("Role không tồn tại hoặc đã ngừng hoạt động.");
+
+        var codes = functionCodes.Distinct().ToList();
+        var functions = await _uow.Repository<F03Function>().Query()
+            .Where(x => codes.Contains(x.FunctionCode) && (x.IsActive ?? true))
+            .ToListAsync(ct);
+
+        if (functions.Count != codes.Count)
+            throw new InvalidOperationException("Một hoặc nhiều function không tồn tại hoặc đã ngừng hoạt động.");
+
+        var repo = _uow.Repository<F03RoleFunction>();
+        var existing = await repo.Query().Where(x => x.IdRole == role.IdRole).ToListAsync(ct);
+        foreach (var row in existing)
+            repo.Remove(row);
+
+        foreach (var function in functions)
+        {
+            await repo.AddAsync(new F03RoleFunction
+            {
+                IdRole = role.IdRole,
+                IdFunction = function.IdFunction,
+                CreatedBy = actorUserId,
+                CreatedAt = DateTime.Now
+            }, ct);
+        }
+
+        role.ModifiedBy = actorUserId;
+        role.ModifiedAt = DateTime.Now;
+
+        await _uow.SaveChangesAsync(ct);
+        return (await GetRolesAsync(ct)).Single(x => x.RoleCode == roleCode);
+    }
+
 }
