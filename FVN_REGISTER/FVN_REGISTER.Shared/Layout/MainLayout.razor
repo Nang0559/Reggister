@@ -22,16 +22,8 @@
     else
     {
         <MudAppBar Elevation="1" Color="Color.Primary">
-            @if (!_isNormalUser)
-            {
-                <MudIconButton Icon="@Icons.Material.Filled.Menu" OnClick="DrawerToggle" Color="Color.Inherit" />
-            }
-            else
-            {
-                <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Style="margin-right: 8px;" />
-            }
-
-            <MudText Typo="Typo.h6" Class="@(_isNormalUser ? "" : "ml-1")">FCC Smart Portal</MudText>
+            <MudIconButton Icon="@Icons.Material.Filled.Menu" OnClick="DrawerToggle" Color="Color.Inherit" />
+            <MudText Typo="Typo.h6" Class="ml-1">FCC Smart Portal</MudText>
             <MudSpacer />
             <NotificationBell />
 
@@ -59,7 +51,7 @@
                     <MudDivider />
                     <MudMenuItem Icon="@Icons.Material.Filled.PersonOutline" OnClick="@(() => _nav.NavigateTo("/profile"))">Hồ sơ của tôi</MudMenuItem>
                     <MudMenuItem Icon="@Icons.Material.Filled.LockReset" OnClick="@(() => _nav.NavigateTo("/change-password"))">Đổi mật khẩu</MudMenuItem>
-                    @if (_isNormalUser)
+                    @if (_user.User?.PermissionCode.CanRequestLeave() == true)
                     {
                         <MudDivider />
                         <MudMenuItem Icon="@Icons.Material.Filled.EventAvailable" OnClick="@(() => _nav.NavigateTo("/leave/create"))">Đăng ký nghỉ phép</MudMenuItem>
@@ -73,10 +65,9 @@
             </MudMenu>
         </MudAppBar>
 
-        @if (!_isNormalUser)
-        {
-            <MudDrawer @bind-Open="_drawerOpen" Elevation="1"><NavMenu /></MudDrawer>
-        }
+        <MudDrawer @bind-Open="_drawerOpen" Elevation="1">
+            <NavMenu />
+        </MudDrawer>
 
         <MudMainContent>
             <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">@Body</MudContainer>
@@ -87,8 +78,6 @@
 @code {
     private bool _drawerOpen = true;
     private bool _isLoading = true;
-    private bool _isNormalUser;
-
     protected override async Task OnInitializedAsync()
     {
         try
@@ -102,8 +91,12 @@
             }
 
             await _user.InitializeAsync();
-            _isNormalUser = _user.User?.PermissionCode.IsNormalUser() ?? true;
-            Logger.LogInfoIf(Debug, "[{Component}] Init done. User={UserId}, IsNormalUser={Flag}", ComponentName, _user.User?.UserId, _isNormalUser);
+            Logger.LogInfoIf(
+                Debug,
+                "[{Component}] Init done. User={UserId}, PermissionCode={PermissionCode}",
+                ComponentName,
+                _user.User?.UserId,
+                _user.User?.PermissionCode);
         }
         catch (Exception ex)
         {
