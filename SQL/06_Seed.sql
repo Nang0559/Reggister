@@ -83,6 +83,18 @@ FROM (VALUES
 ) AS v(HolidayDate,Description)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03CompanyHolidays h WHERE h.HolidayDate=v.HolidayDate);
 
+-- Permissions required by F03Users.PermissionCode FK
+INSERT dbo.F03Permissions(IsActive,CreatedBy,PermissionCode,PermissionName,Detail)
+SELECT 1,0,v.PermissionCode,v.PermissionName,v.Detail
+FROM (VALUES
+(1,N'EMPLOYEE',N'Employee access'),
+(2,N'APPROVER',N'Approval access'),
+(3,N'ADMIN',N'Administrator access'),
+(4,N'HR',N'Human Resources access'),
+(5,N'FINANCE',N'Finance access')
+) AS v(PermissionCode,PermissionName,Detail)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Permissions p WHERE p.PermissionCode=v.PermissionCode);
+
 -- =========================
 -- Employees / users
 -- Password values are TEST ONLY. Change them before production.
