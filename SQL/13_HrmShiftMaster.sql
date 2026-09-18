@@ -462,8 +462,17 @@ BEGIN
         INNER JOIN HRM.dbo.tblDauDoc DD ON DD.DDMa=R.IDM
         INNER JOIN Cards C ON C.CTMaThe=R.IDCard
         INNER JOIN HRM.dbo.tblNhanVien NV ON NV.NVMa=C.CTMaNV
+        OUTER APPLY
+        (
+            SELECT TOP(1) BC.BCTGVe
+            FROM HRM.dbo.tblBaoCao BC
+            WHERE BC.BCNgay=DATEADD(DAY,-1,@WorkDate)
+              AND BC.BCMaNV=NV.NVMa
+            ORDER BY BC.BCTGVe DESC
+        ) Prev
         WHERE R.ThoiGian >= DATEADD(HOUR,17,CAST(DATEADD(DAY,-1,@WorkDate) AS datetime))
           AND R.ThoiGian <  DATEADD(HOUR,7,CAST(DATEADD(DAY,1,@WorkDate) AS datetime))
+          AND R.ThoiGian > COALESCE(Prev.BCTGVe,CAST(@WorkDate AS datetime))
           AND ISNULL(DD.DDLoaiChamCong,N'')<>N'NA'
     ),
     Matched AS
@@ -513,7 +522,7 @@ BEGIN
                        PARTITION BY M.EmployeeCode
                        ORDER BY M.MatchScore DESC,
                                 CASE WHEN M.CheckInDateTime IS NOT NULL THEN 0 ELSE 1 END,
-                                M.ShiftStart
+                                M.ShiftStart DESC
                    ) rn
             FROM Matched M
             WHERE M.MatchScore>0
