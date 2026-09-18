@@ -10,7 +10,7 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.Securities
         public void Configure(EntityTypeBuilder<F03Permission> entity)
         {
             entity.ToTable("F03Permissions");
-            entity.HasKey(e => e.IdPermission);
+            entity.HasKey(e => e.Id);
 
             // Đảm bảo PermissionCode là duy nhất để tránh xung đột quyền
             entity.HasIndex(e => e.PermissionCode, "IX_Permission_Code").IsUnique();

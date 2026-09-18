@@ -10,7 +10,7 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.Securities
         public void Configure(EntityTypeBuilder<F03Function> entity)
         {
             entity.ToTable("F03Functions");
-            entity.HasKey(e => e.IdFunction);
+            entity.HasKey(e => e.Id);
 
             // Index để tìm kiếm chức năng theo mã nhanh
             entity.HasIndex(e => e.FunctionCode, "IX_Function_Code").IsUnique();

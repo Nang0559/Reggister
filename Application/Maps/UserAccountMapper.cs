@@ -10,7 +10,7 @@ namespace FVN_REGISTER.Application.Maps
             public static UserAccountDto ToDto(
                 F03User user, string? deptName, string? permissionName, List<int> functionIds) => new()
                 {
-                    IdUser = user.IdUser,
+                    IdUser = user.Id,
                     EmployeeCode = user.EmployeeCode,
                     FullName = user.FullName,
                     DeptCode = user.DeptCode,
