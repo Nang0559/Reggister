@@ -91,9 +91,31 @@ FROM (VALUES
 (2,N'Admin',N'Administrative data access'),
 (3,N'Editor',N'Editable business data access'),
 (4,N'Approver',N'Approval workflow access'),
-(5,N'User',N'Normal user access')
+(5,N'User',N'Normal user access'),
+(6,N'Guest',N'Guest access')
 ) AS v(PermissionCode,PermissionName,Detail)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Permissions p WHERE p.PermissionCode=v.PermissionCode);
+
+-- HRM -> F03User role rules used by the demo employees.
+-- Production installations should replace these mappings with the company's real matrix.
+INSERT dbo.F03HrmUserRoleRules
+(IsActive,CreatedBy,LastModifiedSource,DeptCode,PositionCode,PermissionCode,Priority,Note)
+SELECT 1,0,N'Seed',v.DeptCode,v.PositionCode,v.PermissionCode,v.Priority,v.Note
+FROM (VALUES
+(NULL,NULL,5,999,N'Default normal user'),
+(N'IT',N'EMP',1,10,N'Demo E0001 SuperAdmin'),
+(N'IT',N'SL',4,20,N'Demo IT approver'),
+(N'PROD',N'CHIEF',4,20,N'Demo production approver'),
+(N'HR',N'MGR',2,20,N'Demo HR admin'),
+(N'PROD',N'GM',2,20,N'Demo production admin')
+) AS v(DeptCode,PositionCode,PermissionCode,Priority,Note)
+WHERE NOT EXISTS
+(
+    SELECT 1 FROM dbo.F03HrmUserRoleRules r
+    WHERE ISNULL(r.DeptCode,N'')=ISNULL(v.DeptCode,N'')
+      AND ISNULL(r.PositionCode,N'')=ISNULL(v.PositionCode,N'')
+      AND r.PermissionCode=v.PermissionCode
+);
 
 -- =========================
 -- Employees / users
