@@ -33,7 +33,10 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.Importers
         protected override F03StagingDepartment MapToStaging(HrmDepartmentSourceRow row) => new()
         {
             EntityKey = row.DeptCode,
-            DeptName = row.DeptName
+            DeptName = row.DeptName,
+            ParentDeptCode = row.ParentDeptCode,
+            DisplayPriority = row.DisplayPriority,
+            ShowInReport = row.ShowInReport
         };
 
         protected override F03StagingDepartment BuildDeleteStaging(string entityKey) => new()
