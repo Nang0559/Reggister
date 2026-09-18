@@ -4,18 +4,14 @@ using FVN_REGISTER.Application.Interfaces.Histories;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Maps;
-using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.LimitRuleDtos;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Requests.OT;
-using FVN_REGISTER.Core.Entities.HR;
-using FVN_REGISTER.Core.Entities.OT;
-using FVN_REGISTER.Core.Entities.Views;
-using FVN_REGISTER.Core.Enums;
+
 using FVN_REGISTER.Core.Repositories;
-using FVN_REGISTER.Core.Utils;
+
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.OT

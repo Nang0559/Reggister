@@ -1,7 +1,7 @@
-using FVN_REGISTER.Application.Interfaces.Approvals;
-using FVN_REGISTER.Application.Models.Subjects;
+
 using FVN_REGISTER.Contract.Dtos.Approvals;
-using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Contract.Responses;
+
 
 namespace FVN_REGISTER.Infrastructure.Services.Approvals;
 
