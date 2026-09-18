@@ -323,8 +323,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             var key = Encoding.UTF8.GetBytes(secretKey);
             var claims = new List<Claim>
             {
-                new(ClaimTypes.NameIdentifier, user.Id.ToString()),
-                new(ClaimTypes.Name, user.EmployeeCode),
+                // Canonical JWT claims. Keep application-specific identity data in
+                // explicit claims so API and Blazor use the same contract.
+                new(JwtRegisteredClaimNames.Sub, user.Id.ToString()),
+                new("name", user.EmployeeCode),
                 new("UserId", user.Id.ToString()),
                 new("FullName", user.FullName ?? ""),
                 new("EmployeeCode", user.EmployeeCode),
@@ -341,7 +343,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 ? ((UserRole)user.PermissionCode).ToString()
                 : UserRole.Guest.ToString();
 
-            claims.Add(new Claim(ClaimTypes.Role, role));
+            claims.Add(new Claim("role", role));
 
             var expires = rememberMe
                 ? DateTime.UtcNow.AddDays(AccessTokenDaysRemember)
