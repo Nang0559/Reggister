@@ -26,9 +26,9 @@
     <MudGrid Class="mb-4">
         @if (Kind == RequestModule.Leave)
         {
-            <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">TỔNG PHÉP</MudText><MudText Typo="Typo.h6">@_balance.TotalEntitled.ToString("N1")</MudText></MudPaper></MudItem>
-            <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">ĐÃ DÙNG</MudText><MudText Typo="Typo.h6">@_balance.Used.ToString("N1")</MudText></MudPaper></MudItem>
-            <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">CÒN LẠI</MudText><MudText Typo="Typo.h6">@_balance.Remaining.ToString("N1")</MudText></MudPaper></MudItem>
+            <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">TỔNG PHÉP</MudText><MudText Typo="Typo.h6">@(_balance.Entitled ?? 0m).ToString("N1")</MudText></MudPaper></MudItem>
+            <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">ĐÃ DÙNG</MudText><MudText Typo="Typo.h6">@(_balance.Used ?? 0m).ToString("N1")</MudText></MudPaper></MudItem>
+            <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">CÒN LẠI</MudText><MudText Typo="Typo.h6">@(_balance.Remaining ?? 0m).ToString("N1")</MudText></MudPaper></MudItem>
             <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">CHỜ DUYỆT</MudText><MudText Typo="Typo.h6">@_balance.PendingCount</MudText></MudPaper></MudItem>
         }
         else
