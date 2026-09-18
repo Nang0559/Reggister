@@ -17,6 +17,7 @@ Order:
   10 Trigger policy (intentionally no HRM cross-db trigger)
   11 Automation contract (application worker)
   12 Final verification
+  13 HRM shift master / attendance resolver
 
 IMPORTANT:
   06_Seed.sql is TEST/DEMO data. Do NOT run it on production unless intended.
@@ -37,6 +38,7 @@ IMPORTANT:
 :r 10_Triggers.sql
 :r 11_Automation.sql
 :r 12_Verify.sql
+:r 13_HrmShiftMaster.sql
 
 PRINT N'============================================================';
 PRINT N'FVN_REGISTER SQL deployment 01..12 completed.';
