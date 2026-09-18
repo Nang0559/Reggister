@@ -88,13 +88,28 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo?.Email == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             return Ok(ApiResponse<List<PendingApprovalItemDto>>.Ok(await _workflow.GetPendingForApproverAsync(UserInfo.Email, ct)));
         }
-
         [HttpGet("pending-summary")]
         public async Task<IActionResult> GetPendingSummary(CancellationToken ct)
         {
-            if (UserInfo?.Email == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (UserInfo?.Email == null)
+                return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+
             var items = await _workflow.GetPendingForApproverAsync(UserInfo.Email, ct);
-            var summary = items.GroupBy(x => x.CurrentApprovalLevel).OrderBy(x => x.Key).Select(x => new { Level = x.Key, Count = x.Count() }).ToList();
+
+            var summary = items
+                .GroupBy(x => x.ApprovalSteps
+                    .Where(s => s.IsRequired && s.Decision == DecisionType.Pending)
+                    .OrderBy(s => s.Level)
+                    .Select(s => s.Level)
+                    .FirstOrDefault())
+                .OrderBy(x => x.Key)
+                .Select(x => new
+                {
+                    Level = x.Key,
+                    Count = x.Count()
+                })
+                .ToList();
+
             return Ok(ApiResponse<object>.Ok(summary));
         }
 
