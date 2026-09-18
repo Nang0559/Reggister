@@ -30,6 +30,7 @@ public static class SecurityFunctionCodes
     public const int EquipmentEdit = 2303;
     public const int EquipmentRepair = 2304;
     public const int EquipmentApprove = 2305;
+    public const int EquipmentImport = 2306;
 
     public const int UserManagementView = 2401;
     public const int UserManagementCreate = 2402;
