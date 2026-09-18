@@ -158,7 +158,7 @@
         _processing = true;
         try
         {
-            foreach (var group in items.GroupBy(x => new { x.Kind, x.CurrentApprovalLevel }))
+            foreach (var group in items.GroupBy(x => new { x.Kind, Level = GetCurrentApprovalLevel(x) }))
             {
                 var r = await ApprovalService.ApproveAsync(group.Select(x => x.RequestId).ToList(), group.Key.Kind, group.Key.CurrentApprovalLevel, null, _cts.Token);
                 if (!r.IsSuccess) Snackbar.Add(r.Message ?? "Lỗi phê duyệt", Severity.Error);
