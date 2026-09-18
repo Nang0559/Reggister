@@ -16,5 +16,8 @@ namespace FVN_REGISTER.Core.Entities.HRM
         public DateTime CreatedAt { get; set; }
         public string? CreatedBy { get; set; }
         public string DeptName { get; set; } = string.Empty;
+        public string? ParentDeptCode { get; set; }
+                public int? DisplayPriority { get; set; }
+                public bool ShowInReport { get; set; } = true;
     }
 }
