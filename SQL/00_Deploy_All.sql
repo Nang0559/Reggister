@@ -19,6 +19,7 @@ Order:
   12 Final verification
   13 HRM shift master / attendance resolver
   14 Application RBAC / authorization
+  15 Public Information CMS
 
 IMPORTANT:
   06_Seed.sql is TEST/DEMO data. Do NOT run it on production unless intended.
@@ -40,10 +41,11 @@ IMPORTANT:
 :r 11_Automation.sql
 :r 13_HrmShiftMaster.sql
 :r 14_SecurityAuthorization.sql
+:r 15_PublicInformation.sql
 :r 12_Verify.sql
 
 PRINT N'============================================================';
-PRINT N'FVN_REGISTER SQL deployment 01..14 completed.';
+PRINT N'FVN_REGISTER SQL deployment 01..15 completed.';
 PRINT N'============================================================';
 GO
 
