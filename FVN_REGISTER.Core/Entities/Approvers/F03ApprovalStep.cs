@@ -27,9 +27,6 @@ using System.ComponentModel.DataAnnotations.Schema;
         [Table("F03ApprovalSteps")]
         public partial class F03ApprovalStep : BaseAuditEntity
         {
-            [Key]
-            public int Id { get; set; }
-
             [Required, StringLength(20)]
             public RequestModule RequestType { get; set; } = RequestModule.Overtime; // LEAVE, OT, TRIP
 
