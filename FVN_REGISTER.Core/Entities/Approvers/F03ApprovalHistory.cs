@@ -4,7 +4,6 @@ namespace FVN_REGISTER.Core.Entities.Approvers
 {
     public sealed class F03ApprovalHistory : BaseAuditEntity
     {
-        public int Id { get; init; }
         public RequestModule RequestType { get; init; } // BẮT BUỘC ĐỂ PHÂN BIỆT LOẠI ĐƠN
         public int RequestId { get; init; }
         public int StepId { get; init; }
