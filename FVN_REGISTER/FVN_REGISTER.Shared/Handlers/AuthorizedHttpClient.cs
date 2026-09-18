@@ -46,7 +46,7 @@ namespace FVN_REGISTER.Shared.Handlers
 
                 _logger.LogDebug(
                     "[AUTH] Token attached | Path={Path}",
-                    request.RequestUri?.AbsolutePath);
+                    request.RequestUri?.ToString());
             }
             else
             {
