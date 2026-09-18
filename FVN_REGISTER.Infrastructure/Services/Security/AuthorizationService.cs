@@ -15,16 +15,19 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
 {
     private readonly IUnitOfWork _uow;
     private readonly FVN_REGISTER.Application.Interfaces.Auths.ISessionService _sessionService;
+    private readonly FVN_REGISTER.Application.Interfaces.Auths.IAuditService _auditService;
 
     public AuthorizationService(
         IUnitOfWork uow,
         ILogger<AuthorizationService> logger,
         IOptionsMonitor<AuthDebugOptions> options,
-        FVN_REGISTER.Application.Interfaces.Auths.ISessionService sessionService)
+        FVN_REGISTER.Application.Interfaces.Auths.ISessionService sessionService,
+        FVN_REGISTER.Application.Interfaces.Auths.IAuditService auditService)
         : base(logger, options)
     {
         _uow = uow;
         _sessionService = sessionService;
+        _auditService = auditService;
     }
 
     public async Task<bool> HasAsync(
@@ -291,6 +294,11 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         }
 
         await _uow.SaveChangesAsync(ct);
+        await _auditService.LogAction(
+            "SECURITY_USER_ROLES_CHANGED",
+            actorUserId,
+            $"UserId={userId}; Roles={string.Join(',', roleCodes.Distinct().OrderBy(x => x))}",
+            ct: ct);
         await _sessionService.RevokeAllAsync(userId, ct);
         return await GetSnapshotAsync(userId, ct);
     }
@@ -337,6 +345,11 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         role.ModifiedAt = DateTime.Now;
 
         await _uow.SaveChangesAsync(ct);
+        await _auditService.LogAction(
+            "SECURITY_ROLE_FUNCTIONS_CHANGED",
+            actorUserId,
+            $"RoleCode={roleCode}; Functions={string.Join(',', codes.OrderBy(x => x))}",
+            ct: ct);
         return (await GetRolesAsync(ct)).Single(x => x.RoleCode == roleCode);
     }
 
