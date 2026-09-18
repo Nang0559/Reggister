@@ -24,6 +24,7 @@ public static class SecurityFunctionCodes
     public const int TripEdit = 2203;
     public const int TripCancel = 2204;
     public const int TripApprove = 2205;
+    public const int TripExport = 2206;
 
     public const int EquipmentView = 2301;
     public const int EquipmentCreate = 2302;
@@ -31,6 +32,7 @@ public static class SecurityFunctionCodes
     public const int EquipmentRepair = 2304;
     public const int EquipmentApprove = 2305;
     public const int EquipmentImport = 2306;
+    public const int EquipmentExport = 2307;
 
     public const int UserManagementView = 2401;
     public const int UserManagementCreate = 2402;
@@ -50,4 +52,7 @@ public static class SecurityFunctionCodes
     public const int SecurityAudit = 2604;
 
     public const int PublicInformationManage = 2801;
+
+    public const int AttendanceView = 2901;
+    public const int AttendanceExport = 2902;
 }
