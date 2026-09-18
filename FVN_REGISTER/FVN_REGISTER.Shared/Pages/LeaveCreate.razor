@@ -24,7 +24,7 @@ else
         <MudItem xs="12" lg="5">
             <MudPaper Class="pa-2 mb-2 d-flex align-center justify-space-between" Elevation="0">
                 <MudSelect T="int" Value="_selectedYear" ValueChanged="OnYearChanged" Dense="true" Margin="Margin.Dense" Label="Năm" Style="max-width:150px;">
-                    @foreach (var year in _model.FiscalYears)
+                    @foreach (var year in _model.MasterData.FiscalYears)
                     {
                         <MudSelectItem Value="@year.Year">@year.YearName</MudSelectItem>
                     }
