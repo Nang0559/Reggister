@@ -17,6 +17,6 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync
             throw new KeyNotFoundException($"Không có HRM sync job cho EntityType '{entityType}'.");
         }
 
-        public IReadOnlyList<IHrmSyncJob> GetAll() => _map.Values.ToList();
+        public IReadOnlyList<IHrmSyncJob> GetAll() => _map.Values.OrderBy(x => x.SyncOrder).ThenBy(x => x.EntityType, StringComparer.OrdinalIgnoreCase).ToList();
     }
 }
