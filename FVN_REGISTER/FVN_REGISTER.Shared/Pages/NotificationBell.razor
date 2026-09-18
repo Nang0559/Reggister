@@ -55,8 +55,8 @@
                 @foreach (var item in NotifyService.Notifications)
                 {
                     <div @key="item.Id" style="display:flex; gap:12px; padding:12px 16px; cursor:pointer; background:@(item.IsRead ? "transparent" : "rgba(25,118,210,0.05)"); border-bottom:1px solid var(--mud-palette-divider); transition:background 0.2s;" @onclick="() => OnItemClick(item)">
-                        <div style="width:36px; height:36px; border-radius:50%; background:@GetIconBg(GetNotificationColor(item.Action)); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                            <MudIcon Icon="@GetMudIcon(item.Action)" Style="@($"color:{GetIconColor(item.Color)}; font-size:18px;")" />
+                        <div style="width:36px; height:36px; border-radius:50%; background:@GetIconBg(item.Action); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <MudIcon Icon="@GetMudIcon(item.Action)" Style="@($"color:{GetIconColor(item.Action)}; font-size:18px;")" />
                         </div>
                         <div style="flex:1; min-width:0;">
                             <div style="font-size:13px; font-weight:@(item.IsRead ? "400" : "500"); color:var(--mud-palette-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@item.Title</div>
