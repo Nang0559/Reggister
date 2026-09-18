@@ -149,8 +149,13 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpGet("detail/{id:int}")]
+        [HttpGet("detail/{id:int}")]
         public async Task<IActionResult> GetDetail(int id, CancellationToken ct)
-            => HandleResult(await _queryService.GetFullDetailsAsync(id, ct));
+        {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
+            return HandleResult(await _queryService.GetFullDetailsAsync(id, ct));
+        }
 
         [HttpGet("pending")]
         public async Task<IActionResult> GetPending(CancellationToken ct)
@@ -158,7 +163,6 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTApprove, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
             if (UserInfo?.Email == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             return Ok(ApiResponse<List<PendingApprovalItemDto>>.Ok(await _workflow.GetPendingForApproverAsync(UserInfo.Email, ct)));
         }
