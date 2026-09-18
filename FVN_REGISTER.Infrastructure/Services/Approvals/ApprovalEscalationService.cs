@@ -261,11 +261,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 .Where(x => x.RequestType == ModuleKind && x.RequestId == requestId)
                 .ToListAsync(ct);
 
-            var calculated = ApprovalStepMapper.MapToCalculatedList(
+            var calculated = ApprovalStepMapper.MapToList(
                 snapshot.Steps.OrderBy(x => x.Level).ToList(), histories);
 
             var next = calculated
-                .Where(x => x.IsRequired && x.Status == DecisionType.Pending)
+                 .Where(x => x.IsRequired && x.Decision == DecisionType.Pending)
                 .OrderBy(x => x.Level)
                 .FirstOrDefault();
             if (next == null) return;
@@ -311,11 +311,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         protected abstract Task<Dictionary<int, DateTime>> GetRegisterDateMapAsync(List<int> ids, CancellationToken ct);
         protected abstract Task<Dictionary<int, string?>> GetDeptCodeMapAsync(List<int> ids, CancellationToken ct);
 
-        private static (F03ApprovalStepSnapshot Step, ApprovalStepCalculatedDto Calculated)? GetCurrentPendingStep(
+        private static (F03ApprovalStepSnapshot Step, ApprovalStepDto Calculated)? GetCurrentPendingStep(
             List<F03ApprovalStepSnapshot> steps,
             List<F03ApprovalHistory> histories)
         {
-            var calculatedList = ApprovalStepMapper.MapToCalculatedList(steps, histories);
+            var calculatedList = ApprovalStepMapper.MapToList(steps, histories);
             var currentCalculated = calculatedList.FirstOrDefault(x => x.IsCurrentStep);
             if (currentCalculated == null || currentCalculated.Status != DecisionType.Pending)
                 return null;
