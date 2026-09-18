@@ -147,7 +147,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                     return ServiceResult<UserIdentityDto>.Fail("Không tìm thấy thông tin tài khoản.");
 
                 var functionIds = await _uow.Repository<F03UserFunction>().Query()
-                    .Where(x => x.Id == userId)
+                    .Where(x => x.IdUser == userId)
                     .Select(x => x.IdFunction)
                     .ToListAsync(ct);
 
