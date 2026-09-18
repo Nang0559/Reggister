@@ -2,7 +2,6 @@
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.OT
 @using FVN_REGISTER.Contract.Dtos.OTTypeDtos
-@using FVN_REGISTER.Contract.Dtos.OtReasons
 @using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto
 @using FVN_REGISTER.Contract.Requests.OT
 @using FVN_REGISTER.Core.Enums
@@ -62,15 +61,10 @@ else if (_form != null)
                 else
                 {
                     <MudTable Items="_employees" Dense="true" Hover="true">
-                        <HeaderContent><MudTh>Nhân viên</MudTh><MudTh>Hạng mục</MudTh><MudTh>Nội dung</MudTh><MudTh>Giờ</MudTh><MudTh></MudTh></HeaderContent>
+                        <HeaderContent><MudTh>Nhân viên</MudTh><MudTh>Nội dung</MudTh><MudTh>Giờ</MudTh><MudTh></MudTh></HeaderContent>
                         <RowTemplate>
                             <MudTd><b>@context.EmployeeName</b><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd>
-                            <MudTd>
-                                <MudSelect T="string" @bind-Value="context.OTReasonCategoryCode" Dense="true" Variant="Variant.Text">
-                                    @foreach (var category in _categories) { <MudSelectItem Value="@category.Code">@category.Code</MudSelectItem> }
-                                </MudSelect>
-                            </MudTd>
-                            <MudTd><MudTextField T="string" @bind-Value="context.OTReasonDetail" Variant="Variant.Text" Margin="Margin.Dense" /></MudTd>
+                            <MudTd><MudTextField T="string" @bind-Value="context.OTReasonDetail" Label="Nội dung" Variant="Variant.Text" Margin="Margin.Dense" /></MudTd>
                             <MudTd>@context.OTHours.ToString("N1") h</MudTd>
                             <MudTd><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => RemoveEmployee(context))" /></MudTd>
                         </RowTemplate>
@@ -78,34 +72,9 @@ else if (_form != null)
                 }
             </MudCard>
 
-            <MudButton Variant="Variant.Outlined" Color="Color.Primary" FullWidth="true" Class="mt-4" StartIcon="@Icons.Material.Filled.Visibility" OnClick="PreviewApproval" Disabled="@_previewing">
-                @(_previewing ? "Đang tính quy trình..." : "XEM TRƯỚC QUY TRÌNH PHÊ DUYỆT")
-            </MudButton>
-
-            @if (_approvalSteps.Any())
-            {
-                <MudCard Elevation="1" Class="mt-3 pa-4">
-                    <MudText Typo="Typo.subtitle1">Quy trình phê duyệt dự kiến</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Được tính theo người tạo, phòng ban, loại OT và tổng giờ hiện tại.</MudText>
-                    <MudTimeline TimelinePosition="TimelinePosition.Start" Class="mt-3">
-                        @foreach (var step in _approvalSteps.OrderBy(x => x.Level))
-                        {
-                            <MudTimelineItem Color="Color.Primary">
-                                <MudText Typo="Typo.body2"><b>Cấp @step.Level</b> — @step.RoleName</MudText>
-                                <MudText Typo="Typo.caption">@(step.ApproverName ?? step.ApproverCode ?? "Tự động xác định")</MudText>
-                            </MudTimelineItem>
-                        }
-                    </MudTimeline>
-                </MudCard>
-            }
-
             <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Class="mt-4" StartIcon="@Icons.Material.Filled.Send" OnClick="Submit" Disabled="@(_submitting || !_approvalSteps.Any())">
                 @(_submitting ? "Đang gửi..." : "GỬI ĐƠN OT")
             </MudButton>
-            @if (!_approvalSteps.Any())
-            {
-                <MudText Typo="Typo.caption" Color="Color.Warning" Class="mt-2 d-block">Hãy xem trước quy trình phê duyệt trước khi gửi đơn.</MudText>
-            }
         </MudItem>
 
         <MudItem xs="12" md="4">
@@ -139,7 +108,6 @@ else if (_form != null)
 @code {
     private OTRequestUpsertDto? _form;
     private List<OTEmployeeDto> _employees = new();
-    private List<OTReasonCodeDto> _categories = new();
     private List<OTTypeDto> _otTypes = new();
     private List<ApprovalStepSnapshotDto> _approvalSteps = new();
     private List<OTSummaryDto> _recent = new();
@@ -165,7 +133,6 @@ else if (_form != null)
             }
 
             _form = combined.Data.OTForm;
-            _categories = combined.Data.OTReasonCategories;
             _recent = combined.Data.RecentOTRequests;
             _balance = combined.Data.Balance;
             _approvalSteps = combined.Data.ApprovalSteps;
@@ -206,7 +173,7 @@ else if (_form != null)
                 EmployeeCode = source.EmployeeCode, EmployeeName = source.EmployeeName, DeptCode = source.DeptCode,
                 DeptName = source.DeptName, CvCode = source.CvCode, OTTypeCode = _form.OTTypeCode,
                 StartTime = _start ?? TimeSpan.Zero, EndTime = _end ?? TimeSpan.Zero,
-                OTHours = CalculateHours(_start, _end), OTReasonCategoryCode = _categories.FirstOrDefault()?.ReasonCode ?? string.Empty
+                OTHours = CalculateHours(_start, _end)
             });
         }
         _approvalSteps.Clear();
@@ -218,41 +185,6 @@ else if (_form != null)
         _approvalSteps.Clear();
     }
 
-    private async Task PreviewApproval()
-    {
-        if (_form == null || !_date.HasValue || !_start.HasValue || !_end.HasValue || _end <= _start || !_employees.Any())
-        {
-            Snackbar.Add("Vui lòng nhập ngày, giờ và chọn ít nhất một nhân viên trước khi xem quy trình.", Severity.Warning);
-            return;
-        }
-
-        _form.OTDate = _date.Value;
-        _form.StartTime = _start.Value;
-        _form.EndTime = _end.Value;
-        foreach (var employee in _employees)
-        {
-            employee.OTTypeCode = _form.OTTypeCode;
-            employee.StartTime = _start.Value;
-            employee.EndTime = _end.Value;
-            employee.OTHours = CalculateHours(_start, _end);
-        }
-        _form.Employees = _employees;
-
-        _previewing = true;
-        try
-        {
-            var result = await OTService.PreviewApprovalAsync(_form, _cts.Token);
-            if (!result.IsSuccess || result.Data == null)
-            {
-                _approvalSteps.Clear();
-                Snackbar.Add(result.Message ?? "Không tính được quy trình phê duyệt.", Severity.Warning);
-                return;
-            }
-            _approvalSteps = result.Data;
-        }
-        finally { _previewing = false; }
-    }
-
     private async Task Submit()
     {
         if (_form == null || !_date.HasValue || !_start.HasValue || !_end.HasValue || _end <= _start || !_employees.Any())
@@ -260,11 +192,6 @@ else if (_form != null)
             Snackbar.Add("Vui lòng kiểm tra ngày, giờ OT và danh sách nhân viên.", Severity.Warning);
             return;
         }
-        if (!_approvalSteps.Any())
-        {
-            Snackbar.Add("Vui lòng xem trước quy trình phê duyệt trước khi gửi.", Severity.Warning);
-            return;
-        }
         _form.OTDate = _date.Value;
         _form.StartTime = _start.Value;
         _form.EndTime = _end.Value;
@@ -276,6 +203,30 @@ else if (_form != null)
             employee.OTHours = CalculateHours(_start, _end);
         }
         _form.Employees = _employees;
+
+        // Controller hiện tại không có endpoint /preview. Validate từng nhân viên
+        // qua POST /api/ot/validate trước khi gọi POST /api/ot/create.
+        foreach (var employee in _employees)
+        {
+            var validation = await OTService.ValidateOTHoursAsync(
+                employee.EmployeeCode,
+                _form.OTDate,
+                employee.OTHours,
+                _form.OTTypeCode,
+                _cts.Token);
+
+            if (!validation.IsSuccess || validation.Data == null || !validation.Data.IsValid)
+            {
+                var message = validation.Data?.Message
+                    ?? validation.Data?.Errors.FirstOrDefault()
+                    ?? validation.Message
+                    ?? $"Giờ OT của {employee.EmployeeCode} không hợp lệ.";
+
+                Snackbar.Add(message, Severity.Warning);
+                return;
+            }
+        }
+
         _submitting = true;
         try
         {
