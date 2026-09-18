@@ -13,31 +13,31 @@ namespace FVN_REGISTER.Application.Maps
         public static ApproverDto ToDto(F03Approver a) => new()
         {
             Id = a.Id,
-            RequestType = a.RequestType,
-            ApproverCode = a.ApproverCode,
-            ApproverName = a.ApproverName,
-            ApproverEmail = a.ApproverEmail,
+            RequestType = a.RequestType ?? string.Empty,
+            ApproverCode = a.ApproverCode ?? string.Empty,
+            ApproverName = a.ApproverName ?? string.Empty,
+            ApproverEmail = a.ApproverEmail ?? string.Empty,
             Level = a.Level,
-            RoleName = a.RoleName,
-            PositionCode = a.PositionCode,
-            DeptCode = a.ApproverDeptCode,
-            DeptName = a.ApproverDeptName,
-            ApproveForDeptCode = a.ApproveForDeptCode,
-            ApproveForDeptName = a.ApproveForDeptName,
+            RoleName = a.RoleName ?? string.Empty,
+            PositionCode = a.PositionCode ?? string.Empty,
+            DeptCode = a.ApproverDeptCode ?? string.Empty,
+            DeptName = a.ApproverDeptName ?? string.Empty,
+            ApproveForDeptCode = a.ApproveForDeptCode ?? string.Empty,
+            ApproveForDeptName = a.ApproveForDeptName ?? string.Empty,
             IsActive = a.IsActive ?? true
         };
         public static F03Approver ToEntity(ApproverDto dto, int currentUserId) => new()
         {
-            RequestType = dto.RequestType,
-            ApproverCode = dto.ApproverCode,
-            ApproverName = dto.ApproverName,
-            ApproverEmail = dto.ApproverEmail,
+            RequestType = dto.RequestType ?? string.Empty,
+            ApproverCode = dto.ApproverCode ?? string.Empty,
+            ApproverName = dto.ApproverName ?? string.Empty,
+            ApproverEmail = dto.ApproverEmail ?? string.Empty,
             Level = dto.Level,
-            RoleName = dto.RoleName,
-            PositionCode = dto.PositionCode,
-            ApproverDeptCode = dto.DeptCode,
+            RoleName = dto.RoleName ?? string.Empty,
+            PositionCode = dto.PositionCode ?? string.Empty,
+            ApproverDeptCode = dto.DeptCode ?? string.Empty,
             ApproverDeptName = dto.DeptName ?? string.Empty,
-            ApproveForDeptCode = dto.ApproveForDeptCode,
+            ApproveForDeptCode = dto.ApproveForDeptCode ?? string.Empty,
             ApproveForDeptName = dto.ApproveForDeptName ?? string.Empty,
             IsActive = true,
             // CreatedAt/CreatedBy thường được SaveChangesAsync/Audit-interceptor của DbContext
@@ -51,20 +51,20 @@ namespace FVN_REGISTER.Application.Maps
         public static F03ApprovalStepSnapshot ToSnapshotStep(F03Approver approver, bool isRequired) => new()
         {
             Level = approver.Level,
-            ApproverCode = approver.ApproverCode,
-            ApproverName = approver.ApproverName,
-            RoleName = approver.RoleName,
+            ApproverCode = approver.ApproverCode ?? string.Empty,
+            ApproverName = approver.ApproverName ?? string.Empty,
+            RoleName = approver.RoleName ?? string.Empty,
             IsRequired = isRequired
         };
 
         // 3. Cập nhật Entity
         public static void ApplyUpdate(F03Approver entity, ApproverDto dto, int userId)
         {
-            entity.ApproverName = dto.ApproverName;
-            entity.ApproverEmail = dto.ApproverEmail;
+            entity.ApproverName = dto.ApproverName ?? string.Empty;
+            entity.ApproverEmail = dto.ApproverEmail ?? string.Empty;
             entity.Level = dto.Level;
-            entity.RoleName = dto.RoleName;
-            entity.ApproveForDeptCode = dto.ApproveForDeptCode;
+            entity.RoleName = dto.RoleName ?? string.Empty;
+            entity.ApproveForDeptCode = dto.ApproveForDeptCode ?? string.Empty;
             entity.ApproveForDeptName = dto.ApproveForDeptName ?? string.Empty;
             entity.IsActive = dto.IsActive;
             // Các trường Audit sẽ được ghi đè bởi SaveChangesAsync trong DbContext
