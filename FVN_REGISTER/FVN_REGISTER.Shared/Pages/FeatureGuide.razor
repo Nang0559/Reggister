@@ -1,0 +1,96 @@
+@page "/huong-dan"
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.WebUtilities
+@attribute [Authorize]
+@inherits AppComponentBase
+@inject NavigationManager Navigation
+
+<PageTitle>Hướng dẫn chức năng</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-5">
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight:800">Hướng dẫn chức năng</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Tài liệu thao tác theo đúng ngữ cảnh tính năng đang mở.</MudText>
+        </div>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="Back">Quay lại</MudButton>
+    </MudStack>
+
+    <MudPaper Outlined="true" Class="pa-5">
+        <MudText Typo="Typo.overline" Color="Color.Primary">@_feature</MudText>
+        <MudText Typo="Typo.h5" Class="mb-3">@Title</MudText>
+        <MudText Typo="Typo.body1" Class="mb-5">@Summary</MudText>
+
+        <MudText Typo="Typo.h6" Class="mb-2">Sơ đồ chuẩn</MudText>
+        <MudPaper Class="pa-4 mb-5" Outlined="true" Style="font-family:monospace;white-space:pre-line">@Flow</MudPaper>
+
+        <MudText Typo="Typo.h6" Class="mb-2">Quy trình thao tác</MudText>
+        <MudList Class="mb-5">
+            @foreach (var step in Steps)
+            {
+                <MudListItem Icon="@Icons.Material.Filled.CheckCircleOutline">@step</MudListItem>
+            }
+        </MudList>
+
+        <MudText Typo="Typo.h6" Class="mb-2">Ví dụ minh họa</MudText>
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-5">@Example</MudAlert>
+
+        <MudText Typo="Typo.h6" Class="mb-2">Quyền và phạm vi</MudText>
+        <MudText Typo="Typo.body1">@Security</MudText>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private string _feature = "HOME_WORKSPACE";
+    private string Title = "Workspace cá nhân";
+    private string Summary = "Trang chủ gom việc cần làm, thông báo, phê duyệt và module được cấp quyền.";
+    private string Flow = "USER → ACTION CENTER → MY WORK → NOTIFICATION/APPROVAL → MODULE";
+    private IReadOnlyList<string> Steps = new[] { "Kiểm tra việc cần làm.", "Mở thông báo hoặc hồ sơ.", "Chọn module cần xử lý.", "Xem dashboard khi có capability." };
+    private string Example = "Người có LeaveView nhưng không có LeaveApprove không có thao tác duyệt.";
+    private string Security = "Capability và data scope được kiểm tra ở server.";
+
+    protected override void OnInitialized()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        if (QueryHelpers.ParseQuery(uri.Query).TryGetValue("feature", out var value))
+            _feature = value.ToString();
+
+        switch (_feature.ToUpperInvariant())
+        {
+            case "APPROVAL_INBOX":
+                Title = "Hộp việc phê duyệt";
+                Summary = "Tập trung Leave, OT, Trip và Equipment thuộc phạm vi được phép.";
+                Flow = "PENDING → SCOPE CHECK → REVIEW → APPROVE/REJECT → AUDIT";
+                Steps = new[] { "Lọc module.", "Mở chi tiết.", "Chọn mục cùng cấp.", "Approve/Reject và kiểm tra kết quả." };
+                Example = "Một item vượt scope làm cả batch thất bại, tránh silently skip.";
+                Security = "Approve là capability riêng; không đồng nghĩa All.";
+                break;
+            case "EQUIPMENT_WORKSPACE":
+                Title = "Equipment Workspace";
+                Summary = "Core + dynamic fields theo phòng ban + Excel staging.";
+                Flow = "SCHEMA → EXCEL → STAGING → VALIDATE → REVIEW → COMMIT → AUDIT";
+                Steps = new[] { "Chọn phòng ban.", "Kiểm tra schema.", "Upload Excel.", "Xem lỗi từng dòng.", "Commit batch hợp lệ." };
+                Example = "IT có IP/MAC; Hành chính có Vị trí/Nhà cung cấp.";
+                Security = "EquipmentImport yêu cầu capability và scope Department.";
+                break;
+            case "PUBLIC_INFORMATION_CMS":
+                Title = "CMS thông tin công khai";
+                Summary = "Quản trị Draft → Published → Archived.";
+                Flow = "DRAFT → PREVIEW → PUBLISH → PUBLIC READ → ARCHIVE";
+                Steps = new[] { "Tạo Draft.", "Nhập nội dung và hiệu lực.", "Preview.", "Publish.", "Archive khi kết thúc." };
+                Example = "Quy định có EffectiveFrom 01/10 chỉ hiển thị trong cửa sổ hiệu lực.";
+                Security = "PublicInformationManage là capability quản trị.";
+                break;
+            case "SECURITY_CENTER":
+                Title = "Security Center";
+                Summary = "Role, Function/Action, effective permission và audit.";
+                Flow = "USER → ROLE → FUNCTION/ACTION → SCOPE → AUDIT";
+                Steps = new[] { "Xem effective permission.", "Kiểm tra role/function.", "Thay đổi có kiểm soát.", "Kiểm tra audit." };
+                Example = "LeaveApprove + Department không cấp quyền xem toàn công ty.";
+                Security = "DB là authority; IsAdmin không bypass data scope.";
+                break;
+        }
+    }
+
+    private void Back() => Navigation.NavigateTo("/");
+}
