@@ -71,6 +71,48 @@ IF OBJECT_ID('dbo.F03SyncReviewFlag','U') IS NULL CREATE TABLE dbo.F03SyncReview
 IF OBJECT_ID('dbo.HrmLeaveTypeChangeLogs','U') IS NULL CREATE TABLE dbo.HrmLeaveTypeChangeLogs(Id bigint IDENTITY PRIMARY KEY,LeaveTypeCode nvarchar(50) NOT NULL,LeaveTypeName nvarchar(200) NULL,LeaveTypeName2 nvarchar(200) NULL,TinhPhep bit NULL,HRMCode nvarchar(50) NULL,ActionType int NOT NULL,ChangedAt datetime2(0) NOT NULL,IsProcessed bit NOT NULL DEFAULT 0,ProcessedAt datetime2(0) NULL);
 GO
 
+/* Upgrade existing installations for HRM master/staging fields. */
+IF OBJECT_ID(N'dbo.F03Departments',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03Departments',N'ParentDeptCode') IS NULL ALTER TABLE dbo.F03Departments ADD ParentDeptCode nvarchar(50) NULL;
+    IF COL_LENGTH(N'dbo.F03Departments',N'DisplayPriority') IS NULL ALTER TABLE dbo.F03Departments ADD DisplayPriority int NULL;
+    IF COL_LENGTH(N'dbo.F03Departments',N'ShowInReport') IS NULL ALTER TABLE dbo.F03Departments ADD ShowInReport bit NOT NULL CONSTRAINT DF_F03Departments_ShowInReport DEFAULT 1;
+END;
+IF OBJECT_ID(N'dbo.F03Employees',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03Employees',N'BirthDate') IS NULL ALTER TABLE dbo.F03Employees ADD BirthDate datetime2(0) NULL;
+    IF COL_LENGTH(N'dbo.F03Employees',N'GenderCode') IS NULL ALTER TABLE dbo.F03Employees ADD GenderCode int NULL;
+    IF COL_LENGTH(N'dbo.F03Employees',N'FirstWorkingDate') IS NULL ALTER TABLE dbo.F03Employees ADD FirstWorkingDate datetime2(0) NULL;
+    IF COL_LENGTH(N'dbo.F03Employees',N'EndWorkingDate') IS NULL ALTER TABLE dbo.F03Employees ADD EndWorkingDate datetime2(0) NULL;
+    IF COL_LENGTH(N'dbo.F03Employees',N'TotalLeaveDays') IS NULL ALTER TABLE dbo.F03Employees ADD TotalLeaveDays decimal(10,2) NOT NULL CONSTRAINT DF_F03Employees_TotalLeaveDays DEFAULT 0;
+    IF COL_LENGTH(N'dbo.F03Employees',N'EmployeeNo') IS NULL ALTER TABLE dbo.F03Employees ADD EmployeeNo int NULL;
+END;
+IF OBJECT_ID(N'dbo.F03LeaveType',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03LeaveType',N'LeaveTypeName2') IS NULL ALTER TABLE dbo.F03LeaveType ADD LeaveTypeName2 nvarchar(200) NULL;
+    IF COL_LENGTH(N'dbo.F03LeaveType',N'IsCountedAsLeave') IS NULL ALTER TABLE dbo.F03LeaveType ADD IsCountedAsLeave bit NOT NULL CONSTRAINT DF_F03LeaveType_IsCountedAsLeave DEFAULT 0;
+    IF COL_LENGTH(N'dbo.F03LeaveType',N'HRMCode') IS NULL ALTER TABLE dbo.F03LeaveType ADD HRMCode nvarchar(50) NULL;
+END;
+IF OBJECT_ID(N'dbo.F03StagingLeaveType',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03StagingLeaveType',N'TinhPhep') IS NULL ALTER TABLE dbo.F03StagingLeaveType ADD TinhPhep bit NOT NULL CONSTRAINT DF_F03StagingLeaveType_TinhPhep DEFAULT 0;
+END;
+IF OBJECT_ID(N'dbo.F03StagingEmployee',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03StagingEmployee',N'TotalLeaveDays') IS NOT NULL
+        ALTER TABLE dbo.F03StagingEmployee ALTER COLUMN TotalLeaveDays decimal(10,2) NULL;
+END;
+IF OBJECT_ID(N'dbo.F03StagingOTType',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03StagingOTType',N'RateMultiplier') IS NOT NULL
+        ALTER TABLE dbo.F03StagingOTType ALTER COLUMN RateMultiplier decimal(5,2) NOT NULL;
+END;
+IF OBJECT_ID(N'dbo.F03OTTypes',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03OTTypes',N'RateMultiplier') IS NOT NULL
+        ALTER TABLE dbo.F03OTTypes ALTER COLUMN RateMultiplier decimal(5,2) NOT NULL;
+END;
+
 /* Upgrade existing installations for HRM master staging fields. */
 IF OBJECT_ID(N'dbo.F03StagingDepartment',N'U') IS NOT NULL
 BEGIN
