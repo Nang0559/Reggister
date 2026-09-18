@@ -33,7 +33,7 @@
                 <MudText Typo="Typo.caption" Class="mud-text-secondary">
                     @GetKindDisplay(item.Kind)
                     — @(item.FromDate?.ToString("dd/MM/yyyy") ?? "—")
-                    @if (item.FromDate.Value.Date != item.ToDate.Value.Date)
+                    @if (item.FromDate.HasValue && item.ToDate.HasValue && item.FromDate.Value.Date != item.ToDate.Value.Date)
                     {
                         @(" → ")
                         @(item.ToDate?.ToString("dd/MM/yyyy") ?? "—")
