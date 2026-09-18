@@ -109,14 +109,23 @@ Application contracts không expose SignalR `Hub`, `IHubContext` hoặc Infrastr
 
 ```mermaid
 flowchart TD
-    HRM[HRM] --> STAGE[IOTAttendanceStagingService]
-    STAGE --> TABLE[F03AttendanceStaging]
-    TABLE --> REC[IOTAttendanceReconciliationService]
-    REC --> OT[F03OTEmployee.ActualHours]
-    WORKER[OTAttendanceStagingWorker] --> STAGE
+    HRM[HRM — READ ONLY] --> SMS[usp_SyncHrmShiftMaster]
+    SMS --> SHIFT[(F03Shifts / F03ShiftSchedules / F03ShiftScheduleDays / F03EmployeeShiftSchedules)]
+
+    HRM --> ATT[usp_SyncAttendanceStaging]
+    SHIFT --> ATT
+    ATT --> AST[(F03AttendanceStaging)]
+    AST --> REC[IOTAttendanceReconciliationService]
+    REC --> OTSP[usp_SyncOTActualHours]
+    OTSP --> OT[(F03OTEmployees)]
 ```
 
+`usp_SyncAttendanceStaging` hiện tự gọi `usp_SyncHrmShiftMaster` trước khi resolve ca. Vì vậy shift master là dependency runtime của attendance resolver.
+
+`F03HrmShiftReference` lưu snapshot/reference của `HRM.tblBaoCao` cho ngày xử lý.
+
 ### HRM Master Data Sync
+
 
 ```mermaid
 flowchart TD
@@ -139,7 +148,10 @@ flowchart TD
 - `HrmStagingImporterResolver`.
 - `HrmSyncJobResolver`.
 - `HrmSyncReviewQueryService`.
-- `HrmSyncBackgroundWorker` chạy daily theo pipeline Import → Sync.
+- `HrmSyncBackgroundWorker` chạy daily theo pipeline Import → Sync.  
+- `usp_SyncHrmShiftMaster` đồng bộ HRM shift configuration vào F03 shift master.  
+- `usp_SyncAttendanceStaging` tạo attendance staging và tự refresh shift master trước khi resolve.  
+- `usp_SyncOTActualHours` cập nhật actual OT từ staging vào `F03OTEmployees`.
 
 ### Email queue
 
