@@ -1,7 +1,5 @@
 ﻿using FVN_REGISTER.Core.Constants;
-using FVN_REGISTER.Core.Entities.Approvers;
-using FVN_REGISTER.Core.Entities.HR;
-using FVN_REGISTER.Core.Entities.HRM;
+
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob;
 using Microsoft.EntityFrameworkCore;

@@ -22,6 +22,6 @@ namespace FVN_REGISTER.Core.Entities.HRM
         {
             get; set;
         }
-        public bool TinhPhep { get; set; }
+        
     }
 }
