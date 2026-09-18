@@ -1,6 +1,5 @@
 ﻿
 using FVN_REGISTER.Contract.Dtos.Approvals;
-using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Entities.Common;
@@ -40,7 +39,7 @@ namespace FVN_REGISTER.Application.Maps
                 OTDate = r.OTDate,
                 OTTypeCode = r.OTTypeCode,
                 OtPurpose = r.OTReasonSummary ?? string.Empty,
-                ApprovalSteps = new List<ApprovalStepCalculatedDto>(),
+                ApprovalSteps = new List<ApprovalStepDto>(),
                 Attachments = AttachmentMapper.ToDtoList(attachments),
                 Details = r.Employees?
                     .Where(e => e.IsActive == true)
