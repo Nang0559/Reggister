@@ -47,4 +47,6 @@ public static class SecurityFunctionCodes
     public const int SecurityManageRoles = 2602;
     public const int SecurityManageFunctions = 2603;
     public const int SecurityAudit = 2604;
+
+    public const int PublicInformationManage = 2801;
 }
