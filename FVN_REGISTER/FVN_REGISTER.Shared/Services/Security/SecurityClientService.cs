@@ -28,4 +28,11 @@ public sealed class SecurityClientService : ISecurityClientService
             $"api/security/users/{userId}/roles",
             new UpdateUserRolesRequest { UserId = userId, RoleCodes = roleCodes },
             ct);
+    
+    public Task<ApiResponse<SecurityRoleDto>> SetRoleFunctionsAsync(
+        int roleCode, List<int> functionCodes, CancellationToken ct = default)
+        => _http.PutAsync<SecurityRoleDto>(
+            $"api/security/roles/{roleCode}/functions",
+            new UpdateRoleFunctionsRequest { RoleCode = roleCode, FunctionCodes = functionCodes },
+            ct);
 }
