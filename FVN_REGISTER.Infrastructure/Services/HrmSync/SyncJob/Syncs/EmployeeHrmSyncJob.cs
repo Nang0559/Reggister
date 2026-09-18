@@ -17,8 +17,12 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
     {
         private readonly List<string> _changedApproverRelevantCodes = new();
         private readonly Dictionary<string, int?> _positionLevelCache = new();
+        private readonly ISessionTerminationNotifier _sessionNotifier;
 
-        public EmployeeHrmSyncJob(IUnitOfWork uow) : base(uow) { }
+        public EmployeeHrmSyncJob(IUnitOfWork uow, ISessionTerminationNotifier sessionNotifier) : base(uow)
+        {
+            _sessionNotifier = sessionNotifier;
+        }
 
         public override string EntityType => "Employee";
         public override int SyncOrder => 1;
