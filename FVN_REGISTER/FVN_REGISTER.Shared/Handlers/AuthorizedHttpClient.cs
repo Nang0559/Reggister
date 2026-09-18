@@ -1,7 +1,9 @@
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Contract.Utils;
+using FVN_REGISTER.Shared.Utils;
 using Microsoft.Extensions.Logging;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 
@@ -11,6 +13,7 @@ namespace FVN_REGISTER.Shared.Handlers
     {
         private readonly HttpClient _httpClient;
         private readonly ILogger<AuthorizedHttpClient> _logger;
+        private readonly ITokenStorage _tokenStorage;
 
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
@@ -19,26 +22,53 @@ namespace FVN_REGISTER.Shared.Handlers
 
         public AuthorizedHttpClient(
             HttpClient httpClient,
-            ILogger<AuthorizedHttpClient> logger)
+            ILogger<AuthorizedHttpClient> logger,
+            ITokenStorage tokenStorage)
         {
             _httpClient = httpClient;
             _logger = logger;
+            _tokenStorage = tokenStorage;
 
             _logger.LogDebug(
                 "[HTTP] Base Address: {Base}",
                 _httpClient.BaseAddress);
         }
 
+        private async Task AttachTokenAsync(HttpRequestMessage request)
+        {
+            var token = await _tokenStorage.GetTokenAsync();
+
+            if (!string.IsNullOrWhiteSpace(token))
+            {
+                request.Headers.Authorization = new AuthenticationHeaderValue(
+                    "Bearer",
+                    token.Trim('"').Trim());
+
+                _logger.LogDebug(
+                    "[AUTH] Token attached | Path={Path}",
+                    request.RequestUri?.AbsolutePath);
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "[AUTH] Missing token | Path={Path}",
+                    request.RequestUri?.AbsolutePath);
+            }
+        }
+
         private async Task<ApiResponse<T>> SendAsync<T>(
-            Func<CancellationToken, Task<HttpResponseMessage>> sendFunc,
+            Func<HttpRequestMessage> requestFactory,
             string url,
             CancellationToken ct)
         {
             try
             {
+                using var request = requestFactory();
+                await AttachTokenAsync(request);
+
                 _logger.LogDebug("[HTTP] -> {Url}", url);
 
-                using var response = await sendFunc(ct);
+                using var response = await _httpClient.SendAsync(request, ct);
 
                 _logger.LogDebug(
                     "[HTTP] <- {Url} | Status={Status}",
@@ -81,9 +111,7 @@ namespace FVN_REGISTER.Shared.Handlers
                     errorResponse.IsUnauthorized = isUnauthorized;
 
                     if (!string.IsNullOrWhiteSpace(errorResponse.Message))
-                    {
                         return errorResponse;
-                    }
                 }
 
                 return new ApiResponse<T>
@@ -99,15 +127,11 @@ namespace FVN_REGISTER.Shared.Handlers
 
             var apiResult = TryDeserialize<ApiResponse<T>>(content);
             if (apiResult != null)
-            {
                 return apiResult;
-            }
 
             var raw = TryDeserialize<T>(content);
             if (raw != null)
-            {
                 return ApiResponse<T>.Ok(raw);
-            }
 
             return ApiResponse<T>.Fail("Invalid response format.");
         }
@@ -115,9 +139,7 @@ namespace FVN_REGISTER.Shared.Handlers
         private static T? TryDeserialize<T>(string json)
         {
             if (string.IsNullOrWhiteSpace(json))
-            {
                 return default;
-            }
 
             try
             {
@@ -133,7 +155,7 @@ namespace FVN_REGISTER.Shared.Handlers
             string url,
             CancellationToken ct = default)
             => SendAsync<T>(
-                c => _httpClient.GetAsync(url, c),
+                () => new HttpRequestMessage(HttpMethod.Get, url),
                 url,
                 ct);
 
@@ -142,7 +164,10 @@ namespace FVN_REGISTER.Shared.Handlers
             object data,
             CancellationToken ct = default)
             => SendAsync<T>(
-                c => _httpClient.PostAsJsonAsync(url, data, c),
+                () => new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = JsonContent.Create(data)
+                },
                 url,
                 ct);
 
@@ -151,7 +176,10 @@ namespace FVN_REGISTER.Shared.Handlers
             object data,
             CancellationToken ct = default)
             => SendAsync<T>(
-                c => _httpClient.PutAsJsonAsync(url, data, c),
+                () => new HttpRequestMessage(HttpMethod.Put, url)
+                {
+                    Content = JsonContent.Create(data)
+                },
                 url,
                 ct);
 
@@ -159,7 +187,7 @@ namespace FVN_REGISTER.Shared.Handlers
             string url,
             CancellationToken ct = default)
             => SendAsync<T>(
-                c => _httpClient.DeleteAsync(url, c),
+                () => new HttpRequestMessage(HttpMethod.Delete, url),
                 url,
                 ct);
 
@@ -168,7 +196,10 @@ namespace FVN_REGISTER.Shared.Handlers
             object data,
             CancellationToken ct = default)
             => SendAsync<T>(
-                c => _httpClient.PatchAsJsonAsync(url, data, c),
+                () => new HttpRequestMessage(HttpMethod.Patch, url)
+                {
+                    Content = JsonContent.Create(data)
+                },
                 url,
                 ct);
 
@@ -183,7 +214,10 @@ namespace FVN_REGISTER.Shared.Handlers
         {
             try
             {
-                using var response = await _httpClient.GetAsync(url, ct);
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                await AttachTokenAsync(request);
+
+                using var response = await _httpClient.SendAsync(request, ct);
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -218,7 +252,10 @@ namespace FVN_REGISTER.Shared.Handlers
             MultipartFormDataContent content,
             CancellationToken ct = default)
             => SendAsync<T>(
-                c => _httpClient.PostAsync(url, content, c),
+                () => new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = content
+                },
                 url,
                 ct);
     }
