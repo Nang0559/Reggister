@@ -2,6 +2,7 @@
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Shared.Handlers;
 using FVN_REGISTER.Shared.Services.Approvals;
+using FVN_REGISTER.Shared.Services.Calendar;
 using FVN_REGISTER.Shared.Services.Dashboards;
 using FVN_REGISTER.Shared.Services.Departments;
 using FVN_REGISTER.Shared.Services.Emails;
@@ -54,7 +55,7 @@ builder.Services.AddScoped<IEmailQueueClientService, EmailQueueClientService>();
 builder.Services.AddScoped<IEmployeeManagementClientService, EmployeeManagementClientService>();
 builder.Services.AddScoped<IDepartmentManagementClientService, DepartmentManagementClientService>();
 builder.Services.AddScoped<ILeaveTypeClientService, LeaveTypeClientService>();
-builder.Services.AddScoped<ITripClientService, TripClientService>();
+builder.Services.AddScoped<ITripClientService, TripClientService>(); builder.Services.AddScoped<IWorkCalendarClientService, WorkCalendarClientService>();
 builder.Services.AddScoped<FVN_REGISTER.Shared.Services.Equipment.IEquipmentClientService, FVN_REGISTER.Shared.Services.Equipment.EquipmentClientService>();
 builder.Services.AddServerSideBlazor().AddCircuitOptions(options => options.DetailedErrors = true);
 var app = builder.Build();
