@@ -171,6 +171,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         {
             try
             {
+                if (!await HasAnyReportViewAsync(user, ct))
+                    return ServiceResult<List<KeyValuePair<string, string>>>.Fail("Bạn không có quyền xem báo cáo.");
                 var list = await _uow.Repository<F03Department>().Query()
                     .AsNoTracking()
                     .Where(x => x.IsActive == true)
@@ -197,6 +199,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         {
             try
             {
+                if (!await HasAnyReportViewAsync(user, ct))
+                    return ServiceResult<List<KeyValuePair<string, string>>>.Fail("Bạn không có quyền xem báo cáo.");
                 var q = _uow.Repository<VF03employee>().Query()
                     .AsNoTracking()
                     .Where(x => x.IsActive);
@@ -231,6 +235,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 return InternalError<List<KeyValuePair<string, string>>>(ex, "Lỗi tìm kiếm nhân viên");
             }
         }
+        private async Task<bool> HasAnyReportViewAsync(UserIdentityDto user, CancellationToken ct)
+            => await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveView, ct)
+            || await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct)
+            || await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct)
+            || await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentView, ct)
+            || await _authorization.HasAsync(user, SecurityFunctionCodes.AttendanceView, ct);
+
         private static int GetViewFunction(ReportType type) => type switch
         {
             ReportType.LeaveBalance or ReportType.LeaveSummaryByDept or ReportType.LeaveSummaryByEmployee or ReportType.LeaveDetail or ReportType.LeaveApprovalStatus => SecurityFunctionCodes.LeaveView,
