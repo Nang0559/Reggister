@@ -200,12 +200,13 @@ BEGIN
 
     INSERT dbo.F03EmployeeShiftSchedules
     (IsActive,CreatedBy,LastModifiedSource,CreatedAt,ModifiedAt,EmployeeCode,ScheduleCode,ScheduleType,HrmEmployeeNo,ValidFrom,ValidTo)
-    SELECT CASE WHEN e.IsActive=1 AND NULLIF(nv.NVLichTrinhCa,N'') IS NOT NULL THEN 1 ELSE 0 END,
+    SELECT CASE WHEN ISNULL(e.IsActive,CASE WHEN ISNULL(nv.DLocked,0)=0 THEN 1 ELSE 0 END)=1
+                  AND NULLIF(nv.NVLichTrinhCa,N'') IS NOT NULL THEN 1 ELSE 0 END,
            0,N'HRM',@Now,@Now,RTRIM(nv.NVMaNV),NULLIF(nv.NVLichTrinhCa,N''),vr.Loai,nv.NVMa,
            TRY_CONVERT(date,nv.NVNgayVao),
            CASE WHEN nv.NVNgayRa >= '9990-01-01' THEN NULL ELSE TRY_CONVERT(date,nv.NVNgayRa) END
     FROM HRM.dbo.tblNhanVien nv
-    INNER JOIN dbo.F03Employees e ON e.EmployeeCode=RTRIM(nv.NVMaNV)
+    LEFT JOIN dbo.F03Employees e ON e.EmployeeCode=RTRIM(nv.NVMaNV)
     LEFT JOIN HRM.dbo.CC_LichTrinhVaoRa vr ON vr.Ma=nv.NVLichTrinhVaoRa
     WHERE NOT EXISTS (SELECT 1 FROM dbo.F03EmployeeShiftSchedules t WHERE t.EmployeeCode=RTRIM(nv.NVMaNV));
 
@@ -320,12 +321,12 @@ BEGIN
         DATEADD(MINUTE,-s.ScanBeforeMinutes,x.ShiftStart),
         DATEADD(MINUTE, s.ScanAfterMinutes,x.ShiftEnd),
         dc.ScheduleType,s.AllowEarlyCheckIn,s.CountBreakAsWork,s.CountToTotalWork,
-        CASE WHEN s.Break1Start IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break1Start),CAST(@WorkDate AS datetime2(0))) END,
-        CASE WHEN s.Break1End IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break1End),CAST(@WorkDate AS datetime2(0))) END,
-        CASE WHEN s.Break2Start IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break2Start),CAST(@WorkDate AS datetime2(0))) END,
-        CASE WHEN s.Break2End IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break2End),CAST(@WorkDate AS datetime2(0))) END,
-        CASE WHEN s.Break3Start IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break3Start),CAST(@WorkDate AS datetime2(0))) END,
-        CASE WHEN s.Break3End IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break3End),CAST(@WorkDate AS datetime2(0))) END
+        CASE WHEN s.Break1Start IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break1Start),x.ShiftStart) END,
+        CASE WHEN s.Break1End IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break1End),x.ShiftStart) END,
+        CASE WHEN s.Break2Start IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break2Start),x.ShiftStart) END,
+        CASE WHEN s.Break2End IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break2End),x.ShiftStart) END,
+        CASE WHEN s.Break3Start IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break3Start),x.ShiftStart) END,
+        CASE WHEN s.Break3End IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break3End),x.ShiftStart) END
     FROM DayCandidates dc
     INNER JOIN dbo.F03Shifts s ON s.ShiftCode=dc.ShiftCode AND s.IsActive=1
     CROSS APPLY
@@ -500,6 +501,28 @@ BEGIN
     LEFT JOIN OTWindow ot ON ot.EmployeeCode=r.EmployeeCode;
 
     DECLARE @Count int=@@ROWCOUNT;
+
+    /* Keep HRM.tblBaoCao as a read-only reference for regression comparison.
+       FVN_REGISTER never writes to HRM.tblBaoCao. */
+    DELETE FROM dbo.F03HrmShiftReference
+    WHERE WorkDate=@WorkDate;
+
+    INSERT dbo.F03HrmShiftReference
+    (EmployeeCode,WorkDate,HrmScheduleCode,HrmShiftCode,HrmShiftAbbr,HrmCheckIn,HrmCheckOut,SourceUpdatedAt)
+    SELECT
+        RTRIM(nv.NVMaNV),
+        @WorkDate,
+        NULLIF(RTRIM(bc.BCLichTrinhCa),N''),
+        CONVERT(nvarchar(20),bc.BCMaCa),
+        sh.ShiftAbbr,
+        bc.BCTGVao,
+        bc.BCTGVe,
+        NULL
+    FROM HRM.dbo.tblBaoCao bc
+    INNER JOIN HRM.dbo.tblNhanVien nv ON nv.NVMa=bc.BCMaNV
+    LEFT JOIN dbo.F03Shifts sh ON sh.ShiftCode=CONVERT(nvarchar(20),bc.BCMaCa)
+    WHERE bc.BCNgay=@WorkDate;
+
     SELECT @Count AS SyncedCount,CAST(@WorkDate AS date) AS WorkDate;
 END;
 GO
