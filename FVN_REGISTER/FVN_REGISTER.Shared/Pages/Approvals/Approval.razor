@@ -80,11 +80,11 @@
                 }
                 <MudText Typo="Typo.caption">Gửi: @(context.SubmittedAt?.ToString("dd/MM HH:mm") ?? "—")</MudText>
             </MudTd>
-            <MudTd DataLabel="Số lượng"><b>@context.TotalUnits.ToString("N1")</b> @context.UnitDisplay</MudTd>
+            <MudTd DataLabel="Số lượng"><b>@context.TotalUnits.ToString("N1")</b> @GetUnitLabel(context.Kind)</MudTd>
             <MudTd DataLabel="Tiến trình"><OTApprovalProgressBar Steps="@context.ApprovalSteps" /></MudTd>
             <MudTd DataLabel="Cấp chờ">
-                @if (context.CurrentApprovalLevel > 0)
-                { <span>Cấp @context.CurrentApprovalLevel@if (!string.IsNullOrWhiteSpace(context.CurrentApproverName)){ <span> — @context.CurrentApproverName</span> }</span> }
+                @if (GetCurrentApprovalLevel(context) > 0)
+                { <span>Cấp @GetCurrentApprovalLevel(context)@if (!string.IsNullOrWhiteSpace(GetCurrentApproverName(context))){ <span> — @GetCurrentApproverName(context)</span> }</span> }
                 else { <span>—</span> }
             </MudTd>
             <MudTd DataLabel="Thao tác">
@@ -200,6 +200,26 @@
         }
         finally { _processing = false; }
     }
+
+    private static int GetCurrentApprovalLevel(PendingApprovalItemDto item) =>
+        item.ApprovalSteps
+            .OrderBy(x => x.Level)
+            .FirstOrDefault(x => x.IsRequired && x.IsApproved == null)?.Level ?? 0;
+
+    private static string? GetCurrentApproverName(PendingApprovalItemDto item)
+    {
+        var level = GetCurrentApprovalLevel(item);
+        return level <= 0
+            ? null
+            : item.ApprovalSteps.FirstOrDefault(x => x.Level == level)?.ApproverName;
+    }
+
+    private static string GetUnitLabel(RequestModule kind) => kind switch
+    {
+        RequestModule.Overtime => "giờ",
+        RequestModule.Trip => "ngày",
+        _ => "ngày"
+    };
 
     private static Color GetKindColor(RequestModule kind) => kind switch
     {
