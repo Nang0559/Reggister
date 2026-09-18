@@ -113,3 +113,47 @@ Click vào event đã có sẽ mở chi tiết nếu module hỗ trợ.
 Lưu ý: lịch chỉ là màn hình tra cứu và cảnh báo. Việc có được phép đăng ký hay không vẫn do server kiểm tra quyền, phạm vi dữ liệu và validator của từng nghiệp vụ. Ngày nghỉ công ty không mặc nhiên khóa OT hoặc Công tác.
 
 Chi tiết kiến trúc xem MÔ HÌNH/18_WORK_CALENDAR.md.
+
+## Trung tâm báo cáo & thống kê
+
+
+Mở `/reports` để xem các nhóm báo cáo mà tài khoản được cấp quyền.
+
+### Nghỉ phép
+- Số dư phép theo năm.
+- Tổng hợp theo phòng ban/nhân viên.
+- Chi tiết đơn.
+- Trạng thái phê duyệt.
+
+### OT
+- Theo phòng ban.
+- Theo nhân viên.
+- Chi tiết phiếu.
+- Trạng thái duyệt.
+- Tích lũy hạn mức tuần/tháng/năm.
+
+### Công tác
+- Theo phòng ban.
+- Theo nhân viên.
+- Chi tiết chuyến.
+- Trạng thái duyệt.
+
+### Thiết bị
+- Theo phòng ban.
+- Chi tiết tài sản.
+- Tổng hợp sửa chữa.
+
+### Chấm công
+- Tổng hợp theo phòng ban.
+- Chi tiết vào/ra, ca, giờ công và OT.
+
+### Bộ lọc và phạm vi
+Báo cáo cho phép lọc khoảng thời gian, phòng ban và nhân viên tùy loại báo cáo. Hệ thống luôn áp dụng data scope ở server; việc nhập mã phòng hoặc mã nhân viên không thể mở rộng phạm vi.
+
+### Xuất Excel
+Nút Excel chỉ hoạt động khi tài khoản có capability Export tương ứng. Có quyền xem không mặc nhiên có quyền xuất.
+
+### Lưu ý
+Báo cáo là chức năng tra cứu. Không thể dùng báo cáo để sửa, duyệt hoặc hủy nghiệp vụ. Nếu số liệu cần xử lý, quay về module nghiệp vụ tương ứng.
+
+Chi tiết kiến trúc và ma trận quyền xem `MÔ HÌNH/19_REPORTS_STATISTICS.md`.
