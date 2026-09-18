@@ -1,6 +1,6 @@
 /*
-FVN_REGISTER uses the default dbo schema because the EF Core model maps
-the F03* entities to dbo tables. Do not create domain schemas here.
+EF Core maps the current FVN_REGISTER model to the dbo schema.
+Domain schemas such as auth/leave/ot are intentionally not used.
 */
 USE [FVN_REGISTER];
 GO
