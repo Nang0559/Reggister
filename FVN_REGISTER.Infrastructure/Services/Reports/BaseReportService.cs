@@ -13,7 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace FVN_REGISTER.API.Services.Reports
+namespace FVN_REGISTER.Infrastructure.Services.Reports
 {
     /// <summary>
     /// Base chung cho mọi ReportService (OT, Leave, ...).
@@ -81,7 +81,7 @@ namespace FVN_REGISTER.API.Services.Reports
                 .ToDictionaryAsync(x => x.OTTypeCode, x => x.OTTypeName, ct);
         }
 
-        protected async Task<Dictionary<int, List<ApprovalStepCalculatedDto>>> LoadApprovalStepsMapAsync(
+        protected async Task<Dictionary<int, List<ApprovalStepDto>>> LoadApprovalStepsMapAsync(
          RequestModule requestType,
          IEnumerable<int> requestIds,
          CancellationToken ct)
@@ -100,11 +100,11 @@ namespace FVN_REGISTER.API.Services.Reports
                 .Where(h => h.RequestType == requestType && ids.Contains(h.RequestId))
                 .ToListAsync(ct);
 
-            var result = new Dictionary<int, List<ApprovalStepCalculatedDto>>();
+            var result = new Dictionary<int, List<ApprovalStepDto>>();
             foreach (var snap in snapshots)
             {
                 var histForThis = histories.Where(h => h.RequestId == snap.RequestId).ToList();
-                result[snap.RequestId] = ApprovalStepMapper.MapToCalculatedList(snap.Steps, histForThis);
+                result[snap.RequestId] = ApprovalStepMapper.MapToList(snap.Steps, histForThis);
             }
             return result;
         }
