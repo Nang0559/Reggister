@@ -44,9 +44,8 @@
         if (!CurrentUser.IsLoggedIn)
             await CurrentUser.InitializeAsync();
 
-        _moduleFilter = string.IsNullOrWhiteSpace(ModuleContext) ? "ALL" : ModuleContext.ToUpperInvariant();
-        if (!Filters.Any(x => x.Code == _moduleFilter))
-            _moduleFilter = "ALL";
+        // Context chỉ quyết định hành động khi click; không được tự động ẩn dữ liệu module khác.
+        _moduleFilter = "ALL";
 
         await LoadAsync(DateTime.Today.AddMonths(-1).Date, DateTime.Today.AddMonths(2).Date);
         _ref = DotNetObjectReference.Create(this);
