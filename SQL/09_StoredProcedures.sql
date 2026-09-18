@@ -133,10 +133,7 @@ BEGIN
     UPDATE emp
     SET emp.ActualStartTime=stg.CheckInDateTime,
         emp.ActualEndTime=stg.CheckOutDateTime,
-        emp.ActualHours=
-            CASE WHEN stg.CheckInDateTime IS NOT NULL AND stg.CheckOutDateTime IS NOT NULL
-                 THEN CAST(DATEDIFF(minute,stg.CheckInDateTime,stg.CheckOutDateTime)/60.0 AS decimal(5,2))
-                 ELSE NULL END,
+        emp.ActualHours=CAST(ISNULL(stg.OTHours,0) AS decimal(5,2)),
         emp.ValidationStatus=
             CASE WHEN stg.CheckInDateTime IS NOT NULL AND stg.CheckOutDateTime IS NOT NULL THEN 1 ELSE 0 END,
         emp.ValidationMessage=
