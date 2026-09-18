@@ -1,6 +1,3 @@
-﻿
-
-
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Core.Entities.Approvers;
 using FVN_REGISTER.Core.Entities.Common;
@@ -13,7 +10,7 @@ namespace FVN_REGISTER.Application.Maps
         public static ApproverDto ToDto(F03Approver a) => new()
         {
             Id = a.Id,
-            RequestType = a.RequestType ?? string.Empty,
+            RequestType = a.RequestType.ToString(),
             ApproverCode = a.ApproverCode ?? string.Empty,
             ApproverName = a.ApproverName ?? string.Empty,
             ApproverEmail = a.ApproverEmail ?? string.Empty,
@@ -26,6 +23,7 @@ namespace FVN_REGISTER.Application.Maps
             ApproveForDeptName = a.ApproveForDeptName ?? string.Empty,
             IsActive = a.IsActive ?? true
         };
+
         public static F03Approver ToEntity(ApproverDto dto, int currentUserId) => new()
         {
             RequestType = dto.RequestType ?? string.Empty,
@@ -40,14 +38,10 @@ namespace FVN_REGISTER.Application.Maps
             ApproveForDeptCode = dto.ApproveForDeptCode ?? string.Empty,
             ApproveForDeptName = dto.ApproveForDeptName ?? string.Empty,
             IsActive = true,
-            // CreatedAt/CreatedBy thường được SaveChangesAsync/Audit-interceptor của DbContext
-            // tự stamp (giống ghi chú ở ApplyUpdate). Vẫn set CreatedBy tường minh ở đây để
-            // không phụ thuộc vào việc interceptor có đọc được current-user hay không.
             CreatedBy = currentUserId
         };
 
         // 2. Map từ Cấu hình người duyệt (F03Approver) sang bản chụp (F03ApprovalStepSnapshot)
-        // Đây là hàm quan trọng nhất để Orchestrator gọi khi nộp đơn
         public static F03ApprovalStepSnapshot ToSnapshotStep(F03Approver approver, bool isRequired) => new()
         {
             Level = approver.Level,
@@ -67,7 +61,6 @@ namespace FVN_REGISTER.Application.Maps
             entity.ApproveForDeptCode = dto.ApproveForDeptCode ?? string.Empty;
             entity.ApproveForDeptName = dto.ApproveForDeptName ?? string.Empty;
             entity.IsActive = dto.IsActive;
-            // Các trường Audit sẽ được ghi đè bởi SaveChangesAsync trong DbContext
             entity.ModifiedBy = userId;
         }
     }
