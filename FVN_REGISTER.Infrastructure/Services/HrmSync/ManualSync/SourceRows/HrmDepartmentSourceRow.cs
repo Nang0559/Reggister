@@ -12,8 +12,11 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.SourceRows
     /// DepartmentStagingImporter.MapToStaging ánh xạ sang F03StagingDepartment.
     /// </summary>
     public class HrmDepartmentSourceRow
-    {
-        public string DeptCode { get; set; } = null!;
-        public string DeptName { get; set; } = null!;
-    }
+{
+    public string DeptCode { get; set; } = string.Empty;
+    public string DeptName { get; set; } = string.Empty;
+    public string? ParentDeptCode { get; set; }
+    public int? DisplayPriority { get; set; }
+    public bool ShowInReport { get; set; } = true;
+}
 }
