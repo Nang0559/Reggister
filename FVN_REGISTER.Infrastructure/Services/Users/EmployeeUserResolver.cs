@@ -19,7 +19,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
             return await _uow.Repository<F03User>().Query()
                 .AsNoTracking()
                 .Where(u => u.EmployeeCode == employeeCode && u.IsActive == true)
-                .Select(u => (int?)u.IdUser)
+                .Select(u => (int?)u.Id)
                 .FirstOrDefaultAsync(ct);
         }
 
@@ -32,7 +32,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
             return await _uow.Repository<F03User>().Query()
                 .AsNoTracking()
                 .Where(u => codes.Contains(u.EmployeeCode!) && u.IsActive == true)
-                .ToDictionaryAsync(u => u.EmployeeCode!, u => u.IdUser, ct);
+                .ToDictionaryAsync(u => u.EmployeeCode!, u => u.Id, ct);
         }
     }
 }

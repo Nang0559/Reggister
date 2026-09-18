@@ -50,7 +50,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                     .Where(d => deptCodes.Contains(d.DeptCode))
                     .ToDictionaryAsync(d => d.DeptCode, d => d.DeptName, ct);
 
-                var userIds = joined.Select(x => x.User.IdUser).ToList();
+                var userIds = joined.Select(x => x.User.Id).ToList();
                 var functionMap = await _uow.Repository<F03UserFunction>().Query()
                     .Where(f => userIds.Contains(f.IdUser))
                     .GroupBy(f => f.IdUser)
@@ -75,7 +75,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
             var user = await _uow.Repository<F03User>().Query()
                 .AsNoTracking()
                 .Include(x => x.PermissionCodeNavigation)
-                .FirstOrDefaultAsync(x => x.IdUser == id, ct);
+                .FirstOrDefaultAsync(x => x.Id == id, ct);
 
             if (user == null) return null;
 
@@ -91,7 +91,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
 
             return new UserAccountDto
             {
-                IdUser = user.IdUser,
+                IdUser = user.Id,
                 EmployeeCode = user.EmployeeCode,
                 FullName = user.FullName,
                 DeptCode = user.DeptCode,
@@ -152,7 +152,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                 await _uow.SaveChangesAsync(ct);
 
                 if (request.FunctionIds is { Count: > 0 })
-                    await SyncFunctionsAsync(entity.IdUser, request.FunctionIds, ct);
+                    await SyncFunctionsAsync(entity.Id, request.FunctionIds, ct);
 
                 await _uow.SaveChangesAsync(ct);
 
@@ -173,7 +173,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
             try
             {
                 var user = await _uow.Repository<F03User>().Query()
-                    .FirstOrDefaultAsync(x => x.IdUser == request.IdUser, ct);
+                    .FirstOrDefaultAsync(x => x.Id == request.IdUser, ct);
                 if (user == null)
                     return ServiceResult.Fail("Không tìm thấy tài khoản.");
 
@@ -204,16 +204,16 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                 // (tránh IdPermission trên các dòng F03UserFunction cũ bị lệch dữ liệu)
                 if (request.FunctionIds is not null)
                 {
-                    await SyncFunctionsAsync(user.IdUser, request.FunctionIds, ct);
+                    await SyncFunctionsAsync(user.Id, request.FunctionIds, ct);
                 }
                 else if (permissionChanged)
                 {
                     var currentFunctionIds = await _uow.Repository<F03UserFunction>().Query()
-                        .Where(f => f.IdUser == user.IdUser)
+                        .Where(f => f.IdUser == user.Id)
                         .Select(f => f.IdFunction)
                         .ToListAsync(ct);
 
-                    await SyncFunctionsAsync(user.IdUser, currentFunctionIds, ct);
+                    await SyncFunctionsAsync(user.Id, currentFunctionIds, ct);
                 }
 
                 await _uow.SaveChangesAsync(ct);
@@ -243,7 +243,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
             try
             {
                 var user = await _uow.Repository<F03User>().Query()
-                    .FirstOrDefaultAsync(x => x.IdUser == id, ct);
+                    .FirstOrDefaultAsync(x => x.Id == id, ct);
                 if (user == null)
                     return ServiceResult.Fail("Không tìm thấy tài khoản.");
 
@@ -279,7 +279,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
             try
             {
                 var user = await _uow.Repository<F03User>().Query()
-                    .FirstOrDefaultAsync(x => x.IdUser == id, ct);
+                    .FirstOrDefaultAsync(x => x.Id == id, ct);
                 if (user == null)
                     return ServiceResult.Fail("Không tìm thấy tài khoản.");
 
@@ -306,7 +306,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
             try
             {
                 var user = await _uow.Repository<F03User>().Query()
-                    .FirstOrDefaultAsync(x => x.IdUser == id, ct);
+                    .FirstOrDefaultAsync(x => x.Id == id, ct);
                 if (user == null)
                     return ServiceResult.Fail("Không tìm thấy tài khoản.");
 
@@ -361,7 +361,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                     return ServiceResult.Fail("Mật khẩu mới không được để trống.");
 
                 var user = await _uow.Repository<F03User>().Query()
-                    .FirstOrDefaultAsync(x => x.IdUser == id, ct);
+                    .FirstOrDefaultAsync(x => x.Id == id, ct);
                 if (user == null)
                     return ServiceResult.Fail("Không tìm thấy tài khoản.");
 
@@ -392,11 +392,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
             Dictionary<string, string> deptNames, Dictionary<int, List<int>> functionMap)
         {
             deptNames.TryGetValue(user.DeptCode ?? "", out var deptName);
-            functionMap.TryGetValue(user.IdUser, out var functionIds);
+            functionMap.TryGetValue(user.Id, out var functionIds);
 
             return new UserAccountDto
             {
-                IdUser = user.IdUser,
+                IdUser = user.Id,
                 EmployeeCode = user.EmployeeCode,
                 FullName = user.FullName,
                 DeptCode = user.DeptCode,
@@ -427,7 +427,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                 repo.Remove(old);
 
             var permissionCode = await _uow.Repository<F03User>().Query()
-                .Where(u => u.IdUser == userId)
+                .Where(u => u.Id == userId)
                 .Select(u => u.PermissionCode)
                 .FirstAsync(ct);
 

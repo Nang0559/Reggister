@@ -7,8 +7,7 @@ namespace FVN_REGISTER.Core.Entities.Security;
 [Table("F03Users")]
 public partial class F03User : BaseAuditEntity
 {
-    [Key]
-    public int IdUser { get; set; }
+    
     // Lưu ý: Luôn lưu mật khẩu đã hash (bcrypt/pbkdf2), không bao giờ lưu plain text
     [Required, StringLength(255)]
     public string Password { get; set; } = string.Empty;

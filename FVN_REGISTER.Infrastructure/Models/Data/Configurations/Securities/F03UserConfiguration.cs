@@ -9,7 +9,7 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.Securities
         public void Configure(EntityTypeBuilder<F03User> entity)
         {
             entity.ToTable("F03Users");
-            entity.HasKey(e => e.IdUser);
+            entity.HasKey(e => e.Id);
 
             // Index cho EmployeeCode làm key tìm kiếm chính
             entity.HasIndex(e => e.EmployeeCode, "IX_User_EmployeeCode").IsUnique();
