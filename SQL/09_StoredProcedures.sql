@@ -140,7 +140,7 @@ BEGIN
             CASE WHEN stg.CheckInDateTime IS NOT NULL AND stg.CheckOutDateTime IS NOT NULL
                  THEN NULL ELSE N'Chưa đủ dữ liệu CheckIn/CheckOut từ HRM.' END,
         emp.ModifiedAt=GETDATE(),
-        emp.ModifiedBy=N'SYSTEM'
+        emp.ModifiedBy=0
     FROM dbo.F03OTEmployees emp
     INNER JOIN dbo.F03OTRequests ot
       ON ot.Id=emp.OTRequestId
