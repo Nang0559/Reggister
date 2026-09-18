@@ -17,7 +17,7 @@ FROM (VALUES
 (N'FIN',N'Finance',NULL,3),
 (N'PROD',N'Production',NULL,4),
 (N'QA',N'Quality Assurance',N'PROD',5)
-) v(DeptCode,DeptName,ParentDeptCode,DisplayPriority)
+) AS v(DeptCode,DeptName,ParentDeptCode,DisplayPriority)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Departments x WHERE x.DeptCode=v.DeptCode);
 
 INSERT dbo.F03Positions(IsActive,CreatedBy,PositionCode,PositionName,IsApprove,IsAllowApprove,DefaultApproveLevel)
@@ -28,13 +28,13 @@ FROM (VALUES
 (N'CHIEF',N'Chief',1,1,2),
 (N'MGR',N'Manager',1,1,3),
 (N'GM',N'General Manager',1,1,4)
-) v(PositionCode,PositionName,IsApprove,IsAllowApprove,DefaultApproveLevel)
+) AS v(PositionCode,PositionName,IsApprove,IsAllowApprove,DefaultApproveLevel)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Positions x WHERE x.PositionCode=v.PositionCode);
 
 INSERT dbo.F03Genders(IsActive,CreatedBy,GenderCode,GenderName)
 SELECT 1,0,v.GenderCode,v.GenderName FROM (VALUES
 (N'M',N'Male'),(N'F',N'Female'),(N'O',N'Other'),(N'U',N'Unknown'),(N'N',N'Not specified)
-) v(GenderCode,GenderName)
+) AS v(GenderCode,GenderName)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Genders x WHERE x.GenderCode=v.GenderCode);
 
 INSERT dbo.F03LeaveType(IsActive,CreatedBy,LeaveTypeCode,LeaveTypeName,LeaveTypeName2,IsCountedAsLeave,HRMCode)
@@ -44,7 +44,7 @@ SELECT 1,0,v.Code,v.Name,v.Name2,v.Counted,v.HRMCode FROM (VALUES
 (N'UL',N'Unpaid Leave',N'Unpaid Leave',0,N'UL'),
 (N'HD',N'Half Day Leave',N'Half Day Leave',1,N'HD'),
 (N'OTR',N'Other Leave',N'Other Leave',0,N'OTR')
-) v(Code,Name,Name2,Counted,HRMCode)
+) AS v(Code,Name,Name2,Counted,HRMCode)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03LeaveType x WHERE x.LeaveTypeCode=v.Code);
 
 INSERT dbo.F03OTTypes(IsActive,CreatedBy,OTTypeCode,OTTypeName,OTTypeName2,RateMultiplier,HRMCode)
@@ -54,7 +54,7 @@ SELECT 1,0,v.Code,v.Name,v.Name2,v.Rate,v.HRM FROM (VALUES
 (N'SUN',N'Sunday OT',N'Sunday OT',2.0,N'OT-SUN'),
 (N'HOL',N'Holiday OT',N'Holiday OT',3.0,N'OT-HOL'),
 (N'NIGHT',N'Night OT',N'Night OT',2.0,N'OT-NIGHT')
-) v(Code,Name,Name2,Rate,HRM)
+) AS v(Code,Name,Name2,Rate,HRM)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03OTTypes x WHERE x.OTTypeCode=v.Code);
 
 INSERT dbo.F03OTCodes(IsActive,CreatedBy,ReasonCode,DisplayName,Description,DisplayOrder)
@@ -64,7 +64,7 @@ SELECT 1,0,v.Code,v.Name,v.Description,v.SortNo FROM (VALUES
 (N'PROJECT',N'Project deadline',N'Project deadline',3),
 (N'URGENT',N'Urgent work',N'Urgent customer/business request',4),
 (N'OTHER',N'Other',N'Other approved reason',5)
-) v(Code,Name,Description,SortNo)
+) AS v(Code,Name,Description,SortNo)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03OTCodes x WHERE x.ReasonCode=v.Code);
 
 -- Work years / holidays
@@ -80,7 +80,7 @@ FROM (VALUES
 (DATEFROMPARTS(YEAR(@Now),5,1),N'International Labour Day'),
 (DATEFROMPARTS(YEAR(@Now),9,2),N'National Day'),
 (DATEADD(day,-1,DATEFROMPARTS(YEAR(@Now),9,2)),N'Test company holiday')
-) v(HolidayDate,Description)
+) AS v(HolidayDate,Description)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03CompanyHolidays h WHERE h.HolidayDate=v.HolidayDate);
 
 -- =========================
@@ -95,7 +95,7 @@ FROM (VALUES
 (N'E0003',N'Le Van Cuong',N'PROD',N'CHIEF','1985-09-20',1,N'e0003@test.local',N'0900000003','2018-07-02',14,3,2),
 (N'E0004',N'Pham Thi Dung',N'HR',N'MGR','1983-12-01',2,N'e0004@test.local',N'0900000004','2017-04-03',16,4,3),
 (N'E0005',N'Hoang Van Em',N'PROD',N'GM','1978-11-25',1,N'e0005@test.local',N'0900000005','2015-01-05',18,5,4)
-) v(Code,Name,Dept,Position,Birth,GenderId,Email,Phone,StartDate,LeaveDays,EmpNo,LevelApprove)
+) AS v(Code,Name,Dept,Position,Birth,GenderId,Email,Phone,StartDate,LeaveDays,EmpNo,LevelApprove)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Employees e WHERE e.EmployeeCode=v.Code);
 
 INSERT dbo.F03Users(IsActive,CreatedBy,Password,EmployeeCode,FullName,PermissionCode,LockoutEnable,NumLoginFailed,LevelApprove,DeptCode,Cvcode)
@@ -106,13 +106,13 @@ FROM (VALUES
 (N'E0003',N'Le Van Cuong',2,2,N'PROD',N'CHIEF'),
 (N'E0004',N'Pham Thi Dung',2,3,N'HR',N'MGR'),
 (N'E0005',N'Hoang Van Em',3,4,N'PROD',N'GM')
-) v(Code,Name,PermissionCode,LevelApprove,Dept,Position)
+) AS v(Code,Name,PermissionCode,LevelApprove,Dept,Position)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Users u WHERE u.EmployeeCode=v.Code);
 
 INSERT dbo.F03LeaveBalances(IsActive,CreatedBy,EmployeeCode,WorkYear,TotalDays)
 SELECT 1,0,v.Code,YEAR(@Now),v.Days FROM (VALUES
 (N'E0001',12.0),(N'E0002',14.0),(N'E0003',14.0),(N'E0004',16.0),(N'E0005',18.0)
-) v(Code,Days)
+) AS v(Code,Days)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03LeaveBalances b WHERE b.EmployeeCode=v.Code AND b.WorkYear=YEAR(@Now));
 
 -- Permission/function mapping
@@ -131,7 +131,7 @@ FROM (VALUES
 (N'E0004',N'MGR',N'Pham Thi Dung',N'e0004@test.local',N'HR',N'HR',3,N'Manager/A Manager'),
 (N'E0005',N'GM',N'Hoang Van Em',N'e0005@test.local',N'PROD',N'PROD',N'PROD',4,N'General Manager'),
 (N'E0003',N'CHIEF',N'Le Van Cuong',N'e0003@test.local',N'PROD',N'PRODUCTION',N'PROD',1,N'Lead/Sub Lead')
-) v(Code,Position,Name,Email,Dept,DeptName,ForDept,Level,RoleName)
+) AS v(Code,Position,Name,Email,Dept,DeptName,ForDept,Level,RoleName)
 JOIN dbo.F03Users u ON u.EmployeeCode=v.Code
 JOIN dbo.F03Departments d ON d.DeptCode=v.Dept
 JOIN dbo.F03Departments d2 ON d2.DeptCode=v.ForDept
@@ -146,7 +146,7 @@ FROM (VALUES
 (4,N'TRIP-TEST-003','2026-09-24','2026-09-25',N'Ha Noi',N'Partner meeting',N'Partner B',N'Car',1800000,N'Test rejected'),
 (5,N'TRIP-TEST-004','2026-09-26','2026-09-26',N'Ha Noi',N'Personal cancellation test',N'',N'Car',500000,N'Test cancelled'),
 (1,N'TRIP-TEST-005','2026-09-28','2026-09-29',N'Ho Chi Minh City',N'Project workshop',N'Customer C',N'Plane',5000000,N'Test pending')
-) v(Status,Code,StartDate,EndDate,Destination,Purpose,Partner,Transport,Cost,Note)
+) AS v(Status,Code,StartDate,EndDate,Destination,Purpose,Partner,Transport,Cost,Note)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03TripRequests t WHERE t.TripCode=v.Code);
 
 INSERT dbo.F03EquipmentAssets(IsActive,CreatedBy,EquipmentCode,EquipmentName,Specification,SerialNumber,AssetCode,PurchasePrice,PurchaseDate,ExpectedDepreciationDate,DeptCode,Location,QrToken,IsQrActive,Note)
@@ -157,7 +157,7 @@ FROM (VALUES
 (N'PROD-TEST-001',N'Barcode Scanner',N'Industrial scanner',N'SN-SCAN-001',N'AST-0003',12000000,'2026-02-15','2029-02-15',N'PROD',N'Line 1',N'QR-TEST-003',N'Production scanner'),
 (N'QA-TEST-001',N'Quality Monitor',N'24 inch monitor',N'SN-MON-001',N'AST-0004',6000000,'2026-03-01','2029-03-01',N'QA',N'QA Room',N'QR-TEST-004',N'QA monitor'),
 (N'IT-TEST-003',N'Network Switch',N'24-port managed switch',N'SN-SW-001',N'AST-0005',15000000,'2026-03-05','2029-03-05',N'IT',N'Server Room',N'QR-TEST-005',N'Network switch')
-) v(Code,Name,Spec,Serial,AssetCode,Price,PurchaseDate,DepDate,Dept,Location,Qr,Note)
+) AS v(Code,Name,Spec,Serial,AssetCode,Price,PurchaseDate,DepDate,Dept,Location,Qr,Note)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03EquipmentAssets a WHERE a.EquipmentCode=v.Code);
 
 INSERT dbo.F03EmailProfiles(IsActive,CreatedBy,ParentId,IsGroup,Code,Name,NameEn,EmailServerName,EmailServerType,EmailServerPort,EmailServerEnableSsl,EmailAccountName,EmailAddress,SiteUrl)
@@ -173,7 +173,7 @@ FROM (VALUES
 (N'e0003@test.local',N'Test email 3',N'Test email queue item 3'),
 (N'e0004@test.local',N'Test email 4',N'Test email queue item 4'),
 (N'e0005@test.local',N'Test email 5',N'Test email queue item 5')
-) v(Email,Subject,Body)
+) AS v(Email,Subject,Body)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03EmailQueues q WHERE q.Subject=v.Subject AND q.ToEmail=v.Email);
 
 -- Business rules / escalation
@@ -185,7 +185,7 @@ FROM (VALUES
 (N'OT',N'OT_DAILY_LIMIT',N'Daily OT limit',N'{"hours":4}'),
 (N'Trip',N'TRIP_APPROVAL',N'Trip approval',N'{"levels":3}'),
 (N'Equipment',N'EQUIPMENT_APPROVAL',N'Equipment approval',N'{"levels":2}')
-) v(Module,Code,Name,Json)
+) AS v(Module,Code,Name,Json)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03BusinessRules b WHERE b.Module=v.Module AND b.Code=v.Code);
 
 INSERT dbo.F03EscalationRules(IsActive,CreatedBy,RequestModule,Level,DeptCode,WarningHours,EscalateHours,DeadlineHour)
@@ -193,7 +193,7 @@ SELECT 1,0,v.Module,v.Level,v.Dept,v.Warning,v.Escalate,48
 FROM (VALUES
 (N'Leave',1,N'IT',24,48),(N'Leave',2,N'IT',24,48),(N'Leave',3,N'IT',24,48),
 (N'OT',1,N'IT',24,48),(N'OT',2,N'IT',24,48)
-) v(Module,Level,Dept,Warning,Escalate)
+) AS v(Module,Level,Dept,Warning,Escalate)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03EscalationRules r WHERE r.RequestModule=v.Module AND r.Level=v.Level AND ISNULL(r.DeptCode,N'')=v.Dept);
 
 COMMIT;
