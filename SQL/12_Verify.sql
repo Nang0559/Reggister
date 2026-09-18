@@ -68,7 +68,10 @@ SELECT
     ActiveUserCount = (SELECT COUNT(*) FROM dbo.F03Users WHERE IsActive=1),
     RoleRuleCount = (SELECT COUNT(*) FROM dbo.F03HrmUserRoleRules),
     PendingEmailCount = (SELECT COUNT(*) FROM dbo.F03EmailQueues WHERE Status IN(N'Pending',N'Retry')),
-    OpenReviewFlagCount = (SELECT COUNT(*) FROM dbo.F03SyncReviewFlag WHERE IsResolved=0);
+    OpenReviewFlagCount = (SELECT COUNT(*) FROM dbo.F03SyncReviewFlag WHERE IsResolved=0),
+    ActiveShiftCount = (SELECT COUNT(*) FROM dbo.F03Shifts WHERE IsActive=1),
+    ActiveShiftScheduleCount = (SELECT COUNT(*) FROM dbo.F03ShiftSchedules WHERE IsActive=1),
+    ActiveEmployeeShiftScheduleCount = (SELECT COUNT(*) FROM dbo.F03EmployeeShiftSchedules WHERE IsActive=1);
 
 PRINT N'12_Verify: PASS';
 GO
