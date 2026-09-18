@@ -93,7 +93,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
                     Id = d.Id,
                     DeptCode = d.DeptCode,
                     DeptName = d.DeptName,
-                    IsActive = d.IsActive,
+                    IsActive = d.IsActive == true,
                     CreatedAt = d.CreatedAt
                 })
                 .ToListAsync(ct);

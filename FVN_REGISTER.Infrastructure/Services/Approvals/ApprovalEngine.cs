@@ -47,7 +47,7 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
                     Level = s.Level,
                     ApproverCode = s.ApproverCode ?? string.Empty,
                     ApproverName = s.ApproverName ?? string.Empty,
-                    ApproverEmail = s.ApproverEmail,
+                    ApproverEmail = s.ApproverEmail??string.Empty,
                     RoleName = s.RoleName,
                     IsRequired = s.IsRequired
                 })

@@ -17,4 +17,3 @@ global using FVN_REGISTER.Application.Models.Subjects;
 
 global using FVN_REGISTER.Contract.Utils;
 global using Microsoft.Extensions.DependencyInjection;
-global using FVN_REGISTER.Application.Logging;
