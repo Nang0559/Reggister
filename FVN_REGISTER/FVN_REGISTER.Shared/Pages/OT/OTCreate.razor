@@ -67,7 +67,7 @@ else if (_form != null)
                             <MudTd><b>@context.EmployeeName</b><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd>
                             <MudTd>
                                 <MudSelect T="string" @bind-Value="context.OTReasonCategoryCode" Dense="true" Variant="Variant.Text">
-                                    @foreach (var category in _categories) { <MudSelectItem Value="@category.Code">@category.Code</MudSelectItem> }
+                                    @foreach (var category in _categories) { <MudSelectItem Value="@category.Code">@category.ReasonCode</MudSelectItem> }
                                 </MudSelect>
                             </MudTd>
                             <MudTd><MudTextField T="string" @bind-Value="context.OTReasonDetail" Variant="Variant.Text" Margin="Margin.Dense" /></MudTd>
