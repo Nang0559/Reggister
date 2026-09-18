@@ -9,6 +9,7 @@ using FVN_REGISTER.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using AppAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 
 namespace FVN_REGISTER.API.Controllers;
 
@@ -18,7 +19,7 @@ namespace FVN_REGISTER.API.Controllers;
 public class UserManagementController : BaseApiController
 {
     private readonly IUserManagementService _userMgt;
-    private readonly IAuthorizationService _authorization;
+    private readonly AppAuthorizationService _authorization;
 
     public UserManagementController(
         IUserManagementService userMgt,
@@ -26,7 +27,7 @@ public class UserManagementController : BaseApiController
         IUserLogService userLog,
         ILogger<UserManagementController> logger,
         IOptionsMonitor<AuthDebugOptions> options,
-        IAuthorizationService authorization)
+        AppAuthorizationService authorization)
         : base(currentUser, userLog, logger, options)
     {
         _userMgt = userMgt;
