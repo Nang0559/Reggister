@@ -123,7 +123,7 @@ public partial class LeaveCreate : IAsyncDisposable
     private List<object> BuildCalendarEvents()
     {
         var events = new List<object>();
-        foreach (var holiday in _model?.CompanyHolidays ?? new())
+        foreach (var holiday in _model?.MasterData.CompanyHolidays ?? new())
         {
             events.Add(new
             {
@@ -176,7 +176,7 @@ public partial class LeaveCreate : IAsyncDisposable
         if (_model == null) return;
         var parameters = new DialogParameters
         {
-            ["Model"] = _model,
+            ["Model"] = _model.MasterData,
             ["DefaultStart"] = startDate,
             ["DefaultEnd"] = endDate,
             ["SelectedYear"] = _selectedYear,
