@@ -83,9 +83,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Notifications
                     Module = x.RequestModule,
                     Action = x.Action,
                     Title = x.Title,
-                    Body = x.Body,
+                    Body = x.Body ?? string.Empty,
                     ApprovalLevel = x.ApprovalLevel,
-                    ActionUrl = x.ActionUrl,
+                    ActionUrl = x.ActionUrl ?? string.Empty,
                     IsRead = x.IsRead,
                     CreatedAt = x.CreatedAt
                 })
