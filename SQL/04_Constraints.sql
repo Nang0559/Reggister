@@ -77,6 +77,12 @@ IF OBJECT_ID(N'dbo.F03ShiftSchedules',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03ShiftSchedules') AND name=N'UX_F03ShiftSchedules_Code')
     CREATE UNIQUE INDEX UX_F03ShiftSchedules_Code ON dbo.F03ShiftSchedules(ScheduleCode);
 
+UPDATE t SET IsActive=0,ModifiedAt=GETDATE(),ModifiedBy=0
+FROM dbo.F03ShiftSchedules t
+WHERE t.LastModifiedSource=N'HRM'
+  AND NOT EXISTS (SELECT 1 FROM HRM.dbo.CC_LichTrinhCa s WHERE s.Ma=t.ScheduleCode);
+GO
+
 IF OBJECT_ID(N'dbo.F03ShiftScheduleDays',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03ShiftScheduleDays') AND name=N'UX_F03ShiftScheduleDays')
     CREATE UNIQUE INDEX UX_F03ShiftScheduleDays ON dbo.F03ShiftScheduleDays(ScheduleCode,DayNo,ShiftCode);
