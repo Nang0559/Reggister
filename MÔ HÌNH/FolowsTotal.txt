@@ -175,7 +175,7 @@ IApprovalActionHandler [Application/Interfaces/Approvals]
  [D3] OT ATTENDANCE RECONCILIATION
 ═══════════════════════════════════════════════════════════════════════════
 
-HRM DB (chấm công gốc) ──usp_SyncAttendanceStaging──► F03AttendanceStaging
+HRM DB (chỉ cung cấp dữ liệu chấm công gốc) ──► FVN_REGISTER.usp_SyncAttendanceStaging ──► F03AttendanceStaging
     (staging RIÊNG, KHÔNG chung với F03StagingXxx của D1)
         │
         ├─ IOTAttendanceStagingService  [Application/Interfaces/OT] — GHI thuần
