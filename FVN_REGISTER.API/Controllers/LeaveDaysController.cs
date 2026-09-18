@@ -38,7 +38,6 @@ namespace FVN_REGISTER.API.Controllers
             : base(currentUser, userLog, logger, options)
         {
             _authorization = authorization;
-        {
             _leaveService = leaveService;
             _queryService = queryService;
             _workflow = workflow;
