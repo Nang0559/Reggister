@@ -415,9 +415,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
             };
         }
 
-        // IdPermission = quyền hạn của user TẠI THỜI ĐIỂM gán function (lineage/audit),
-        // không phải khóa logic (PK thật là (IdUser, IdFunction)). Xác nhận theo schema gốc
-        // F03userFunction: HasKey(new { IdUser, IdFunction }) — IdPermission chỉ là FK đi kèm.
+        // IdPermission lưu quyền tại thời điểm gán function; PK của F03UserFunction là Id.
+        // Cặp (IdUser, IdFunction) được bảo đảm duy nhất bằng index ở Infrastructure/SQL.
         private async Task SyncFunctionsAsync(int userId, List<int> functionIds, CancellationToken ct)
         {
             var repo = _uow.Repository<F03UserFunction>();
