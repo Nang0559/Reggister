@@ -51,10 +51,10 @@ else
                         <MudListItem T="PendingApprovalItemDto" OnClick="@(() => Navigation.NavigateTo("/approvals"))">
                             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Style="width:100%">
                                 <MudStack Spacing="0">
-                                    <MudText Typo="Typo.body2"><b>@item.EmployeeName</b> — @item.KindDisplay</MudText>
+                                    <MudText Typo="Typo.body2"><b>@item.EmployeeName</b> — @GetKindDisplay(item.Kind)</MudText>
                                     <MudText Typo="Typo.caption" Color="Color.Secondary">@item.EmployeeCode — @item.DeptName</MudText>
                                 </MudStack>
-                                <MudChip T="string" Size="Size.Small">Cấp @item.CurrentApprovalLevel</MudChip>
+                                <MudChip T="string" Size="Size.Small">Cấp @GetCurrentApprovalLevel(item)</MudChip>
                             </MudStack>
                         </MudListItem>
                     }
@@ -74,9 +74,9 @@ else
                     </MudCardHeader>
                     <MudCardContent>
                         <MudGrid>
-                            <MudItem xs="4"><MudText Typo="Typo.caption">Được hưởng</MudText><MudText Typo="Typo.h6">@Data.Leave.Balance.Entitled?.ToString("N1")</MudText></MudItem>
-                            <MudItem xs="4"><MudText Typo="Typo.caption">Đã dùng</MudText><MudText Typo="Typo.h6">@Data.Leave.Balance.Used?.ToString("N1")</MudText></MudItem>
-                            <MudItem xs="4"><MudText Typo="Typo.caption">Còn lại</MudText><MudText Typo="Typo.h6">@Data.Leave.Balance.Remaining?.ToString("N1")</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.caption">Được hưởng</MudText><MudText Typo="Typo.h6">@Data.Leave.Balance.TotalEntitled.ToString("N1")</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.caption">Đã dùng</MudText><MudText Typo="Typo.h6">@Data.Leave.Balance.Used.ToString("N1")</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.caption">Còn lại</MudText><MudText Typo="Typo.h6">@Data.Leave.Balance.Remaining.ToString("N1")</MudText></MudItem>
                         </MudGrid>
                     </MudCardContent>
                 </MudCard>
@@ -155,6 +155,9 @@ else
 @code {
     [Parameter] public DashboardDto? Data { get; set; }
     [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    private static int GetCurrentApprovalLevel(PendingApprovalItemDto item) => item.ApprovalSteps.OrderBy(x => x.Level).FirstOrDefault(x => x.IsRequired && x.IsApproved == null)?.Level ?? 0;
+    private static string GetKindDisplay(RequestModule kind) => kind switch { RequestModule.Overtime => "OT", RequestModule.Trip => "Công tác", RequestModule.Leave => "Nghỉ phép", _ => kind.ToString() };
 
     private void OnWidgetClick(string? link)
     {
