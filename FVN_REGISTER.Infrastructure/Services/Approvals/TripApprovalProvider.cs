@@ -74,18 +74,18 @@ public sealed class TripApprovalProvider
     }
 
     public override async Task ApplyOverallStatusAsync(
-        int requestId, IReadOnlyList<ApprovalStepCalculatedDto> allSteps, CancellationToken ct)
+        int requestId, IReadOnlyList<ApprovalStepDto> allSteps, CancellationToken ct)
     {
         var entity = await _uow.Repository<F03TripRequest>().Query()
             .FirstOrDefaultAsync(x => x.Id == requestId, ct);
         if (entity == null) return;
 
         var required = allSteps.Where(x => x.IsRequired).ToList();
-        entity.RequestStatus = required.Any(x => x.Status == DecisionType.Rejected)
+        entity.RequestStatus = required.Any(x => x.Decision == DecisionType.Rejected)
             ? ApprovalStatus.Rejected
-            : required.Count > 0 && required.All(x => x.Status == DecisionType.Approved)
+            : required.Count > 0 && required.All(x => x.Decision == DecisionType.Approved)
                 ? ApprovalStatus.Approved
-                : required.Any(x => x.Status == DecisionType.Approved)
+                : required.Any(x => x.Decision == DecisionType.Approved)
                     ? ApprovalStatus.InProgress
                     : ApprovalStatus.Pending;
 
@@ -94,13 +94,13 @@ public sealed class TripApprovalProvider
 
     public override async Task NotifyStepCompletedAsync(
         TripRequestSubject subject,
-        ApprovalStepCalculatedDto completedStep,
+        ApprovalStepDto completedStep,
         bool isFullyApproved,
         CancellationToken ct)
     {
         var status = isFullyApproved
             ? ApprovalStatus.Approved
-            : completedStep.Status == DecisionType.Rejected
+            : completedStep.Decision == DecisionType.Rejected
                 ? ApprovalStatus.Rejected
                 : (ApprovalStatus?)null;
 
@@ -132,7 +132,7 @@ public sealed class TripApprovalProvider
 
     public override async Task<PendingApprovalItemDto> ToPendingItemAsync(
         TripRequestSubject subject,
-        List<ApprovalStepCalculatedDto> steps,
+        List<ApprovalStepDto> steps,
         bool canApprove,
         CancellationToken ct)
     {

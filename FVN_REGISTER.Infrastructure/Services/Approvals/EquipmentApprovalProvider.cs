@@ -47,7 +47,7 @@ public sealed class EquipmentApprovalProvider : BaseApprovalProvider<EquipmentRe
     {
         var entity = await _uow.Repository<F03EquipmentRequest>().Query().FirstOrDefaultAsync(x => x.Id == requestId, ct); if (entity == null) return;
         var required = allSteps.Where(x => x.IsRequired).ToList();
-        entity.RequestStatus = required.Any(x => x.Status == DecisionType.Rejected) ? ApprovalStatus.Rejected : required.Count > 0 && required.All(x => x.Status == DecisionType.Approved) ? ApprovalStatus.Approved : required.Any(x => x.Status == DecisionType.Approved) ? ApprovalStatus.InProgress : ApprovalStatus.Pending;
+        entity.RequestStatus = required.Any(x => x.Decision == DecisionType.Rejected) ? ApprovalStatus.Rejected : required.Count > 0 && required.All(x => x.Decision == DecisionType.Approved) ? ApprovalStatus.Approved : required.Any(x => x.Decision == DecisionType.Approved) ? ApprovalStatus.InProgress : ApprovalStatus.Pending;
         if (entity.RequestStatus == ApprovalStatus.Approved)
         {
             if (entity.RequestKind == EquipmentRequestKind.Registration && entity.AssetId == null)
@@ -65,7 +65,7 @@ public sealed class EquipmentApprovalProvider : BaseApprovalProvider<EquipmentRe
     }
     public override async Task NotifyStepCompletedAsync(EquipmentRequestSubject subject, ApprovalStepDto completedStep, bool isFullyApproved, CancellationToken ct)
     {
-        if (!isFullyApproved && completedStep.Status != DecisionType.Rejected) return;
+        if (!isFullyApproved && completedStep.Decision != DecisionType.Rejected) return;
         var email = await _uow.Repository<F03Employee>().Query().AsNoTracking().Where(x => x.EmployeeCode == subject.EmployeeCode).Select(x => x.EmailAddress).FirstOrDefaultAsync(ct);
         if (!string.IsNullOrWhiteSpace(email)) await _email.QueueEmail(email, isFullyApproved ? "EQUIPMENT_APPROVED" : "EQUIPMENT_REJECTED", new { subject.RequestId, subject.RequestKind, subject.EquipmentName, subject.AssetCode, subject.RepairDate, Status = isFullyApproved ? "Approved" : "Rejected" }, ct);
         await NotifyEmployeeInAppAsync(subject, isFullyApproved ? ApprovalStatus.Approved : ApprovalStatus.Rejected, ct);

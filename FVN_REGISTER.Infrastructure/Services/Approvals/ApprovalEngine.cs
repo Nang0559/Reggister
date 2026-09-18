@@ -203,11 +203,11 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
 
             var calculated = await GetStepsAsync(snapshot.RequestId, ct);
             var myCalc = calculated.FirstOrDefault(c => c.Level == myStep.Level);
-            if (myCalc == null || myCalc.Status != DecisionType.Pending) continue;
+            if (myCalc == null || myCalc.Decision != DecisionType.Pending) continue;
 
             var previousDone = calculated
                 .Where(c => c.Level < myStep.Level && c.IsRequired)
-                .All(c => c.Status == DecisionType.Approved);
+                .All(c => c.Decision == DecisionType.Approved);
             if (!previousDone) continue;
 
             var subject = await _provider.GetSubjectAsync(snapshot.RequestId, ct);
@@ -221,7 +221,7 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
         return result;
     }
 
-    public async Task<List<ApprovalStepCalculatedDto>> GetStepsAsync(
+    public async Task<List<ApprovalStepDto>> GetStepsAsync(
         int requestId, CancellationToken ct)
     {
         var snapshot = await _uow.Repository<F03ApprovalSnapshot>()
@@ -230,14 +230,14 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
             .FirstOrDefaultAsync(
                 s => s.RequestId == requestId && s.RequestType == Module, ct);
 
-        if (snapshot == null) return new List<ApprovalStepCalculatedDto>();
+        if (snapshot == null) return new List<ApprovalStepDto>();
 
         var histories = await _uow.Repository<F03ApprovalHistory>()
             .Query()
             .Where(h => h.RequestId == requestId && h.RequestType == Module)
             .ToListAsync(ct);
 
-        return ApprovalStepMapper.MapToCalculatedList(snapshot.Steps, histories);
+        return ApprovalStepMapper.MapToList(snapshot.Steps, histories);
     }
 
     public async Task<ApprovalStepDto?> GetNextStepAsync(
@@ -253,7 +253,7 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
 
         var calculated = await GetStepsAsync(requestId, ct);
         var next = calculated
-            .Where(s => s.IsRequired && s.Status == DecisionType.Pending)
+            .Where(s => s.IsRequired && s.Decision == DecisionType.Pending)
             .OrderBy(s => s.Level)
             .FirstOrDefault();
 

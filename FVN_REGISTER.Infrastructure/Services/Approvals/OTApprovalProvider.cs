@@ -90,9 +90,9 @@ public class OTApprovalProvider
     private static ApprovalStatus ComputeOverallStatus(IReadOnlyList<ApprovalStepDto> allSteps)
     {
         var required = allSteps.Where(s => s.IsRequired).OrderBy(s => s.Level).ToList();
-        if (required.Any(s => s.Status == DecisionType.Rejected)) return ApprovalStatus.Rejected;
-        if (required.Count > 0 && required.All(s => s.Status == DecisionType.Approved)) return ApprovalStatus.Approved;
-        return required.Any(s => s.Status == DecisionType.Approved)
+        if (required.Any(s => s.Decision == DecisionType.Rejected)) return ApprovalStatus.Rejected;
+        if (required.Count > 0 && required.All(s => s.Decision == DecisionType.Approved)) return ApprovalStatus.Approved;
+        return required.Any(s => s.Decision == DecisionType.Approved)
             ? ApprovalStatus.InProgress
             : ApprovalStatus.Pending;
     }
@@ -112,7 +112,7 @@ public class OTApprovalProvider
                 return;
             }
 
-            if (completedStep.Status == DecisionType.Rejected)
+            if (completedStep.Decision == DecisionType.Rejected)
             {
                 await NotifyEmployeeAsync(subject, ApprovalStatus.Rejected, ct);
                 await NotifyEmployeeInAppAsync(subject, ApprovalStatus.Rejected, ct);

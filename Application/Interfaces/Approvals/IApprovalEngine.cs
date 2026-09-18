@@ -24,7 +24,7 @@ namespace FVN_REGISTER.Application.Interfaces.Approvals
             string approverEmail,
             CancellationToken ct);
 
-        Task<List<ApprovalStepCalculatedDto>> GetStepsAsync(
+        Task<List<ApprovalStepDto>> GetStepsAsync(
             int requestId,
             CancellationToken ct);
 
