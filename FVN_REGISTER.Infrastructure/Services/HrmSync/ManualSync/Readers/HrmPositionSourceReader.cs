@@ -8,12 +8,6 @@
     {
         public HrmPositionSourceReader(IConfiguration configuration) : base(configuration) { }
 
-        protected override string Sql => @"
-            SELECT
-                PositionCode = CV.CVMa,
-                PositionName = CV.CVTen
-               
-            FROM [HRM].[dbo].[tblChucVu] CV
-            WHERE ISNULL(CV.DLocked, 0) = 0";
+        protected override string Sql => @"EXEC dbo.usp_SyncHrmPositionSource;";
     }
 }
