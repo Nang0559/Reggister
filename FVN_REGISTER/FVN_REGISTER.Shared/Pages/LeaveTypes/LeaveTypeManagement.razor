@@ -142,7 +142,7 @@ else
 
     private async Task Save()
     {
-        if (_form != null && !await _form.Validate()) return;
+        if (_form != null) { await _form.ValidateAsync(); if (!_form.IsValid) return; }
         _saving = true;
         try
         {
