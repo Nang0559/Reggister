@@ -5,6 +5,7 @@ using FVN_REGISTER.Application.Logging;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using FVN_REGISTER.Core.Constants;
 
 namespace FVN_REGISTER.API.Controllers;
 
@@ -28,19 +29,29 @@ public sealed class HrmSyncReviewController : BaseApiController
 
     [HttpGet]
     public async Task<IActionResult> GetUnresolved([FromQuery] string? entityType, CancellationToken ct)
-        => HandleResult(await _review.GetUnresolvedAsync(entityType, ct));
+    {
+        if (!CanManageHrmSync()) return Forbid();
+        return HandleResult(await _review.GetUnresolvedAsync(entityType, ct));
+    }
 
     [HttpGet("count")]
     public async Task<IActionResult> Count(CancellationToken ct)
-        => HandleResult(await _review.CountUnresolvedAsync(ct));
+    {
+        if (!CanManageHrmSync()) return Forbid();
+        return HandleResult(await _review.CountUnresolvedAsync(ct));
+    }
 
     [HttpPost("{flagId:int}/resolve")]
     public async Task<IActionResult> Resolve(int flagId, CancellationToken ct)
-        => HandleResult(await _review.ResolveAsync(flagId, UserInfo?.EmployeeCode ?? User.Identity?.Name ?? "ADMIN", ct));
+    {
+        if (!CanManageHrmSync()) return Forbid();
+        return HandleResult(await _review.ResolveAsync(flagId, UserInfo?.EmployeeCode ?? User.Identity?.Name ?? "ADMIN", ct));
+    }
 
     [HttpPost("resolve-by-entity")]
     public async Task<IActionResult> ResolveByEntity([FromQuery] string entityType, [FromQuery] string entityKey, CancellationToken ct)
     {
+        if (!CanManageHrmSync()) return Forbid();
         if (string.IsNullOrWhiteSpace(entityType) || string.IsNullOrWhiteSpace(entityKey))
             return BadRequest("entityType và entityKey không được để trống.");
 
@@ -50,4 +61,9 @@ public sealed class HrmSyncReviewController : BaseApiController
             UserInfo?.EmployeeCode ?? User.Identity?.Name ?? "ADMIN",
             ct));
     }
+    
+    private bool CanManageHrmSync()
+        => UserInfo?.PermissionCode is int code
+           && code >= UserPermissionCodes.SuperAdmin
+           && code <= UserPermissionCodes.Editor;
 }
