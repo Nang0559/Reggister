@@ -1,15 +1,9 @@
-﻿using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
+using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Core.Entities.Approvers;
 using FVN_REGISTER.Core.Entities.Common;
 
-
 namespace FVN_REGISTER.Application.Maps
 {
-    /// <summary>
-    /// Chuyển ApprovalSnapshotDto (Application) sang entity F03ApprovalSnapshot
-    /// để persist. Đặt ở Infrastructure vì đây là mapping DTO -> EF Entity,
-    /// đúng nguyên tắc Application không biết chi tiết Infrastructure.
-    /// </summary>
     public static class ApprovalSnapshotEntityMapper
     {
         public static F03ApprovalSnapshot ToEntity(int requestId, ApprovalSnapshotDto dto)
@@ -17,7 +11,7 @@ namespace FVN_REGISTER.Application.Maps
             return new F03ApprovalSnapshot
             {
                 RequestId = requestId,
-                RequestType = dto.ModuleName ?? string.Empty,
+                RequestType = dto.ModuleName.ToString(),
                 Steps = dto.Steps
                     .OrderBy(s => s.Level)
                     .Select(s => new F03ApprovalStepSnapshot
@@ -26,7 +20,7 @@ namespace FVN_REGISTER.Application.Maps
                         RoleName = s.RoleName ?? string.Empty,
                         ApproverCode = s.ApproverCode ?? string.Empty,
                         ApproverName = s.ApproverName ?? string.Empty,
-                        ApproverEmail = s.ApproverEmail,   // cần thêm field này vào entity
+                        ApproverEmail = s.ApproverEmail ?? string.Empty,
                         IsRequired = s.IsRequired
                     })
                     .ToList()
