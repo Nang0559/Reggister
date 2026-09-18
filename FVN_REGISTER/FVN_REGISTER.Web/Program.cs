@@ -7,6 +7,7 @@ using FVN_REGISTER.Shared.Services.Departments;
 using FVN_REGISTER.Shared.Services.Emails;
 using FVN_REGISTER.Shared.Services.Employees;
 using FVN_REGISTER.Shared.Services.Histories;
+using FVN_REGISTER.Shared.Services.History;
 using FVN_REGISTER.Shared.Services.HrmSync;
 using FVN_REGISTER.Shared.Services.Leaves;
 using FVN_REGISTER.Shared.Services.Notifications;
