@@ -87,11 +87,11 @@ WHERE NOT EXISTS(SELECT 1 FROM dbo.F03CompanyHolidays h WHERE h.HolidayDate=v.Ho
 INSERT dbo.F03Permissions(IsActive,CreatedBy,PermissionCode,PermissionName,Detail)
 SELECT 1,0,v.PermissionCode,v.PermissionName,v.Detail
 FROM (VALUES
-(1,N'EMPLOYEE',N'Employee access'),
-(2,N'APPROVER',N'Approval access'),
-(3,N'ADMIN',N'Administrator access'),
-(4,N'HR',N'Human Resources access'),
-(5,N'FINANCE',N'Finance access')
+(1,N'SuperAdmin',N'Full system administration access'),
+(2,N'Admin',N'Administrative data access'),
+(3,N'Editor',N'Editable business data access'),
+(4,N'Approver',N'Approval workflow access'),
+(5,N'User',N'Normal user access')
 ) AS v(PermissionCode,PermissionName,Detail)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Permissions p WHERE p.PermissionCode=v.PermissionCode);
 
@@ -116,7 +116,7 @@ INSERT dbo.F03Users(IsActive,CreatedBy,Password,EmployeeCode,FullName,Permission
 SELECT 1,0,N'f925916e2754e5e03f75dd58a5733251',v.Code,v.Name,v.PermissionCode,1,0,v.LevelApprove,v.Dept,v.Position
 FROM (VALUES
 (N'E0001',N'Nguyen Van An',1,0,N'IT',N'EMP'),
-(N'E0002',N'Tran Thi Binh',1,1,N'IT',N'SL'),
+(N'E0002',N'Tran Thi Binh',4,1,N'IT',N'SL'),
 (N'E0003',N'Le Van Cuong',2,2,N'PROD',N'CHIEF'),
 (N'E0004',N'Pham Thi Dung',2,3,N'HR',N'MGR'),
 (N'E0005',N'Hoang Van Em',3,4,N'PROD',N'GM')
