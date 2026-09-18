@@ -1,6 +1,7 @@
 ﻿using FVN_REGISTER.Application.Interfaces.Reports;
 using FVN_REGISTER.Application.Maps;
 using FVN_REGISTER.Application.Services.Common;
+using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Reports;
@@ -81,7 +82,7 @@ namespace FVN_REGISTER.API.Services.Reports
                 .ToDictionaryAsync(x => x.OTTypeCode, x => x.OTTypeName, ct);
         }
 
-        protected async Task<Dictionary<int, List<ApprovalStepCalculatedDto>>> LoadApprovalStepsMapAsync(
+        protected async Task<Dictionary<int, List<ApprovalStepDto>>> LoadApprovalStepsMapAsync(
          RequestModule requestType,
          IEnumerable<int> requestIds,
          CancellationToken ct)
@@ -100,7 +101,7 @@ namespace FVN_REGISTER.API.Services.Reports
                 .Where(h => h.RequestType == requestType && ids.Contains(h.RequestId))
                 .ToListAsync(ct);
 
-            var result = new Dictionary<int, List<ApprovalStepCalculatedDto>>();
+            var result = new Dictionary<int, List<ApprovalStepCalculatdDto>>();
             foreach (var snap in snapshots)
             {
                 var histForThis = histories.Where(h => h.RequestId == snap.RequestId).ToList();

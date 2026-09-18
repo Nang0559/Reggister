@@ -5,6 +5,7 @@ using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Maps;
 using FVN_REGISTER.Application.Services.Common;
+using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Enums;
@@ -311,7 +312,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         protected abstract Task<Dictionary<int, DateTime>> GetRegisterDateMapAsync(List<int> ids, CancellationToken ct);
         protected abstract Task<Dictionary<int, string?>> GetDeptCodeMapAsync(List<int> ids, CancellationToken ct);
 
-        private static (F03ApprovalStepSnapshot Step, ApprovalStepCalculatedDto Calculated)? GetCurrentPendingStep(
+        private static (F03ApprovalStepSnapshot Step, ApprovalStepDto Calculated)? GetCurrentPendingStep(
             List<F03ApprovalStepSnapshot> steps,
             List<F03ApprovalHistory> histories)
         {
