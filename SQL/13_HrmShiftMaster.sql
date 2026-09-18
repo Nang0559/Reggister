@@ -359,6 +359,12 @@ BEGIN
       AND NULLIF(LTRIM(RTRIM(NV.NVMaNV)),N'') IS NOT NULL;
 
     COMMIT;
+
+    SELECT
+        ShiftCount = (SELECT COUNT(*) FROM dbo.F03Shifts WHERE IsActive=1),
+        ScheduleCount = (SELECT COUNT(*) FROM dbo.F03ShiftSchedules WHERE IsActive=1),
+        ScheduleDayCount = (SELECT COUNT(*) FROM dbo.F03ShiftScheduleDays WHERE IsActive=1),
+        EmployeeScheduleCount = (SELECT COUNT(*) FROM dbo.F03EmployeeShiftSchedules WHERE IsActive=1);
 END;
 GO
 
