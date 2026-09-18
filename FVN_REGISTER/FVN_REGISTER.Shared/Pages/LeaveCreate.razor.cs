@@ -19,7 +19,6 @@ public partial class LeaveCreate : IAsyncDisposable
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
     [Inject] private IJSRuntime JS { get; set; } = default!;
     [Inject] private NavigationManager Nav { get; set; } = default!;
-    [Inject] private ILogger<LeaveCreate> Logger { get; set; } = default!;
 
     private LeaveCalendarDataDto? _model;
     private bool _isLoading = true;
