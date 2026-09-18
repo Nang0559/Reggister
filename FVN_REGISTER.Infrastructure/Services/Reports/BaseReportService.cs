@@ -110,7 +110,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         }
 
         protected static string? GetApproverName(
-            Dictionary<int, List<ApprovalStepCalculatedDto>> stepsMap,
+            Dictionary<int, List<ApprovalStepDto>> stepsMap,
             int requestId,
             int level)
         {
