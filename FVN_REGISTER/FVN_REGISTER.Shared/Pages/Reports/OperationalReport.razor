@@ -22,28 +22,49 @@
 }
 else
 {
-    <MudTabs ActivePanelIndex="_tab" ActivePanelIndexChanged="OnTabChanged" Class="mb-4">
-        @if (CanTrip) { <MudTabPanel Text="Công tác" /> }
-        @if (CanEquipment) { <MudTabPanel Text="Thiết bị" /> }
-        @if (CanAttendance) { <MudTabPanel Text="Chấm công" /> }
-    </MudTabs>
-    <ReportBase @ref="_base" ReportType="_type" Query="_query">
-        <AdditionalFilters>
-            <MudItem xs="12" sm="3">
-                <MudSelect T="string" Label="Phòng ban" @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
-                    <MudSelectItem T="string" Value="@(null)">-- Tất cả --</MudSelectItem>
-                    @foreach(var d in _departments ?? new()) { <MudSelectItem T="string" Value="@d.Key">@d.Value</MudSelectItem> }
-                </MudSelect>
-            </MudItem>
-            @if (_type is ReportType.TripSummaryByEmployee or ReportType.TripDetail or ReportType.AttendanceDetail)
+    @if (IsModuleAllowed)
+    {
+        <MudTabs ActivePanelIndex="_tab" ActivePanelIndexChanged="OnTabChanged" Class="mb-4">
+            @if (ModuleKey == "trip")
             {
-                <MudItem xs="12" sm="3">
-                    <MudAutocomplete T="KeyValuePair<string,string>" Label="Nhân viên" Value="@_employee" ValueChanged="OnEmployeeChanged" SearchFunc="SearchEmployees" ToStringFunc="@(x=>x.Value)" Clearable="true" />
-                </MudItem>
+                <MudTabPanel Text="Theo phòng ban" />
+                <MudTabPanel Text="Theo nhân viên" />
+                <MudTabPanel Text="Chi tiết" />
+                <MudTabPanel Text="Trạng thái duyệt" />
             }
-        </AdditionalFilters>
-    </ReportBase>
-}
+            else if (ModuleKey == "equipment")
+            {
+                <MudTabPanel Text="Theo phòng ban" />
+                <MudTabPanel Text="Chi tiết tài sản" />
+                <MudTabPanel Text="Sửa chữa" />
+            }
+            else if (ModuleKey == "attendance")
+            {
+                <MudTabPanel Text="Tổng hợp" />
+                <MudTabPanel Text="Chi tiết" />
+            }
+        </MudTabs>
+        <ReportBase @ref="_base" ReportType="_type" Query="_query">
+            <AdditionalFilters>
+                <MudItem xs="12" sm="3">
+                    <MudSelect T="string" Label="Phòng ban" @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                        <MudSelectItem T="string" Value="@(null)">-- Tất cả --</MudSelectItem>
+                        @foreach(var d in _departments ?? new()) { <MudSelectItem T="string" Value="@d.Key">@d.Value</MudSelectItem> }
+                    </MudSelect>
+                </MudItem>
+                @if (_type is ReportType.TripSummaryByEmployee or ReportType.TripDetail or ReportType.AttendanceDetail)
+                {
+                    <MudItem xs="12" sm="3">
+                        <MudAutocomplete T="KeyValuePair<string,string>" Label="Nhân viên" Value="@_employee" ValueChanged="OnEmployeeChanged" SearchFunc="SearchEmployees" ToStringFunc="@(x=>x.Value)" Clearable="true" />
+                    </MudItem>
+                }
+            </AdditionalFilters>
+        </ReportBase>
+    }
+    else if (_permission != null)
+    {
+        <MudAlert Severity="Severity.Warning">Tài khoản không có quyền xem nhóm báo cáo này.</MudAlert>
+    }
 
 @code {
     [SupplyParameterFromQuery(Name="module")] public string? Module { get; set; }
