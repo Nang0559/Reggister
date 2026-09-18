@@ -56,7 +56,6 @@
     private List<EmailQueueDto> _items = new();
     private HashSet<EmailQueueDto> _selected = new();
     private EmailQueueDto? _view;
-    private bool _showDialog => _view != null;
     private bool _loading, _processing;
     private string? _status;
     private string _search = string.Empty;
