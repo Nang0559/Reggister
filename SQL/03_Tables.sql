@@ -10,30 +10,20 @@ IF OBJECT_ID('dbo.F03Functions','U') IS NULL CREATE TABLE dbo.F03Functions(
 IF OBJECT_ID('dbo.F03Users','U') IS NULL CREATE TABLE dbo.F03Users(
  IdUser int IDENTITY PRIMARY KEY, IsActive bit NULL DEFAULT 1, CreatedBy int NOT NULL DEFAULT 0, LastModifiedSource nvarchar(50), CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(), ModifiedBy int NULL, ModifiedAt datetime2(0) NULL, Password nvarchar(255) NOT NULL, Avatar nvarchar(255) NULL, EmployeeCode nvarchar(50) NOT NULL, FullName nvarchar(100) NULL, PermissionCode int NOT NULL, LastLogin datetime2(0) NULL, LockoutEnable bit NOT NULL DEFAULT 1, LockoutEndDate datetime2(0) NULL, NumLoginFailed int NOT NULL DEFAULT 0, LevelApprove int NOT NULL DEFAULT 0, DeptCode nvarchar(20) NULL, Cvcode nvarchar(20) NULL);
 /* Safe upgrades for existing databases. New installs already receive these widths above. */
-IF OBJECT_ID(N'dbo.F03Employees',N'U') IS NOT NULL
-BEGIN
+IF COL_LENGTH(N'dbo.F03Employees',N'TotalLeaveDays') IS NOT NULL
     ALTER TABLE dbo.F03Employees ALTER COLUMN TotalLeaveDays decimal(10,2) NOT NULL;
-END;
 
-IF OBJECT_ID(N'dbo.F03StagingEmployee',N'U') IS NOT NULL
-BEGIN
+IF COL_LENGTH(N'dbo.F03StagingEmployee',N'TotalLeaveDays') IS NOT NULL
     ALTER TABLE dbo.F03StagingEmployee ALTER COLUMN TotalLeaveDays decimal(10,2) NULL;
-END;
 
-IF OBJECT_ID(N'dbo.F03OTTypes',N'U') IS NOT NULL
-BEGIN
+IF COL_LENGTH(N'dbo.F03OTTypes',N'RateMultiplier') IS NOT NULL
     ALTER TABLE dbo.F03OTTypes ALTER COLUMN RateMultiplier decimal(5,2) NOT NULL;
-END;
 
-IF OBJECT_ID(N'dbo.F03OTEmployees',N'U') IS NOT NULL
-BEGIN
+IF COL_LENGTH(N'dbo.F03OTEmployees',N'OTRateMultiplier') IS NOT NULL
     ALTER TABLE dbo.F03OTEmployees ALTER COLUMN OTRateMultiplier decimal(5,2) NOT NULL;
-END;
 
-IF OBJECT_ID(N'dbo.F03StagingOTType',N'U') IS NOT NULL
-BEGIN
+IF COL_LENGTH(N'dbo.F03StagingOTType',N'RateMultiplier') IS NOT NULL
     ALTER TABLE dbo.F03StagingOTType ALTER COLUMN RateMultiplier decimal(5,2) NULL;
-END;
 
 /* Remove accidental duplicate canonical Id columns from the legacy security tables. */
 IF COL_LENGTH('dbo.F03Permissions','Id') IS NOT NULL ALTER TABLE dbo.F03Permissions DROP COLUMN Id;
