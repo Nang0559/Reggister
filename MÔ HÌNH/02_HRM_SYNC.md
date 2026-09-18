@@ -2,39 +2,50 @@
 
 ## 1. Hai pipeline độc lập
 
+FVN_REGISTER có **hai pipeline HRM khác nhau**. Pipeline master/shift configuration và pipeline attendance/OT có boundary riêng.
+
 ```mermaid
 flowchart TB
-    HRM[(HRM)]
-    subgraph A[Pipeline A — Master Data Sync]
-        HRM --> SP[usp_SyncHrm*Source]
-        SP --> IMP[IHrmStagingImporter]
-        IMP --> ST[F03StagingXxx]
-        ST --> JOB[HrmSyncJob<TStaging,TEntity>]
+    HRM[(HRM — READ ONLY)]
+
+    subgraph A[Pipeline A — Master / Shift Configuration Sync]
+        HRM --> M1[usp_SyncHrm*Source]
+        M1 --> STG[F03StagingXxx]
+        STG --> JOB[HrmSyncJob]
         JOB --> MASTER[(F03 Master Data)]
+        HRM --> M2[usp_SyncHrmShiftMaster]
+        M2 --> SH[(F03Shifts)]
+        M2 --> SCH[(F03ShiftSchedules)]
+        M2 --> DAY[(F03ShiftScheduleDays)]
+        M2 --> EMP[(F03EmployeeShiftSchedules)]
     end
-    subgraph B[Pipeline B — OT Attendance Reconciliation]
+
+    subgraph B[Pipeline B — Attendance / OT Reconciliation]
         HRM --> ATT[usp_SyncAttendanceStaging]
+        SH --> ATT
+        SCH --> ATT
+        DAY --> ATT
+        EMP --> ATT
         ATT --> AST[F03AttendanceStaging]
-        AST --> AS[IOTAttendanceStagingService]
-        AS --> REC[IOTAttendanceReconciliationService]
+        AST --> REC[IOTAttendanceReconciliationService]
         REC --> OTSP[usp_SyncOTActualHours]
-        OTSP --> OT[(F03OTEmployee)]
+        OTSP --> OT[(F03OTEmployees)]
     end
 ```
 
 ### Pipeline A — HRM Master Data Sync
 
-Đối tượng: `LeaveType`, `OTType`, `Department`, `Position`, `Employee`.
-
-Đặc điểm: dữ liệu tương đối ít thay đổi, cần theo dõi Insert/Update/Delete và nguồn thay đổi.
-
-`HrmSyncJob` không cần biết staging đến từ trigger hay importer.
+Đối tượng: `LeaveType`, `OTType`, `Department`, `Position`, `Employee` qua staging/importer/generic sync; riêng shift configuration dùng `usp_SyncHrmShiftMaster`.
 
 ### Pipeline B — OT Attendance Reconciliation
 
 Pipeline này **không sử dụng** `IHrmStagingEntity/HrmChangeAction` của Pipeline A.
 
-Mỗi lần reconciliation là một thao tác ghi dữ liệu; vì vậy đây là command-with-result, không phải query thuần.
+Nguồn attendance HRM hiện gồm `tblNhanVien`, `tblCapThe`, `RecordDataNew`, `tblDauDoc`, `tblBaoCao`. Cấu hình ca/lịch được chuẩn hóa vào `F03Shifts`, `F03ShiftSchedules`, `F03ShiftScheduleDays`, `F03EmployeeShiftSchedules`.
+
+Đặc biệt, `usp_SyncAttendanceStaging` tự gọi `usp_SyncHrmShiftMaster` trước khi resolve attendance. Vì vậy shift master là dependency runtime của attendance resolver.
+
+Mỗi lần reconciliation là một thao tác ghi dữ liệu; đây là command-with-result, không phải query thuần.
 
 ## 2. HRM staging importer
 
