@@ -1,5 +1,6 @@
 
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
+using FVN_REGISTER.Application.Interfaces.Auths;
 
 using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Application.Services.Common;
@@ -22,6 +23,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         private readonly IApprovalWorkflowOrchestrator<EquipmentRequestSubject> _equipmentWorkflow;
         private readonly IApprovalGroupingPolicy _groupingPolicy;
         private readonly IAuthorizationService _authorization;
+        private readonly IAuditService _audit;
 
         public ApprovalInboxService(
             IApprovalWorkflowOrchestrator<LeaveRequestSubject> leaveWorkflow,
@@ -30,6 +32,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             IApprovalWorkflowOrchestrator<EquipmentRequestSubject> equipmentWorkflow,
             IApprovalGroupingPolicy groupingPolicy,
             IAuthorizationService authorization,
+            IAuditService audit,
             ILogger<ApprovalInboxService> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(logger, options)
@@ -129,8 +132,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     _ => throw new NotSupportedException($"Module {kind} chưa được hỗ trợ ở Inbox.")
                 };
 
-                return result.Success
-                    ? ServiceResult.Ok(result.Message)
+                if (result.Success)
+                {
+                    await _audit.LogAction("APPROVAL_APPROVED", user.UserId, $"Kind={kind}; Level={level}; RequestIds={string.Join(',', ids.Distinct())}", ct: ct);
+                    return ServiceResult.Ok(result.Message);
+                }
+                return ServiceResult.Fail(result.Message ?? "Duyệt thất bại.");
                     : ServiceResult.Fail(result.Message ?? "Duyệt thất bại.");
             }
             catch (NotSupportedException ex)
@@ -173,9 +180,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     _ => throw new NotSupportedException($"Module {kind} chưa được hỗ trợ ở Inbox.")
                 };
 
-                return result.Success
-                    ? ServiceResult.Ok(result.Message)
-                    : ServiceResult.Fail(result.Message ?? "Từ chối thất bại.");
+                if (result.Success)
+                {
+                    await _audit.LogAction("APPROVAL_REJECTED", user.UserId, $"Kind={kind}; Level={level}; RequestIds={string.Join(',', ids.Distinct())}", ct: ct);
+                    return ServiceResult.Ok(result.Message);
+                }
+                return ServiceResult.Fail(result.Message ?? "Từ chối thất bại.");
             }
             catch (NotSupportedException ex)
             {
