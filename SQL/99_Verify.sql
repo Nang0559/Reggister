@@ -59,6 +59,32 @@ WHERE p.name IN(N'usp_SyncAttendanceStaging',N'usp_SyncOTActualHours')
 ORDER BY p.name,prm.parameter_id;
 GO
 
+/* Schema precision checks for EF Core decimal properties. */
+IF EXISTS(
+    SELECT 1 FROM sys.columns c
+    JOIN sys.types t ON t.user_type_id=c.user_type_id
+    WHERE c.object_id=OBJECT_ID(N'dbo.F03StagingEmployee')
+      AND c.name=N'TotalLeaveDays'
+      AND (t.name<>N'decimal' OR c.precision<10 OR c.scale<2)
+)
+    THROW 50108,'F03StagingEmployee.TotalLeaveDays must be decimal(10,2) or wider.',1;
+
+IF EXISTS(
+    SELECT 1 FROM sys.columns c
+    JOIN sys.types t ON t.user_type_id=c.user_type_id
+    WHERE c.object_id=OBJECT_ID(N'dbo.F03StagingOTType')
+      AND c.name=N'RateMultiplier'
+      AND (t.name<>N'decimal' OR c.precision<5 OR c.scale<2)
+)
+    THROW 50109,'F03StagingOTType.RateMultiplier must be decimal(5,2) or wider.',1;
+
+IF COL_LENGTH(N'dbo.F03Departments',N'ParentDeptCode') IS NULL
+    THROW 50110,'F03Departments.ParentDeptCode is required.',1;
+IF COL_LENGTH(N'dbo.F03Departments',N'DisplayPriority') IS NULL
+    THROW 50111,'F03Departments.DisplayPriority is required.',1;
+IF COL_LENGTH(N'dbo.F03Departments',N'ShowInReport') IS NULL
+    THROW 50112,'F03Departments.ShowInReport is required.',1;
+
 /* Pipeline A — HRM master source contracts. */
 IF OBJECT_ID(N'dbo.usp_SyncHrmLeaveTypeSource',N'P') IS NULL THROW 50100,'Missing usp_SyncHrmLeaveTypeSource',1;
 IF OBJECT_ID(N'dbo.usp_SyncHrmDepartmentSource',N'P') IS NULL THROW 50101,'Missing usp_SyncHrmDepartmentSource',1;
