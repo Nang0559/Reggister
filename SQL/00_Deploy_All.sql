@@ -37,8 +37,8 @@ IMPORTANT:
 :r 09_StoredProcedures.sql
 :r 10_Triggers.sql
 :r 11_Automation.sql
-:r 12_Verify.sql
 :r 13_HrmShiftMaster.sql
+:r 12_Verify.sql
 
 PRINT N'============================================================';
 PRINT N'FVN_REGISTER SQL deployment 01..12 completed.';
