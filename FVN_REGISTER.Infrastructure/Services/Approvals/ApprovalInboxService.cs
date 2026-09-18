@@ -43,6 +43,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             _equipmentWorkflow = equipmentWorkflow;
             _groupingPolicy = groupingPolicy;
             _authorization = authorization;
+            _audit = audit;
         }
 
         public async Task<ServiceResult<List<PendingApprovalGroupDto>>> GetPendingAsync(
@@ -138,7 +139,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     return ServiceResult.Ok(result.Message);
                 }
                 return ServiceResult.Fail(result.Message ?? "Duyệt thất bại.");
-                    : ServiceResult.Fail(result.Message ?? "Duyệt thất bại.");
             }
             catch (NotSupportedException ex)
             {
