@@ -58,3 +58,15 @@ JOIN sys.procedures p ON p.object_id=prm.object_id
 WHERE p.name IN(N'usp_SyncAttendanceStaging',N'usp_SyncOTActualHours')
 ORDER BY p.name,prm.parameter_id;
 GO
+
+/* Pipeline A — HRM master source contracts. */
+IF OBJECT_ID(N'dbo.usp_SyncHrmLeaveTypeSource',N'P') IS NULL THROW 50100,'Missing usp_SyncHrmLeaveTypeSource',1;
+IF OBJECT_ID(N'dbo.usp_SyncHrmDepartmentSource',N'P') IS NULL THROW 50101,'Missing usp_SyncHrmDepartmentSource',1;
+IF OBJECT_ID(N'dbo.usp_SyncHrmPositionSource',N'P') IS NULL THROW 50102,'Missing usp_SyncHrmPositionSource',1;
+IF OBJECT_ID(N'dbo.usp_SyncHrmEmployeeSource',N'P') IS NULL THROW 50103,'Missing usp_SyncHrmEmployeeSource',1;
+
+IF COL_LENGTH(N'dbo.F03StagingDepartment',N'ParentDeptCode') IS NULL THROW 50104,'F03StagingDepartment.ParentDeptCode missing',1;
+IF COL_LENGTH(N'dbo.F03StagingDepartment',N'DisplayPriority') IS NULL THROW 50105,'F03StagingDepartment.DisplayPriority missing',1;
+IF COL_LENGTH(N'dbo.F03StagingDepartment',N'ShowInReport') IS NULL THROW 50106,'F03StagingDepartment.ShowInReport missing',1;
+IF COL_LENGTH(N'dbo.F03StagingEmployee',N'EmployeeNo') IS NULL THROW 50107,'F03StagingEmployee.EmployeeNo missing',1;
+GO
