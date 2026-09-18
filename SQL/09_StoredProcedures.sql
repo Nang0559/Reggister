@@ -63,6 +63,165 @@ BEGIN
 END;
 GO
 
+
+/*
+  HRM SHIFT MASTER SYNC
+  Reads HRM configuration and normalizes it into FVN_REGISTER.
+  No write is performed against HRM.
+*/
+CREATE OR ALTER PROCEDURE dbo.usp_SyncHrmShiftMaster
+AS
+BEGIN
+    SET NOCOUNT ON;
+    SET XACT_ABORT ON;
+
+    DECLARE @Now datetime2(0)=GETDATE();
+
+    /* 1. Shift master: HRM.tblca -> F03Shifts */
+    UPDATE tgt
+       SET tgt.IsActive=1,
+           tgt.ShiftName=src.CTen,
+           tgt.ShiftAbbr=src.CVietTat,
+           tgt.StartTime=CAST(src.CTGBatDau AS time(0)),
+           tgt.Break1Start=CASE WHEN src.CTGBDNghi1='19000101' THEN NULL ELSE CAST(src.CTGBDNghi1 AS time(0)) END,
+           tgt.Break1End=CASE WHEN src.CTGKTNghi1='19000101' THEN NULL ELSE CAST(src.CTGKTNghi1 AS time(0)) END,
+           tgt.Break2Start=CASE WHEN src.CTGBDNghi2='19000101' THEN NULL ELSE CAST(src.CTGBDNghi2 AS time(0)) END,
+           tgt.Break2End=CASE WHEN src.CTGKTNghi2='19000101' THEN NULL ELSE CAST(src.CTGKTNghi2 AS time(0)) END,
+           tgt.Break3Start=CASE WHEN src.CTGBDNghi3='19000101' THEN NULL ELSE CAST(src.CTGBDNghi3 AS time(0)) END,
+           tgt.Break3End=CASE WHEN src.CTGKTNghi3='19000101' THEN NULL ELSE CAST(src.CTGKTNghi3 AS time(0)) END,
+           tgt.EndTime=CAST(src.CTGKetThuc AS time(0)),
+           tgt.LateCalcTime=CASE WHEN src.CTGTinhDimuon='19000101' THEN NULL ELSE CAST(src.CTGTinhDimuon AS time(0)) END,
+           tgt.OTRateBase=src.CBDTinhLT,
+           tgt.OTRateTC=src.CBDTinhLTTC,
+           tgt.OTUnit=src.CDonViLamThem,
+           tgt.MidBreakMinutes=src.CTGNghiGiuaGio,
+           tgt.RegularMinutes=src.CTGQDD,
+           tgt.DailyOTThresholdMinutes=src.CNguongLamThem,
+           tgt.DailyOTTCThresholdMinutes=src.CNguongLamThemTC,
+           tgt.LateThresholdMinutes=src.CNguongDiMuon,
+           tgt.EarlyLeaveThresholdMinutes=src.CNguongVeSom,
+           tgt.ScanBeforeMinutes=src.CQuetTruocCa,
+           tgt.ScanAfterMinutes=src.CQuetSauCa,
+           tgt.AttendanceUnit=src.CDonViChamCong,
+           tgt.AllowSundayOT=src.CChuNhatLambt,
+           tgt.AllowHolidayOT=src.CNgayLeLambt,
+           tgt.ShiftType=src.CLoaiCa,
+           tgt.DepartmentScope=src.CDSBoPhan,
+           tgt.RestDayType=src.CNgaynghi,
+           tgt.IgnoreAbsence=src.CKhongtinhVangMat,
+           tgt.ScheduleInOutType=src.CLichtrinhVaora,
+           tgt.SplitOTAfterShift=src.CChiaLTSauca,
+           tgt.CountBreakAsWork=src.CCongNghiGiuaCa,
+           tgt.CountToTotalWork=src.CCongvaotongcong,
+           tgt.AllowOutside=src.CDuocRaNgoai,
+           tgt.AllowEarlyCheckIn=src.CTinhVaoSom,
+           tgt.ShiftGroup=src.CNhomCa,
+           tgt.LastModifiedSource=N'HRM',
+           tgt.ModifiedBy=0,
+           tgt.ModifiedAt=@Now
+    FROM dbo.F03Shifts tgt
+    INNER JOIN HRM.dbo.tblca src ON tgt.ShiftCode=CONVERT(nvarchar(20),src.CMa);
+
+    INSERT dbo.F03Shifts
+    (IsActive,CreatedBy,LastModifiedSource,CreatedAt,ModifiedAt,HrmCode,ShiftCode,ShiftName,ShiftAbbr,
+     StartTime,Break1Start,Break1End,Break2Start,Break2End,Break3Start,Break3End,EndTime,LateCalcTime,
+     OTRateBase,OTRateTC,OTUnit,MidBreakMinutes,RegularMinutes,DailyOTThresholdMinutes,DailyOTTCThresholdMinutes,
+     LateThresholdMinutes,EarlyLeaveThresholdMinutes,ScanBeforeMinutes,ScanAfterMinutes,AttendanceUnit,
+     AllowSundayOT,AllowHolidayOT,ShiftType,DepartmentScope,RestDayType,IgnoreAbsence,ScheduleInOutType,
+     SplitOTAfterShift,CountBreakAsWork,CountToTotalWork,AllowOutside,AllowEarlyCheckIn,ShiftGroup)
+    SELECT 1,0,N'HRM',@Now,@Now,CONVERT(nvarchar(20),s.CMa),CONVERT(nvarchar(20),s.CMa),s.CTen,s.CVietTat,
+           CAST(s.CTGBatDau AS time(0)),
+           CASE WHEN s.CTGBDNghi1='19000101' THEN NULL ELSE CAST(s.CTGBDNghi1 AS time(0)) END,
+           CASE WHEN s.CTGKTNghi1='19000101' THEN NULL ELSE CAST(s.CTGKTNghi1 AS time(0)) END,
+           CASE WHEN s.CTGBDNghi2='19000101' THEN NULL ELSE CAST(s.CTGBDNghi2 AS time(0)) END,
+           CASE WHEN s.CTGKTNghi2='19000101' THEN NULL ELSE CAST(s.CTGKTNghi2 AS time(0)) END,
+           CASE WHEN s.CTGBDNghi3='19000101' THEN NULL ELSE CAST(s.CTGBDNghi3 AS time(0)) END,
+           CASE WHEN s.CTGKTNghi3='19000101' THEN NULL ELSE CAST(s.CTGKTNghi3 AS time(0)) END,
+           CAST(s.CTGKetThuc AS time(0)),
+           CASE WHEN s.CTGTinhDimuon='19000101' THEN NULL ELSE CAST(s.CTGTinhDimuon AS time(0)) END,
+           s.CBDTinhLT,s.CBDTinhLTTC,s.CDonViLamThem,s.CTGNghiGiuaGio,s.CTGQDD,s.CNguongLamThem,s.CNguongLamThemTC,
+           s.CNguongDiMuon,s.CNguongVeSom,s.CQuetTruocCa,s.CQuetSauCa,s.CDonViChamCong,
+           s.CChuNhatLambt,s.CNgayLeLambt,s.CLoaiCa,s.CDSBoPhan,s.CNgaynghi,s.CKhongtinhVangMat,
+           s.CLichtrinhVaora,s.CChiaLTSauca,s.CCongNghiGiuaCa,s.CCongvaotongcong,s.CDuocRaNgoai,s.CTinhVaoSom,s.CNhomCa
+    FROM HRM.dbo.tblca s
+    WHERE NOT EXISTS (SELECT 1 FROM dbo.F03Shifts t WHERE t.ShiftCode=CONVERT(nvarchar(20),s.CMa));
+
+    UPDATE t SET IsActive=0,ModifiedAt=@Now,ModifiedBy=0
+    FROM dbo.F03Shifts t
+    WHERE t.LastModifiedSource=N'HRM'
+      AND NOT EXISTS (SELECT 1 FROM HRM.dbo.tblca s WHERE t.ShiftCode=CONVERT(nvarchar(20),s.CMa));
+
+    /* 2. Schedule master. HRM's FindShift_New resolves only weekday columns 1..7,
+          so those are the canonical active-day definitions for attendance. */
+    UPDATE t
+       SET IsActive=1,ScheduleName=s.Ten,IsMonthly=s.PhanTheoThang,
+           HrmCode=s.Ma,LastModifiedSource=N'HRM',ModifiedBy=0,ModifiedAt=@Now
+    FROM dbo.F03ShiftSchedules t
+    INNER JOIN HRM.dbo.CC_LichTrinhCa s ON t.ScheduleCode=s.Ma;
+
+    INSERT dbo.F03ShiftSchedules
+    (IsActive,CreatedBy,LastModifiedSource,CreatedAt,ModifiedAt,ScheduleCode,ScheduleName,IsMonthly,HrmCode)
+    SELECT 1,0,N'HRM',@Now,@Now,s.Ma,s.Ten,s.PhanTheoThang,s.Ma
+    FROM HRM.dbo.CC_LichTrinhCa s
+    WHERE NOT EXISTS (SELECT 1 FROM dbo.F03ShiftSchedules t WHERE t.ScheduleCode=s.Ma);
+
+    DELETE d
+    FROM dbo.F03ShiftScheduleDays d
+    WHERE d.LastModifiedSource=N'HRM';
+
+    INSERT dbo.F03ShiftScheduleDays
+    (IsActive,CreatedBy,LastModifiedSource,CreatedAt,ModifiedAt,ScheduleCode,DayNo,ShiftCode)
+    SELECT 1,0,N'HRM',@Now,@Now,s.Ma,v.DayNo,LTRIM(RTRIM(x.value))
+    FROM HRM.dbo.CC_LichTrinhCa s
+    CROSS APPLY (VALUES
+       (1,s.Ngay01),(2,s.Ngay02),(3,s.Ngay03),(4,s.Ngay04),(5,s.Ngay05),(6,s.Ngay06),(7,s.Ngay07),
+       (8,s.Ngay08),(9,s.Ngay09),(10,s.Ngay10),(11,s.Ngay11),(12,s.Ngay12),(13,s.Ngay13),(14,s.Ngay14),
+       (15,s.Ngay15),(16,s.Ngay16),(17,s.Ngay17),(18,s.Ngay18),(19,s.Ngay19),(20,s.Ngay20),(21,s.Ngay21),
+       (22,s.Ngay22),(23,s.Ngay23),(24,s.Ngay24),(25,s.Ngay25),(26,s.Ngay26),(27,s.Ngay27),(28,s.Ngay28),
+       (29,s.Ngay29),(30,s.Ngay30),(31,s.Ngay31)
+    ) v(DayNo,ShiftList)
+    CROSS APPLY STRING_SPLIT(COALESCE(v.ShiftList,N''),',') x
+    WHERE LTRIM(RTRIM(x.value))<>N''
+      AND EXISTS (SELECT 1 FROM dbo.F03Shifts sh WHERE sh.ShiftCode=LTRIM(RTRIM(x.value)));
+
+    /* 3. Current employee schedule assignment. */
+    UPDATE t
+       SET IsActive=CASE WHEN e.IsActive=1 AND NULLIF(nv.NVLichTrinhCa,N'') IS NOT NULL THEN 1 ELSE 0 END,
+           ScheduleCode=NULLIF(nv.NVLichTrinhCa,N''),
+           ScheduleType=vr.Loai,
+           HrmEmployeeNo=nv.NVMa,
+           ValidFrom=TRY_CONVERT(date,nv.NVNgayVao),
+           ValidTo=CASE WHEN nv.NVNgayRa >= '9990-01-01' THEN NULL ELSE TRY_CONVERT(date,nv.NVNgayRa) END,
+           LastModifiedSource=N'HRM',ModifiedBy=0,ModifiedAt=@Now
+    FROM dbo.F03EmployeeShiftSchedules t
+    INNER JOIN HRM.dbo.tblNhanVien nv ON t.EmployeeCode=RTRIM(nv.NVMaNV)
+    LEFT JOIN HRM.dbo.CC_LichTrinhVaoRa vr ON vr.Ma=nv.NVLichTrinhVaoRa
+    LEFT JOIN dbo.F03Employees e ON e.EmployeeCode=RTRIM(nv.NVMaNV);
+
+    INSERT dbo.F03EmployeeShiftSchedules
+    (IsActive,CreatedBy,LastModifiedSource,CreatedAt,ModifiedAt,EmployeeCode,ScheduleCode,ScheduleType,HrmEmployeeNo,ValidFrom,ValidTo)
+    SELECT CASE WHEN e.IsActive=1 AND NULLIF(nv.NVLichTrinhCa,N'') IS NOT NULL THEN 1 ELSE 0 END,
+           0,N'HRM',@Now,@Now,RTRIM(nv.NVMaNV),NULLIF(nv.NVLichTrinhCa,N''),vr.Loai,nv.NVMa,
+           TRY_CONVERT(date,nv.NVNgayVao),
+           CASE WHEN nv.NVNgayRa >= '9990-01-01' THEN NULL ELSE TRY_CONVERT(date,nv.NVNgayRa) END
+    FROM HRM.dbo.tblNhanVien nv
+    INNER JOIN dbo.F03Employees e ON e.EmployeeCode=RTRIM(nv.NVMaNV)
+    LEFT JOIN HRM.dbo.CC_LichTrinhVaoRa vr ON vr.Ma=nv.NVLichTrinhVaoRa
+    WHERE NOT EXISTS (SELECT 1 FROM dbo.F03EmployeeShiftSchedules t WHERE t.EmployeeCode=RTRIM(nv.NVMaNV));
+
+    UPDATE t SET IsActive=0,ModifiedAt=@Now,ModifiedBy=0
+    FROM dbo.F03EmployeeShiftSchedules t
+    WHERE t.LastModifiedSource=N'HRM'
+      AND NOT EXISTS (SELECT 1 FROM HRM.dbo.tblNhanVien nv WHERE RTRIM(nv.NVMaNV)=t.EmployeeCode);
+
+    SELECT
+        (SELECT COUNT(*) FROM dbo.F03Shifts WHERE LastModifiedSource=N'HRM' AND IsActive=1) AS ShiftCount,
+        (SELECT COUNT(*) FROM dbo.F03ShiftSchedules WHERE LastModifiedSource=N'HRM' AND IsActive=1) AS ScheduleCount,
+        (SELECT COUNT(*) FROM dbo.F03ShiftScheduleDays WHERE LastModifiedSource=N'HRM' AND IsActive=1) AS ScheduleDayCount,
+        (SELECT COUNT(*) FROM dbo.F03EmployeeShiftSchedules WHERE LastModifiedSource=N'HRM' AND IsActive=1) AS EmployeeScheduleCount;
+END;
+GO
+
 /*
   Pipeline B — HRM attendance -> local staging -> OT reconciliation.
 
@@ -77,6 +236,12 @@ GO
   F03OTRequests.StartTime of an APPROVED OT request is the local
   business source for the beginning of the requested OT window.
 */
+
+/*
+  Pipeline B — local shift master + HRM attendance -> F03AttendanceStaging.
+  HRM is READ ONLY. Shift configuration is first synchronized by
+  usp_SyncHrmShiftMaster; attendance uses only the local F03* shift tables.
+*/
 CREATE OR ALTER PROCEDURE dbo.usp_SyncAttendanceStaging
     @WorkDate date
 AS
@@ -85,158 +250,257 @@ BEGIN
     SET XACT_ABORT ON;
 
     DELETE FROM dbo.F03AttendanceStaging
-    WHERE WorkDate >= @WorkDate
-      AND WorkDate < DATEADD(day,1,@WorkDate);
+    WHERE WorkDate >= CAST(@WorkDate AS datetime2(0))
+      AND WorkDate < DATEADD(day,1,CAST(@WorkDate AS datetime2(0)));
 
-    ;WITH EmployeeCards AS
+    IF NOT EXISTS (SELECT 1 FROM dbo.F03Shifts WHERE IsActive=1)
+        THROW 51301,'F03Shifts is empty. Run dbo.usp_SyncHrmShiftMaster first.',1;
+
+    IF NOT EXISTS (SELECT 1 FROM dbo.F03ShiftSchedules WHERE IsActive=1)
+        THROW 51302,'F03ShiftSchedules is empty. Run dbo.usp_SyncHrmShiftMaster first.',1;
+
+    CREATE TABLE #Employees(
+        EmployeeCode nvarchar(50) NOT NULL PRIMARY KEY,
+        FullName nvarchar(100) NULL,
+        DeptCode nvarchar(20) NULL,
+        ScheduleCode nvarchar(50) NULL,
+        ScheduleType nvarchar(20) NULL,
+        HrmScheduleCode nvarchar(50) NULL
+    );
+
+    INSERT #Employees(EmployeeCode,FullName,DeptCode,ScheduleCode,ScheduleType,HrmScheduleCode)
+    SELECT
+        e.EmployeeCode,e.EmployeeName,e.DeptCode,
+        COALESCE(NULLIF(RTRIM(bc.BCLichTrinhCa),N''),es.ScheduleCode),
+        es.ScheduleType,
+        COALESCE(NULLIF(RTRIM(bc.BCLichTrinhCa),N''),es.ScheduleCode)
+    FROM dbo.F03Employees e
+    LEFT JOIN dbo.F03EmployeeShiftSchedules es
+        ON es.EmployeeCode=e.EmployeeCode AND es.IsActive=1
+    LEFT JOIN HRM.dbo.tblNhanVien nv
+        ON RTRIM(nv.NVMaNV)=e.EmployeeCode
+    LEFT JOIN HRM.dbo.tblBaoCao bc
+        ON bc.BCNgay=@WorkDate AND bc.BCMaNV=nv.NVMa
+    WHERE e.IsActive=1
+      AND COALESCE(NULLIF(RTRIM(bc.BCLichTrinhCa),N''),es.ScheduleCode) IS NOT NULL;
+
+    CREATE TABLE #Candidates(
+        EmployeeCode nvarchar(50) NOT NULL,
+        ShiftCode nvarchar(20) NOT NULL,
+        ShiftName nvarchar(100) NOT NULL,
+        ShiftAbbr nvarchar(10) NULL,
+        ShiftCategory int NULL,
+        ShiftGroup nvarchar(50) NULL,
+        ShiftStart datetime2(0) NOT NULL,
+        ShiftEnd datetime2(0) NOT NULL,
+        ScanStart datetime2(0) NOT NULL,
+        ScanEnd datetime2(0) NOT NULL,
+        ScheduleType nvarchar(20) NULL,
+        AllowEarlyCheckIn bit NOT NULL,
+        CountBreakAsWork bit NULL,
+        CountToTotalWork bit NULL,
+        Break1Start datetime2(0) NULL, Break1End datetime2(0) NULL,
+        Break2Start datetime2(0) NULL, Break2End datetime2(0) NULL,
+        Break3Start datetime2(0) NULL, Break3End datetime2(0) NULL
+    );
+
+    ;WITH DayCandidates AS
     (
-        SELECT DISTINCT CTMaNV, CTMaThe
-        FROM HRM.dbo.tblCapThe
-        WHERE CTMaNV IS NOT NULL
-          AND CTMaThe IS NOT NULL
-    ),
-    RawSwipes AS
+        SELECT e.EmployeeCode,e.ScheduleType,d.ShiftCode
+        FROM #Employees e
+        INNER JOIN dbo.F03ShiftScheduleDays d
+          ON d.ScheduleCode=e.ScheduleCode
+         AND d.DayNo=DATEPART(WEEKDAY,@WorkDate)
+         AND d.IsActive=1
+    )
+    INSERT #Candidates
+    SELECT
+        dc.EmployeeCode,s.ShiftCode,s.ShiftName,s.ShiftAbbr,s.ShiftType,s.ShiftGroup,
+        x.ShiftStart,x.ShiftEnd,
+        DATEADD(MINUTE,-s.ScanBeforeMinutes,x.ShiftStart),
+        DATEADD(MINUTE, s.ScanAfterMinutes,x.ShiftEnd),
+        dc.ScheduleType,s.AllowEarlyCheckIn,s.CountBreakAsWork,s.CountToTotalWork,
+        CASE WHEN s.Break1Start IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break1Start),CAST(@WorkDate AS datetime2(0))) END,
+        CASE WHEN s.Break1End IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break1End),CAST(@WorkDate AS datetime2(0))) END,
+        CASE WHEN s.Break2Start IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break2Start),CAST(@WorkDate AS datetime2(0))) END,
+        CASE WHEN s.Break2End IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break2End),CAST(@WorkDate AS datetime2(0))) END,
+        CASE WHEN s.Break3Start IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break3Start),CAST(@WorkDate AS datetime2(0))) END,
+        CASE WHEN s.Break3End IS NULL THEN NULL ELSE DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.Break3End),CAST(@WorkDate AS datetime2(0))) END
+    FROM DayCandidates dc
+    INNER JOIN dbo.F03Shifts s ON s.ShiftCode=dc.ShiftCode AND s.IsActive=1
+    CROSS APPLY
     (
         SELECT
-            RTRIM(nv.NVMaNV) AS EmployeeCode,
-            RTRIM(nv.NVHoTen) AS FullName,
-            fe.DeptCode,
-            r.ThoiGian,
-            CAST(dd.DDChinhVao AS int) AS IsCheckIn
-        FROM HRM.dbo.RecordDataNew r
-        INNER JOIN HRM.dbo.tblDauDoc dd
-            ON dd.DDMa = r.IDM
-        INNER JOIN EmployeeCards ec
-            ON ec.CTMaThe = r.IDCard
-        INNER JOIN HRM.dbo.tblNhanVien nv
-            ON nv.NVMa = ec.CTMaNV
-        INNER JOIN dbo.F03Employees fe
-            ON fe.EmployeeCode = RTRIM(nv.NVMaNV)
-           AND fe.IsActive = 1
-        WHERE r.ThoiGian >= DATEADD(HOUR,17,CAST(DATEADD(DAY,-1,@WorkDate) AS datetime))
-          AND r.ThoiGian <  DATEADD(HOUR,7,CAST(DATEADD(DAY,1,@WorkDate) AS datetime))
-    ),
-    FirstIn AS
+            ShiftStart=DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.StartTime),CAST(@WorkDate AS datetime2(0))),
+            ShiftEnd=DATEADD(MINUTE,
+                DATEDIFF(MINUTE,CAST('00:00:00' AS time),s.EndTime)
+                + CASE WHEN s.EndTime < s.StartTime THEN 1440 ELSE 0 END,
+                CAST(@WorkDate AS datetime2(0)))
+    ) x;
+
+    /* Move breaks across midnight when necessary. */
+    UPDATE c
+       SET Break1Start=CASE WHEN Break1Start IS NULL THEN NULL WHEN Break1Start < ShiftStart THEN DATEADD(day,1,Break1Start) ELSE Break1Start END,
+           Break1End=CASE WHEN Break1End IS NULL THEN NULL WHEN Break1End < ShiftStart THEN DATEADD(day,1,Break1End) ELSE Break1End END,
+           Break2Start=CASE WHEN Break2Start IS NULL THEN NULL WHEN Break2Start < ShiftStart THEN DATEADD(day,1,Break2Start) ELSE Break2Start END,
+           Break2End=CASE WHEN Break2End IS NULL THEN NULL WHEN Break2End < ShiftStart THEN DATEADD(day,1,Break2End) ELSE Break2End END,
+           Break3Start=CASE WHEN Break3Start IS NULL THEN NULL WHEN Break3Start < ShiftStart THEN DATEADD(day,1,Break3Start) ELSE Break3Start END,
+           Break3End=CASE WHEN Break3End IS NULL THEN NULL WHEN Break3End < ShiftStart THEN DATEADD(day,1,Break3End) ELSE Break3End END
+    FROM #Candidates c;
+
+    CREATE TABLE #Swipes(
+        EmployeeCode nvarchar(50) NOT NULL,
+        SwipeTime datetime2(0) NOT NULL,
+        IsCheckIn bit NULL
+    );
+
+    INSERT #Swipes(EmployeeCode,SwipeTime,IsCheckIn)
+    SELECT DISTINCT
+        RTRIM(nv.NVMaNV),r.ThoiGian,CAST(dd.DDChinhVao AS bit)
+    FROM HRM.dbo.RecordDataNew r
+    INNER JOIN HRM.dbo.tblDauDoc dd ON dd.DDMa=r.IDM
+    INNER JOIN HRM.dbo.tblCapThe ct ON ct.CTMaThe=r.IDCard
+    INNER JOIN HRM.dbo.tblNhanVien nv ON nv.NVMa=ct.CTMaNV
+    INNER JOIN #Employees e ON e.EmployeeCode=RTRIM(nv.NVMaNV)
+    WHERE ct.CTNgayApDung <= @WorkDate
+      AND ct.CTNgayKetThuc >= @WorkDate
+      AND r.ThoiGian >= DATEADD(HOUR,17,CAST(DATEADD(DAY,-1,@WorkDate) AS datetime2(0)))
+      AND r.ThoiGian < DATEADD(HOUR,12,CAST(DATEADD(DAY,1,@WorkDate) AS datetime2(0)));
+
+    CREATE TABLE #Resolved(
+        EmployeeCode nvarchar(50) NOT NULL PRIMARY KEY,
+        ShiftCode nvarchar(20) NOT NULL,
+        ShiftName nvarchar(100) NOT NULL,
+        ShiftAbbr nvarchar(10) NULL,
+        ShiftCategory int NULL,
+        ShiftGroup nvarchar(50) NULL,
+        ShiftStart datetime2(0) NOT NULL,
+        ShiftEnd datetime2(0) NOT NULL,
+        CheckIn datetime2(0) NULL,
+        CheckOut datetime2(0) NULL,
+        ScheduleType nvarchar(20) NULL,
+        CountBreakAsWork bit NULL,
+        CountToTotalWork bit NULL,
+        BreakMinutes int NOT NULL DEFAULT 0
+    );
+
+    ;WITH CandidateSwipes AS
     (
-        SELECT
-            EmployeeCode,
-            MAX(FullName) AS FullName,
-            MAX(DeptCode) AS DeptCode,
-            MIN(ThoiGian) AS CheckInDateTime
-        FROM RawSwipes
-        WHERE IsCheckIn = 1
-        GROUP BY EmployeeCode
+        SELECT c.*,sw.SwipeTime,sw.IsCheckIn
+        FROM #Candidates c
+        INNER JOIN #Swipes sw
+          ON sw.EmployeeCode=c.EmployeeCode
+         AND sw.SwipeTime BETWEEN c.ScanStart AND c.ScanEnd
     ),
-    LastOut AS
+    Ranked AS
     (
-        SELECT
-            i.EmployeeCode,
-            MAX(r.ThoiGian) AS CheckOutDateTime
-        FROM FirstIn i
-        INNER JOIN RawSwipes r
-            ON r.EmployeeCode = i.EmployeeCode
-           AND r.IsCheckIn = 0
-           AND r.ThoiGian > i.CheckInDateTime
-           AND r.ThoiGian <= DATEADD(HOUR,16,i.CheckInDateTime)
-        GROUP BY i.EmployeeCode
+        SELECT *,
+          MIN(CASE WHEN IsCheckIn=1 THEN SwipeTime END) OVER(PARTITION BY EmployeeCode,ShiftCode) AS FirstInTTDD,
+          MAX(CASE WHEN IsCheckIn=0 THEN SwipeTime END) OVER(PARTITION BY EmployeeCode,ShiftCode) AS LastOutTTDD,
+          MIN(SwipeTime) OVER(PARTITION BY EmployeeCode,ShiftCode) AS FirstAny,
+          MAX(SwipeTime) OVER(PARTITION BY EmployeeCode,ShiftCode) AS LastAny
+        FROM CandidateSwipes
     ),
-    ApprovedOT AS
+    Match AS
     (
-        SELECT
-            oe.EmployeeCode,
-            MIN(ot.StartTime) AS OTStartTime,
-            MAX(ot.EndTime) AS OTPlannedEndTime,
-            MAX(ot.DeptCode) AS OTDeptCode
+        SELECT DISTINCT EmployeeCode,ShiftCode,ShiftName,ShiftAbbr,ShiftCategory,ShiftGroup,
+               ShiftStart,ShiftEnd,ScheduleType,CountBreakAsWork,CountToTotalWork,
+               CASE WHEN ScheduleType=N'TTXK'
+                    THEN FirstAny ELSE FirstInTTDD END AS CheckIn,
+               CASE WHEN ScheduleType=N'TTXK'
+                    THEN CASE WHEN LastAny>FirstAny THEN LastAny END
+                    ELSE LastOutTTDD END AS CheckOut,
+               CASE WHEN ScheduleType=N'TTXK' THEN 2
+                    WHEN FirstInTTDD IS NOT NULL AND LastOutTTDD IS NOT NULL THEN 2
+                    WHEN FirstInTTDD IS NOT NULL OR LastOutTTDD IS NOT NULL THEN 1
+                    ELSE 0 END AS MatchScore
+        FROM Ranked
+    ),
+    Best AS
+    (
+        SELECT *,ROW_NUMBER() OVER(
+            PARTITION BY EmployeeCode
+            ORDER BY MatchScore DESC,
+                     CASE WHEN CheckIn IS NOT NULL AND CheckOut IS NOT NULL THEN 1 ELSE 0 END DESC,
+                     ABS(DATEDIFF(MINUTE,ShiftStart,ISNULL(CheckIn,ShiftStart))) ASC,
+                     ShiftStart
+        ) rn
+        FROM Match
+        WHERE MatchScore>0
+    )
+    INSERT #Resolved(EmployeeCode,ShiftCode,ShiftName,ShiftAbbr,ShiftCategory,ShiftGroup,ShiftStart,ShiftEnd,CheckIn,CheckOut,ScheduleType,CountBreakAsWork,CountToTotalWork)
+    SELECT EmployeeCode,ShiftCode,ShiftName,ShiftAbbr,ShiftCategory,ShiftGroup,ShiftStart,ShiftEnd,CheckIn,CheckOut,ScheduleType,CountBreakAsWork,CountToTotalWork
+    FROM Best WHERE rn=1;
+
+    UPDATE r
+       SET BreakMinutes =
+           CASE WHEN ISNULL(r.CountBreakAsWork,0)=1 THEN 0 ELSE
+             ISNULL(CASE WHEN c.Break1Start IS NOT NULL AND c.Break1End IS NOT NULL THEN
+                CASE WHEN DATEDIFF(MINUTE,CASE WHEN r.CheckIn>c.Break1Start THEN r.CheckIn ELSE c.Break1Start END,
+                                      CASE WHEN r.CheckOut<c.Break1End THEN r.CheckOut ELSE c.Break1End END)>0
+                     THEN DATEDIFF(MINUTE,CASE WHEN r.CheckIn>c.Break1Start THEN r.CheckIn ELSE c.Break1Start END,
+                                      CASE WHEN r.CheckOut<c.Break1End THEN r.CheckOut ELSE c.Break1End END) ELSE 0 END
+             ELSE 0 END,0)
+             + ISNULL(CASE WHEN c.Break2Start IS NOT NULL AND c.Break2End IS NOT NULL THEN
+                CASE WHEN DATEDIFF(MINUTE,CASE WHEN r.CheckIn>c.Break2Start THEN r.CheckIn ELSE c.Break2Start END,
+                                      CASE WHEN r.CheckOut<c.Break2End THEN r.CheckOut ELSE c.Break2End END)>0
+                     THEN DATEDIFF(MINUTE,CASE WHEN r.CheckIn>c.Break2Start THEN r.CheckIn ELSE c.Break2Start END,
+                                      CASE WHEN r.CheckOut<c.Break2End THEN r.CheckOut ELSE c.Break2End END) ELSE 0 END
+             ELSE 0 END,0)
+             + ISNULL(CASE WHEN c.Break3Start IS NOT NULL AND c.Break3End IS NOT NULL THEN
+                CASE WHEN DATEDIFF(MINUTE,CASE WHEN r.CheckIn>c.Break3Start THEN r.CheckIn ELSE c.Break3Start END,
+                                      CASE WHEN r.CheckOut<c.Break3End THEN r.CheckOut ELSE c.Break3End END)>0
+                     THEN DATEDIFF(MINUTE,CASE WHEN r.CheckIn>c.Break3Start THEN r.CheckIn ELSE c.Break3Start END,
+                                      CASE WHEN r.CheckOut<c.Break3End THEN r.CheckOut ELSE c.Break3End END) ELSE 0 END
+             ELSE 0 END,0)
+           END
+    FROM #Resolved r
+    INNER JOIN #Candidates c ON c.EmployeeCode=r.EmployeeCode AND c.ShiftCode=r.ShiftCode;
+
+    ;WITH ApprovedOT AS
+    (
+        SELECT oe.EmployeeCode,ot.StartTime,ot.EndTime,
+               ROW_NUMBER() OVER(PARTITION BY oe.EmployeeCode ORDER BY ot.StartTime,ot.EndTime,ot.Id) rn
         FROM dbo.F03OTRequests ot
-        INNER JOIN dbo.F03OTEmployees oe
-            ON oe.OTRequestId = ot.Id
-           AND oe.IsActive = 1
-        WHERE ot.IsActive = 1
-          AND CAST(ot.OTDate AS date) = @WorkDate
-          AND ot.RequestStatus = 3
-        GROUP BY oe.EmployeeCode
+        INNER JOIN dbo.F03OTEmployees oe ON oe.OTRequestId=ot.Id AND oe.IsActive=1
+        WHERE ot.IsActive=1 AND CAST(ot.OTDate AS date)=@WorkDate AND ot.RequestStatus=3
     ),
-    Holidays AS
+    OTWindow AS
     (
-        SELECT
-            HolidayDate,
-            Description,
-            CASE
-                WHEN DATEPART(WEEKDAY,HolidayDate) = 1 THEN N'SUNDAY'
-                WHEN DATEPART(WEEKDAY,HolidayDate) = 7 THEN N'SATURDAY'
-                ELSE N'PUBLIC_HOLIDAY'
-            END AS HolidayType
-        FROM dbo.F03CompanyHolidays
-        WHERE IsActive = 1
-          AND HolidayDate = @WorkDate
+        SELECT EmployeeCode,MIN(StartTime) StartTime,MAX(EndTime) EndTime
+        FROM ApprovedOT GROUP BY EmployeeCode
     )
     INSERT dbo.F03AttendanceStaging
-    (
-        WorkDate,EmployeeCode,DeptCode,DeptName,FullName,
-        CheckInText,CheckOutText,CheckInDateTime,CheckOutDateTime,
-        ShiftCode,ShiftName,ShiftAbbr,ShiftCategory,
-        OtHours,TotalHours,IsHoliday,HolidayType,ShiftType,SyncedAt
-    )
-    SELECT
-        CAST(@WorkDate AS datetime2(0)),
-        i.EmployeeCode,
-        COALESCE(ao.OTDeptCode,i.DeptCode),
-        d.DeptName,
-        i.FullName,
-        CONVERT(varchar(5),CAST(i.CheckInDateTime AS time(0)),108),
-        CONVERT(varchar(5),CAST(o.CheckOutDateTime AS time(0)),108),
-        i.CheckInDateTime,
-        o.CheckOutDateTime,
-        NULL,NULL,NULL,NULL,
+    (WorkDate,EmployeeCode,DeptCode,DeptName,FullName,CheckInText,CheckOutText,CheckInDateTime,CheckOutDateTime,
+     ShiftCode,ShiftName,ShiftAbbr,ShiftCategory,OtHours,TotalHours,IsHoliday,HolidayType,ShiftType,SyncedAt)
+    SELECT CAST(@WorkDate AS datetime2(0)),r.EmployeeCode,e.DeptCode,d.DeptName,e.FullName,
+           CASE WHEN r.CheckIn IS NULL THEN NULL ELSE CONVERT(varchar(5),CAST(r.CheckIn AS time(0)),108) END,
+           CASE WHEN r.CheckOut IS NULL THEN NULL ELSE CONVERT(varchar(5),CAST(r.CheckOut AS time(0)),108) END,
+           r.CheckIn,r.CheckOut,r.ShiftCode,r.ShiftName,r.ShiftAbbr,r.ShiftCategory,
+           CAST(CASE WHEN ot.StartTime IS NULL OR r.CheckIn IS NULL OR r.CheckOut IS NULL THEN 0
+                    WHEN r.CheckOut <= ot.StartTime OR r.CheckIn >= ot.EndTime THEN 0
+                    ELSE DATEDIFF(MINUTE,
+                           CASE WHEN r.CheckIn>ot.StartTime THEN r.CheckIn ELSE ot.StartTime END,
+                           CASE WHEN r.CheckOut<ot.EndTime THEN r.CheckOut ELSE ot.EndTime END)/60.0 END AS decimal(5,2)),
+           CAST(CASE WHEN r.CheckIn IS NULL OR r.CheckOut IS NULL THEN 0
+                    ELSE CASE WHEN DATEDIFF(MINUTE,r.CheckIn,r.CheckOut)-r.BreakMinutes<0 THEN 0
+                              ELSE (DATEDIFF(MINUTE,r.CheckIn,r.CheckOut)-r.BreakMinutes)/60.0 END END AS decimal(5,2)),
+           CAST(CASE WHEN h.HolidayDate IS NULL THEN 0 ELSE 1 END AS bit),h.HolidayType,
+           CASE WHEN r.CheckIn IS NULL THEN N'NO_CHECKIN'
+                WHEN r.CheckOut IS NULL THEN N'NO_CHECKOUT'
+                WHEN h.HolidayType=N'PUBLIC_HOLIDAY' THEN N'OT_HOLIDAY'
+                WHEN h.HolidayType=N'SUNDAY' THEN N'OT_SUNDAY'
+                WHEN h.HolidayType=N'SATURDAY' THEN N'OT_SATURDAY'
+                ELSE N'ATTENDANCE' END,
+           @Now
+    FROM #Resolved r
+    INNER JOIN #Employees e ON e.EmployeeCode=r.EmployeeCode
+    LEFT JOIN dbo.F03Departments d ON d.DeptCode=e.DeptCode AND d.IsActive=1
+    LEFT JOIN dbo.F03CompanyHolidays h ON h.HolidayDate=@WorkDate AND h.IsActive=1
+    LEFT JOIN OTWindow ot ON ot.EmployeeCode=r.EmployeeCode;
 
-        CAST(
-            CASE
-                WHEN o.CheckOutDateTime IS NULL OR ao.OTStartTime IS NULL THEN 0
-                WHEN o.CheckOutDateTime <= ao.OTStartTime THEN 0
-                ELSE DATEDIFF(
-                    MINUTE,
-                    CASE WHEN i.CheckInDateTime > ao.OTStartTime
-                         THEN i.CheckInDateTime ELSE ao.OTStartTime END,
-                    o.CheckOutDateTime
-                ) / 60.0
-            END AS decimal(5,2)
-        ),
-
-        CAST(
-            CASE
-                WHEN o.CheckOutDateTime IS NULL THEN 0
-                ELSE DATEDIFF(MINUTE,i.CheckInDateTime,o.CheckOutDateTime) / 60.0
-            END AS decimal(5,2)
-        ),
-
-        CAST(CASE WHEN h.HolidayDate IS NULL THEN 0 ELSE 1 END AS bit),
-        h.HolidayType,
-
-        CASE
-            WHEN o.CheckOutDateTime IS NULL THEN N'NO_CHECKOUT'
-            WHEN h.HolidayType = N'PUBLIC_HOLIDAY' THEN N'OT_HOLIDAY'
-            WHEN h.HolidayType = N'SUNDAY' THEN N'OT_SUNDAY'
-            WHEN h.HolidayType = N'SATURDAY' THEN N'OT_SATURDAY'
-            ELSE N'HC_OT'
-        END,
-
-        GETDATE()
-    FROM FirstIn i
-    INNER JOIN ApprovedOT ao
-        ON ao.EmployeeCode = i.EmployeeCode
-    LEFT JOIN LastOut o
-        ON o.EmployeeCode = i.EmployeeCode
-    LEFT JOIN dbo.F03Departments d
-        ON d.DeptCode = COALESCE(ao.OTDeptCode,i.DeptCode)
-       AND d.IsActive = 1
-    LEFT JOIN Holidays h
-        ON h.HolidayDate = @WorkDate
-    WHERE o.CheckOutDateTime IS NOT NULL;
-
-    DECLARE @Count int = @@ROWCOUNT;
-
-    SELECT @Count AS SyncedCount,
-           CAST(@WorkDate AS date) AS WorkDate;
+    DECLARE @Count int=@@ROWCOUNT;
+    SELECT @Count AS SyncedCount,CAST(@WorkDate AS date) AS WorkDate;
 END;
 GO
 
