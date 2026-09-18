@@ -1,0 +1,79 @@
+@page "/report/operations"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Reports
+@using FVN_REGISTER.Core.Constants
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Pages.Reports
+@using FVN_REGISTER.Shared.Services.Leaves
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components
+@inject IReportClientService ReportService
+@inject ISnackbar Snackbar
+@inherits AppComponentBase
+
+<MudText Typo="Typo.h5" Class="mb-4"><MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" />Báo cáo nghiệp vụ</MudText>
+
+@if (_permissionLoading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else
+{
+    <MudTabs ActivePanelIndex="_tab" ActivePanelIndexChanged="OnTabChanged" Class="mb-4">
+        @if (CanTrip) { <MudTabPanel Text="Công tác" /> }
+        @if (CanEquipment) { <MudTabPanel Text="Thiết bị" /> }
+        @if (CanAttendance) { <MudTabPanel Text="Chấm công" /> }
+    </MudTabs>
+    <ReportBase @ref="_base" ReportType="_type" Query="_query">
+        <AdditionalFilters>
+            <MudItem xs="12" sm="3">
+                <MudSelect T="string" Label="Phòng ban" @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                    <MudSelectItem T="string" Value="@(null)">-- Tất cả --</MudSelectItem>
+                    @foreach(var d in _departments ?? new()) { <MudSelectItem T="string" Value="@d.Key">@d.Value</MudSelectItem> }
+                </MudSelect>
+            </MudItem>
+            @if (_type is ReportType.TripSummaryByEmployee or ReportType.TripDetail or ReportType.AttendanceDetail)
+            {
+                <MudItem xs="12" sm="3">
+                    <MudAutocomplete T="KeyValuePair<string,string>" Label="Nhân viên" Value="@_employee" ValueChanged="OnEmployeeChanged" SearchFunc="SearchEmployees" ToStringFunc="@(x=>x.Value)" Clearable="true" />
+                </MudItem>
+            }
+        </AdditionalFilters>
+    </ReportBase>
+}
+
+@code {
+    [SupplyParameterFromQuery(Name="module")] public string? Module { get; set; }
+    private PermissionSnapshotDto? _permission;
+    private bool _permissionLoading=true;
+    private int _tab;
+    private ReportBase? _base;
+    private List<KeyValuePair<string,string>>? _departments;
+    private KeyValuePair<string,string> _employee;
+    private ReportQueryDto _query=new(){FromDate=new DateTime(DateTime.Now.Year,1,1),ToDate=DateTime.Today,IncludeChart=true};
+
+    private bool CanTrip => _permission?.Has(SecurityFunctionCodes.TripView)==true;
+    private bool CanEquipment => _permission?.Has(SecurityFunctionCodes.EquipmentView)==true;
+    private bool CanAttendance => _permission?.Has(SecurityFunctionCodes.AttendanceView)==true;
+
+    private ReportType _type => Module?.ToLowerInvariant() switch
+    {
+        "equipment" => _tab switch { 0=>ReportType.EquipmentSummaryByDept, 1=>ReportType.EquipmentAssetDetail, _=>ReportType.EquipmentRepairSummary },
+        "attendance" => _tab==0 ? ReportType.AttendanceSummary : ReportType.AttendanceDetail,
+        _ => _tab switch { 0=>ReportType.TripSummaryByDept, 1=>ReportType.TripSummaryByEmployee, 2=>ReportType.TripDetail, _=>ReportType.TripApprovalStatus }
+    };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var r=await AppSecurityClient.GetMyPermissionsAsync();
+        if(r.IsSuccess) _permission=r.Data;
+        var d=await ReportService.GetLookupDepartmentsAsync();
+        if(d.IsSuccess) _departments=d.Data;
+        _permissionLoading=false;
+    }
+
+    private async Task OnTabChanged(int i){_tab=i;_query.EmployeeCode=null;_query.DeptCode=null;await Task.Delay(20);if(_base!=null)await _base.LoadReport();}
+    private void OnEmployeeChanged(KeyValuePair<string,string> x){_employee=x;_query.EmployeeCode=string.IsNullOrWhiteSpace(x.Key)?null:x.Key;}
+    private async Task<IEnumerable<KeyValuePair<string,string>>> SearchEmployees(string value,CancellationToken ct)
+    { var r=await ReportService.SearchLookupEmployeesAsync(value??string.Empty,ct); return r.IsSuccess&&r.Data!=null?r.Data:Array.Empty<KeyValuePair<string,string>>(); }
+}
