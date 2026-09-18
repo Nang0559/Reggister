@@ -194,6 +194,7 @@ builder.Services.AddScoped<IHrmStagingImporterResolver, HrmStagingImporterResolv
 builder.Services.AddScoped<IHrmSyncJobResolver, HrmSyncJobResolver>();
 builder.Services.AddScoped<IHrmSyncReviewQueryService, HrmSyncReviewQueryService>();
 builder.Services.AddScoped<IHrmSyncService, HrmSyncService>();
+builder.Services.AddScoped<IHrmUserRoleRuleService, HrmUserRoleRuleService>();
 
 builder.Services.AddAuthentication(options =>
 {
