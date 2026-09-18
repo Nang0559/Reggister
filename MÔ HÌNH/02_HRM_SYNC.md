@@ -414,25 +414,13 @@ Phiên bản hiện tại đã chuyển `HrmSyncBackgroundWorker` sang polling t
 Lỗi provisioning user không làm rollback dữ liệu HRM; lỗi được ghi vào `F03SyncReviewFlag` để Admin review.
 
 
-## 19. Deployment SQL 01..12
+## 19. Deployment SQL hiện tại
 
-Bộ SQL chuẩn hiện được tổ chức thành 12 bước:
+`00_Deploy_All.sql` là nguồn sự thật cho thứ tự chạy SQLCMD. Bộ script hiện có các bước đánh số `01..13` nhưng thứ tự thực thi thực tế là `01 → 02 → 03 → 04 → 05 → 06 → 07 → 08 → 09 → 10_Triggers → 11_Automation → 13_HrmShiftMaster → 12_Verify`.
 
-1. `01_Database.sql` — tạo database.
-2. `02_Preflight.sql` — kiểm tra môi trường.
-3. `03_Tables.sql` — schema + migration tương thích.
-4. `04_Constraints.sql` — business keys/integrity indexes.
-5. `05_Indexes.sql` — performance indexes.
-6. `06_Seed.sql` — dữ liệu TEST/DEMO.
-7. `07_Views.sql` — read models.
-8. `08_Functions.sql` — database functions.
-9. `09_StoredProcedures.sql` — workflow, email dequeue, OT và HRM source contracts.
-10. `10_Triggers.sql` — ghi nhận chính sách không dùng cross-database HRM trigger.
-11. `11_Automation.sql` — xác nhận application worker/email queue contract.
-12. `12_Verify.sql` — kiểm tra cuối deployment.
+`13_HrmShiftMaster.sql` chứa implementation của `usp_SyncHrmShiftMaster` và `usp_SyncAttendanceStaging`; vì vậy không được mô tả `12_Verify.sql` là bước cuối duy nhất nếu chưa tính `13_HrmShiftMaster.sql`.
 
-`00_Deploy_All.sql` là runner SQLCMD cho toàn bộ 01→12. `99_Verify.sql` được giữ lại để tương thích với các lần triển khai cũ, nhưng `12_Verify.sql` mới là verification chuẩn.
-
+`99_Verify.sql` là verification bổ sung/legacy-compatible; không phải deployment step.
 ## 20. HRM Role Rule Administration
 
 Admin/Editor có thể quản lý mapping tại `/admin/hrm-role-rules`. API sử dụng `api/hrm-role-rules`. Khi rule thay đổi, các `F03User` do HRM tạo (`LastModifiedSource=HRM`) được reconcile ngay; tài khoản hệ thống/manual không bị tự ý đổi quyền.
