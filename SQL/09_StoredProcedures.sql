@@ -98,7 +98,7 @@ BEGIN
         cc.ShiftCode,
         cc.ShiftName,
         cc.ShiftAbbr,
-        TRY_CONVERT(int,cc.CLoaiCa),
+        TRY_CONVERT(int,cc.ShiftCategory),
         CAST(ISNULL(cc.OTHours,0) AS decimal(5,2)),
         CAST(ISNULL(cc.TotalHours,0) AS decimal(5,2)),
         CAST(ISNULL(cc.IsHoliday,0) AS bit),
@@ -148,11 +148,18 @@ BEGIN
      AND CAST(ot.OTDate AS date)=@OTDate
      AND ot.RequestStatus=3
      AND (@DeptCode IS NULL OR ot.DeptCode=@DeptCode)
-    INNER JOIN dbo.F03AttendanceStaging stg
-      ON stg.EmployeeCode=emp.EmployeeCode
-     AND CAST(stg.WorkDate AS date)=@OTDate
-    WHERE emp.IsActive=1
-      AND ISNULL(stg.OTHours,0)>0;
+    CROSS APPLY
+    (
+        SELECT TOP(1)
+            s.Id,s.CheckInDateTime,s.CheckOutDateTime,s.OTHours
+        FROM dbo.F03AttendanceStaging s
+        WHERE s.EmployeeCode=emp.EmployeeCode
+          AND s.WorkDate >= @OTDate
+          AND s.WorkDate < DATEADD(day,1,@OTDate)
+          AND ISNULL(s.OTHours,0)>0
+        ORDER BY s.SyncedAt DESC,s.Id DESC
+    ) stg
+    WHERE emp.IsActive=1;
 
     SELECT
         CAST(stg.WorkDate AS datetime2(0)) AS WorkDate,
