@@ -27,8 +27,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                     using var scope = _scopeFactory.CreateScope();
                     var sync = scope.ServiceProvider.GetRequiredService<IHrmSyncService>();
                     var result = await sync.RunAllAsync("SYSTEM", manual: false, stoppingToken);
+                    var run = result.Data;
 
-                    if (!result.IsSuccess || result.Data is not { } run || !run.Success)
+                    if (!result.IsSuccess || run == null || !run.Success)
                         _logger.LogError("[HRM-SYNC] Daily synchronization failed: {Message}", result.Message ?? run?.Summary);
 
                     else
