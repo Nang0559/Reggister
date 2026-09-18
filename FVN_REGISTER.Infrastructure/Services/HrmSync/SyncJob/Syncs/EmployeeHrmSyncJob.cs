@@ -49,6 +49,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             GenderCode = s.GenderCode,
             FirstWorkingDate = s.FirstWorkingDate,
             EndWorkingDate = s.EndWorkingDate,
+            EmployeeNo = s.EmployeeNo,
             TotalLeaveDays = s.TotalLeaveDays ?? 0,
             LevelApprove = GetSuggestedLevel(s.PositionCode),
             IsActive = !s.EndWorkingDate.HasValue,
@@ -67,7 +68,12 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             bool positionChanged = e.PositionCode != (s.PositionCode ?? string.Empty);
             if (positionChanged) { e.PositionCode = s.PositionCode ?? string.Empty; changed = true; }
 
-            if (e.EmailAddress != s.EmailAddress) { e.EmailAddress = s.EmailAddress; changed = true; }
+            if (e.BirthDate != s.BirthDate) { e.BirthDate = s.BirthDate; changed = true; }
+            if (e.GenderCode != s.GenderCode) { e.GenderCode = s.GenderCode; changed = true; }
+            if (e.FirstWorkingDate != s.FirstWorkingDate) { e.FirstWorkingDate = s.FirstWorkingDate; changed = true; }
+            if (e.EmployeeNo != s.EmployeeNo) { e.EmployeeNo = s.EmployeeNo; changed = true; }
+
+            if (e.EmailAddress != (s.EmailAddress ?? "")) { e.EmailAddress = s.EmailAddress; changed = true; }
             if (e.PhoneNumber != s.PhoneNumber) { e.PhoneNumber = s.PhoneNumber; changed = true; }
             if (e.EndWorkingDate != s.EndWorkingDate) { e.EndWorkingDate = s.EndWorkingDate; changed = true; }
             if (e.TotalLeaveDays != (s.TotalLeaveDays ?? 0)) { e.TotalLeaveDays = s.TotalLeaveDays ?? 0; changed = true; }
