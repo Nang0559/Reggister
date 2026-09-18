@@ -112,7 +112,7 @@
             var result = await TripService.GetMineAsync();
             _items.Clear();
             if (result.IsSuccess && result.Data != null)
-                _items.AddRange(result.Value);
+                _items.AddRange(result.Data ?? new List<TripRequestDto>());
             else if (!result.IsSuccess)
                 Snackbar.Add(result.Message ?? "Không thể tải lịch sử công tác.", Severity.Error);
         }
