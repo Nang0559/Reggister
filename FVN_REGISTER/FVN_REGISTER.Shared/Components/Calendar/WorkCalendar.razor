@@ -6,7 +6,7 @@
 @implements IAsyncDisposable
 
 <MudPaper Class="pa-2" Elevation="0">
-    <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" Class="mb-2">
+    <MudStack Row="true" Spacing="1" Class="mb-2 flex-wrap">
         @foreach (var filter in Filters)
         {
             <MudChip T="string" Size="Size.Small"
