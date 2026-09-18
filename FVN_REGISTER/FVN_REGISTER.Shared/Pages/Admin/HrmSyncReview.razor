@@ -7,6 +7,7 @@
 
 @inject IHrmSyncReviewClientService ReviewService
 @inject ISnackbar Snackbar
+@inject NavigationManager Navigation
 
 <PageTitle>HRM Sync Review</PageTitle>
 
@@ -15,7 +16,10 @@
         <MudText Typo="Typo.h5">HRM Sync — Xử lý xung đột</MudText>
         <MudText Typo="Typo.body2" Color="Color.Secondary">Danh sách flag chưa xử lý từ quá trình đồng bộ HRM. Resolve chỉ đóng flag, không tự ghi đè dữ liệu nguồn.</MudText>
     </MudStack>
-    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="@_loading">Làm mới</MudButton>
+    <MudStack Row="true" Spacing="2">
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Sync" OnClick="@(() => Navigation.NavigateTo("/admin/hrm-sync"))">Quản lý đồng bộ</MudButton>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="@_loading">Làm mới</MudButton>
+    </MudStack>
 </MudStack>
 
 <MudAlert Severity="Severity.Info" Class="mb-4">Còn <b>@_count</b> conflict chưa resolve.</MudAlert>
