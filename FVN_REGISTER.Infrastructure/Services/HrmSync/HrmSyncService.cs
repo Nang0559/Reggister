@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Contract.Dtos.HrmSync;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Contract.Utils;
+using FVN_REGISTER.Core.Repositories;
 using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Infrastructure.Services.HrmSync;
@@ -15,12 +16,14 @@ public sealed class HrmSyncService : IHrmSyncService
     private readonly IHrmStagingImporterResolver _importers;
     private readonly IHrmSyncJobResolver _jobs;
     private readonly ILogger<HrmSyncService> _logger;
+    private readonly IUnitOfWork _uow;
 
-    public HrmSyncService(IHrmStagingImporterResolver importers, IHrmSyncJobResolver jobs, ILogger<HrmSyncService> logger)
+    public HrmSyncService(IHrmStagingImporterResolver importers, IHrmSyncJobResolver jobs, ILogger<HrmSyncService> logger, IUnitOfWork uow)
     {
         _importers = importers;
         _jobs = jobs;
         _logger = logger;
+        _uow = uow;
     }
 
     public HrmSyncRuntimeStatusDto GetRuntimeStatus()
@@ -50,6 +53,16 @@ public sealed class HrmSyncService : IHrmSyncService
 
         try
         {
+            if (entityType == null)
+            {
+                var shiftSync = await _uow.SqlQueryRawAsync<ShiftSyncSummary>(
+                    "EXEC dbo.usp_SyncHrmShiftMaster;", ct);
+                var summary = shiftSync.FirstOrDefault();
+                if (summary != null)
+                    _logger.LogInformation("[HRM-SYNC] Shift master synced: shifts={Shifts}, schedules={Schedules}, days={Days}, employeeSchedules={EmployeeSchedules}.",
+                        summary.ShiftCount, summary.ScheduleCount, summary.ScheduleDayCount, summary.EmployeeScheduleCount);
+            }
+
             if (entityType == null)
             {
                 foreach (var importer in _importers.GetAll())
@@ -108,6 +121,14 @@ public sealed class HrmSyncService : IHrmSyncService
             return ServiceResult<HrmSyncRunResultDto>.Ok(run);
         }
         finally { Gate.Release(); }
+    }
+
+    private sealed class ShiftSyncSummary
+    {
+        public int ShiftCount { get; set; }
+        public int ScheduleCount { get; set; }
+        public int ScheduleDayCount { get; set; }
+        public int EmployeeScheduleCount { get; set; }
     }
 
     private static void AddJobResult(HrmSyncRunResultDto run, IHrmSyncJob job, HrmSyncResult result)
