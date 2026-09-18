@@ -39,7 +39,6 @@ namespace FVN_REGISTER.API.Controllers
             : base(currentUser, userLog, logger, options)
         {
             _authorization = authorization;
-        {
             _otService = otService;
             _queryService = queryService;
             _workflow = workflow;
