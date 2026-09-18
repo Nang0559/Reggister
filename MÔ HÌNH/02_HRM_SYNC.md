@@ -268,7 +268,7 @@ Cơ chế mặc định của hệ thống là:
 2. Background worker chạy polling định kỳ và đưa snapshot vào `F03StagingXxx`.
 3. `HrmSyncJob` xử lý staging thành F03 master.
 4. Nếu HRM tạm thời unavailable, worker ghi log/lỗi và lần chạy sau tự retry; không ghi ngược vào HRM.
-5. Nếu snapshot HRM bị thiếu bất thường, `HrmStagingImporterBase` dùng delete guard `> 50%` để không soft-delete hàng loạt.
+5. Nếu snapshot HRM bị thiếu bất thường, `HrmSyncJob` dùng delete guard `> 50%` để không soft-delete hàng loạt.
 6. Admin vẫn có thể `Sync All` hoặc sync từng master bằng UI hiện có.
 
 Nếu sau này cần near-real-time, trigger/Change Tracking/CDC chỉ nên tạo **outbox/change marker ở phía HRM**, còn FVN vẫn là bên polling/consuming. Không dùng trigger để cập nhật trực tiếp F03.
@@ -401,3 +401,23 @@ Phiên bản hiện tại đã chuyển `HrmSyncBackgroundWorker` sang polling t
 `EmployeeHrmSyncJob` thực hiện full reconciliation `F03Employees → F03Users` sau mỗi batch HRM. Vì vậy user bị thiếu có thể được tạo lại và thay đổi mapping phòng ban/chức vụ có thể áp dụng lại mà không cần chờ một thay đổi nhân viên mới.
 
 Lỗi provisioning user không làm rollback dữ liệu HRM; lỗi được ghi vào `F03SyncReviewFlag` để Admin review.
+
+
+## 19. Deployment SQL 01..12
+
+Bộ SQL chuẩn hiện được tổ chức thành 12 bước:
+
+1. `01_Database.sql` — tạo database.
+2. `02_Preflight.sql` — kiểm tra môi trường.
+3. `03_Tables.sql` — schema + migration tương thích.
+4. `04_Constraints.sql` — business keys/integrity indexes.
+5. `05_Indexes.sql` — performance indexes.
+6. `06_Seed.sql` — dữ liệu TEST/DEMO.
+7. `07_Views.sql` — read models.
+8. `08_Functions.sql` — database functions.
+9. `09_StoredProcedures.sql` — workflow, email dequeue, OT và HRM source contracts.
+10. `10_Triggers.sql` — ghi nhận chính sách không dùng cross-database HRM trigger.
+11. `11_Automation.sql` — xác nhận application worker/email queue contract.
+12. `12_Verify.sql` — kiểm tra cuối deployment.
+
+`00_Deploy_All.sql` là runner SQLCMD cho toàn bộ 01→12. `99_Verify.sql` được giữ lại để tương thích với các lần triển khai cũ, nhưng `12_Verify.sql` mới là verification chuẩn.
