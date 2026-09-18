@@ -13,6 +13,7 @@ using FVN_REGISTER.Contract.Requests.OT;
 using FVN_REGISTER.Core.Repositories;
 
 using Microsoft.EntityFrameworkCore;
+using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 
 namespace FVN_REGISTER.Infrastructure.Services.OT
 {
