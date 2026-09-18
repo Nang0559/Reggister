@@ -1,0 +1,63 @@
+@page "/reports"
+@attribute [Authorize]
+@using FVN_REGISTER.Core.Constants
+@using FVN_REGISTER.Shared.Services.Security
+@using Microsoft.AspNetCore.Authorization
+@inject ISecurityClientService Security
+@inject NavigationManager Nav
+
+<MudText Typo="Typo.h5" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Assessment" Class="mr-2" />
+    Trung tâm báo cáo & thống kê
+</MudText>
+
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+    Chỉ hiển thị các nhóm báo cáo mà tài khoản có quyền xem. Quyền xuất Excel được kiểm tra riêng ở server.
+</MudText>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" />
+}
+else if (_permission == null)
+{
+    <MudAlert Severity="Severity.Error">Không tải được thông tin phân quyền.</MudAlert>
+}
+else
+{
+    <MudGrid>
+        @if (_permission.Has(SecurityFunctionCodes.LeaveView))
+        {
+            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">Nghỉ phép</MudText><MudText>Phép được cấp, sử dụng, theo phòng ban, nhân viên và trạng thái duyệt.</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/leave"))">Mở báo cáo</MudButton></MudCardActions></MudCard></MudItem>
+        }
+        @if (_permission.Has(SecurityFunctionCodes.OTView))
+        {
+            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">Tăng ca (OT)</MudText><MudText>Giờ OT theo phòng, nhân viên, trạng thái và hạn mức.</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/ot"))">Mở báo cáo</MudButton></MudCardActions></MudCard></MudItem>
+        }
+        @if (_permission.Has(SecurityFunctionCodes.TripView))
+        {
+            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">Công tác</MudText><MudText>Tổng hợp chuyến đi, chi phí và trạng thái duyệt.</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/trip"))">Mở báo cáo</MudButton></MudCardActions></MudCard></MudItem>
+        }
+        @if (_permission.Has(SecurityFunctionCodes.EquipmentView))
+        {
+            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">Thiết bị</MudText><MudText>Tài sản theo phòng, chi tiết thiết bị và sửa chữa.</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/equipment"))">Mở báo cáo</MudButton></MudCardActions></MudCard></MudItem>
+        }
+        @if (_permission.Has(SecurityFunctionCodes.AttendanceView))
+        {
+            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">Chấm công</MudText><MudText>Tổng hợp và chi tiết giờ công, vào/ra và OT từ dữ liệu staging.</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/attendance"))">Mở báo cáo</MudButton></MudCardActions></MudCard></MudItem>
+        }
+    </MudGrid>
+}
+@code {
+    private PermissionSnapshotDto? _permission;
+    private bool _loading = true;
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var r = await Security.GetMyPermissionsAsync();
+            if (r.IsSuccess) _permission = r.Data;
+        }
+        finally { _loading = false; }
+    }
+}
