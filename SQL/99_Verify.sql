@@ -96,3 +96,15 @@ IF COL_LENGTH(N'dbo.F03StagingDepartment',N'DisplayPriority') IS NULL THROW 5010
 IF COL_LENGTH(N'dbo.F03StagingDepartment',N'ShowInReport') IS NULL THROW 50106,'F03StagingDepartment.ShowInReport missing',1;
 IF COL_LENGTH(N'dbo.F03StagingEmployee',N'EmployeeNo') IS NULL THROW 50107,'F03StagingEmployee.EmployeeNo missing',1;
 GO
+
+
+PRINT '--- HRM automatic user provisioning ---';
+IF OBJECT_ID(N'dbo.F03HrmUserRoleRules',N'U') IS NULL
+    THROW 51001, 'Missing dbo.F03HrmUserRoleRules', 1;
+
+IF OBJECT_ID(N'dbo.F03UserProvisioningQueue',N'U') IS NULL
+    THROW 51002, 'Missing dbo.F03UserProvisioningQueue', 1;
+
+SELECT
+    UserRoleRuleCount = (SELECT COUNT(*) FROM dbo.F03HrmUserRoleRules),
+    PendingProvisioningCount = (SELECT COUNT(*) FROM dbo.F03UserProvisioningQueue WHERE IsProcessed = 0);
