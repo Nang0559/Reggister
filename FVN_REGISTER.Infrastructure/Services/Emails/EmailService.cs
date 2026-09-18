@@ -140,7 +140,11 @@ public class EmailService : BaseService<EmailService>, IEmailService
             Port = profile.EmailServerPort,
             EnableSsl = profile.EmailServerEnableSsl,
             UseDefaultCredentials = false,
-            Credentials = new NetworkCredential(profile.EmailAccountName, EncryptUtils.MD5Decrypt(profile.EmailPassword))
+            Credentials = new NetworkCredential(
+                profile.EmailAccountName,
+                string.IsNullOrWhiteSpace(profile.EmailPassword)
+                    ? string.Empty
+                    : EncryptUtils.MD5Decrypt(profile.EmailPassword))
         };
 
         using var mail = new MailMessage
