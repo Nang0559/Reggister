@@ -1,4 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.Calendar;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Calendar;
 using FVN_REGISTER.Core.Entities.Common;
 using FVN_REGISTER.Core.Entities.Leaves;
@@ -6,6 +8,7 @@ using FVN_REGISTER.Core.Entities.OT;
 using FVN_REGISTER.Core.Entities.Trips;
 using FVN_REGISTER.Core.Entities.Views;
 using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,9 +17,14 @@ namespace FVN_REGISTER.Infrastructure.Services.Calendar;
 public sealed class WorkCalendarService : IWorkCalendarService
 {
     private readonly IUnitOfWork _uow;
-    public WorkCalendarService(IUnitOfWork uow)
+    private readonly IAuthorizationService _authorization;
+    private readonly ICurrentUserService _currentUser;
+
+    public WorkCalendarService(IUnitOfWork uow, IAuthorizationService authorization, ICurrentUserService currentUser)
     {
         _uow = uow;
+        _authorization = authorization;
+        _currentUser = currentUser;
     }
 
     public async Task<WorkCalendarDto> GetAsync(
@@ -30,41 +38,46 @@ public sealed class WorkCalendarService : IWorkCalendarService
         var start = from.Date;
         var end = to.Date < start ? start : to.Date;
 
+        var user = _currentUser.GetCurrentUser();
+        if (user == null || !string.Equals(user.EmployeeCode, employeeCode, StringComparison.OrdinalIgnoreCase))
+            throw new UnauthorizedAccessException("Calendar chỉ được truy vấn cho người dùng hiện tại.");
+
+        var canLeave = await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveView, ct);
+        var canOt = await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct);
+        var canTrip = await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct);
+
         var holidays = await _uow.Repository<F03CompanyHoliday>().Query()
             .AsNoTracking()
             .Where(x => x.HolidayDate >= start && x.HolidayDate <= end)
             .OrderBy(x => x.HolidayDate)
             .ToListAsync(ct);
 
-        var leave = await _uow.Repository<VF03LeaveRequest>().Query()
-            .AsNoTracking()
-            .Where(x => x.EmployeeCode == employeeCode
-                && x.IsActive == true
-                && x.EndDate >= start
-                && x.StartDate <= end
-                && x.RequestStatus != ApprovalStatus.Cancelled
-                && x.RequestStatus != ApprovalStatus.Rejected)
-            .ToListAsync(ct);
+        var leave = canLeave
+            ? await _uow.Repository<VF03LeaveRequest>().Query().AsNoTracking()
+                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
+                    && x.EndDate >= start && x.StartDate <= end
+                    && x.RequestStatus != ApprovalStatus.Cancelled
+                    && x.RequestStatus != ApprovalStatus.Rejected)
+                .ToListAsync(ct)
+            : new List<VF03LeaveRequest>();
 
-        var ot = await _uow.Repository<VF03OTRequest>().Query()
-            .AsNoTracking()
-            .Where(x => x.EmployeeCode == employeeCode
-                && x.IsActive == true
-                && x.OTDate >= start
-                && x.OTDate <= end
-                && x.RequestStatus != ApprovalStatus.Cancelled
-                && x.RequestStatus != ApprovalStatus.Rejected)
-            .ToListAsync(ct);
+        var ot = canOt
+            ? await _uow.Repository<VF03OTRequest>().Query().AsNoTracking()
+                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
+                    && x.OTDate >= start && x.OTDate <= end
+                    && x.RequestStatus != ApprovalStatus.Cancelled
+                    && x.RequestStatus != ApprovalStatus.Rejected)
+                .ToListAsync(ct)
+            : new List<VF03OTRequest>();
 
-        var trips = await _uow.Repository<F03TripRequest>().Query()
-            .AsNoTracking()
-            .Where(x => x.EmployeeCode == employeeCode
-                && x.IsActive == true
-                && x.EndDate >= start
-                && x.StartDate <= end
-                && x.RequestStatus != ApprovalStatus.Cancelled
-                && x.RequestStatus != ApprovalStatus.Rejected)
-            .ToListAsync(ct);
+        var trips = canTrip
+            ? await _uow.Repository<F03TripRequest>().Query().AsNoTracking()
+                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
+                    && x.EndDate >= start && x.StartDate <= end
+                    && x.RequestStatus != ApprovalStatus.Cancelled
+                    && x.RequestStatus != ApprovalStatus.Rejected)
+                .ToListAsync(ct)
+            : new List<F03TripRequest>();
 
         var holidayByDate = holidays
             .GroupBy(x => x.HolidayDate.Date)
