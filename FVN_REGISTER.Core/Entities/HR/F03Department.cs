@@ -20,5 +20,4 @@ public partial class F03Department : BaseAuditEntity
 
     public int? DisplayPriority { get; set; }     // từ BPUuTien
     public bool ShowInReport { get; set; } = true; // từ BPHienThiBC
-    public bool IsActive { get; set; } = true;     // từ !DLocked
 }
