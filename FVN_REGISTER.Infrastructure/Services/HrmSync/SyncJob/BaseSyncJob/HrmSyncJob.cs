@@ -156,7 +156,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
                     }
 
                     staging.IsProcessed = true;
-                    staging.ErrorMessage = null;
+                    // Keep a non-empty ErrorMessage for review/audit cases such as delete guard.
                 }
                 catch (Exception ex)
                 {
