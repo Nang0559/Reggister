@@ -84,7 +84,7 @@
     }
 
     private List<PendingApprovalItemDto> PendingAtLevel(int level) =>
-        _allPending.Where(x => x.CurrentApprovalLevel == level && x.CanApprove).ToList();
+        _allPending.Where(x => GetCurrentApprovalLevel(x) == level && x.CanApprove).ToList();
 
     private static int GetCurrentApprovalLevel(PendingApprovalItemDto item) =>
         item.ApprovalSteps
