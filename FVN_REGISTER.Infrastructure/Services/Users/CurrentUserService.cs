@@ -42,7 +42,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                 }
 
                 var userIdStr = user.FindFirst("UserId")?.Value
-                             ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                             ?? user.FindFirst(ClaimTypes.NameIdentifier)?.Value
+                             ?? user.FindFirst("sub")?.Value;
 
                 if (!int.TryParse(userIdStr, out var userId))
                 {
