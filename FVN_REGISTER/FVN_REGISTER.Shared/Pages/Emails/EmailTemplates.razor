@@ -151,24 +151,20 @@ else
                 <MudTd>
                     <MudStack Row="true" Spacing="0">
                         <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                                       Size="Size.Small" Color="Color.Primary"
-                                       Title="Chỉnh sửa"
+                                       Size="Size.Small" Color="Color.Primary" title="Chỉnh sửa"
                                        OnClick="@(() => OpenEditor(context))" />
                         <MudIconButton
                             Icon="@(context.IsActive
                                 ? Icons.Material.Filled.ToggleOff
                                 : Icons.Material.Filled.ToggleOn)"
                             Size="Size.Small"
-                            Color="@(context.IsActive ? Color.Warning : Color.Success)"
-                            Title="@(context.IsActive ? "Vô hiệu hóa" : "Kích hoạt")"
+                            Color="@(context.IsActive ? Color.Warning : Color.Success)" title="@(context.IsActive ? "Vô hiệu hóa" : "Kích hoạt")"
                             OnClick="@(() => ToggleTemplate(context))" />
                         <MudIconButton Icon="@Icons.Material.Filled.Visibility"
-                                       Size="Size.Small" Color="Color.Info"
-                                       Title="Xem trước"
+                                       Size="Size.Small" Color="Color.Info" title="Xem trước"
                                        OnClick="@(() => PreviewTemplate(context))" />
                         <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
-                                       Size="Size.Small" Color="Color.Default"
-                                       Title="Nhân bản"
+                                       Size="Size.Small" Color="Color.Default" title="Nhân bản"
                                        OnClick="@(() => DuplicateTemplate(context))" />
                     </MudStack>
                 </MudTd>
@@ -266,8 +262,7 @@ else
                          Elevation="0"
                          Rounded="false"
                          ApplyEffectsToContainer="true"
-                         ActivePanelIndexChanged="OnTabChanged"
-                         PanelClass="pt-2">
+                         ActivePanelIndexChanged="OnTabChanged" Class="pt-2">
 
                     @* TAB 1: Rich Editor *@
                     <MudTabPanel Text="Trình soạn thảo"
