@@ -130,6 +130,7 @@ FROM (VALUES
 (2203,N'Trip.Edit',N'Sửa đăng ký công tác',N'Trip',N'Edit',N'Own',230),
 (2204,N'Trip.Cancel',N'Hủy đăng ký công tác',N'Trip',N'Cancel',N'Own',240),
 (2205,N'Trip.Approve',N'Duyệt công tác',N'Trip',N'Approve',N'Department',250),
+(2206,N'Trip.Export',N'Xuất báo cáo công tác',N'Trip',N'Export',N'Department',260),
 (2301,N'Equipment.View',N'Xem thiết bị',N'Equipment',N'View',N'Department',310),
 (2302,N'Equipment.Create',N'Tạo yêu cầu thiết bị',N'Equipment',N'Create',N'Own',320),
 (2303,N'Equipment.Edit',N'Sửa yêu cầu thiết bị',N'Equipment',N'Edit',N'Own',330),
@@ -149,7 +150,10 @@ FROM (VALUES
 (2602,N'Security.ManageRoles',N'Quản lý role',N'Security',N'ManageRoles',N'All',620),
 (2603,N'Security.ManageFunctions',N'Quản lý function/action',N'Security',N'ManageFunctions',N'All',630),
 (2604,N'Security.Audit',N'Xem audit security',N'Security',N'Audit',N'All',640),
-(2701,N'Dashboard.View',N'Xem dashboard',N'Dashboard',N'View',N'Own',710)
+(2701,N'Dashboard.View',N'Xem dashboard',N'Dashboard',N'View',N'Own',710),
+(2307,N'Equipment.Export',N'Xuất báo cáo thiết bị',N'Equipment',N'Export',360),
+(2901,N'Attendance.View',N'Xem báo cáo chấm công',N'Attendance',N'View',810),
+(2902,N'Attendance.Export',N'Xuất báo cáo chấm công',N'Attendance',N'Export',820)
 ) AS v(FunctionCode,Name,Detail,ModuleCode,ActionCode,ScopeCode,SortNo)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.FunctionCode);
 GO
@@ -179,10 +183,10 @@ INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
 SELECT r.IdRole,f.IdFunction
 FROM
 (
-    SELECT @SuperAdmin IdRole, f.FunctionCode FROM dbo.F03Functions f WHERE f.FunctionCode BETWEEN 2001 AND 2701
+    SELECT @SuperAdmin IdRole, f.FunctionCode FROM dbo.F03Functions f WHERE f.FunctionCode BETWEEN 2001 AND 2999
     UNION ALL
     SELECT @Admin, f.FunctionCode FROM dbo.F03Functions f
-      WHERE f.FunctionCode BETWEEN 2001 AND 2701
+      WHERE f.FunctionCode BETWEEN 2001 AND 2999
         AND f.FunctionCode NOT IN(2602,2603)
     UNION ALL
     SELECT @Editor, f.FunctionCode FROM dbo.F03Functions f
