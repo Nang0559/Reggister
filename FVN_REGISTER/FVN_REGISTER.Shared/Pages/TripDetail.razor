@@ -87,7 +87,7 @@ else
                 return;
             }
 
-            _item = result.Value;
+            _item = result.Data;
         }
         finally
         {
@@ -109,7 +109,7 @@ else
                 return;
             }
 
-            _item = result.Value ?? _item;
+            _item = result.Data ?? _item;
             Snackbar.Add("Đã gửi đăng ký công tác vào quy trình phê duyệt.", Severity.Success);
         }
         finally
