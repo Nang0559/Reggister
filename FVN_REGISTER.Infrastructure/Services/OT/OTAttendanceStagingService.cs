@@ -73,7 +73,8 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 var dateParam = new SqlParameter("@WorkDate", workDate.Date);
 
                 var rows = await _uow.SqlQueryRawAsync<CountResult>(
-                    "SELECT COUNT(1) AS Value FROM [dbo].[F03AttendanceStaging] WHERE WorkDate = @WorkDate",
+                    "SELECT COUNT(1) AS Value FROM [dbo].[F03AttendanceStaging] " +
+                    "WHERE WorkDate >= @WorkDate AND WorkDate < DATEADD(day, 1, @WorkDate)",
                     ct, dateParam);
 
                 var count = rows.FirstOrDefault()?.Value ?? 0;
@@ -93,7 +94,6 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         private class SyncCountResult
         {
             public int SyncedCount { get; set; }
-            public DateOnly WorkDate { get; set; }
         }
 
         private class CountResult
