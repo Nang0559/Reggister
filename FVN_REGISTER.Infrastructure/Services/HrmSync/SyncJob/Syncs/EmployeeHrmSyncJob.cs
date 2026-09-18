@@ -120,12 +120,10 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             HrmSyncBatchContext<F03Employee> batchContext,
             CancellationToken ct)
         {
-            var employees = batchContext.Added
-                .Concat(batchContext.Updated)
-                .Concat(batchContext.Deleted)
-                .GroupBy(x => x.EmployeeCode)
-                .Select(g => g.Last())
-                .ToList();
+            // Full reconciliation ở F03Users giúp tự phục hồi user bị thiếu và áp dụng
+            // role rule mới mà không cần chờ Employee có một thay đổi khác.
+            var employees = await Uow.Repository<F03Employee>().Query()
+                .ToListAsync(ct);
 
             if (employees.Count == 0)
                 return;
