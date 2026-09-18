@@ -50,3 +50,4 @@ PRINT N'============================================================';
 GO
 
 :r .\15_PublicInformation.sql
+:r .\16_EquipmentFlexibleImport.sql
