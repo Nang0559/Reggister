@@ -3,9 +3,35 @@
 @inject ICurrentUserClientService CurrentUser
 @inject NavigationManager Navigation
 
-@if (CurrentUser.User?.IsAdmin == true || CurrentUser.User?.Functions.Contains(UserFunctionCodes.EquipmentModule) == true)
+@if (CurrentUser.User?.IsAdmin == true ||
+     CurrentUser.User?.Functions.Contains(UserFunctionCodes.EquipmentModule) == true)
 {
-    <MudCard Elevation="3" Class="mb-4" Style="cursor:pointer" @onclick="() => Navigation.NavigateTo(\"/equipment\")">
-        <MudCardContent><MudStack Row="true" AlignItems="AlignItems.Center" Spacing="3"><MudIcon Icon="@Icons.Material.Filled.Devices" Size="Size.Large" /><MudStack Spacing="0"><MudText Typo="Typo.h6">Sổ quản lý thiết bị</MudText><MudText Typo="Typo.body2" Color="Color.Secondary">Đăng ký thiết bị • QR • lịch sử sửa chữa</MudText></MudStack></MudStack></MudCardContent>
+    <MudCard Elevation="3"
+             Class="mb-4"
+             Style="cursor:pointer"
+             @onclick='() => Navigation.NavigateTo("/equipment")'>
+
+        <MudCardContent>
+            <MudStack Row="true"
+                      AlignItems="AlignItems.Center"
+                      Spacing="3">
+
+                <MudIcon Icon="@Icons.Material.Filled.Devices"
+                         Size="Size.Large" />
+
+                <MudStack Spacing="0">
+                    <MudText Typo="Typo.h6">
+                        Sổ quản lý thiết bị
+                    </MudText>
+
+                    <MudText Typo="Typo.body2"
+                             Color="Color.Secondary">
+                        Đăng ký thiết bị • QR • lịch sử sửa chữa
+                    </MudText>
+                </MudStack>
+
+            </MudStack>
+        </MudCardContent>
     </MudCard>
 }
+

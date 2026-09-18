@@ -37,7 +37,7 @@
             </MudItem>
             <MudItem xs="12" sm="4" md="3">
                 <MudSelect T="string" @bind-Value="_status" Label="Trạng thái" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
-                    <MudSelectItem T="string" Value="">Tất cả</MudSelectItem>
+                    <MudSelectItem T="string" Value="@string.Empty">Tất cả</MudSelectItem>
                     @foreach (var status in Enum.GetValues<ApprovalStatus>())
                     {
                         <MudSelectItem T="string" Value="@status.ToString()">@status</MudSelectItem>
