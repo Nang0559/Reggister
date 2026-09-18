@@ -105,3 +105,5 @@ Controller không query EF; Application không phụ thuộc Infrastructure. Mod
 | API controller | `FVN_REGISTER.API/Controllers` |
 | Shared client/page | `FVN_REGISTER/FVN_REGISTER.Shared/Services/{Domain}`, `Pages` |
 | Database script | `Database/{Domain}` |
+
+- [11 — Code Runtime Audit: Core → Application → Infrastructure → API → Web](./11_CODE_RUNTIME_AUDIT.md)
