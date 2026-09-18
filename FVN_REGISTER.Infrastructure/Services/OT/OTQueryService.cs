@@ -357,7 +357,8 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                     && x.OTDate.Year == year && x.OTDate.Month == month)
                 .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
 
-            var monday = today.Date.AddDays(-(int)today.DayOfWeek + (today.DayOfWeek == DayOfWeek.Sunday ? -6 : 1) - 1);
+            var weekOffset = (7 + (int)today.DayOfWeek - (int)DayOfWeek.Monday) % 7;
+            var monday = today.Date.AddDays(-weekOffset);
             var sunday = monday.AddDays(7);
             var usedThisWeek = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
