@@ -1,13 +1,9 @@
-using FVN_REGISTER.Application.Configuration;
-using FVN_REGISTER.Application.Interfaces.Approvals;
+
 using FVN_REGISTER.Application.Interfaces.Emails;
 using FVN_REGISTER.Application.Interfaces.Users;
-using FVN_REGISTER.Application.Models.Subjects;
+
 using FVN_REGISTER.Contract.Dtos.Approvals;
-using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
-using FVN_REGISTER.Core.Entities.HR;
-using FVN_REGISTER.Core.Entities.Trips;
-using FVN_REGISTER.Core.Enums;
+
 using FVN_REGISTER.Core.Extensions;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Infrastructure.Services.Common;
