@@ -20,20 +20,29 @@ namespace FVN_REGISTER.Application.Policies
                 .ToList();
 
             var groups = flat
-                .GroupBy(item => (item.Kind, item.CurrentApprovalLevel))
-                .Where(g => g.Key.CurrentApprovalLevel > 0)
+                .GroupBy(item => new
+                {
+                    item.Kind,
+                    ApproverLevel = GetCurrentApprovalLevel(item)
+                })
+                .Where(g => g.Key.ApproverLevel > 0)
                 .Select(g => new PendingApprovalGroupDto
                 {
-                    RequestType = g.Key.Kind,                       // set trực tiếp, không suy luận
-                    ApproverLevel = g.Key.CurrentApprovalLevel,
+                    RequestType = g.Key.Kind,
+                    ApproverLevel = g.Key.ApproverLevel,
                     Count = g.Count(),
-                    OverriddenCount = g.Count(i => i.IsCurrentlyOverridden),
+                    OverriddenCount = g.Count(i => i.ApprovalSteps.Any(s => s.IsOverriddenByAdmin)),
                     Requests = SortItems(g.ToList())
                 })
                 .ToList();
 
             return SortGroups(groups);
         }
+
+        private static int GetCurrentApprovalLevel(PendingApprovalItemDto item)
+            => item.ApprovalSteps
+                .OrderBy(s => s.Level)
+                .FirstOrDefault(s => s.IsRequired && s.IsApproved == null)?.Level ?? 0;
 
         // Module nào lên trước — quyết định nghiệp vụ, tách riêng để dễ đổi khi thêm module.
         private static List<PendingApprovalGroupDto> SortGroups(List<PendingApprovalGroupDto> groups)
