@@ -33,7 +33,7 @@
                             <MudText Typo="Typo.body2"><strong>Cấp @step.Level</strong> — @step.ApproverName</MudText>
                             <MudText Typo="Typo.caption" Color="Color.Secondary">
                                 @(step.IsApproved == true ? "Đã duyệt" : step.IsApproved == false ? "Từ chối" : "Chờ xử lý")
-                                @if (step.ApprovedAt.HasValue) { @($" lúc {step.ApprovedAt:HH:mm dd/MM/yyyy}") }
+                                @if (step.ApproveTime.HasValue) { @($" lúc {step.ApprovedAt:HH:mm dd/MM/yyyy}") }
                             </MudText>
                             @if (!string.IsNullOrWhiteSpace(step.Comment)) { <MudText Typo="Typo.caption">@step.Comment</MudText> }
                         </ItemContent>
