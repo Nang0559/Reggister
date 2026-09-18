@@ -23,13 +23,16 @@ namespace FVN_REGISTER.Application.Orchestrators
     {
         private readonly IEnumerable<IModuleDashboardProvider> _providers;
         private readonly IApprovalInboxService _approvalInbox;
+        private readonly ILogger<DashboardOrchestrator> _logger;
 
         public DashboardOrchestrator(
             IEnumerable<IModuleDashboardProvider> providers,
-            IApprovalInboxService approvalInbox)
+            IApprovalInboxService approvalInbox,
+            ILogger<DashboardOrchestrator> logger)
         {
             _providers = providers;
             _approvalInbox = approvalInbox;
+            _logger = logger;
         }
 
         public async Task<ServiceResult<DashboardResponse>> BuildAsync(
@@ -48,9 +51,14 @@ namespace FVN_REGISTER.Application.Orchestrators
 
                 var rawWidgets = new List<WidgetCounterDto>();
 
-                foreach (var provider in _providers)
+                // Module contributions are independent read-only queries. Run them
+                // concurrently; the orchestrator remains free of module-specific I/O.
+                var contributions = await Task.WhenAll(
+                    _providers.Select(provider =>
+                        provider.GetContributionAsync(user, ct)));
+
+                foreach (var contribution in contributions)
                 {
-                    var contribution = await provider.GetContributionAsync(user, ct);
                     rawWidgets.AddRange(contribution.Widgets);
 
                     switch (contribution.Module)
@@ -70,7 +78,10 @@ namespace FVN_REGISTER.Application.Orchestrators
                             break;
 
                         default:
-                            // A provider may intentionally return no typed detail.
+                            _logger.LogWarning(
+                                "[DASHBOARD] Provider returned unsupported module/detail type: {Module} / {DetailType}",
+                                contribution.Module,
+                                contribution.Detail?.GetType().Name ?? "null");
                             break;
                     }
                 }
@@ -94,6 +105,7 @@ namespace FVN_REGISTER.Application.Orchestrators
             }
             catch (Exception ex)
             {
+                _logger.LogError(ex, "[DASHBOARD] Aggregation failed for UserId={UserId}", user.UserId);
                 return ServiceResult<DashboardResponse>.Fail(
                     "Không thể tải Dashboard.");
             }
