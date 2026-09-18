@@ -2,11 +2,13 @@ using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Trips;
 using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Contract.Dtos.Trips;
 using FVN_REGISTER.Core.Entities.Trips;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Constants;
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Trips;
@@ -16,13 +18,16 @@ public sealed class TripService : ITripService
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserService _currentUser;
     private readonly IApprovalWorkflowOrchestrator<TripRequestSubject> _workflow;
+    private readonly IAuthorizationService _authorization;
 
     public TripService(IUnitOfWork uow, ICurrentUserService currentUser,
-        IApprovalWorkflowOrchestrator<TripRequestSubject> workflow)
+        IApprovalWorkflowOrchestrator<TripRequestSubject> workflow,
+        IAuthorizationService authorization)
     {
         _uow = uow;
         _currentUser = currentUser;
         _workflow = workflow;
+        _authorization = authorization;
     }
 
     public async Task<TripRequestDto> CreateDraftAsync(CreateTripRequestDto request, CancellationToken ct = default)
@@ -103,7 +108,7 @@ public sealed class TripService : ITripService
         var entity = await _uow.Repository<F03TripRequest>().Query().AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct);
         if (entity == null) return null;
-        if (!user.IsAdmin && !string.Equals(entity.EmployeeCode, user.EmployeeCode, StringComparison.OrdinalIgnoreCase))
+        if (!await _authorization.CanAccessAsync(user, SecurityFunctionCodes.TripView, entity.EmployeeCode, entity.DeptCode, ct))
             throw new UnauthorizedAccessException("Bạn không có quyền xem đăng ký này.");
 
         return await MapAsync(entity, ct);
@@ -113,8 +118,18 @@ public sealed class TripService : ITripService
     {
         var user = _currentUser.GetCurrentUser()
             ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
-        var entities = await _uow.Repository<F03TripRequest>().Query().AsNoTracking()
-            .Where(x => x.IsActive == true && (user.IsAdmin || x.EmployeeCode == user.EmployeeCode))
+        var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.TripView, ct);
+        var query = _uow.Repository<F03TripRequest>().Query().AsNoTracking()
+            .Where(x => x.IsActive == true);
+
+        if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
+            query = query.Where(x => x.EmployeeCode == user.EmployeeCode);
+        else if (scope == AuthorizationScopeCodes.Department)
+            query = query.Where(x => x.DeptCode == user.DeptCode);
+        else if (scope != AuthorizationScopeCodes.All)
+            query = query.Where(x => false);
+
+        var entities = await query
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(ct);
 
