@@ -125,12 +125,12 @@
                         <MudTimeline TimelineAlign="TimelineAlign.Start" TimelinePosition="TimelinePosition.Start">
                             @foreach (var step in _detail.ApprovalSteps.OrderBy(x => x.Level))
                             {
-                                <MudTimelineItem Color="@ApproveColor(step.Status)" Icon="@ApproveIcon(step.Status)" Size="Size.Small">
+                                <MudTimelineItem Color="@ApproveColor(step.Decision)" Icon="@ApproveIcon(step.Decision)" Size="Size.Small">
                                     <ItemContent>
                                         <MudText Typo="Typo.body2"><strong>Cấp @step.Level — @step.RoleName</strong>@if (!string.IsNullOrEmpty(step.ApproverCode)) { <span> — @step.ApproverCode</span> }</MudText>
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">
-                                            @step.Status
-                                            @if (step.ActionAt.HasValue) { <span> — @step.ActionAt.Value.ToString("dd/MM/yyyy HH:mm")</span> }
+                                            @step.StatusText
+                                            @if (step.ApproveTime.HasValue) { <span> — @step.ActionAt.Value.ToString("dd/MM/yyyy HH:mm")</span> }
                                             @if (!string.IsNullOrEmpty(step.Comment)) { <em class="ml-1">— @step.Comment</em> }
                                         </MudText>
                                     </ItemContent>
