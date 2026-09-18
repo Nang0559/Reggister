@@ -21,6 +21,8 @@ flowchart TD
 
 `08_APPROVAL_ESCALATION.md` là chuẩn approval chung. `09_TRIP.md` là chuẩn Trip. `10_EQUIPMENT_REGISTER.md` là chuẩn Sổ quản lý thiết bị, QR lifecycle và repair approval.
 
+> **HRM / Attendance:** `02_HRM_SYNC.md` và `05_SYNC_FLOW.md` là chuẩn mô tả hai pipeline: đồng bộ master/ca/lịch từ HRM vào F03 cục bộ và attendance/OT từ HRM → `F03AttendanceStaging` → `F03OTEmployees`.
+
 ## Kiến trúc tổng thể
 
 ```mermaid
