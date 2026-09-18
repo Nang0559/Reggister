@@ -3,6 +3,8 @@ using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Logging;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Contract.Dtos.HrmSync;
+using FVN_REGISTER.Contract.Responses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -33,7 +35,7 @@ public sealed class HrmSyncController : BaseApiController
         if (!CanManageHrmSync())
             return Forbid();
 
-        return Ok(Contract.Responses.ApiResponse<Contract.Dtos.HrmSync.HrmSyncRuntimeStatusDto>.Ok(_sync.GetRuntimeStatus()));
+        return Ok(ApiResponse<HrmSyncRuntimeStatusDto>.Ok(_sync.GetRuntimeStatus()));
     }
 
     [HttpPost("run")]
