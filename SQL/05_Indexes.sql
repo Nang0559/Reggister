@@ -125,3 +125,19 @@ GO
 IF OBJECT_ID(N'dbo.F03StagingEmployee',N'U') IS NOT NULL AND NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IX_F03StagingEmployee_Pending_Key' AND object_id=OBJECT_ID(N'dbo.F03StagingEmployee'))
     CREATE INDEX [IX_F03StagingEmployee_Pending_Key] ON dbo.[F03StagingEmployee](IsProcessed,EntityKey,CreatedAt,Id);
 GO
+
+
+IF OBJECT_ID(N'dbo.F03HrmUserRoleRules',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03HrmUserRoleRules') AND name=N'IX_F03HrmUserRoleRules_Match')
+    CREATE INDEX IX_F03HrmUserRoleRules_Match
+        ON dbo.F03HrmUserRoleRules(DeptCode,PositionCode,IsActive,Priority);
+
+IF OBJECT_ID(N'dbo.F03UserProvisioningQueue',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03UserProvisioningQueue') AND name=N'IX_F03UserProvisioningQueue_Pending')
+    CREATE INDEX IX_F03UserProvisioningQueue_Pending
+        ON dbo.F03UserProvisioningQueue(IsProcessed,RetryCount,CreatedAt);
+
+IF OBJECT_ID(N'dbo.F03UserProvisioningQueue',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03UserProvisioningQueue') AND name=N'IX_F03UserProvisioningQueue_Employee')
+    CREATE INDEX IX_F03UserProvisioningQueue_Employee
+        ON dbo.F03UserProvisioningQueue(EmployeeCode,IsProcessed,CreatedAt);
