@@ -154,3 +154,123 @@ END;
 IF OBJECT_ID(N'dbo.F03StagingEmployee',N'U') IS NOT NULL
     IF COL_LENGTH(N'dbo.F03StagingEmployee',N'EmployeeNo') IS NULL ALTER TABLE dbo.F03StagingEmployee ADD EmployeeNo int NULL;
 GO
+
+
+/*
+  HRM SHIFT MASTER
+  Source:
+    HRM.dbo.tblca
+    HRM.dbo.CC_LichTrinhCa
+    HRM.dbo.tblNhanVien.NVLichTrinhCa
+    HRM.dbo.CC_LichTrinhVaoRa.Loai
+
+  FVN_REGISTER owns these local copies and uses them for attendance
+  shift resolution. HRM remains READ ONLY.
+*/
+IF OBJECT_ID('dbo.F03Shifts','U') IS NULL CREATE TABLE dbo.F03Shifts(
+    Id int IDENTITY PRIMARY KEY,
+    IsActive bit NOT NULL DEFAULT 1,
+    CreatedBy int NOT NULL DEFAULT 0,
+    LastModifiedSource nvarchar(50) NULL,
+    CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),
+    ModifiedBy int NULL,
+    ModifiedAt datetime2(0) NULL,
+    HrmCode nvarchar(20) NOT NULL,
+    ShiftCode nvarchar(20) NOT NULL,
+    ShiftName nvarchar(100) NOT NULL,
+    ShiftAbbr nvarchar(10) NULL,
+    StartTime time(0) NOT NULL,
+    Break1Start time(0) NULL,
+    Break1End time(0) NULL,
+    Break2Start time(0) NULL,
+    Break2End time(0) NULL,
+    Break3Start time(0) NULL,
+    Break3End time(0) NULL,
+    EndTime time(0) NOT NULL,
+    LateCalcTime time(0) NULL,
+    OTRateBase smallint NOT NULL DEFAULT 0,
+    OTRateTC smallint NOT NULL DEFAULT 0,
+    OTUnit tinyint NOT NULL DEFAULT 1,
+    MidBreakMinutes smallint NOT NULL DEFAULT 0,
+    RegularMinutes smallint NOT NULL DEFAULT 0,
+    DailyOTThresholdMinutes int NOT NULL DEFAULT 0,
+    DailyOTTCThresholdMinutes int NOT NULL DEFAULT 0,
+    LateThresholdMinutes tinyint NOT NULL DEFAULT 0,
+    EarlyLeaveThresholdMinutes tinyint NOT NULL DEFAULT 0,
+    ScanBeforeMinutes smallint NOT NULL DEFAULT 240,
+    ScanAfterMinutes smallint NOT NULL DEFAULT 240,
+    AttendanceUnit int NOT NULL DEFAULT 1,
+    AllowSundayOT bit NOT NULL DEFAULT 0,
+    AllowHolidayOT bit NOT NULL DEFAULT 0,
+    ShiftType tinyint NOT NULL DEFAULT 0,
+    DepartmentScope nvarchar(1000) NULL,
+    RestDayType tinyint NOT NULL DEFAULT 0,
+    IgnoreAbsence bit NOT NULL DEFAULT 1,
+    ScheduleInOutType tinyint NOT NULL DEFAULT 0,
+    SplitOTAfterShift bit NOT NULL DEFAULT 0,
+    CountBreakAsWork bit NULL,
+    CountToTotalWork bit NULL,
+    AllowOutside bit NOT NULL DEFAULT 0,
+    AllowEarlyCheckIn bit NOT NULL DEFAULT 0,
+    ShiftGroup nvarchar(50) NULL
+);
+
+IF OBJECT_ID('dbo.F03ShiftSchedules','U') IS NULL CREATE TABLE dbo.F03ShiftSchedules(
+    Id int IDENTITY PRIMARY KEY,
+    IsActive bit NOT NULL DEFAULT 1,
+    CreatedBy int NOT NULL DEFAULT 0,
+    LastModifiedSource nvarchar(50) NULL,
+    CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),
+    ModifiedBy int NULL,
+    ModifiedAt datetime2(0) NULL,
+    ScheduleCode nvarchar(50) NOT NULL,
+    ScheduleName nvarchar(200) NOT NULL,
+    IsMonthly bit NOT NULL DEFAULT 0,
+    HrmCode nvarchar(50) NOT NULL
+);
+
+IF OBJECT_ID('dbo.F03ShiftScheduleDays','U') IS NULL CREATE TABLE dbo.F03ShiftScheduleDays(
+    Id int IDENTITY PRIMARY KEY,
+    IsActive bit NOT NULL DEFAULT 1,
+    CreatedBy int NOT NULL DEFAULT 0,
+    LastModifiedSource nvarchar(50) NULL,
+    CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),
+    ModifiedBy int NULL,
+    ModifiedAt datetime2(0) NULL,
+    ScheduleCode nvarchar(50) NOT NULL,
+    DayNo tinyint NOT NULL,
+    ShiftCode nvarchar(20) NOT NULL
+);
+
+IF OBJECT_ID('dbo.F03EmployeeShiftSchedules','U') IS NULL CREATE TABLE dbo.F03EmployeeShiftSchedules(
+    Id int IDENTITY PRIMARY KEY,
+    IsActive bit NOT NULL DEFAULT 1,
+    CreatedBy int NOT NULL DEFAULT 0,
+    LastModifiedSource nvarchar(50) NULL,
+    CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),
+    ModifiedBy int NULL,
+    ModifiedAt datetime2(0) NULL,
+    EmployeeCode nvarchar(50) NOT NULL,
+    ScheduleCode nvarchar(50) NULL,
+    ScheduleType nvarchar(20) NULL,
+    HrmEmployeeNo int NULL,
+    ValidFrom date NULL,
+    ValidTo date NULL
+);
+
+IF OBJECT_ID('dbo.F03HrmShiftReference','U') IS NULL CREATE TABLE dbo.F03HrmShiftReference(
+    Id bigint IDENTITY PRIMARY KEY,
+    IsActive bit NOT NULL DEFAULT 1,
+    CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),
+    SyncedAt datetime2(0) NOT NULL DEFAULT GETDATE(),
+    EmployeeCode nvarchar(50) NOT NULL,
+    WorkDate date NOT NULL,
+    HrmScheduleCode nvarchar(50) NULL,
+    HrmShiftCode nvarchar(20) NULL,
+    HrmShiftAbbr nvarchar(10) NULL,
+    HrmCheckIn datetime2(0) NULL,
+    HrmCheckOut datetime2(0) NULL,
+    SourceUpdatedAt datetime2(0) NULL
+);
+
+GO
