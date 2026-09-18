@@ -56,6 +56,7 @@ namespace FVN_REGISTER.Application.Policies
             RequestModule.Leave => 0,
             RequestModule.Overtime => 1,
             RequestModule.Trip => 2,
+            RequestModule.Equipment => 3,
             _ => 99
         };
 
