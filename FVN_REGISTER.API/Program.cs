@@ -1,3 +1,4 @@
+using FVN_REGISTER.Application.Factories;
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Interfaces.Common;
@@ -138,6 +139,7 @@ builder.Services.AddScoped<IEmployeeManagementService, EmployeeManagementService
 builder.Services.AddScoped<ILeaveTypeManagementService, LeaveTypeManagementService>();
 
 // History / email / notifications
+builder.Services.AddScoped<INotificationFactory, NotificationFactory>();
 builder.Services.AddScoped<IApprovalHistoryService, ApprovalHistoryService>();
 builder.Services.AddScoped<IHistoryHandler, LeaveHistoryHandler>();
 builder.Services.AddScoped<IHistoryHandler, OTHistoryHandler>();
