@@ -57,3 +57,5 @@ PRINT N'============================================================';
 PRINT N'FVN_REGISTER SQL deployment 01..19 completed.';
 PRINT N'============================================================';
 GO
+
+/* Verification (read-only): :r 21_Verify_Reports.sql */
