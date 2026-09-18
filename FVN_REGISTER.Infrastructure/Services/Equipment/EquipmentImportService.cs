@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using ClosedXML.Excel;
 using FVN_REGISTER.Application.Interfaces.Equipment;
+using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.EquipmentImport;
@@ -19,9 +20,10 @@ public sealed class EquipmentImportService : IEquipmentImportService
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserService _currentUser;
     private readonly IAuthorizationService _authorization;
+    private readonly IAuditService _audit;
 
-    public EquipmentImportService(IUnitOfWork uow, ICurrentUserService currentUser, IAuthorizationService authorization)
-    { _uow = uow; _currentUser = currentUser; _authorization = authorization; }
+    public EquipmentImportService(IUnitOfWork uow, ICurrentUserService currentUser, IAuthorizationService authorization, IAuditService audit)
+    { _uow = uow; _currentUser = currentUser; _authorization = authorization; _audit = audit; }
 
     public async Task<List<EquipmentFieldDefinitionDto>> GetFieldDefinitionsAsync(string deptCode, CancellationToken ct = default)
     {
@@ -64,7 +66,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
         var rows=new List<F03EquipmentImportRow>();var valid=0;var invalid=0;
         for(var rowNo=first+1;rowNo<=last;rowNo++){ct.ThrowIfCancellationRequested();var data=new Dictionary<string,string?>(StringComparer.OrdinalIgnoreCase);for(var col=1;col<=headers.Count;col++)data[headers[col-1]]=ws.Cell(rowNo,col).GetFormattedString().Trim();if(data.Values.All(string.IsNullOrWhiteSpace))continue;var err=ValidateRow(data,defs);var status=err==null?"Valid":"Invalid";if(err==null)valid++;else invalid++;rows.Add(new F03EquipmentImportRow{BatchId=batch.Id,RowNumber=rowNo,RawJson=JsonSerializer.Serialize(data),Status=status,ErrorMessage=err,CreatedBy=user.UserId});}
         foreach(var row in rows)await _uow.Repository<F03EquipmentImportRow>().AddAsync(row,ct);
-        batch.TotalRows=rows.Count;batch.ValidRows=valid;batch.InvalidRows=invalid;batch.Status=invalid==0?"Ready":"NeedsReview";await _uow.SaveChangesAsync(ct);return MapBatch(batch);
+        batch.TotalRows=rows.Count;batch.ValidRows=valid;batch.InvalidRows=invalid;batch.Status=invalid==0?"Ready":"NeedsReview";await _uow.SaveChangesAsync(ct);await _audit.LogAction("EQUIPMENT_IMPORT_STAGED",user.UserId,$"BatchId={batch.Id}; DeptCode={batch.DeptCode}; FileName={batch.FileName}; Rows={batch.TotalRows}; Valid={batch.ValidRows}; Invalid={batch.InvalidRows}",ct:ct);return MapBatch(batch);
     }
 
     public async Task<EquipmentImportBatchDto?> GetBatchAsync(int batchId,CancellationToken ct=default)
@@ -82,7 +84,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
             var asset=new F03EquipmentAsset{EquipmentCode=code,EquipmentName=name,Specification=GetValue(data,"Specification","Thông số","Thông số kỹ thuật"),SerialNumber=GetValue(data,"SerialNumber","Serial","Số serial","S/N"),AssetCode=GetValue(data,"AssetCode","Mã tài sản"),PurchasePrice=ParseDecimal(GetValue(data,"PurchasePrice","Nguyên giá","Giá mua","Giá")),PurchaseDate=ParseDate(GetValue(data,"PurchaseDate","Ngày mua","Ngày nhập"))??DateTime.Today,ExpectedDepreciationDate=ParseDate(GetValue(data,"ExpectedDepreciationDate","Ngày khấu hao","Ngày hết khấu hao"))??DateTime.Today,DeptCode=b.DeptCode,Location=GetValue(data,"Location","Vị trí","Địa điểm"),QrToken=Convert.ToHexString(Guid.NewGuid().ToByteArray())+Guid.NewGuid().ToString("N"),IsQrActive=true,Note=GetValue(data,"Note","Ghi chú"),CustomDataJson=JsonSerializer.Serialize(BuildCustomData(data,defs)),CreatedBy=user.UserId};
             await _uow.Repository<F03EquipmentAsset>().AddAsync(asset,ct);await _uow.SaveChangesAsync(ct);row.AssetId=asset.Id;row.Status="Imported";imported=imported+1;
         }
-        b.ImportedRows=imported;b.Status="Imported";b.CompletedAt=DateTime.Now;b.ModifiedBy=user.UserId;b.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);return new(){BatchId=b.Id,ImportedRows=imported,SkippedRows=rows.Count(x=>x.Status=="Skipped")};
+        b.ImportedRows=imported;b.Status="Imported";b.CompletedAt=DateTime.Now;b.ModifiedBy=user.UserId;b.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);var skipped=rows.Count(x=>x.Status=="Skipped");await _audit.LogAction("EQUIPMENT_IMPORT_COMMITTED",user.UserId,$"BatchId={b.Id}; DeptCode={b.DeptCode}; Imported={imported}; Skipped={skipped}",ct:ct);return new(){BatchId=b.Id,ImportedRows=imported,SkippedRows=skipped};
     }
 
     private async Task EnsureScopeAsync(FVN_REGISTER.Contract.Dtos.Authentication.UserIdentityDto user,string deptCode,CancellationToken ct)
