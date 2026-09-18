@@ -41,7 +41,7 @@
 }
 
 <MudPaper Class="pa-3 mb-4">
-    <MudGrid AlignItems="AlignItems.Center">
+    <MudGrid>
         <MudItem xs="12" sm="3">
             <MudSelect T="int" @bind-Value="_year" Label="Năm" Variant="Variant.Outlined" Margin="Margin.Dense">
                 @foreach (var year in _years) { <MudSelectItem Value="@year">@year</MudSelectItem> }
