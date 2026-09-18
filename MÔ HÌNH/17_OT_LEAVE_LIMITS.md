@@ -104,3 +104,7 @@ flowchart LR
 - Dashboard và validator phải dùng cùng nguồn rule.
 - Không hiển thị hạn mức tuần giả nếu doanh nghiệp chưa cấu hình.
 - Help phải mô tả đúng cách tính và cảnh báo.
+
+## Work Calendar integration
+
+The OT and Leave registration screens use the shared Work Calendar. Company holidays are displayed as calendar information; OT and Leave quota validation remains the responsibility of their respective validators. Trip uses the same calendar projection and is not subject to OT/Leave quota rules.
