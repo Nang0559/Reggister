@@ -68,7 +68,7 @@ else
                     {
                         <MudStack Row="true" AlignItems="AlignItems.Start" Spacing="2" Class="mb-3">
                             <MudIcon Icon="@(step.IsRequired ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)" Color="@(step.IsRequired ? Color.Primary : Color.Default)" />
-                            <div><MudText Typo="Typo.body2"><b>Cấp @step.Level</b> — @step.RoleName</MudText><MudText Typo="Typo.caption">@step.ApproverName — @step.Status</MudText></div>
+                            <div><MudText Typo="Typo.body2"><b>Cấp @step.Level</b> — @step.RoleName</MudText><MudText Typo="Typo.caption">@step.ApproverName — @step.Decision</MudText></div>
                         </MudStack>
                     }
                 </MudCardContent>
