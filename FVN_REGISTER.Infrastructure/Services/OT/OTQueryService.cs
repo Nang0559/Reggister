@@ -324,15 +324,23 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                         && x.OTDate >= weekStart && x.OTDate < weekEnd)
                     .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
 
-                var weeklyRule = await Uow.Repository<F03OTLimitRule>().Query()
+                var employeeContext = await Uow.Repository<F03Employee>().Query()
                     .AsNoTracking()
-                    .Where(r => r.IsActive == true && r.LimitType == OTLimitType.Weekly
-                        && (r.PositionCode == null || r.PositionCode == (await GetEmployeePositionCodeAsync(emp.EmployeeCode, ct)))
-                        && (r.DeptCode == null || r.DeptCode == (await GetEmployeeDeptCodeAsync(emp.EmployeeCode, ct))))
-                    .OrderByDescending(r => r.PositionCode != null && r.DeptCode != null)
-                    .ThenByDescending(r => r.DeptCode != null)
-                    .ThenByDescending(r => r.PositionCode != null)
+                    .Where(e => e.EmployeeCode == emp.EmployeeCode)
+                    .Select(e => new { e.DeptCode, e.PositionCode })
                     .FirstOrDefaultAsync(ct);
+
+                var weeklyRule = employeeContext == null
+                    ? null
+                    : await Uow.Repository<F03OTLimitRule>().Query()
+                        .AsNoTracking()
+                        .Where(r => r.IsActive == true && r.LimitType == OTLimitType.Weekly
+                            && (r.PositionCode == null || r.PositionCode == employeeContext.PositionCode)
+                            && (r.DeptCode == null || r.DeptCode == employeeContext.DeptCode))
+                        .OrderByDescending(r => r.PositionCode != null && r.DeptCode != null)
+                        .ThenByDescending(r => r.DeptCode != null)
+                        .ThenByDescending(r => r.PositionCode != null)
+                        .FirstOrDefaultAsync(ct);
 
                 if (weeklyRule != null)
                     CheckLimit(result, emp, OTLimitType.Weekly, usedThisWeek, weeklyRule.LimitHours, emp.OTHours);
