@@ -30,7 +30,7 @@ namespace FVN_REGISTER.Application.Maps
                 Id = r.Id,
                 RequestStatus = r.RequestStatus,
                 Description = r.OTReasonSummary ?? string.Empty,
-                RequesterCode = r.EmployeeCode,
+                RequesterCode = r.EmployeeCode ?? string.Empty,
                 RequesterName = requester?.EmployeeName ?? string.Empty,
                 DeptCode = r.DeptCode ?? "",
                 DeptName = department?.DeptName ?? string.Empty,
@@ -59,7 +59,6 @@ namespace FVN_REGISTER.Application.Maps
                 DeptCode = v.DeptCode ?? string.Empty,
                 DeptName = v.DeptName ?? string.Empty,
                 WorkYear = v.OTDate.Year,
-                OTDate = v.OTDate,
                 OTTypeCode = v.OTTypeCode,
                 OtPurpose = v.OTReasonSummary ?? string.Empty,
                 ApprovalSteps = new List<ApprovalStepDto>(),
@@ -70,21 +69,21 @@ namespace FVN_REGISTER.Application.Maps
 
         public static OTEmployeeDto ToEmployeeDto(F03OTEmployee e) => new()
         {
-            EmployeeCode = e.EmployeeCode,
+            EmployeeCode = e.EmployeeCode ?? string.Empty,
             EmployeeName = e.EmployeeName ?? string.Empty,
-            DeptCode = e.DeptCode,
-            DeptName = e.DeptName,
-            CvCode = e.CvCode,
-            OTTypeCode = e.OTTypeCode,
+            DeptCode = e.DeptCode ?? string.Empty,
+            DeptName = e.DeptName ?? string.Empty,
+            CvCode = e.CvCode ?? string.Empty,
+            OTTypeCode = e.OTTypeCode ?? string.Empty,
             StartTime = e.StartTime?.TimeOfDay ?? TimeSpan.Zero,
             EndTime = e.EndTime?.TimeOfDay ?? TimeSpan.Zero,
             OTHours = e.OTHours,
             OTRateMultiplier = e.OTRateMultiplier,
             OTReasonCategoryCode = e.OTReasonCategoryCode ?? string.Empty,
-            OTReasonDetail = e.OTReasonDetail,
-            Note = e.Note,
-            ValidationStatus = e.ValidationStatus,
-            ValidationMessage = e.ValidationMessage
+            OTReasonDetail = e.OTReasonDetail ?? string.Empty,
+            Note = e.Note ?? string.Empty,
+            ValidationStatus = e.ValidationStatus ?? string.Empty,
+            ValidationMessage = e.ValidationMessage ?? string.Empty
         };
 
         public static PendingApprovalItemDto ToPendingItem(OTRequestDto dto, bool canApprove)
