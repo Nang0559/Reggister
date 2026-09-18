@@ -16,5 +16,5 @@ public sealed class F03EquipmentRepairHistory : BaseAuditEntity
     [StringLength(1000)] public string? RepairResult { get; set; }
     [StringLength(1000)] public string? Note { get; set; }
     public bool IsApproved { get; set; }
-    public virtual F03EquipmentAsset Asset { get; set; } = null!;
+    public F03EquipmentAsset Asset { get; set; } = null!;
 }
