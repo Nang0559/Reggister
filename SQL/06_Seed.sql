@@ -101,14 +101,15 @@ WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Permissions p WHERE p.PermissionCode=v.Per
 -- Plain-text passwords must never be stored in F03Users.Password.
 -- =========================
 INSERT dbo.F03Employees(IsActive,CreatedBy,EmployeeCode,EmployeeName,DeptCode,PositionCode,BirthDate,GenderCode,EmailAddress,PhoneNumber,FirstWorkingDate,TotalLeaveDays,EmployeeNo,LevelApprove)
-SELECT 1,0,v.Code,v.Name,v.Dept,v.Position,v.Birth,v.GenderId,v.Email,v.Phone,v.StartDate,v.LeaveDays,v.EmpNo,v.LevelApprove
+SELECT 1,0,v.Code,v.Name,v.Dept,v.Position,TRY_CONVERT(datetime2(0),v.Birth),g.Id,v.Email,v.Phone,TRY_CONVERT(datetime2(0),v.StartDate),v.LeaveDays,v.EmpNo,v.LevelApprove
 FROM (VALUES
-(N'E0001',N'Nguyen Van An',N'IT',N'EMP','1990-02-10',1,N'e0001@test.local',N'0900000001','2020-01-06',12,1,0),
-(N'E0002',N'Tran Thi Binh',N'IT',N'SL','1988-06-15',2,N'e0002@test.local',N'0900000002','2019-03-11',14,2,1),
-(N'E0003',N'Le Van Cuong',N'PROD',N'CHIEF','1985-09-20',1,N'e0003@test.local',N'0900000003','2018-07-02',14,3,2),
-(N'E0004',N'Pham Thi Dung',N'HR',N'MGR','1983-12-01',2,N'e0004@test.local',N'0900000004','2017-04-03',16,4,3),
-(N'E0005',N'Hoang Van Em',N'PROD',N'GM','1978-11-25',1,N'e0005@test.local',N'0900000005','2015-01-05',18,5,4)
-) AS v(Code,Name,Dept,Position,Birth,GenderId,Email,Phone,StartDate,LeaveDays,EmpNo,LevelApprove)
+(N'E0001',N'Nguyen Van An',N'IT',N'EMP',N'1990-02-10',N'M',N'e0001@test.local',N'0900000001',N'2020-01-06',12,1,0),
+(N'E0002',N'Tran Thi Binh',N'IT',N'SL',N'1988-06-15',N'F',N'e0002@test.local',N'0900000002',N'2019-03-11',14,2,1),
+(N'E0003',N'Le Van Cuong',N'PROD',N'CHIEF',N'1985-09-20',N'M',N'e0003@test.local',N'0900000003',N'2018-07-02',14,3,2),
+(N'E0004',N'Pham Thi Dung',N'HR',N'MGR',N'1983-12-01',N'F',N'e0004@test.local',N'0900000004',N'2017-04-03',16,4,3),
+(N'E0005',N'Hoang Van Em',N'PROD',N'GM',N'1978-11-25',N'M',N'e0005@test.local',N'0900000005',N'2015-01-05',18,5,4)
+) AS v(Code,Name,Dept,Position,Birth,GenderCode,Email,Phone,StartDate,LeaveDays,EmpNo,LevelApprove)
+INNER JOIN dbo.F03Genders g ON g.GenderCode=v.GenderCode
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Employees e WHERE e.EmployeeCode=v.Code);
 
 INSERT dbo.F03Users(IsActive,CreatedBy,Password,EmployeeCode,FullName,PermissionCode,LockoutEnable,NumLoginFailed,LevelApprove,DeptCode,Cvcode)
