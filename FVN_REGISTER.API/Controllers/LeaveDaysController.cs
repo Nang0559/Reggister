@@ -9,6 +9,7 @@ using FVN_REGISTER.Contract.Requests.Leaves;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -20,6 +21,7 @@ namespace FVN_REGISTER.API.Controllers
     [Route("api/[controller]")]
     public class LeaveDaysController : BaseApiController
     {
+        private readonly IAuthorizationService _authorization;
         private readonly ILeaveService _leaveService;
         private readonly ILeaveQueryService _queryService;
         private readonly IApprovalWorkflowOrchestrator<LeaveRequestSubject> _workflow;
@@ -31,8 +33,11 @@ namespace FVN_REGISTER.API.Controllers
             ICurrentUserService currentUser,
             IUserLogService userLog,
             ILogger<LeaveDaysController> logger,
-            IOptionsMonitor<AuthDebugOptions> options)
+            IOptionsMonitor<AuthDebugOptions> options,
+            FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService authorization)
             : base(currentUser, userLog, logger, options)
+        {
+            _authorization = authorization;
         {
             _leaveService = leaveService;
             _queryService = queryService;
@@ -42,6 +47,8 @@ namespace FVN_REGISTER.API.Controllers
         [HttpPost("create")]
         public async Task<IActionResult> Create([FromBody] LeaveRequestUpsertDto model, CancellationToken ct)
         {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveCreate, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
             if (!ModelState.IsValid) return BadRequest(ModelState);
             return HandleResult(await _leaveService.CreateAsync(model, UserInfo, ct));
@@ -50,6 +57,8 @@ namespace FVN_REGISTER.API.Controllers
         [HttpPost("{id:int}/cancel")]
         public async Task<IActionResult> Cancel(int id, [FromBody] LeaveCancelRequestDto body, CancellationToken ct)
         {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveCancel, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
             if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
             return HandleResult(await _leaveService.CancelAsync(id, body.Reason, UserInfo, ct));
@@ -58,6 +67,8 @@ namespace FVN_REGISTER.API.Controllers
         [HttpPost("cancel-detail/{detailId:int}")]
         public async Task<IActionResult> CancelDetail(int detailId, [FromBody] LeaveDetailCancelRequestDto request, CancellationToken ct)
         {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveCancel, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
             if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
             return HandleResult(await _leaveService.CancelDetailAsync(detailId, request.Reason, UserInfo, ct));
@@ -66,6 +77,8 @@ namespace FVN_REGISTER.API.Controllers
         [HttpPost("approve")]
         public async Task<IActionResult> Approve([FromBody] LeaveApprovalCommandDto request, CancellationToken ct)
         {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveApprove, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
             if (request.Ids == null || request.Ids.Count == 0)
                 return BadRequest(ApiResponse<object>.Fail("Chưa chọn đơn nào."));
@@ -75,6 +88,8 @@ namespace FVN_REGISTER.API.Controllers
         [HttpPost("reject")]
         public async Task<IActionResult> Reject([FromBody] LeaveApprovalCommandDto request, CancellationToken ct)
         {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveApprove, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
             if (request.Ids == null || request.Ids.Count == 0)
                 return BadRequest(ApiResponse<object>.Fail("Chưa chọn đơn nào."));
@@ -85,12 +100,16 @@ namespace FVN_REGISTER.API.Controllers
         [HttpGet("pending")]
         public async Task<IActionResult> GetPending(CancellationToken ct)
         {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveApprove, ct)) return Forbid();
             if (UserInfo?.Email == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             return Ok(ApiResponse<List<PendingApprovalItemDto>>.Ok(await _workflow.GetPendingForApproverAsync(UserInfo.Email, ct)));
         }
         [HttpGet("pending-summary")]
         public async Task<IActionResult> GetPendingSummary(CancellationToken ct)
         {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveApprove, ct)) return Forbid();
             if (UserInfo?.Email == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
 
@@ -116,6 +135,8 @@ namespace FVN_REGISTER.API.Controllers
         [HttpGet("balance/{year:int}")]
         public async Task<IActionResult> GetBalance(int year, CancellationToken ct)
         {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid();
             if (UserInfo?.EmployeeCode == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
 
@@ -130,6 +151,10 @@ namespace FVN_REGISTER.API.Controllers
         [HttpGet("history")]
         public async Task<IActionResult> GetHistory([FromQuery] int? year, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
         {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid();
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid();
             if (UserInfo == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
 
@@ -146,6 +171,8 @@ namespace FVN_REGISTER.API.Controllers
         [HttpGet("recent")]
         public async Task<IActionResult> GetRecent([FromQuery] int limit = 5, CancellationToken ct = default)
         {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid();
             if (UserInfo?.EmployeeCode == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             return Ok(ApiResponse<List<LeaveSummaryDto>>.Ok(await _queryService.GetRecentSummaryAsync(UserInfo.EmployeeCode, limit, ct)));
