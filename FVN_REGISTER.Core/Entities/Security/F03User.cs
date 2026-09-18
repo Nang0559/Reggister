@@ -43,4 +43,5 @@ public partial class F03User : BaseAuditEntity
 
     public virtual ICollection<F03AuditLog> AuditLogs { get; set; } = new List<F03AuditLog>();
     public virtual ICollection<F03UserFunction> F03userFunctions { get; set; } = new List<F03UserFunction>();
+    public virtual ICollection<F03UserRole> UserRoles { get; set; } = new List<F03UserRole>();
 }
