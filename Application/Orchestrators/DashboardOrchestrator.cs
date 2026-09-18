@@ -51,7 +51,11 @@ namespace FVN_REGISTER.Application.Orchestrators
             {
                 var response = new DashboardResponse
                 {
-                    ShowManagerView = await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveApprove, ct)
+                    ShowManagerView =
+                        await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveApprove, ct) ||
+                        await _authorization.HasAsync(user, SecurityFunctionCodes.OTApprove, ct) ||
+                        await _authorization.HasAsync(user, SecurityFunctionCodes.TripApprove, ct) ||
+                        await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentApprove, ct)
                 };
 
                 if (!await _authorization.HasAsync(user, SecurityFunctionCodes.DashboardView, ct))
