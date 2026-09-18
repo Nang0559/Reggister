@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Interfaces.Equipment;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Equipment;
+using FVN_REGISTER.Contract.Dtos.EquipmentImport;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
