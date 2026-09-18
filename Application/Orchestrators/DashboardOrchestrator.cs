@@ -58,7 +58,6 @@ namespace FVN_REGISTER.Application.Orchestrators
                 foreach (var provider in _providers)
                 {
                     var contribution = await provider.GetContributionAsync(user, ct);
-                {
                     rawWidgets.AddRange(contribution.Widgets);
 
                     switch (contribution.Module)
