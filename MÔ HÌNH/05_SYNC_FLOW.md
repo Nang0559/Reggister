@@ -2,20 +2,29 @@
 
 ## 1. Tổng quan — từ kiến trúc đến implementation
 
-`SynFlow.txt` mô tả HRM synchronization theo 6 tầng. Đây là tài liệu chi tiết nhất của pipeline sync.
+`SynFlow.txt` mô tả HRM synchronization theo các tầng. Với implementation hiện tại cần tách rõ **Master Data Sync**, **Shift Master Sync** và **Attendance/OT Reconciliation**.
 
 ```mermaid
 flowchart TB
-    S1[Tầng 1 — Source] --> S2[Tầng 2 — Staging]
-    S2 --> S3[Tầng 3 — Generic Sync Job]
-    S3 --> S4[Tầng 4 — Resolver]
-    S4 --> S5[Tầng 5 — Worker]
-    S5 --> S6[Tầng 6 — Management Service]
-    S6 --> DB[(Master Data)]
-    S6 -. review .-> RF[F03SyncReviewFlag]
+    HM[HRM Master Data] --> IMP[HrmStagingImporter]
+    IMP --> STG[F03StagingXxx]
+    STG --> JOB[HrmSyncJob]
+    JOB --> MD[(F03 Master Data)]
+
+    HS[HRM Shift Configuration] --> SMS[usp_SyncHrmShiftMaster]
+    SMS --> SHIFT[(F03 Shift Master)]
+
+    HA[HRM Attendance] --> ATT[usp_SyncAttendanceStaging]
+    SHIFT --> ATT
+    ATT --> AST[(F03AttendanceStaging)]
+    AST --> OT[usp_SyncOTActualHours]
+    OT --> OTF[(F03OTEmployees)]
 ```
 
+`F03Shifts`, `F03ShiftSchedules`, `F03ShiftScheduleDays` và `F03EmployeeShiftSchedules` là dữ liệu FVN_REGISTER sở hữu sau khi đồng bộ từ HRM. Attendance resolver sử dụng các bảng này để xác định ca và cửa sổ chấm công.
+
 ## 2. Tầng 1 — Source
+
 
 ### 2.1 Trigger / importer
 
@@ -34,6 +43,34 @@ Có hai đường vào staging:
 - Poll/backfill qua `IHrmSourceReader` + `HrmStagingImporterBase`.
 
 Importer tạo Update staging và diff key để tạo Delete staging cho key biến mất. Có guard chống xóa hàng loạt khi missing keys bất thường; ngưỡng nguồn nêu `> 50% existingKeySet`.
+
+## 2.1 HRM master / configuration
+
+| Nhóm | HRM source | FVN_REGISTER đích |
+|---|---|---|
+| Employee | `tblNhanVien` | `F03Employees` |
+| Department | `tblBoPhan` | `F03Departments` |
+| Position | `tblChucVu` | `F03Positions` |
+| Leave Type | `tblLoaiNghi` | `F03LeaveType` |
+| Shift | `tblca` | `F03Shifts` |
+| Shift Schedule | `CC_LichTrinhCa` | `F03ShiftSchedules` / `F03ShiftScheduleDays` |
+| Employee Shift | HRM employee + schedule mapping | `F03EmployeeShiftSchedules` |
+
+Master data dùng staging/importer/generic sync job. Shift master dùng stored procedure chuyên biệt `usp_SyncHrmShiftMaster`.
+
+## 2.2 HRM attendance source
+
+Attendance **không đi qua** `IHrmStagingEntity`. `usp_SyncAttendanceStaging` đọc trực tiếp:
+
+- `HRM.dbo.tblNhanVien`
+- `HRM.dbo.tblCapThe`
+- `HRM.dbo.RecordDataNew`
+- `HRM.dbo.tblDauDoc`
+- `HRM.dbo.tblBaoCao`
+
+`tblBaoCao` chỉ là snapshot/reference HRM; FVN_REGISTER không ghi vào HRM.
+
+Không có cross-database trigger từ FVN_REGISTER để cập nhật HRM. Các stored procedure và worker của FVN_REGISTER chỉ đọc HRM và ghi dữ liệu F03 cục bộ.
 
 ## 3. Tầng 2 — Staging
 
