@@ -246,3 +246,99 @@ BEGIN
    AND DATEDIFF(minute,s.CreatedAt,@Now)>=r.EscalateHours*60;
 END;
 GO
+/*
+================================================================================
+PIPELINE A — HRM MASTER DATA SOURCE CONTRACTS
+Source: [HRM].[dbo]
+Target: F03Staging* -> HrmSyncJob -> F03*
+The procedures below are READ-ONLY against HRM. They expose stable aliases
+consumed by Dapper source-row DTOs. Soft/deleted HRM rows (DLocked=1) are not
+returned; the importer detects missing keys and creates Delete staging records.
+================================================================================
+*/
+CREATE OR ALTER PROCEDURE dbo.usp_SyncHrmLeaveTypeSource
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        LeaveTypeCode = LTRIM(RTRIM(LN.LNMa)),
+        LeaveTypeName = LN.LNTen,
+        LeaveTypeName2 = NULLIF(LTRIM(RTRIM(LN.LNViettat)), N''),
+        TinhPhep = CAST(ISNULL(LN.LNTinhDKNgayNghi, 0) AS bit),
+        HRMCode = LTRIM(RTRIM(LN.LNMa))
+    FROM HRM.dbo.tblLoaiNghi AS LN
+    WHERE ISNULL(LN.DLocked, 0) = 0
+      AND NULLIF(LTRIM(RTRIM(LN.LNMa)), N'') IS NOT NULL
+    ORDER BY LN.LNUuTien, LN.LNMa;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.usp_SyncHrmDepartmentSource
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        DeptCode = CONVERT(nvarchar(20), BP.BPMa),
+        DeptName = BP.BPTen,
+        ParentDeptCode =
+            CASE WHEN ISNULL(BP.BPMaCha, 0) = 0 THEN NULL
+                 ELSE CONVERT(nvarchar(50), BP.BPMaCha) END,
+        DisplayPriority =
+            CASE WHEN BP.BPUuTien IS NULL THEN NULL
+                 WHEN BP.BPUuTien > 2147483647 OR BP.BPUuTien < -2147483648 THEN NULL
+                 ELSE CONVERT(int, BP.BPUuTien) END,
+        ShowInReport = CAST(ISNULL(BP.BPHienThiBC, 1) AS bit)
+    FROM HRM.dbo.tblBoPhan AS BP
+    WHERE ISNULL(BP.DLocked, 0) = 0
+    ORDER BY BP.BPUuTien, BP.BPMa;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.usp_SyncHrmPositionSource
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        PositionCode = LTRIM(RTRIM(CV.CVMa)),
+        PositionName = CV.CVTen
+    FROM HRM.dbo.tblChucVu AS CV
+    WHERE ISNULL(CV.DLocked, 0) = 0
+      AND NULLIF(LTRIM(RTRIM(CV.CVMa)), N'') IS NOT NULL
+    ORDER BY CV.CVMa;
+END;
+GO
+
+CREATE OR ALTER PROCEDURE dbo.usp_SyncHrmEmployeeSource
+AS
+BEGIN
+    SET NOCOUNT ON;
+
+    SELECT
+        EmployeeCode = LTRIM(RTRIM(NV.NVMaNV)),
+        EmployeeName = NULLIF(LTRIM(RTRIM(NV.NVHoTen)), N''),
+        DeptCode =
+            CASE WHEN ISNULL(NV.NVMaBP, 0) = 0 THEN NULL
+                 ELSE CONVERT(nvarchar(20), NV.NVMaBP) END,
+        PositionCode = NULLIF(LEFT(LTRIM(RTRIM(NV.NVMaCV)), 20), N''),
+        BirthDate = NV.NVNgaySinh,
+        GenderCode = CONVERT(int, NV.NVGioiTinh),
+        EmailAddress = ISNULL(NV.NVEmail, N''),
+        PhoneNumber = NULLIF(LTRIM(RTRIM(NV.NVDienThoai)), N''),
+        FirstWorkingDate = NV.NVNgayVao,
+        EndWorkingDate =
+            CASE
+                WHEN NV.NVNgayRa IS NULL OR NV.NVNgayRa >= '9990-01-01'
+                    THEN NULL
+                ELSE NV.NVNgayRa
+            END,
+        TotalLeaveDays = CONVERT(decimal(5,2), NV.NVSoNgayPhep),
+        EmployeeNo = NV.NVMa
+    FROM HRM.dbo.tblNhanVien AS NV
+    WHERE ISNULL(NV.DLocked, 0) = 0
+      AND NULLIF(LTRIM(RTRIM(NV.NVMaNV)), N'') IS NOT NULL
+    ORDER BY NV.NVMaNV;
+END;
+GO
