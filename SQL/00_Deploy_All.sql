@@ -1,6 +1,6 @@
 /*
 ===============================================================================
-FVN_REGISTER - MASTER SQL DEPLOYMENT 01..14
+FVN_REGISTER - MASTER SQL DEPLOYMENT
 ===============================================================================
 Run in SSMS with SQLCMD Mode enabled.
 
@@ -14,17 +14,21 @@ Order:
   07 Views
   08 Functions
   09 Stored procedures
-  10 Trigger policy (intentionally no HRM cross-db trigger)
-  11 Automation contract (application worker)
-  12 Final verification
+  10 Triggers
+  11 Automation contract
+  12 Core verification
   13 HRM shift master / attendance resolver
   14 Application RBAC / authorization
   15 Public Information CMS
+  16 Equipment flexible schema / import
+  17 Documentation consistency verification
+  18 OT / Leave limits
+  19 Shared Work Calendar indexes / policy
 
 IMPORTANT:
-  06_Seed.sql is TEST/DEMO data. Do NOT run it on production unless intended.
-  Automatic HRM synchronization is performed by HrmSyncBackgroundWorker in the
-  application, not by a cross-database trigger or SQL Agent job.
+  06_Seed.sql is TEST/DEMO data.
+  HRM remains READ ONLY from FVN_REGISTER.
+  Work Calendar is a read projection shared by Leave, OT and Trip.
 ===============================================================================
 */
 
@@ -39,15 +43,16 @@ IMPORTANT:
 :r 09_StoredProcedures.sql
 :r 10_Triggers.sql
 :r 11_Automation.sql
+:r 12_Verify.sql
 :r 13_HrmShiftMaster.sql
 :r 14_SecurityAuthorization.sql
 :r 15_PublicInformation.sql
-:r 12_Verify.sql
+:r 16_EquipmentFlexibleImport.sql
+:r 17_DocumentationConsistency.sql
+:r 18_OT_Leave_Limits.sql
+:r 19_WorkCalendar.sql
 
 PRINT N'============================================================';
-PRINT N'FVN_REGISTER SQL deployment 01..15 completed.';
+PRINT N'FVN_REGISTER SQL deployment 01..19 completed.';
 PRINT N'============================================================';
 GO
-
-:r .\15_PublicInformation.sql
-:r .\16_EquipmentFlexibleImport.sql
