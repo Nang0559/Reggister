@@ -41,7 +41,7 @@ HRM DB (nguồn — [HRM].[dbo].[tblXxx])
  cơ chế hoàn toàn khác Pipeline A — KHÔNG được nhầm lẫn 2 pipeline này.
 ════════════════════════════════════════════════════════════════════════
 
-HRM DB (chấm công — fn_OTActualCheckInOut / bảng chấm công gốc)
+HRM DB (chỉ là nguồn dữ liệu chấm công gốc)
                             │
                             │ usp_SyncAttendanceStaging (SQL proc, KHÔNG qua .NET diff)
                             ▼
