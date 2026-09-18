@@ -8,9 +8,6 @@ namespace FVN_REGISTER.Core.Entities.Common;
 [Table("F03AuditLogs")]
 public partial class F03AuditLog:BaseAuditEntity
 {
-    [Key]
-    public int Id { get; set; }
-
     public int? UserId { get; set; }
 
     [StringLength(100)]
@@ -27,8 +24,6 @@ public partial class F03AuditLog:BaseAuditEntity
 
     [StringLength(255)]
     public string? UserAgent { get; set; } // Thông tin trình duyệt/thiết bị
-
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
 
     // Navigation Property
     [ForeignKey("UserId")]
