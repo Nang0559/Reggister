@@ -201,6 +201,18 @@ WHERE x.IdRole IS NOT NULL
   AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.IdRole AND rf.IdFunction=f.IdFunction);
 GO
 
+/* Every authenticated role gets the dashboard shell; module providers still require their own capability. */
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
+SELECT r.IdRole,f.IdFunction
+FROM dbo.F03Roles r
+JOIN dbo.F03Functions f ON f.FunctionCode=2701
+WHERE r.IsActive=1
+  AND NOT EXISTS(
+      SELECT 1 FROM dbo.F03RoleFunctions rf
+      WHERE rf.IdRole=r.IdRole AND rf.IdFunction=f.IdFunction
+  );
+GO
+
 /* Migrate the legacy primary role into the normalized multi-role table. */
 INSERT dbo.F03UserRoles(IdUser,IdRole,IsPrimary,CreatedBy)
 SELECT u.IdUser,r.IdRole,1,0
