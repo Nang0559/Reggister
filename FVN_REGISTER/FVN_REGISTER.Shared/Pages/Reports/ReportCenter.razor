@@ -36,15 +36,15 @@ else
         }
         @if (_permission.Has(SecurityFunctionCodes.TripView))
         {
-            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">Công tác</MudText><MudText>Tổng hợp chuyến đi, chi phí và trạng thái duyệt.</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/trip"))">Mở báo cáo</MudButton></MudCardActions></MudCard></MudItem>
+            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">Công tác</MudText><MudText>Tổng hợp chuyến đi, chi phí và trạng thái duyệt.</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/operations?module=trip"))">Mở báo cáo</MudButton></MudCardActions></MudCard></MudItem>
         }
         @if (_permission.Has(SecurityFunctionCodes.EquipmentView))
         {
-            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">Thiết bị</MudText><MudText>Tài sản theo phòng, chi tiết thiết bị và sửa chữa.</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/equipment"))">Mở báo cáo</MudButton></MudCardActions></MudCard></MudItem>
+            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">Thiết bị</MudText><MudText>Tài sản theo phòng, chi tiết thiết bị và sửa chữa.</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/operations?module=equipment"))">Mở báo cáo</MudButton></MudCardActions></MudCard></MudItem>
         }
         @if (_permission.Has(SecurityFunctionCodes.AttendanceView))
         {
-            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">Chấm công</MudText><MudText>Tổng hợp và chi tiết giờ công, vào/ra và OT từ dữ liệu staging.</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/attendance"))">Mở báo cáo</MudButton></MudCardActions></MudCard></MudItem>
+            <MudItem xs="12" sm="6" md="4"><MudCard><MudCardContent><MudText Typo="Typo.h6">Chấm công</MudText><MudText>Tổng hợp và chi tiết giờ công, vào/ra và OT từ dữ liệu staging.</MudText></MudCardContent><MudCardActions><MudButton Color="Color.Primary" OnClick="@(()=>Nav.NavigateTo("/report/operations?module=attendance"))">Mở báo cáo</MudButton></MudCardActions></MudCard></MudItem>
         }
     </MudGrid>
 }
