@@ -81,6 +81,31 @@
                 Example = "Quy định có EffectiveFrom 01/10 chỉ hiển thị trong cửa sổ hiệu lực.";
                 Security = "PublicInformationManage là capability quản trị.";
                 break;
+            case "WORK_CALENDAR":
+            case "CALENDAR":
+                Title = "Lịch làm việc chung";
+                Summary = "Một lịch thống nhất cho ngày nghỉ công ty, Nghỉ phép, OT và Công tác.";
+                Flow = "COMPANY CALENDAR → WORK CALENDAR → LEAVE / OT / TRIP → MODULE VALIDATOR";
+                Steps = new[] { "Mở lịch từ Leave, OT hoặc Trip.", "Dùng bộ lọc Tất cả/Công ty/Nghỉ phép/OT/Công tác.", "Click ngày để đưa ngày vào nghiệp vụ đang mở.", "Click event để xem thông tin hoặc chi tiết.", "Nếu lịch cảnh báo xung đột, vẫn chờ server validator quyết định trước khi lưu/gửi.";
+                Example = "Một ngày nghỉ công ty vẫn có thể xuất hiện trên lịch OT hoặc Trip; Holiday không tự động khóa tất cả nghiệp vụ.";
+                Security = "Calendar API chỉ trả dữ liệu của người dùng hiện tại và yêu cầu ít nhất một trong LeaveView, OTView hoặc TripView. Create/Edit/Cancel/Approve vẫn là capability riêng.";
+                break;
+            case "LEAVE":
+                Title = "Đăng ký nghỉ phép";
+                Summary = "Chọn ngày trực tiếp từ Work Calendar; số dư và điều kiện nghỉ được kiểm tra ở server.";
+                Flow = "WORK CALENDAR → CHỌN NGÀY → NHẬP LEAVE → VALIDATE BALANCE/CONFLICT → SUBMIT → APPROVAL";
+                Steps = new[] { "Chọn ngày trên lịch hoặc nút Đăng ký nghỉ.", "Kiểm tra ngày nghỉ công ty và các event đang có.", "Chọn loại nghỉ và nhập lý do.", "Kiểm tra số dư phép và trùng ngày.", "Gửi duyệt và theo dõi trạng thái.";
+                Example = "Ngày đã có OT hoặc công tác được lịch cảnh báo; việc có được phép nghỉ vẫn do LeaveValidator quyết định.";
+                Security = "LeaveCreate/LeaveEdit/LeaveCancel/LeaveApprove độc lập với quyền xem lịch.";
+                break;
+            case "TRIP":
+                Title = "Đăng ký công tác";
+                Summary = "Chọn ngày bắt đầu từ Work Calendar và kiểm tra lịch các nghiệp vụ liên quan.";
+                Flow = "WORK CALENDAR → CHỌN NGÀY → TRIP DRAFT → VALIDATE → SUBMIT → APPROVAL";
+                Steps = new[] { "Click ngày bắt đầu trên lịch.", "Nhập ngày kết thúc, địa điểm và mục đích.", "Lưu nháp hoặc gửi duyệt.", "Theo dõi công tác đã đăng ký trên lịch.";
+                Example = "Lịch có thể hiển thị Leave/OT cùng ngày để người dùng phát hiện xung đột trước khi gửi.";
+                Security = "TripCreate/TripEdit/TripCancel/TripApprove được kiểm tra ở server theo capability và data scope.";
+                break;
             case "OT":
                 Title = "Đăng ký OT";
                 Summary = "Đăng ký OT với kiểm tra hạn mức ngày, tuần, tháng và năm trước khi Submit.";
