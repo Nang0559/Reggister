@@ -81,6 +81,14 @@
                 Example = "Quy định có EffectiveFrom 01/10 chỉ hiển thị trong cửa sổ hiệu lực.";
                 Security = "PublicInformationManage là capability quản trị.";
                 break;
+            case "REPORTS":
+                Title = "Báo cáo & thống kê";
+                Summary = "Tra cứu Leave, OT, Trip, Equipment và Attendance theo đúng capability và data scope.";
+                Flow = "REPORT CENTER → VIEW CAPABILITY → DATA SCOPE → QUERY → TABLE/CHART → OPTIONAL EXCEL";
+                Steps = new[] { "Mở Trung tâm báo cáo.", "Chọn nhóm nghiệp vụ mà tài khoản được phép xem.", "Chọn khoảng thời gian và bộ lọc.", "Xem bảng/biểu đồ tổng hợp.", "Xuất Excel chỉ khi có capability Export tương ứng." };
+                Example = "Người dùng chỉ có Leave.View xem được báo cáo nghỉ phép trong phạm vi của mình; không có Leave.Export thì nút xuất hoặc API export bị từ chối.";
+                Security = "ReportDispatcher kiểm tra capability View/Export; service tiếp tục áp dụng Own/Department/All. SQL view chỉ là read model, không cấp quyền.";
+                break;
             case "WORK_CALENDAR":
             case "CALENDAR":
                 Title = "Lịch làm việc chung";
