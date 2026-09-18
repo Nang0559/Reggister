@@ -61,11 +61,30 @@
         </MudNavGroup>
     }
 
-    @if (CanAny(SecurityFunctionCodes.LeaveExport, SecurityFunctionCodes.OTExport))
+    @if (CanAny(SecurityFunctionCodes.LeaveView, SecurityFunctionCodes.OTView, SecurityFunctionCodes.TripView, SecurityFunctionCodes.EquipmentView, SecurityFunctionCodes.AttendanceView))
     {
-        <MudNavGroup Title="Báo cáo" Icon="@Icons.Material.Filled.Assessment" Expanded="false">
-            <MudNavLink href="/report/leave" Icon="@Icons.Material.Filled.BeachAccess">Báo cáo nghỉ phép</MudNavLink>
-            <MudNavLink href="/report/ot" Icon="@Icons.Material.Filled.MoreTime">Báo cáo làm thêm giờ</MudNavLink>
+        <MudNavGroup Title="Báo cáo & thống kê" Icon="@Icons.Material.Filled.Assessment" Expanded="false">
+            <MudNavLink href="/reports" Icon="@Icons.Material.Filled.Dashboard">Trung tâm báo cáo</MudNavLink>
+            @if (Can(SecurityFunctionCodes.LeaveView))
+            {
+                <MudNavLink href="/report/leave" Icon="@Icons.Material.Filled.BeachAccess">Nghỉ phép</MudNavLink>
+            }
+            @if (Can(SecurityFunctionCodes.OTView))
+            {
+                <MudNavLink href="/report/ot" Icon="@Icons.Material.Filled.MoreTime">OT</MudNavLink>
+            }
+            @if (Can(SecurityFunctionCodes.TripView))
+            {
+                <MudNavLink href="/report/operations?module=trip" Icon="@Icons.Material.Filled.FlightTakeoff">Công tác</MudNavLink>
+            }
+            @if (Can(SecurityFunctionCodes.EquipmentView))
+            {
+                <MudNavLink href="/report/operations?module=equipment" Icon="@Icons.Material.Filled.Devices">Thiết bị</MudNavLink>
+            }
+            @if (Can(SecurityFunctionCodes.AttendanceView))
+            {
+                <MudNavLink href="/report/operations?module=attendance" Icon="@Icons.Material.Filled.AccessTime">Chấm công</MudNavLink>
+            }
         </MudNavGroup>
     }
 
