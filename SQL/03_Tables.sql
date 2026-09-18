@@ -14,6 +14,33 @@ IF COL_LENGTH('dbo.F03Permissions','Id') IS NOT NULL ALTER TABLE dbo.F03Permissi
 IF COL_LENGTH('dbo.F03Functions','Id') IS NOT NULL ALTER TABLE dbo.F03Functions DROP COLUMN Id;
 IF COL_LENGTH('dbo.F03Users','Id') IS NOT NULL ALTER TABLE dbo.F03Users DROP COLUMN Id;
 
+IF OBJECT_ID('dbo.F03HrmUserRoleRules','U') IS NULL CREATE TABLE dbo.F03HrmUserRoleRules(
+    Id int IDENTITY PRIMARY KEY,
+    IsActive bit NOT NULL DEFAULT 1,
+    CreatedBy int NOT NULL DEFAULT 0,
+    LastModifiedSource nvarchar(50) NULL,
+    CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),
+    ModifiedBy int NULL,
+    ModifiedAt datetime2(0) NULL,
+    DeptCode nvarchar(20) NULL,
+    PositionCode nvarchar(20) NULL,
+    PermissionCode int NOT NULL,
+    Priority int NOT NULL DEFAULT 100,
+    Note nvarchar(500) NULL
+);
+
+IF OBJECT_ID('dbo.F03UserProvisioningQueue','U') IS NULL CREATE TABLE dbo.F03UserProvisioningQueue(
+    Id bigint IDENTITY PRIMARY KEY,
+    EmployeeCode nvarchar(50) NOT NULL,
+    Action nvarchar(20) NOT NULL,
+    IsProcessed bit NOT NULL DEFAULT 0,
+    RetryCount int NOT NULL DEFAULT 0,
+    MaxRetry int NOT NULL DEFAULT 5,
+    ErrorMessage nvarchar(1000) NULL,
+    CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),
+    ProcessedAt datetime2(0) NULL
+);
+
 IF OBJECT_ID('dbo.F03UserFunctions','U') IS NULL CREATE TABLE dbo.F03UserFunctions(Id int IDENTITY PRIMARY KEY,IdUser int NOT NULL,IdPermission int NOT NULL,IdFunction int NOT NULL);
 IF OBJECT_ID('dbo.F03UserSessions','U') IS NULL CREATE TABLE dbo.F03UserSessions(Id int IDENTITY PRIMARY KEY,UserId int NOT NULL,DeviceType nvarchar(10) NOT NULL,DeviceId nvarchar(100) NOT NULL,DeviceName nvarchar(100) NULL,JwtToken nvarchar(max) NULL,ExpiresAt datetime2(0) NULL,SignalRConnectionId nvarchar(100) NULL,IsActive bit NOT NULL DEFAULT 1,CreatedAt datetime2(0) NOT NULL DEFAULT GETUTCDATE(),LastSeenAt datetime2(0) NULL,RevokedAt datetime2(0) NULL,RememberMe bit NOT NULL DEFAULT 0);
 
