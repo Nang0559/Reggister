@@ -102,9 +102,5 @@ PRINT '--- HRM automatic user provisioning ---';
 IF OBJECT_ID(N'dbo.F03HrmUserRoleRules',N'U') IS NULL
     THROW 51001, 'Missing dbo.F03HrmUserRoleRules', 1;
 
-IF OBJECT_ID(N'dbo.F03UserProvisioningQueue',N'U') IS NULL
-    THROW 51002, 'Missing dbo.F03UserProvisioningQueue', 1;
-
 SELECT
-    UserRoleRuleCount = (SELECT COUNT(*) FROM dbo.F03HrmUserRoleRules),
-    PendingProvisioningCount = (SELECT COUNT(*) FROM dbo.F03UserProvisioningQueue WHERE IsProcessed = 0);
+    UserRoleRuleCount = (SELECT COUNT(*) FROM dbo.F03HrmUserRoleRules);
