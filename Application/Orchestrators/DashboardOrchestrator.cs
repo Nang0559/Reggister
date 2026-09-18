@@ -12,6 +12,7 @@ using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Utils;
+using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Application.Orchestrators
 {
