@@ -241,6 +241,9 @@ flowchart LR
 - [ ] Wire Trip timeout escalation vào background worker sau khi chốt policy.
 - [ ] Seed email templates `TRIP_APPROVED` / `TRIP_REJECTED`.
 - [ ] Chốt UI đăng ký công tác ở client.
+- [x] Server có kiểm tra Draft/NeedsRevision, ngày bắt đầu/kết thúc, địa điểm, mục đích và chi phí.
+- [x] Edit chỉ cho Draft/NeedsRevision và yêu cầu TripEdit scope.
+- [x] Cancel yêu cầu TripEdit scope, lý do bắt buộc và không cho hủy Approved/Rejected/Cancelled.
 - [ ] Chốt business matrix Trip chính thức nếu khác `1 → 2 → 3`.
 - [ ] Chạy EF/database deployment và integration test trên database thật.
 
