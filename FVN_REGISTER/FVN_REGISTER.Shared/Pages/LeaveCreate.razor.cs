@@ -2,6 +2,7 @@ using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Dtos.MasterData;
 using FVN_REGISTER.Shared.Dialogs;
 using FVN_REGISTER.Shared.Services.Leaves;
+using FVN_REGISTER.Shared.Services.Users;
 using Microsoft.AspNetCore.Components;
 using Microsoft.Extensions.Logging;
 using Microsoft.JSInterop;
