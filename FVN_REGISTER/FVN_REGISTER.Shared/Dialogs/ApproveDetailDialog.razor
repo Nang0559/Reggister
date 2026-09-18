@@ -63,7 +63,7 @@
     private async Task Reject()
     {
         _busy = true;
-        try { var result = await ApprovalService.RejectAsync(new List<int> { Item.RequestId }, Item.Kind, Level > 0 ? Level : Item.CurrentApprovalLevel, _comment); Snackbar.Add(result.IsSuccess ? "Đã từ chối!" : result.Message ?? "Lỗi", result.IsSuccess ? Severity.Info : Severity.Error); if (result.IsSuccess) MudDialog.Close(DialogResult.Ok(true)); }
+        try { var result = await ApprovalService.RejectAsync(new List<int> { Item.RequestId }, Item.Kind, Level > 0 ? Level : GetCurrentApprovalLevel(Item), _comment); Snackbar.Add(result.IsSuccess ? "Đã từ chối!" : result.Message ?? "Lỗi", result.IsSuccess ? Severity.Info : Severity.Error); if (result.IsSuccess) MudDialog.Close(DialogResult.Ok(true)); }
         finally { _busy = false; }
     }
 }
