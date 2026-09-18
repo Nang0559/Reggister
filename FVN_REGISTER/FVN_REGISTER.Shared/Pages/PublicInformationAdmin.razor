@@ -1,0 +1,147 @@
+@page "/admin/public-information"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.PublicInformation
+@using FVN_REGISTER.Shared.Handlers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IHttpClientWithAuth Http
+@inject NavigationManager Navigation
+
+<PageTitle>CMS thông tin công khai</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-5">
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight:800">CMS thông tin công khai</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Draft → Preview → Published → Archived</MudText>
+        </div>
+        <MudStack Row="true" Spacing="1">
+            <FeatureHelp />
+            <MudButton Variant="Variant.Filled" StartIcon="@Icons.Material.Filled.Add" OnClick="NewItem">Tạo bản nháp</MudButton>
+        </MudStack>
+    </MudStack>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else
+    {
+        <MudGrid Spacing="3">
+            @foreach (var item in _items)
+            {
+                <MudItem xs="12">
+                    <MudPaper Outlined="true" Class="pa-4">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Start">
+                            <div>
+                                <MudStack Row="true" Spacing="1" Class="mb-2">
+                                    <MudChip T="string" Size="Size.Small">@item.Type</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="@StatusColor(item.Status)">@item.Status</MudChip>
+                                    @if (item.IsImportant) { <MudChip T="string" Size="Size.Small" Color="Color.Error">Quan trọng</MudChip> }
+                                </MudStack>
+                                <MudText Typo="Typo.h6">@item.Title</MudText>
+                                <MudText Typo="Typo.body2" Class="mud-text-secondary">@item.Summary</MudText>
+                            </div>
+                            <MudStack Row="true">
+                                @if (item.Status != "Published")
+                                {
+                                    <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => Edit(item))">Sửa</MudButton>
+                                    <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => Publish(item.Id))">Publish</MudButton>
+                                }
+                                @if (item.Status != "Archived")
+                                {
+                                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Error" OnClick="@(() => Archive(item.Id))">Archive</MudButton>
+                                }
+                            </MudStack>
+                        </MudStack>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+
+    <MudDialog @bind-IsVisible="_editorOpen">
+        <DialogContent>
+            <MudText Typo="Typo.h6" Class="mb-4">@(_editing.Id == 0 ? "Tạo bản nháp" : "Chỉnh sửa bản nháp")</MudText>
+            <MudSelect T="string" Label="Loại" @bind-Value="_editing.Type" Variant="Variant.Outlined" Class="mb-3">
+                <MudSelectItem Value="@("Announcement")">Thông báo</MudSelectItem>
+                <MudSelectItem Value="@("Regulation")">Quy định</MudSelectItem>
+                <MudSelectItem Value="@("Guide")">Hướng dẫn</MudSelectItem>
+                <MudSelectItem Value="@("Policy")">Chính sách</MudSelectItem>
+            </MudSelect>
+            <MudTextField Label="Tiêu đề" @bind-Value="_editing.Title" Variant="Variant.Outlined" Class="mb-3" />
+            <MudTextField Label="Tóm tắt" @bind-Value="_editing.Summary" Variant="Variant.Outlined" Class="mb-3" />
+            <MudTextField Label="Nội dung" @bind-Value="_editing.Content" Lines="8" Variant="Variant.Outlined" Class="mb-3" />
+            <MudTextField Label="Attachment URL" @bind-Value="_editing.AttachmentUrl" Variant="Variant.Outlined" Class="mb-3" />
+            <MudSwitch @bind-Value="_editing.IsImportant" Color="Color.Error">Quan trọng</MudSwitch>
+        </DialogContent>
+        <DialogActions>
+            <MudButton OnClick="CloseEditor">Hủy</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Save">Lưu Draft</MudButton>
+        </DialogActions>
+    </MudDialog>
+</MudContainer>
+
+@code {
+    private readonly List<PublicInformationDto> _items = new();
+    private PublicInformationDto _editing = new();
+    private bool _loading = true;
+    private bool _editorOpen;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        _loading = true;
+        try
+        {
+            var result = await Http.GetAsync<List<PublicInformationDto>>("api/public-information/manage");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _items.Clear();
+                _items.AddRange(result.Data);
+            }
+        }
+        finally { _loading = false; }
+    }
+
+    private void NewItem() { _editing = new PublicInformationDto { Type = "Announcement" }; _editorOpen = true; }
+    private void Edit(PublicInformationDto x) { _editing = new PublicInformationDto { Id=x.Id, Type=x.Type, Title=x.Title, Summary=x.Summary, Content=x.Content, EffectiveFrom=x.EffectiveFrom, EffectiveTo=x.EffectiveTo, IsImportant=x.IsImportant, AttachmentUrl=x.AttachmentUrl }; _editorOpen=true; }
+    private void CloseEditor() => _editorOpen = false;
+
+    private async Task Save()
+    {
+        if (string.IsNullOrWhiteSpace(_editing.Title))
+        {
+            Snackbar.Add("Tiêu đề là bắt buộc.", Severity.Warning);
+            return;
+        }
+        var request = new SavePublicInformationRequest { Type=_editing.Type, Title=_editing.Title, Summary=_editing.Summary, Content=_editing.Content, EffectiveFrom=_editing.EffectiveFrom, EffectiveTo=_editing.EffectiveTo, IsImportant=_editing.IsImportant, AttachmentUrl=_editing.AttachmentUrl };
+        var result = _editing.Id == 0
+            ? await Http.PostAsync<PublicInformationDto>("api/public-information", request)
+            : await Http.PutAsync<PublicInformationDto>($"api/public-information/{_editing.Id}", request);
+        Snackbar.Add(result.IsSuccess ? "Đã lưu bản nháp." : (result.Message ?? "Không thể lưu."), result.IsSuccess ? Severity.Success : Severity.Error);
+        if (result.IsSuccess) { _editorOpen=false; await Load(); }
+    }
+
+    private async Task Publish(int id)
+    {
+        var result = await Http.PostAsync<object>($"api/public-information/{id}/publish", new { });
+        Snackbar.Add(result.IsSuccess ? "Đã Publish." : (result.Message ?? "Không thể Publish."), result.IsSuccess ? Severity.Success : Severity.Error);
+        if (result.IsSuccess) await Load();
+    }
+
+    private async Task Archive(int id)
+    {
+        var result = await Http.PostAsync<object>($"api/public-information/{id}/archive", new { });
+        Snackbar.Add(result.IsSuccess ? "Đã Archive." : (result.Message ?? "Không thể Archive."), result.IsSuccess ? Severity.Success : Severity.Error);
+        if (result.IsSuccess) await Load();
+    }
+
+    private static Color StatusColor(string? status) => status switch
+    {
+        "Published" => Color.Success,
+        "Archived" => Color.Dark,
+        _ => Color.Warning
+    };
+}
