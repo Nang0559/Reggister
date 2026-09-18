@@ -25,6 +25,7 @@ namespace FVN_REGISTER.Core.Entities.HRM
         public DateTime? FirstWorkingDate { get; set; }
         public DateTime? EndWorkingDate { get; set; }
         public decimal? TotalLeaveDays { get; set; }
+        public int? EmployeeNo { get; set; }
     }
 
 }
