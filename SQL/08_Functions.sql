@@ -1,16 +1,16 @@
 USE [FVN_REGISTER];
 GO
-CREATE OR ALTER FUNCTION config.fn_WorkingDays(@FromDate date,@ToDate date)
-RETURNS int
+CREATE OR ALTER FUNCTION dbo.fn_WorkingDays(@StartDate date,@EndDate date)
+RETURNS decimal(10,2)
 AS
 BEGIN
-    IF @FromDate IS NULL OR @ToDate IS NULL OR @FromDate>@ToDate RETURN 0;
-    DECLARE @n int=0,@d date=@FromDate;
-    WHILE @d<=@ToDate
-    BEGIN
-        IF DATEPART(WEEKDAY,@d) NOT IN (1) AND NOT EXISTS(SELECT 1 FROM config.CompanyHoliday h WHERE h.HolidayDate=@d AND h.IsActive=1) SET @n+=1;
-        SET @d=DATEADD(DAY,1,@d);
-    END
-    RETURN @n;
-END
+ DECLARE @d date=@StartDate,@n decimal(10,2)=0;
+ IF @EndDate<@StartDate RETURN 0;
+ WHILE @d<=@EndDate
+ BEGIN
+  IF DATEPART(WEEKDAY,@d) NOT IN(1,7) AND NOT EXISTS(SELECT 1 FROM dbo.F03CompanyHolidays h WHERE h.HolidayDate=@d AND h.IsActive=1) SET @n+=1;
+  SET @d=DATEADD(day,1,@d);
+ END
+ RETURN @n;
+END;
 GO
