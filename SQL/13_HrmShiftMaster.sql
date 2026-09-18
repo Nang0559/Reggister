@@ -388,11 +388,12 @@ BEGIN
         LTRIM(RTRIM(NV.NVMaNV)),
         CONVERT(nvarchar(7),BC.BCMaCa),
         NULLIF(LTRIM(RTRIM(BC.BCLichTrinhCa)),N''),
-        NULL,
+        ES.SearchType,
         BC.BCTGVao,
         BC.BCTGVe
     FROM HRM.dbo.tblBaoCao BC
     INNER JOIN HRM.dbo.tblNhanVien NV ON NV.NVMa=BC.BCMaNV
+    LEFT JOIN dbo.F03EmployeeShiftSchedules ES ON ES.EmployeeCode=LTRIM(RTRIM(NV.NVMaNV)) AND ES.IsActive=1
     WHERE BC.BCNgay >= @WorkDate
       AND BC.BCNgay < DATEADD(day,1,@WorkDate);
 
@@ -415,7 +416,7 @@ BEGIN
             S.ShiftCode,S.ShiftName,S.ShiftAbbr,S.ShiftType,
             S.StartTime,S.EndTime,S.ScanBeforeMinutes,S.ScanAfterMinutes,
             S.Break1Start,S.Break1End,S.Break2Start,S.Break2End,S.Break3Start,S.Break3End,
-            S.CountBreakAsWork,S.CNgUongLamThem AS DummyIgnore
+            S.CountBreakAsWork
         FROM EmployeeContext EC
         INNER JOIN dbo.F03ShiftScheduleDays SD
           ON SD.ScheduleCode=EC.ScheduleCode
@@ -429,13 +430,13 @@ BEGIN
     (
         SELECT C.*,
                DATEADD(MINUTE,-C.ScanBeforeMinutes,
-                   CAST(@WorkDate AS datetime2)+CAST(C.StartTime AS datetime2)) AS WindowStart,
+                   DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00' AS time),C.StartTime),CAST(@WorkDate AS datetime2))) AS WindowStart,
                DATEADD(MINUTE,C.ScanAfterMinutes,
                    DATEADD(DAY,CASE WHEN C.EndTime<C.StartTime THEN 1 ELSE 0 END,
-                       CAST(@WorkDate AS datetime2)+CAST(C.EndTime AS datetime2))) AS WindowEnd,
-               CAST(@WorkDate AS datetime2)+CAST(C.StartTime AS datetime2) AS ShiftStart,
+                       DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00' AS time),C.EndTime),CAST(@WorkDate AS datetime2)))) AS WindowEnd,
+               DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00' AS time),C.StartTime),CAST(@WorkDate AS datetime2)) AS ShiftStart,
                DATEADD(DAY,CASE WHEN C.EndTime<C.StartTime THEN 1 ELSE 0 END,
-                   CAST(@WorkDate AS datetime2)+CAST(C.EndTime AS datetime2)) AS ShiftEnd
+                   DATEADD(MINUTE,DATEDIFF(MINUTE,CAST('00:00' AS time),C.EndTime),CAST(@WorkDate AS datetime2))) AS ShiftEnd
         FROM CandidateShifts C
     ),
     Cards AS
@@ -584,7 +585,7 @@ BEGIN
         GETDATE()
     FROM Resolved R
     LEFT JOIN dbo.F03Departments D ON D.DeptCode=R.DeptCode AND D.IsActive=1
-    CROSS JOIN (SELECT TOP(1) * FROM Holidays) H
+    LEFT JOIN Holidays H ON 1=1
     OUTER APPLY
     (
         SELECT TOP(1)
