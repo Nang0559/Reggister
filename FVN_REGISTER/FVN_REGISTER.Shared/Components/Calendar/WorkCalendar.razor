@@ -2,6 +2,8 @@
 @using FVN_REGISTER.Shared.Services.Calendar
 @inject IWorkCalendarClientService CalendarService
 @inject ICurrentUserClientService CurrentUser
+@inject IJSRuntime JS
+@implements IAsyncDisposable
 
 <MudPaper Class="pa-3" Elevation="0">
     <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" Class="mb-2">
