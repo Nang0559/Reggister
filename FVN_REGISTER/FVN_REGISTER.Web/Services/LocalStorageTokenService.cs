@@ -12,7 +12,6 @@ public sealed class LocalStorageTokenService : ITokenStorage
 
     // Scoped per Blazor Server circuit. Never share JWTs between users.
     private string? _cachedToken;
-    private bool _jsReady;
 
     public LocalStorageTokenService(
         IJSRuntime jsRuntime,
@@ -26,7 +25,6 @@ public sealed class LocalStorageTokenService : ITokenStorage
 
     public void MarkJsReady()
     {
-        _jsReady = true;
         if (_debug)
             _logger.LogDebug("[TokenStorage] JS runtime marked ready.");
     }
@@ -77,8 +75,6 @@ public sealed class LocalStorageTokenService : ITokenStorage
                 "localStorage.setItem",
                 AuthConstants.TokenKey,
                 _cachedToken);
-
-            _jsReady = true;
 
             if (_debug)
                 _logger.LogDebug("[TokenStorage] Token saved.");
