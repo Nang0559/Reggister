@@ -7,9 +7,9 @@ namespace FVN_REGISTER.Core.Entities.Security;
 [Table("F03Users")]
 public partial class F03User : BaseAuditEntity
 {
-    [Key]
-    public int IdUser { get; set; }
-    // Lưu ý: Luôn lưu mật khẩu đã hash (bcrypt/pbkdf2), không bao giờ lưu plain text
+    // PK kế thừa từ BaseAuditEntity.Id.
+    // EF mapping Id -> IdUser được đặt tại Infrastructure để giữ nguyên schema DB legacy.
+
     [Required, StringLength(255)]
     public string Password { get; set; } = string.Empty;
 
@@ -18,6 +18,7 @@ public partial class F03User : BaseAuditEntity
 
     [Required, StringLength(50)]
     public string EmployeeCode { get; set; } = string.Empty;
+
     [StringLength(100)]
     public string? FullName { get; set; }
 
@@ -25,13 +26,11 @@ public partial class F03User : BaseAuditEntity
 
     public DateTime? LastLogin { get; set; }
 
-    // Bảo mật đăng nhập
     public bool LockoutEnable { get; set; } = true;
     public DateTime? LockoutEndDate { get; set; }
-    public int NumLoginFailed { get; set; } = 0;
+    public int NumLoginFailed { get; set; }
 
-    // Nghiệp vụ phê duyệt
-    public int LevelApprove { get; set; } = 0;
+    public int LevelApprove { get; set; }
 
     [StringLength(20)]
     public string? DeptCode { get; set; }
@@ -39,8 +38,7 @@ public partial class F03User : BaseAuditEntity
     [StringLength(20)]
     public string? Cvcode { get; set; }
 
-    // Navigation Properties
-    [ForeignKey("PermissionCode")]
+    [ForeignKey(nameof(PermissionCode))]
     public virtual F03Permission PermissionCodeNavigation { get; set; } = null!;
 
     public virtual ICollection<F03AuditLog> AuditLogs { get; set; } = new List<F03AuditLog>();
