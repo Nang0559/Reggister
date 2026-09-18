@@ -14,13 +14,5 @@ namespace FVN_REGISTER.Application.Services.Common
             : base(logger, options)
         {
         }
-
-        protected ServiceResult<TResult> InternalError<TResult>(
-            Exception ex, string customMsg = "Lỗi hệ thống")
-        {
-            Logger.LogError(ex, "[{Component}] {Message}", ComponentName, ex.Message);
-            var finalMsg = Debug ? $"{customMsg}: {ex.Message}" : customMsg;
-            return ServiceResult<TResult>.Fail(finalMsg);
-        }
     }
 }
