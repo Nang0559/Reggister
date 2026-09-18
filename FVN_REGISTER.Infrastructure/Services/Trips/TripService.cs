@@ -34,7 +34,7 @@ public sealed class TripService : ITripService
     {
         var user = _currentUser.GetCurrentUser()
             ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
-        ValidatePeriod(request.StartDate, request.EndDate);
+        ValidateRequest(request);
 
         if (!await _authorization.CanAccessAsync(user, SecurityFunctionCodes.TripCreate, user.EmployeeCode, user.DeptCode, ct))
             throw new UnauthorizedAccessException("Bạn không có quyền tạo đăng ký công tác theo phạm vi dữ liệu được cấp.");
@@ -173,6 +173,72 @@ public sealed class TripService : ITripService
         Accommodation = x.Accommodation,
         Note = x.Note
     };
+
+
+    public async Task<TripRequestDto> UpdateDraftAsync(int requestId, CreateTripRequestDto request, CancellationToken ct = default)
+    {
+        var user = _currentUser.GetCurrentUser()
+            ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
+        var entity = await _uow.Repository<F03TripRequest>().Query()
+            .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy đăng ký công tác.");
+
+        if (!await _authorization.CanAccessAsync(user, SecurityFunctionCodes.TripEdit, entity.EmployeeCode, entity.DeptCode, ct))
+            throw new UnauthorizedAccessException("Bạn không có quyền sửa đăng ký này.");
+
+        if (entity.RequestStatus != ApprovalStatus.Draft && entity.RequestStatus != ApprovalStatus.NeedsRevision)
+            throw new InvalidOperationException("Chỉ Draft/NeedsRevision mới được sửa.");
+
+        ValidateRequest(request);
+        entity.StartDate = request.StartDate;
+        entity.EndDate = request.EndDate;
+        entity.Destination = request.Destination.Trim();
+        entity.Purpose = request.Purpose.Trim();
+        entity.CustomerOrPartner = request.CustomerOrPartner?.Trim();
+        entity.TransportMethod = request.TransportMethod?.Trim();
+        entity.CompanionEmployeeCodes = request.CompanionEmployeeCodes?.Trim();
+        entity.EstimatedCost = request.EstimatedCost;
+        entity.Accommodation = request.Accommodation?.Trim();
+        entity.Note = request.Note?.Trim();
+        entity.ModifiedBy = user.UserId;
+        entity.ModifiedAt = DateTime.Now;
+        await _uow.SaveChangesAsync(ct);
+        return await MapAsync(entity, ct);
+    }
+
+    public async Task CancelAsync(int requestId, string reason, CancellationToken ct = default)
+    {
+        var user = _currentUser.GetCurrentUser()
+            ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
+        var entity = await _uow.Repository<F03TripRequest>().Query()
+            .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy đăng ký công tác.");
+
+        if (!await _authorization.CanAccessAsync(user, SecurityFunctionCodes.TripEdit, entity.EmployeeCode, entity.DeptCode, ct))
+            throw new UnauthorizedAccessException("Bạn không có quyền hủy đăng ký này.");
+        if (entity.RequestStatus == ApprovalStatus.Approved || entity.RequestStatus == ApprovalStatus.Rejected || entity.RequestStatus == ApprovalStatus.Cancelled)
+            throw new InvalidOperationException("Đăng ký đã kết thúc, không thể hủy.");
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("Lý do hủy không được để trống.");
+
+        entity.RequestStatus = ApprovalStatus.Cancelled;
+        entity.IsActive = false;
+        entity.ModifiedBy = user.UserId;
+        entity.ModifiedAt = DateTime.Now;
+        await _uow.SaveChangesAsync(ct);
+    }
+
+    private static void ValidateRequest(CreateTripRequestDto request)
+    {
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        ValidatePeriod(request.StartDate, request.EndDate);
+        if (string.IsNullOrWhiteSpace(request.Destination))
+            throw new ArgumentException("Địa điểm công tác là bắt buộc.");
+        if (string.IsNullOrWhiteSpace(request.Purpose))
+            throw new ArgumentException("Mục đích công tác là bắt buộc.");
+        if (request.EstimatedCost.HasValue && request.EstimatedCost.Value < 0)
+            throw new ArgumentException("Chi phí dự kiến không được âm.");
+    }
 
     private static void ValidatePeriod(DateTime start, DateTime end)
     {
