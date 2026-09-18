@@ -8,6 +8,7 @@
 @using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.OTs
 @using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Utils.Helpers
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IDisposable
@@ -205,7 +206,7 @@ else if (_form != null)
                 EmployeeCode = source.EmployeeCode, EmployeeName = source.EmployeeName, DeptCode = source.DeptCode,
                 DeptName = source.DeptName, CvCode = source.CvCode, OTTypeCode = _form.OTTypeCode,
                 StartTime = _start ?? TimeSpan.Zero, EndTime = _end ?? TimeSpan.Zero,
-                OTHours = CalculateHours(_start, _end), OTReasonCategoryCode = _categories.FirstOrDefault()?.Code ?? string.Empty
+                OTHours = CalculateHours(_start, _end), OTReasonCategoryCode = _categories.FirstOrDefault()?.ReasonCode ?? string.Empty
             });
         }
         _approvalSteps.Clear();
