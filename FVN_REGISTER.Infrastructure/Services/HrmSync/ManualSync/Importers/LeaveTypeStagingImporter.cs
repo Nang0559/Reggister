@@ -33,7 +33,8 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.Importers
             EntityKey = row.LeaveTypeCode,
             LeaveTypeName = row.LeaveTypeName,
             LeaveTypeName2 = row.LeaveTypeName2,
-            HRMCode = row.HRMCode
+            HRMCode = row.HRMCode,
+            TinhPhep = row.TinhPhep
             // KHÔNG map TinhPhep — khớp đúng LeaveTypeHrmSyncJob.MapToNewEntity/ApplyUpdate
             // không đụng field này (business tự cấu hình ở FVN, không phải dữ liệu chủ HRM).
         };
