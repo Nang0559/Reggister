@@ -117,6 +117,7 @@ builder.Services.AddScoped<ILeaveService, LeaveService>();
 // Reports
 builder.Services.AddScoped<IReportService, LeaveReportService>();
 builder.Services.AddScoped<IReportService, OTReportService>();
+builder.Services.AddScoped<IReportService, OperationalReportService>();
 builder.Services.AddScoped<IReportDispatcher, ReportDispatcher>();
 
 // OT
