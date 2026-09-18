@@ -160,7 +160,7 @@
         {
             foreach (var group in items.GroupBy(x => new { x.Kind, Level = GetCurrentApprovalLevel(x) }))
             {
-                var r = await ApprovalService.ApproveAsync(group.Select(x => x.RequestId).ToList(), group.Key.Kind, group.Key.CurrentApprovalLevel, null, _cts.Token);
+                var r = await ApprovalService.ApproveAsync(group.Select(x => x.RequestId).ToList(), group.Key.Kind, group.Key.Level, null, _cts.Token);
                 if (!r.IsSuccess) Snackbar.Add(r.Message ?? "Lỗi phê duyệt", Severity.Error);
             }
             await LoadAsync();
@@ -193,7 +193,7 @@
         {
             foreach (var group in list.GroupBy(x => new { x.Kind, x.CurrentApprovalLevel }))
             {
-                var r = await ApprovalService.RejectAsync(group.Select(x => x.RequestId).ToList(), group.Key.Kind, group.Key.CurrentApprovalLevel, comment, _cts.Token);
+                var r = await ApprovalService.RejectAsync(group.Select(x => x.RequestId).ToList(), group.Key.Kind, group.Key.Level, comment, _cts.Token);
                 if (!r.IsSuccess) Snackbar.Add(r.Message ?? "Lỗi từ chối", Severity.Error);
             }
             await LoadAsync();
