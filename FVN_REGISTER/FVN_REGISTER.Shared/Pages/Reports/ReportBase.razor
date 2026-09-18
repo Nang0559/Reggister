@@ -37,7 +37,7 @@
             <MudChart T="double"
                       ChartType="@(_result.Chart.ChartType == "bar" ? ChartType.Bar : ChartType.Line)"
                       ChartSeries="@MapToMudChartSeries(_result.Chart.Series)"
-                      XAxisLabels="@_result.Chart.Labels.ToArray()"
+                      ChartLabels="@_result.Chart.Labels.ToArray()"
                       Width="100%" Height="350px" />
         }
         else if (_result.Chart.ChartType == "pie" || _result.Chart.ChartType == "donut")
@@ -45,8 +45,8 @@
             <div class="d-flex justify-center">
                 <MudChart T="double"
                           ChartType="@(_result.Chart.ChartType == "pie" ? ChartType.Pie : ChartType.Donut)"
-                          InputData="@MapToMudChartData(_result.Chart.Series)"
-                          InputLabels="@_result.Chart.Labels.ToArray()"
+                          ChartSeries="@MapToMudChartSeries(_result.Chart.Series)"
+                          ChartLabels="@_result.Chart.Labels.ToArray()"
                           Width="300px" Height="300px" />
             </div>
         }
@@ -152,8 +152,6 @@
     private static List<ChartSeries<double>> MapToMudChartSeries(List<ReportChartSeries> backendSeries)
         => backendSeries.Select(s => new ChartSeries<double> { Name = s.Name, Data = s.Data.Select(Convert.ToDouble).ToArray() }).ToList();
 
-    private static double[] MapToMudChartData(List<ReportChartSeries> backendSeries)
-        => backendSeries.Any() ? backendSeries.First().Data.Select(Convert.ToDouble).ToArray() : Array.Empty<double>();
 
     private static string GetSummaryLabel(string key) => key switch
     {
