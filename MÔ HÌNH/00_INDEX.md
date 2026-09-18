@@ -115,3 +115,5 @@ Controller không query EF; Application không phụ thuộc Infrastructure. Mod
 - `17_OT_LEAVE_LIMITS.md` — hạn mức OT ngày/tuần/tháng/năm và thông tin phép trên Workspace.
 
 - Phase 3 — Capability + Data Scope: `12_SECURITY_RBAC.md` (Section Phase 3)
+
+- [19 — Reports & Statistics](19_REPORTS_STATISTICS.md) — Danh mục báo cáo, capability và data scope.
