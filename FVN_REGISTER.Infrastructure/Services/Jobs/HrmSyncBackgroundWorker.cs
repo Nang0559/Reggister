@@ -15,13 +15,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
             _logger = logger;
         }
 
+        private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(5);
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            // Polling thay cho trigger cross-database: HRM không bị phụ thuộc vào FVN_REGISTER.
             while (!stoppingToken.IsCancellationRequested)
             {
-                await Task.Delay(DelayUntilNextRun(DateTime.Now, 2, 0), stoppingToken);
-                if (stoppingToken.IsCancellationRequested) break;
-
                 try
                 {
                     using var scope = _scopeFactory.CreateScope();
@@ -30,10 +30,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                     var run = result.Data;
 
                     if (!result.IsSuccess || run == null || !run.Success)
-                        _logger.LogError("[HRM-SYNC] Daily synchronization failed: {Message}", result.Message ?? run?.Summary);
-
+                        _logger.LogError("[HRM-SYNC] Automatic synchronization failed: {Message}", result.Message ?? run?.Summary);
                     else
-                        _logger.LogInformation("[HRM-SYNC] Daily synchronization completed: {Summary}", run.Summary);
+                        _logger.LogInformation("[HRM-SYNC] Automatic synchronization completed: {Summary}", run.Summary);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
@@ -41,7 +40,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "[HRM-SYNC] Daily synchronization failed.");
+                    _logger.LogError(ex, "[HRM-SYNC] Automatic synchronization failed.");
                 }
             }
         }
