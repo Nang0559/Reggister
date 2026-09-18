@@ -1,6 +1,7 @@
 ﻿using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Interfaces;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -79,6 +80,27 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
             var keys = latest.Select(x => x.EntityKey).ToList();
             var existingByKey = await LoadExistingEntitiesAsync(keys, ct);
 
+            // Safety guard: never mass-deactivate FVN data because an HRM snapshot
+            // is incomplete. Only HRM-owned rows may be deactivated automatically.
+            var deleteItems = latest.Where(x => x.Action == HrmChangeAction.Delete).ToList();
+            if (deleteItems.Count > 0)
+            {
+                var activeCount = await Uow.Repository<TEntity>().Query()
+                    .CountAsync(x => EF.Property<bool?>(x, "IsActive") == true, ct);
+
+                if (deleteItems.Count * 2 > Math.Max(activeCount, 1))
+                {
+                    foreach (var staging in deleteItems)
+                    {
+                        staging.IsProcessed = true;
+                        staging.ErrorMessage = $"Delete guard: từ chối {deleteItems.Count} delete trên {activeCount} bản ghi active (>50%).";
+                    }
+
+                    result.Errors.Add($"Delete guard chặn {deleteItems.Count} bản ghi của {EntityType}: snapshot HRM có thể không đầy đủ.");
+                    latest = latest.Where(x => x.Action != HrmChangeAction.Delete).ToList();
+                }
+            }
+
             var batchContext = new HrmSyncBatchContext<TEntity>();
 
             foreach (var staging in latest)
@@ -91,7 +113,9 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
                     switch (staging.Action)
                     {
                         case HrmChangeAction.Delete:
-                            if (entity != null && ApplyDelete(entity))
+                            if (entity != null &&
+                                string.Equals(EF.Property<string>(entity, "LastModifiedSource"), SyncSourceTags.Hrm, StringComparison.OrdinalIgnoreCase) &&
+                                ApplyDelete(entity))
                             {
                                 result.Deactivated++;
                                 batchContext.Deleted.Add(entity);
