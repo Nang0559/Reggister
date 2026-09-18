@@ -93,6 +93,32 @@ public sealed class SecurityController : BaseApiController
         }
     }
 
+    [HttpPut("roles/{roleCode:int}/functions")]
+    public async Task<IActionResult> SetRoleFunctions(
+        int roleCode,
+        [FromBody] UpdateRoleFunctionsRequest request,
+        CancellationToken ct)
+    {
+        if (UserInfo == null) return Unauthorized();
+        if (roleCode != request.RoleCode)
+            return BadRequest(ApiResponse<object>.Fail("RoleCode không khớp."));
+        if (!await CanManageAsync(SecurityFunctionCodes.SecurityManageFunctions, ct))
+            return Forbid();
+
+        try
+        {
+            var role = await _authorization.SetRoleFunctionsAsync(
+                roleCode, request.FunctionCodes, UserInfo.UserId, ct);
+
+            await LogActionAsync($"Cập nhật function cho RoleCode={roleCode}");
+            return Ok(ApiResponse<SecurityRoleDto>.Ok(role));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
+
     private async Task<bool> CanManageAsync(int functionCode, CancellationToken ct)
     {
         return UserInfo != null &&
