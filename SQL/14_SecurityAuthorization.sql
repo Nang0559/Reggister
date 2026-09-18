@@ -130,7 +130,7 @@ FROM (VALUES
 (2203,N'Trip.Edit',N'Sửa đăng ký công tác',N'Trip',N'Edit',N'Own',230),
 (2204,N'Trip.Cancel',N'Hủy đăng ký công tác',N'Trip',N'Cancel',N'Own',240),
 (2205,N'Trip.Approve',N'Duyệt công tác',N'Trip',N'Approve',N'Department',250),
-(2301,N'Equipment.View',N'Xem thiết bị',N'Equipment',N'View',N'Own',310),
+(2301,N'Equipment.View',N'Xem thiết bị',N'Equipment',N'View',N'Department',310),
 (2302,N'Equipment.Create',N'Tạo yêu cầu thiết bị',N'Equipment',N'Create',N'Own',320),
 (2303,N'Equipment.Edit',N'Sửa yêu cầu thiết bị',N'Equipment',N'Edit',N'Own',330),
 (2304,N'Equipment.Repair',N'Xử lý sửa chữa',N'Equipment',N'Repair',N'Department',340),
