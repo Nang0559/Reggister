@@ -9,13 +9,15 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
         private readonly IServiceScopeFactory _scopeFactory;
         private readonly ILogger<HrmSyncBackgroundWorker> _logger;
 
-        public HrmSyncBackgroundWorker(IServiceScopeFactory scopeFactory, ILogger<HrmSyncBackgroundWorker> logger)
+        private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(5);
+
+        public HrmSyncBackgroundWorker(
+            IServiceScopeFactory scopeFactory,
+            ILogger<HrmSyncBackgroundWorker> logger)
         {
             _scopeFactory = scopeFactory;
             _logger = logger;
         }
-
-        private static readonly TimeSpan PollInterval = TimeSpan.FromMinutes(5);
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -30,9 +32,17 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                     var run = result.Data;
 
                     if (!result.IsSuccess || run == null || !run.Success)
-                        _logger.LogError("[HRM-SYNC] Automatic synchronization failed: {Message}", result.Message ?? run?.Summary);
+                    {
+                        _logger.LogError(
+                            "[HRM-SYNC] Automatic synchronization failed: {Message}",
+                            result.Message ?? run?.Summary);
+                    }
                     else
-                        _logger.LogInformation("[HRM-SYNC] Automatic synchronization completed: {Summary}", run.Summary);
+                    {
+                        _logger.LogInformation(
+                            "[HRM-SYNC] Automatic synchronization completed: {Summary}",
+                            run.Summary);
+                    }
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
@@ -40,16 +50,19 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                 }
                 catch (Exception ex)
                 {
+                    // HRM/FVN failure must not terminate the hosted worker.
                     _logger.LogError(ex, "[HRM-SYNC] Automatic synchronization failed.");
                 }
-            }
-        }
 
-        private static TimeSpan DelayUntilNextRun(DateTime now, int hour, int minute)
-        {
-            var next = now.Date.AddHours(hour).AddMinutes(minute);
-            if (next <= now) next = next.AddDays(1);
-            return next - now;
+                try
+                {
+                    await Task.Delay(PollInterval, stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    break;
+                }
+            }
         }
     }
 }
