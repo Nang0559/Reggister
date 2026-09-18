@@ -122,7 +122,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                 if (count == 0)
                 {
                     _logger.LogWarning(
-                        "[OT_STAGING_WORKER] 0 bản ghi ngày {D} — kiểm tra dữ liệu HRM hoặc fn_OTActualCheckInOut",
+                        "[OT_STAGING_WORKER] 0 bản ghi ngày {D} — kiểm tra dữ liệu chấm công HRM hoặc đơn OT đã duyệt",
                         yesterday.ToString("dd/MM/yyyy"));
                 }
                 else
