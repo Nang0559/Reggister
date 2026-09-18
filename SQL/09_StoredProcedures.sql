@@ -318,7 +318,7 @@ BEGIN
 
     SELECT
         EmployeeCode = LTRIM(RTRIM(NV.NVMaNV)),
-        EmployeeName = NULLIF(LTRIM(RTRIM(NV.NVHoTen)), N''),
+        EmployeeName = COALESCE(NULLIF(LTRIM(RTRIM(NV.NVHoTen)), N''), LTRIM(RTRIM(NV.NVMaNV))),
         DeptCode =
             CASE WHEN ISNULL(NV.NVMaBP, 0) = 0 THEN NULL
                  ELSE CONVERT(nvarchar(20), NV.NVMaBP) END,
