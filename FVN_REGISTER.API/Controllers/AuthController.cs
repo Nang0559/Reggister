@@ -64,6 +64,26 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(await _authService.UpdateProfileAsync(UserInfo.UserId, request.Email, request.AvatarUrl, ct));
         }
 
+        [HttpPost("change-password")]
+        [Authorize]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordRequestDto request, CancellationToken ct)
+        {
+            if (UserInfo == null)
+                return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+
+            if (!ModelState.IsValid)
+                return BadRequest(ApiResponse<object>.Fail("Dữ liệu đổi mật khẩu không hợp lệ."));
+
+            var result = await _authService.ChangePassword(
+                UserInfo.EmployeeCode,
+                request.CurrentPassword,
+                request.NewPassword,
+                ct);
+
+            await LogActionAsync("Đổi mật khẩu");
+            return HandleResult(result);
+        }
+
         [HttpPost("logout")]
         [Authorize]
         public async Task<IActionResult> Logout([FromBody] LogoutRequestDto? request, CancellationToken ct)
