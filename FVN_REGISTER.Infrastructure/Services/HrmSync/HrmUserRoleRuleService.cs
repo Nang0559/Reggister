@@ -117,7 +117,7 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
             .ToListAsync(ct);
 
         var users = await _uow.Repository<F03User>().Query()
-            .Where(x => x.IsActive)
+            .Where(x => x.IsActive && x.LastModifiedSource == SyncSourceTags.Hrm)
             .ToListAsync(ct);
 
         foreach (var user in users)
