@@ -45,18 +45,21 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             var first = await _engine.GetNextStepAsync(requestId, ct);
             if (first == null) return;
 
-            if (!string.IsNullOrWhiteSpace(first.ApproverEmail))
+            if (!string.IsNullOrWhiteSpace(first.ApproverCode) && !string.IsNullOrWhiteSpace(first.ApproverEmail))
             {
                 await _notification.NotifyNewRequestAsync(
-                    first.ApproverCode,
-                    first.ApproverEmail,
-                    first.ApproverName,
+                    first.ApproverCode!,
+                    first.ApproverEmail!,
+                    first.ApproverName ?? string.Empty,
                     requestId,
                     subject.Module,
                     subject.EmployeeName ?? string.Empty,
                     first.Level,
                     ct);
             }
+
+            if (string.IsNullOrWhiteSpace(first.ApproverCode))
+                return;
 
             await _notification.NotifyApproverInAppAsync(
                 first.ApproverCode,
