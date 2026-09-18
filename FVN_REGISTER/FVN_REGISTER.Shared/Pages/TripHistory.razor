@@ -111,7 +111,7 @@
         {
             var result = await TripService.GetMineAsync();
             _items.Clear();
-            if (result.IsSuccess && result.Value != null)
+            if (result.IsSuccess && result.Data != null)
                 _items.AddRange(result.Value);
             else if (!result.IsSuccess)
                 Snackbar.Add(result.Message ?? "Không thể tải lịch sử công tác.", Severity.Error);
