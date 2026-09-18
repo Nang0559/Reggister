@@ -1,9 +1,9 @@
 USE [FVN_REGISTER];
 GO
 /* EF business-key indexes */
-IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_F03Permissions_Code' AND object_id=OBJECT_ID('dbo.F03Permissions')) CREATE UNIQUE INDEX IX_F03Permissions_Code ON dbo.F03Permissions(PermissionCode);
-IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_F03Functions_Code' AND object_id=OBJECT_ID('dbo.F03Functions')) CREATE UNIQUE INDEX IX_F03Functions_Code ON dbo.F03Functions(FunctionCode);
-IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_F03Users_EmployeeCode' AND object_id=OBJECT_ID('dbo.F03Users')) CREATE UNIQUE INDEX IX_F03Users_EmployeeCode ON dbo.F03Users(EmployeeCode);
+IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_Permission_Code' AND object_id=OBJECT_ID('dbo.F03Permissions')) CREATE UNIQUE INDEX IX_F03Permissions_Code ON dbo.F03Permissions(PermissionCode);
+IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_Function_Code' AND object_id=OBJECT_ID('dbo.F03Functions')) CREATE UNIQUE INDEX IX_F03Functions_Code ON dbo.F03Functions(FunctionCode);
+IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_User_EmployeeCode' AND object_id=OBJECT_ID('dbo.F03Users')) CREATE UNIQUE INDEX IX_F03Users_EmployeeCode ON dbo.F03Users(EmployeeCode);
 IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_F03Departments_Code' AND object_id=OBJECT_ID('dbo.F03Departments')) CREATE UNIQUE INDEX IX_F03Departments_Code ON dbo.F03Departments(DeptCode);
 IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_F03Positions_Code' AND object_id=OBJECT_ID('dbo.F03Positions')) CREATE UNIQUE INDEX IX_F03Positions_Code ON dbo.F03Positions(PositionCode);
 IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_F03Genders_Code' AND object_id=OBJECT_ID('dbo.F03Genders')) CREATE UNIQUE INDEX IX_F03Genders_Code ON dbo.F03Genders(GenderCode);
@@ -20,6 +20,7 @@ IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_F03EmailTemplates_Code' A
 IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_F03BusinessRules_Module_Code' AND object_id=OBJECT_ID('dbo.F03BusinessRules')) CREATE UNIQUE INDEX IX_F03BusinessRules_Module_Code ON dbo.F03BusinessRules(Module,Code);
 IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_F03LeaveBalance_Employee_Year' AND object_id=OBJECT_ID('dbo.F03LeaveBalances')) CREATE UNIQUE INDEX IX_F03LeaveBalance_Employee_Year ON dbo.F03LeaveBalances(EmployeeCode,WorkYear);
 GO
+IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_F03UserFunctions_User_Function' AND object_id=OBJECT_ID('dbo.F03UserFunctions')) CREATE UNIQUE INDEX IX_F03UserFunctions_User_Function ON dbo.F03UserFunctions(IdUser,IdFunction);
 /* EF relationships */
 IF NOT EXISTS(SELECT 1 FROM sys.foreign_keys WHERE name='FK_F03Employees_Department') ALTER TABLE dbo.F03Employees ADD CONSTRAINT FK_F03Employees_Department FOREIGN KEY(DeptCode) REFERENCES dbo.F03Departments(DeptCode);
 IF NOT EXISTS(SELECT 1 FROM sys.foreign_keys WHERE name='FK_F03Employees_Position') ALTER TABLE dbo.F03Employees ADD CONSTRAINT FK_F03Employees_Position FOREIGN KEY(PositionCode) REFERENCES dbo.F03Positions(PositionCode);

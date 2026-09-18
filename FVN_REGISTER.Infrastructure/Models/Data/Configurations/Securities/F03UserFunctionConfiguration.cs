@@ -15,6 +15,7 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.Securities
             // Index tăng tốc độ truy vấn quyền của User
             entity.HasIndex(e => e.IdUser, "IX_UserFunction_UserId");
             entity.HasIndex(e => e.IdFunction, "IX_UserFunction_FunctionId");
+            entity.HasIndex(e => new { e.IdUser, e.IdFunction }, "IX_UserFunction_User_Function").IsUnique();
 
             // Thiết lập các quan hệ
             entity.HasOne(d => d.User)

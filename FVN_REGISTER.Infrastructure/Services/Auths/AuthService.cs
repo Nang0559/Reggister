@@ -1,13 +1,14 @@
 ﻿
-
+using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Auths;
-
+using FVN_REGISTER.Application.Logging;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Core.Constants;
-
+using FVN_REGISTER.Core.Entities.HR;
+using FVN_REGISTER.Core.Entities.Security;
 using FVN_REGISTER.Core.Repositories;
-
+using FVN_REGISTER.Core.Utils;
 using FVN_REGISTER.Infrastructure.Hubs;
 using FVN_REGISTER.Infrastructure.Utils;
 using Microsoft.AspNetCore.SignalR;
@@ -16,6 +17,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
+using System.Diagnostics;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;

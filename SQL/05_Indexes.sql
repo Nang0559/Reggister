@@ -1,7 +1,7 @@
 USE [FVN_REGISTER];
 GO
-CREATE INDEX IX_F03UserFunctions_UserId ON dbo.F03UserFunctions(IdUser);
-CREATE INDEX IX_F03UserFunctions_FunctionId ON dbo.F03UserFunctions(IdFunction);
+CREATE INDEX IX_UserFunction_UserId ON dbo.F03UserFunctions(IdUser);
+CREATE INDEX IX_UserFunction_FunctionId ON dbo.F03UserFunctions(IdFunction);
 CREATE INDEX IX_F03Session_UserId ON dbo.F03UserSessions(UserId);
 CREATE INDEX IX_F03Session_DeviceId ON dbo.F03UserSessions(DeviceId);
 CREATE INDEX IX_F03LeaveDay_StartTime ON dbo.F03LeaveDays(StartTime);

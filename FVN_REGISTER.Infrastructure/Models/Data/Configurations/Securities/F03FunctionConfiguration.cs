@@ -1,26 +1,21 @@
-﻿
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
+namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.Securities;
 
-namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.Securities
+public sealed class F03FunctionConfiguration : IEntityTypeConfiguration<F03Function>
 {
-    public class F03FunctionConfiguration : IEntityTypeConfiguration<F03Function>
+    public void Configure(EntityTypeBuilder<F03Function> entity)
     {
-        public void Configure(EntityTypeBuilder<F03Function> entity)
-        {
-            entity.ToTable("F03Functions");
-            entity.HasKey(e => e.Id);
+        entity.ToTable("F03Functions");
+        entity.HasKey(e => e.Id);
+        entity.Property(e => e.Id).HasColumnName("IdFunction");
 
-            // Index để tìm kiếm chức năng theo mã nhanh
-            entity.HasIndex(e => e.FunctionCode, "IX_Function_Code").IsUnique();
+        entity.HasIndex(e => e.FunctionCode, "IX_Function_Code").IsUnique();
 
-            entity.Property(e => e.FunctionName).IsRequired().HasMaxLength(100);
-            entity.Property(e => e.Detail).HasMaxLength(500);
-
-            // Audit defaults (kế thừa từ BaseAuditEntity)
-            entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
-            entity.Property(e => e.IsActive).HasDefaultValue(true);
-        }
+        entity.Property(e => e.FunctionName).IsRequired().HasMaxLength(100);
+        entity.Property(e => e.Detail).HasMaxLength(500);
+        entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
+        entity.Property(e => e.IsActive).HasDefaultValue(true);
     }
 }
