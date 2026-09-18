@@ -130,7 +130,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Employees
                 var entity = await _uow.Repository<F03Employee>().Query().FirstOrDefaultAsync(x => x.Id == model.Id, ct);
                 if (entity == null) return ServiceResult.Fail("Không tìm thấy nhân viên.");
                 if (!await _uow.Repository<F03Position>().Query().AnyAsync(x => x.PositionCode == model.PositionCode, ct)) return ServiceResult.Fail("Chức vụ không tồn tại.");
-                entity.EmployeeName = model.EmployeeName; entity.DeptCode = model.DeptCode; entity.PositionCode = model.PositionCode;
+                entity.EmployeeName = model.EmployeeName; entity.DeptCode = model.DeptCode; entity.PositionCode = model.PositionCode??string.Empty;
                 entity.EmailAddress = model.EmailAddress; entity.PhoneNumber = model.PhoneNumber; entity.BirthDate = model.BirthDate;
                 entity.GenderCode = model.GenderCode; entity.FirstWorkingDate = model.FirstWorkingDate; entity.EndWorkingDate = model.EndWorkingDate;
                 entity.TotalLeaveDays = model.TotalLeaveDays; entity.IsActive = model.IsActive; entity.LevelApprove = model.LevelApprove;

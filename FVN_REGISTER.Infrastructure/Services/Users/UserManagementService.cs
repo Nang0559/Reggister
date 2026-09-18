@@ -426,7 +426,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                 repo.Remove(old);
 
             var permissionCode = await _uow.Repository<F03User>().Query()
-                .Where(u => u.IdUser == userId)
+                .Where(u => u.Id == userId)
                 .Select(u => u.PermissionCode)
                 .FirstAsync(ct);
 
