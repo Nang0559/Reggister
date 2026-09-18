@@ -276,3 +276,15 @@
 ├── .gitignore
 ├── FVN_REGISTER.sln
 └── FVN_REGISTER.slnLaunch.user
+
+## Work Calendar
+
+Leave, OT and Trip share one Work Calendar. It aggregates company holidays plus the current user's Leave/OT/Trip events without duplicating business state.
+
+- API: `GET /api/calendar`
+- Availability: `GET /api/calendar/availability`
+- UI component: `WorkCalendar`
+- Design: `MÔ HÌNH/18_WORK_CALENDAR.md`
+- SQL: `SQL/19_WorkCalendar.sql`
+
+Company holidays are informational calendar data; final Leave/OT/Trip authorization and validation remain in each module.
