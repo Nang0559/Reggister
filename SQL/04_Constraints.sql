@@ -60,3 +60,28 @@ GO
 
 PRINT N'04_Constraints: OK';
 GO
+
+
+/* HRM shift master business keys. */
+IF OBJECT_ID(N'dbo.F03Shifts',N'U') IS NOT NULL
+AND EXISTS (SELECT 1 FROM dbo.F03Shifts GROUP BY ShiftCode HAVING COUNT(*)>1)
+    THROW 52007, 'Duplicate F03Shifts.ShiftCode exists.', 1;
+IF OBJECT_ID(N'dbo.F03Shifts',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03Shifts') AND name=N'UX_F03Shifts_ShiftCode')
+    CREATE UNIQUE INDEX UX_F03Shifts_ShiftCode ON dbo.F03Shifts(ShiftCode);
+
+IF OBJECT_ID(N'dbo.F03ShiftSchedules',N'U') IS NOT NULL
+AND EXISTS (SELECT 1 FROM dbo.F03ShiftSchedules GROUP BY ScheduleCode HAVING COUNT(*)>1)
+    THROW 52008, 'Duplicate F03ShiftSchedules.ScheduleCode exists.', 1;
+IF OBJECT_ID(N'dbo.F03ShiftSchedules',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03ShiftSchedules') AND name=N'UX_F03ShiftSchedules_Code')
+    CREATE UNIQUE INDEX UX_F03ShiftSchedules_Code ON dbo.F03ShiftSchedules(ScheduleCode);
+
+IF OBJECT_ID(N'dbo.F03ShiftScheduleDays',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03ShiftScheduleDays') AND name=N'UX_F03ShiftScheduleDays')
+    CREATE UNIQUE INDEX UX_F03ShiftScheduleDays ON dbo.F03ShiftScheduleDays(ScheduleCode,DayNo,ShiftCode);
+
+IF OBJECT_ID(N'dbo.F03EmployeeShiftSchedules',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03EmployeeShiftSchedules') AND name=N'UX_F03EmployeeShiftSchedules_Employee')
+    CREATE UNIQUE INDEX UX_F03EmployeeShiftSchedules_Employee ON dbo.F03EmployeeShiftSchedules(EmployeeCode);
+GO
