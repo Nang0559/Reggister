@@ -56,10 +56,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
             if (snapshot != null)
             {
                 var histories = await HistoryService.GetHistoryAsync(requestId, Module, ct);
-                var currentUser = CurrentUserService.GetCurrentUser();
-
-                var calculated = ApprovalStepMapper.MapToCalculatedList(
-                    snapshot.Steps, histories, currentUser);
+                var calculated = ApprovalStepMapper.MapToList(
+                    snapshot.Steps, histories);
 
                 header.ApprovalSteps = calculated;
                 header.RequestStatus = ApprovalStepMapper.ComputeOverallStatus(calculated);
