@@ -6,6 +6,7 @@ using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Controllers;
 
