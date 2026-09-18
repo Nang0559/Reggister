@@ -1,5 +1,8 @@
 using FVN_REGISTER.Application.Interfaces.Equipment;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Equipment;
+using FVN_REGISTER.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -13,16 +16,87 @@ public sealed class EquipmentController : ControllerBase
     private readonly IEquipmentService _service;
     private readonly IEquipmentQrCodeService _qr;
     private readonly IConfiguration _configuration;
-    public EquipmentController(IEquipmentService service, IEquipmentQrCodeService qr, IConfiguration configuration) { _service = service; _qr = qr; _configuration = configuration; }
-    [HttpGet("access")] public async Task<ActionResult<bool>> Access(CancellationToken ct) => Ok(await _service.HasModuleAccessAsync(ct));
-    [HttpGet("approvers")] public async Task<ActionResult<List<EquipmentApproverDto>>> Approvers([FromQuery] string deptCode, CancellationToken ct) => Ok(await _service.GetApproversAsync(deptCode, ct));
-    [HttpPost("registrations")] public async Task<ActionResult<EquipmentRequestDto>> CreateRegistration([FromBody] CreateEquipmentRegistrationDto request, CancellationToken ct) => Ok(await _service.CreateRegistrationDraftAsync(request, ct));
-    [HttpPost("registrations/{id:int}/submit")] public async Task<ActionResult<EquipmentRequestDto>> SubmitRegistration(int id, CancellationToken ct) => Ok(await _service.SubmitRegistrationAsync(id, ct));
-    [HttpGet("registrations/mine")] public async Task<ActionResult<List<EquipmentRequestDto>>> Mine(CancellationToken ct) => Ok(await _service.GetMineAsync(ct));
-    [HttpPost("repairs")] public async Task<ActionResult<EquipmentRequestDto>> CreateRepair([FromBody] CreateEquipmentRepairDto request, CancellationToken ct) => Ok(await _service.CreateRepairDraftAsync(request, ct));
-    [HttpPost("repairs/{id:int}/submit")] public async Task<ActionResult<EquipmentRequestDto>> SubmitRepair(int id, CancellationToken ct) => Ok(await _service.SubmitRepairAsync(id, ct));
-    [HttpGet("scan/{qrToken}")] public async Task<ActionResult<EquipmentAssetDto>> Scan(string qrToken, CancellationToken ct) => Ok(await _service.ScanAsync(qrToken, ct));
-    [HttpGet("assets/{id:int}")] public async Task<ActionResult<EquipmentAssetDto>> Asset(int id, CancellationToken ct) { var result = await _service.GetAssetAsync(id, ct); return result == null ? NotFound() : Ok(result); }
+    private readonly ICurrentUserService _currentUser;
+    private readonly IAuthorizationService _authorization;
+
+    public EquipmentController(
+        IEquipmentService service,
+        IEquipmentQrCodeService qr,
+        IConfiguration configuration,
+        ICurrentUserService currentUser,
+        IAuthorizationService authorization)
+    {
+        _service = service;
+        _qr = qr;
+        _configuration = configuration;
+        _currentUser = currentUser;
+        _authorization = authorization;
+    }
+
+    [HttpGet("access")]
+    public async Task<ActionResult<bool>> Access(CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
+        return Ok(await _service.HasModuleAccessAsync(ct));
+    }
+
+    [HttpGet("approvers")]
+    public async Task<ActionResult<List<EquipmentApproverDto>>> Approvers([FromQuery] string deptCode, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
+        return Ok(await _service.GetApproversAsync(deptCode, ct));
+    }
+
+    [HttpPost("registrations")]
+    public async Task<ActionResult<EquipmentRequestDto>> CreateRegistration([FromBody] CreateEquipmentRegistrationDto request, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentCreate, ct)) return Forbid();
+        return Ok(await _service.CreateRegistrationDraftAsync(request, ct));
+    }
+
+    [HttpPost("registrations/{id:int}/submit")]
+    public async Task<ActionResult<EquipmentRequestDto>> SubmitRegistration(int id, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentEdit, ct)) return Forbid();
+        return Ok(await _service.SubmitRegistrationAsync(id, ct));
+    }
+
+    [HttpGet("registrations/mine")]
+    public async Task<ActionResult<List<EquipmentRequestDto>>> Mine(CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
+        return Ok(await _service.GetMineAsync(ct));
+    }
+
+    [HttpPost("repairs")]
+    public async Task<ActionResult<EquipmentRequestDto>> CreateRepair([FromBody] CreateEquipmentRepairDto request, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentRepair, ct)) return Forbid();
+        return Ok(await _service.CreateRepairDraftAsync(request, ct));
+    }
+
+    [HttpPost("repairs/{id:int}/submit")]
+    public async Task<ActionResult<EquipmentRequestDto>> SubmitRepair(int id, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentRepair, ct)) return Forbid();
+        return Ok(await _service.SubmitRepairAsync(id, ct));
+    }
+
+    [HttpGet("scan/{qrToken}")]
+    public async Task<ActionResult<EquipmentAssetDto>> Scan(string qrToken, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
+        return Ok(await _service.ScanAsync(qrToken, ct));
+    }
+
+    [HttpGet("assets/{id:int}")]
+    public async Task<ActionResult<EquipmentAssetDto>> Asset(int id, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
+        var result = await _service.GetAssetAsync(id, ct);
+        return result == null ? NotFound() : Ok(result);
+    }
+
     [HttpGet("qr/{qrToken}/image")]
     [AllowAnonymous]
     public ActionResult QrImage(string qrToken)
@@ -31,5 +105,11 @@ public sealed class EquipmentController : ControllerBase
         var siteUrl = (_configuration["SiteUrl"] ?? $"{Request.Scheme}://{Request.Host}").TrimEnd('/');
         var payload = $"{siteUrl}/equipment/scan/{Uri.EscapeDataString(qrToken)}";
         return File(_qr.CreatePng(payload), "image/png");
+    }
+
+    private async Task<bool> CanAsync(int functionCode, CancellationToken ct)
+    {
+        var user = _currentUser.GetCurrentUser();
+        return user != null && await _authorization.HasAsync(user, functionCode, ct);
     }
 }
