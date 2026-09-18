@@ -364,6 +364,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             ReportQueryDto query, UserIdentityDto user, CancellationToken ct)
         {
             bool isAdmin = user.Permission.IsAdmin();
+            bool isManager = user.Permission.IsApprover() || user.LevelApprove > 0;
             var year = query.WorkYear ?? DateTime.Now.Year;
 
             var q = _uow.Repository<VF03OTRequestDetail>().Query()
@@ -372,10 +373,23 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.OTDate.Year == year
                          && x.RequestStatus == ApprovalStatus.Approved);
 
-            if (!isAdmin)
+            if (isAdmin)
+            {
+                if (!string.IsNullOrEmpty(query.DeptCode))
+                    q = q.Where(x => x.DeptCode == query.DeptCode);
+                if (!string.IsNullOrEmpty(query.EmployeeCode))
+                    q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
+            }
+            else if (isManager)
+            {
                 q = q.Where(x => x.DeptCode == user.DeptCode);
-            else if (!string.IsNullOrEmpty(query.DeptCode))
-                q = q.Where(x => x.DeptCode == query.DeptCode);
+                if (!string.IsNullOrEmpty(query.EmployeeCode))
+                    q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
+            }
+            else
+            {
+                q = q.Where(x => x.EmployeeCode == user.EmployeeCode);
+            }
 
             var accumulated = await q
                 .GroupBy(x => new { x.EmployeeCode, x.EmployeeName, x.DeptCode, x.DeptName })
