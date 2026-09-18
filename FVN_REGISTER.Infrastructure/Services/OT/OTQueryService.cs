@@ -357,6 +357,15 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                     && x.OTDate.Year == year && x.OTDate.Month == month)
                 .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
 
+            var monday = today.Date.AddDays(-(int)today.DayOfWeek + (today.DayOfWeek == DayOfWeek.Sunday ? -6 : 1) - 1);
+            var sunday = monday.AddDays(7);
+            var usedThisWeek = await Uow.Repository<VF03OTRequest>().Query()
+                .AsNoTracking()
+                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
+                    && x.RequestStatus == ApprovalStatus.Approved
+                    && x.OTDate >= monday && x.OTDate < sunday)
+                .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
+
             var usedThisYear = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
                 .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
@@ -370,6 +379,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 Year = year,
                 Month = month,
                 UsedHoursToday = usedToday,
+                UsedHoursThisWeek = usedThisWeek,
                 UsedHoursThisMonth = usedThisMonth,
                 UsedHoursThisYear = usedThisYear
             };
@@ -384,11 +394,13 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                         || (r.PositionCode == null && r.DeptCode == null)))
                 .ToListAsync(ct);
 
-            var dailyRule = rules.FirstOrDefault(r => r.LimitType == OTLimitType.Daily);
-            var monthlyRule = rules.FirstOrDefault(r => r.LimitType == OTLimitType.Monthly);
-            var yearlyRule = rules.FirstOrDefault(r => r.LimitType == OTLimitType.Yearly);
+            var dailyRule = ResolveRule(rules, emp.PositionCode, emp.DeptCode, OTLimitType.Daily);
+            var weeklyRule = ResolveRule(rules, emp.PositionCode, emp.DeptCode, OTLimitType.Weekly);
+            var monthlyRule = ResolveRule(rules, emp.PositionCode, emp.DeptCode, OTLimitType.Monthly);
+            var yearlyRule = ResolveRule(rules, emp.PositionCode, emp.DeptCode, OTLimitType.Yearly);
 
             if (dailyRule != null) dto.DailyLimit = dailyRule.LimitHours;
+            if (weeklyRule != null) dto.WeeklyLimit = weeklyRule.LimitHours;
             if (monthlyRule != null) dto.MonthlyLimit = monthlyRule.LimitHours;
             if (yearlyRule != null) dto.YearlyLimit = yearlyRule.LimitHours;
 
