@@ -1,10 +1,13 @@
 ﻿
 
 using FVN_REGISTER.Application.Interfaces.Leaves;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Requests.Leaves;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Entities;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
@@ -18,6 +21,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
           ILeaveService
     {
         private readonly ILeaveValidator _validator;
+        private readonly IAuthorizationService _authorization;
 
         protected override RequestModule ModuleKind => RequestModule.Leave;
 
@@ -25,11 +29,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             IUnitOfWork uow,
             IApprovalWorkflowOrchestrator<LeaveRequestSubject> workflow,
             ILeaveValidator validator,
+            IAuthorizationService authorization,
             ILogger<BaseRequestCommandService<LeaveRequestUpsertDto, F03LeaveDay, LeaveRequestSubject>> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(uow, workflow, logger, options)
         {
             _validator = validator;
+            _authorization = authorization;
         }
 
         public override async Task<ServiceResult<int>> CreateAsync(
@@ -281,6 +287,38 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             {
                 return InternalError(ex, "Lỗi hệ thống khi hủy dòng chi tiết.");
             }
+        }
+
+        protected override async Task<string?> ValidateApprovalScopeAsync(
+            List<int> ids, UserIdentityDto user, CancellationToken ct)
+        {
+            if (user.UserId <= 0)
+                return "Phiên đăng nhập không hợp lệ.";
+
+            var distinctIds = ids.Distinct().ToList();
+            var entities = await Uow.Repository<F03LeaveDay>().Query()
+                .AsNoTracking()
+                .Where(x => distinctIds.Contains(x.Id) && x.IsActive == true)
+                .Select(x => new { x.Id, x.EmployeeCode, x.DeptCode })
+                .ToListAsync(ct);
+
+            if (entities.Count != distinctIds.Count)
+                return "Một hoặc nhiều đơn nghỉ không tồn tại hoặc đã ngừng hoạt động.";
+
+            foreach (var entity in entities)
+            {
+                if (!await _authorization.CanAccessAsync(
+                    user,
+                    SecurityFunctionCodes.LeaveApprove,
+                    entity.EmployeeCode,
+                    entity.DeptCode,
+                    ct))
+                {
+                    return $"Không có quyền duyệt đơn nghỉ [{entity.Id}] theo phạm vi dữ liệu được cấp.";
+                }
+            }
+
+            return null;
         }
 
         protected override void ApplyCancel(F03LeaveDay entity, string reason, UserIdentityDto user)
