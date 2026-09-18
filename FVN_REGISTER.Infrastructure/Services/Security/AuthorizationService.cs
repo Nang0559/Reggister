@@ -43,7 +43,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         if (userId <= 0)
             return AuthorizationScopeCodes.None;
 
-        var scope = await (
+        var scopes = await (
             from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
             join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking()
                 on ur.IdRole equals rf.IdRole
@@ -56,27 +56,37 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 && (f.IsActive ?? true)
                 && f.FunctionCode == functionCode
             select f.ScopeCode
-        ).FirstOrDefaultAsync(ct);
+        ).ToListAsync(ct);
 
         // Legacy direct grants have no reliable scope metadata in old databases.
         // During migration, treat an unscoped legacy grant as Own rather than
         // silently expanding it to Department/All.
-        if (scope == null)
-        {
-            scope = await (
-                from uf in _uow.Repository<F03UserFunction>().Query().AsNoTracking()
-                join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                    on uf.IdFunction equals f.IdFunction
-                where uf.IdUser == userId
-                    && (f.IsActive ?? true)
-                    && f.FunctionCode == functionCode
-                select f.ScopeCode
-            ).FirstOrDefaultAsync(ct);
-        }
+        scopes.AddRange(await (
+            from uf in _uow.Repository<F03UserFunction>().Query().AsNoTracking()
+            join f in _uow.Repository<F03Function>().Query().AsNoTracking()
+                on uf.IdFunction equals f.IdFunction
+            where uf.IdUser == userId
+                && (f.IsActive ?? true)
+                && f.FunctionCode == functionCode
+            select f.ScopeCode
+        ).ToListAsync(ct));
 
-        return string.IsNullOrWhiteSpace(scope)
-            ? AuthorizationScopeCodes.None
-            : scope;
+        var normalizedScopes = scopes
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Select(x => x!)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (normalizedScopes.Any(x => string.Equals(x, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase)))
+            return AuthorizationScopeCodes.All;
+        if (normalizedScopes.Any(x => string.Equals(x, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase)))
+            return AuthorizationScopeCodes.Department;
+        if (normalizedScopes.Any(x => string.Equals(x, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase)))
+            return AuthorizationScopeCodes.Employee;
+        if (normalizedScopes.Any(x => string.Equals(x, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase)))
+            return AuthorizationScopeCodes.Own;
+
+        return AuthorizationScopeCodes.None;
     }
 
     public async Task<bool> CanAccessAsync(
