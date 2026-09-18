@@ -11,7 +11,9 @@ INSERT @RequiredTables VALUES
 (N'F03Employees'),(N'F03Users'),(N'F03Departments'),(N'F03Positions'),
 (N'F03LeaveType'),(N'F03Permissions'),(N'F03HrmUserRoleRules'),
 (N'F03EmailQueues'),(N'F03SyncReviewFlag'),(N'F03StagingEmployee'),
-(N'F03StagingDepartment'),(N'F03StagingPosition'),(N'F03StagingLeaveType');
+(N'F03StagingDepartment'),(N'F03StagingPosition'),(N'F03StagingLeaveType'),
+(N'F03Shifts'),(N'F03ShiftSchedules'),(N'F03ShiftScheduleDays'),
+(N'F03EmployeeShiftSchedules'),(N'F03HrmShiftReference');
 
 IF EXISTS (
     SELECT 1 FROM @RequiredTables r
@@ -49,7 +51,8 @@ IF OBJECT_ID(N'dbo.usp_SyncHrmLeaveTypeSource',N'P') IS NULL THROW 51210,'Missin
 IF OBJECT_ID(N'dbo.usp_SyncHrmDepartmentSource',N'P') IS NULL THROW 51211,'Missing HRM Department source procedure.',1;
 IF OBJECT_ID(N'dbo.usp_SyncHrmPositionSource',N'P') IS NULL THROW 51212,'Missing HRM Position source procedure.',1;
 IF OBJECT_ID(N'dbo.usp_SyncHrmEmployeeSource',N'P') IS NULL THROW 51213,'Missing HRM Employee source procedure.',1;
-IF OBJECT_ID(N'dbo.usp_SyncAttendanceStaging',N'P') IS NULL THROW 51214,'Missing attendance staging procedure.',1;
+IF OBJECT_ID(N'dbo.usp_SyncHrmShiftMaster',N'P') IS NULL THROW 51214,'Missing HRM shift master sync procedure.',1;
+IF OBJECT_ID(N'dbo.usp_SyncAttendanceStaging',N'P') IS NULL THROW 51217,'Missing attendance staging procedure.',1;
 IF OBJECT_ID(N'dbo.usp_SyncOTActualHours',N'P') IS NULL THROW 51215,'Missing OT reconciliation procedure.',1;
 IF OBJECT_ID(N'dbo.usp_DequeueEmail',N'P') IS NULL THROW 51216,'Missing email dequeue procedure.',1;
 
