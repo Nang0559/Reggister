@@ -59,7 +59,6 @@ using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Infrastructure;
 using FVN_REGISTER.Infrastructure.Utils;
 using FVN_REGISTER.Infrastructure.Services;
-using FVN_REGISTER.Application.Services.Statics;
 using FVN_REGISTER.Infrastructure.Services.Departments;
 using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.API.Services.OT;
@@ -98,7 +97,6 @@ builder.Services.AddScoped<IDepartmentManagementService, DepartmentManagementSer
 // Dashboard / Leave
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<IDashboardOrchestrator, DashboardOrchestrator>();
-builder.Services.AddScoped<IDashboardService, DashboardService>();
 builder.Services.AddScoped<IModuleDashboardProvider, LeaveDashboardProvider>();
 builder.Services.AddScoped<IModuleDashboardProvider, OTDashboardProvider>();
 builder.Services.AddScoped<ILeaveQueryService, LeaveQueryService>();
