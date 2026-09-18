@@ -46,3 +46,5 @@ PRINT N'============================================================';
 PRINT N'FVN_REGISTER SQL deployment 01..14 completed.';
 PRINT N'============================================================';
 GO
+
+:r .\15_PublicInformation.sql
