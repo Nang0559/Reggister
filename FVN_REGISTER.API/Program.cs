@@ -103,6 +103,8 @@ builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<IDashboardOrchestrator, DashboardOrchestrator>();
 builder.Services.AddScoped<IModuleDashboardProvider, LeaveDashboardProvider>();
 builder.Services.AddScoped<IModuleDashboardProvider, OTDashboardProvider>();
+builder.Services.AddScoped<IModuleDashboardProvider, TripDashboardProvider>();
+builder.Services.AddScoped<IModuleDashboardProvider, EquipmentDashboardProvider>();
 builder.Services.AddScoped<ILeaveQueryService, LeaveQueryService>();
 builder.Services.AddScoped<IEscalationRuleService, EscalationRuleService>();
 builder.Services.AddScoped<ILeaveValidator, LeaveValidator>();
