@@ -1,6 +1,6 @@
 using FVN_REGISTER.Contract.Dtos.HrmSync;
 using FVN_REGISTER.Contract.Requests.HrmSync;
-using FVN_REGISTER.Contract.Responses;
+using FVN_REGISTER.Contract.Utils;
 
 namespace FVN_REGISTER.Application.Interfaces.HrmSync;
 
