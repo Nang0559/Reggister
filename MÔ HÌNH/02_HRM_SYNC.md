@@ -393,3 +393,11 @@ Pipeline A hiện đã có source contract cho:
 - `tblNhanVien` → `F03Employees`
 
 `OTType` vẫn nằm trong generic pipeline nhưng hiện chưa có source contract HRM tương ứng trong SQL. Không tự suy diễn nguồn `OTType`; khi có bảng/procedure HRM thực tế thì bổ sung theo đúng contract hiện tại.
+
+## 18. Implementation status
+
+Phiên bản hiện tại đã chuyển `HrmSyncBackgroundWorker` sang polling tự động mỗi 5 phút. Worker gọi cùng `IHrmSyncService.RunAllAsync` đang được dùng bởi UI manual sync.
+
+`EmployeeHrmSyncJob` thực hiện full reconciliation `F03Employees → F03Users` sau mỗi batch HRM. Vì vậy user bị thiếu có thể được tạo lại và thay đổi mapping phòng ban/chức vụ có thể áp dụng lại mà không cần chờ một thay đổi nhân viên mới.
+
+Lỗi provisioning user không làm rollback dữ liệu HRM; lỗi được ghi vào `F03SyncReviewFlag` để Admin review.
