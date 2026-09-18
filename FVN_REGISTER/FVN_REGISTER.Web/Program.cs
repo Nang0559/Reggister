@@ -14,6 +14,7 @@ using FVN_REGISTER.Shared.Services.Notifications;
 using FVN_REGISTER.Shared.Services.OTs;
 using FVN_REGISTER.Shared.Services.Trips;
 using FVN_REGISTER.Shared.Services.Users;
+using FVN_REGISTER.Shared.Services.Security;
 using FVN_REGISTER.Shared.Utils;
 using FVN_REGISTER.Web.Components;
 using FVN_REGISTER.Web.Services;
@@ -42,6 +43,7 @@ builder.Services.AddScoped<IHrmSyncReviewClientService, HrmSyncReviewClientServi
 builder.Services.AddScoped<IHrmSyncClientService, HrmSyncClientService>();
 builder.Services.AddScoped<IHrmUserRoleRuleClientService, HrmUserRoleRuleClientService>();
 builder.Services.AddScoped<IUserManagementClientService, UserManagementClientService>();
+builder.Services.AddScoped<ISecurityClientService, SecurityClientService>();
 builder.Services.AddScoped<IApprovalListClientService, ApprovalListClientService>();
 builder.Services.AddScoped<IApproverClientService, ApproverClientService>();
 builder.Services.AddScoped<IHistoryClientService, HistoryClientService>();
