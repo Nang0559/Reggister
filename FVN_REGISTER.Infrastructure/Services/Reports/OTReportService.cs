@@ -1,4 +1,4 @@
-﻿using FVN_REGISTER.API.Services.Reports;
+﻿using FVN_REGISTER.Infrastructure.Services.Reports;
 using FVN_REGISTER.Application.Interfaces.Reports;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Reports;
