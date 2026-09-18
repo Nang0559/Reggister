@@ -16,6 +16,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
         private readonly IOTQueryService _otQuery;
 
         public RequestModule Module => RequestModule.Overtime;
+        public int RequiredFunctionCode => SecurityFunctionCodes.OTView;
 
         public OTDashboardProvider(IOTQueryService otQuery)
         {
