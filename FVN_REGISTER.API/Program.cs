@@ -63,7 +63,6 @@ using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.API.Services.OT;
 using FVN_REGISTER.API.Services.Histories;
 
-JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 var builder = WebApplication.CreateBuilder(args);
 
 var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? new[]
@@ -203,6 +202,7 @@ builder.Services.AddAuthentication(options =>
 })
 .AddJwtBearer(options =>
 {
+    options.MapInboundClaims = false;
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true, ValidIssuer = builder.Configuration["Jwt:Issuer"],
@@ -210,7 +210,7 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]!)),
         ValidateLifetime = true, ClockSkew = TimeSpan.FromMinutes(5),
-        NameClaimType = ClaimTypes.Name, RoleClaimType = ClaimTypes.Role
+        NameClaimType = "name", RoleClaimType = "role"
     };
     options.Events = new JwtBearerEvents
     {
