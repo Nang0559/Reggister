@@ -1,5 +1,7 @@
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.UserManagers;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Usermanagers;
 using FVN_REGISTER.Contract.Requests.Users;
@@ -10,26 +12,30 @@ using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Controllers
 {
-    [Authorize(Policy = "SuperAdmin")]
+    [Authorize]
     [ApiController]
     [Route("api/user-management")]
     public class UserManagementController : BaseApiController
     {
         private readonly IUserManagementService _userMgt;
+        private readonly IAuthorizationService _authorization;
 
         public UserManagementController(
             IUserManagementService userMgt,
             ICurrentUserService currentUser,
             IUserLogService userLog,
             ILogger<UserManagementController> logger,
-            IOptionsMonitor<AuthDebugOptions> options)
+            IOptionsMonitor<AuthDebugOptions> options,
+            IAuthorizationService authorization)
             : base(currentUser, userLog, logger, options)
         {
             _userMgt = userMgt;
+            _authorization = authorization;
         }
 
         [HttpGet]
-        public async Task<IActionResult> GetAll(CancellationToken ct)
+        if (!await CanAsync(SecurityFunctionCodes.UserManagementView, ct)) return Forbid();
+            public async Task<IActionResult> GetAll(CancellationToken ct)
         {
             return Ok(
                 ApiResponse<List<UserAccountDto>>.Ok(
@@ -37,7 +43,8 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetById(int id, CancellationToken ct)
+        if (!await CanAsync(SecurityFunctionCodes.UserManagementView, ct)) return Forbid();
+            public async Task<IActionResult> GetById(int id, CancellationToken ct)
         {
             var result = await _userMgt.GetByIdAsync(id, ct);
 
@@ -48,7 +55,8 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create(
+        if (!await CanAsync(SecurityFunctionCodes.UserManagementCreate, ct)) return Forbid();
+            public async Task<IActionResult> Create(public async Task<IActionResult> Create(
             [FromBody] CreateUserRequest request,
             CancellationToken ct)
         {
@@ -57,7 +65,8 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpPut]
-        public async Task<IActionResult> Update(
+        if (!await CanAsync(SecurityFunctionCodes.UserManagementEdit, ct)) return Forbid();
+            public async Task<IActionResult> Update(public async Task<IActionResult> Update(
             [FromBody] UpdateUserRequest request,
             CancellationToken ct)
         {
@@ -66,7 +75,8 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpDelete("{id:int}")]
-        public async Task<IActionResult> Delete(
+        if (!await CanAsync(SecurityFunctionCodes.UserManagementEdit, ct)) return Forbid();
+            public async Task<IActionResult> Delete(public async Task<IActionResult> Delete(
             int id,
             CancellationToken ct)
         {
@@ -80,7 +90,8 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpPut("{id:int}/toggle-lock")]
-        public async Task<IActionResult> ToggleLock(
+        if (!await CanAsync(SecurityFunctionCodes.UserManagementLock, ct)) return Forbid();
+            public async Task<IActionResult> ToggleLock(public async Task<IActionResult> ToggleLock(
             int id,
             CancellationToken ct)
         {
@@ -97,7 +108,8 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpPut("{id:int}/reset-password")]
-        public async Task<IActionResult> ResetPassword(
+        if (!await CanAsync(SecurityFunctionCodes.UserManagementResetPassword, ct)) return Forbid();
+            public async Task<IActionResult> ResetPassword(public async Task<IActionResult> ResetPassword(
             int id,
             [FromBody] ResetPasswordRequestDto request,
             CancellationToken ct)
@@ -114,5 +126,9 @@ namespace FVN_REGISTER.API.Controllers
                     UserInfo!.UserId,
                     ct));
         }
+    }
+
+        private async Task<bool> CanAsync(int functionCode, CancellationToken ct)
+            => UserInfo != null && await _authorization.HasAsync(UserInfo, functionCode, ct);
     }
 }
