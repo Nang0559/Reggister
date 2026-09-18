@@ -26,8 +26,10 @@ public sealed class VF03LeaveRequestConfiguration : IEntityTypeConfiguration<VF0
         entity.Property(e => e.LeaveTypeName).HasMaxLength(200);
         entity.Property(e => e.LeaveReason).HasMaxLength(500);
         entity.Property(e => e.RequestStatus).HasConversion<string>().HasMaxLength(50);
-        entity.Property(e => e.PositionCode).HasMaxLength(30).HasColumnName("CVCode");
-        entity.Property(e => e.PositionName).HasMaxLength(64).HasColumnName("CVName");
+        // vF03LeaveRequest exposes the canonical PositionCode/PositionName columns.
+        // Do not map these properties to CVCode/CVName: those aliases belong to vF03Employee.
+        entity.Property(e => e.PositionCode).HasMaxLength(30);
+        entity.Property(e => e.PositionName).HasMaxLength(64);
         entity.Property(e => e.CreatedAt).HasColumnType("datetime");
         entity.Property(e => e.ModifiedAt).HasColumnType("datetime");
     }
