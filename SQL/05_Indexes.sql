@@ -127,8 +127,3 @@ IF OBJECT_ID(N'dbo.F03StagingEmployee',N'U') IS NOT NULL AND NOT EXISTS(SELECT 1
 GO
 
 
-IF OBJECT_ID(N'dbo.F03HrmUserRoleRules',N'U') IS NOT NULL
-AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03HrmUserRoleRules') AND name=N'IX_F03HrmUserRoleRules_Match')
-    CREATE INDEX IX_F03HrmUserRoleRules_Match
-        ON dbo.F03HrmUserRoleRules(DeptCode,PositionCode,IsActive,Priority);
-
