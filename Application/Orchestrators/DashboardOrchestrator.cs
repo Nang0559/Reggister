@@ -52,13 +52,12 @@ namespace FVN_REGISTER.Application.Orchestrators
 
                 var rawWidgets = new List<WidgetCounterDto>();
 
-                // Module contributions are independent read-only queries. Run them
-                // concurrently; the orchestrator remains free of module-specific I/O.
-                var contributions = await Task.WhenAll(
-                    _providers.Select(provider =>
-                        provider.GetContributionAsync(user, ct)));
-
-                foreach (var contribution in contributions)
+                // Providers share the request-scoped UnitOfWork/DbContext.
+                // EF Core DbContext is not thread-safe, so providers must execute
+                // sequentially within this scope.
+                foreach (var provider in _providers)
+                {
+                    var contribution = await provider.GetContributionAsync(user, ct);
                 {
                     rawWidgets.AddRange(contribution.Widgets);
 
