@@ -14,6 +14,7 @@ namespace FVN_REGISTER.API.Controllers;
 public sealed class EquipmentController : ControllerBase
 {
     private readonly IEquipmentService _service;
+    private readonly IEquipmentImportService _import;
     private readonly IEquipmentQrCodeService _qr;
     private readonly IConfiguration _configuration;
     private readonly ICurrentUserService _currentUser;
@@ -21,12 +22,14 @@ public sealed class EquipmentController : ControllerBase
 
     public EquipmentController(
         IEquipmentService service,
+        IEquipmentImportService import,
         IEquipmentQrCodeService qr,
         IConfiguration configuration,
         ICurrentUserService currentUser,
         IAuthorizationService authorization)
     {
         _service = service;
+        _import = import;
         _qr = qr;
         _configuration = configuration;
         _currentUser = currentUser;
@@ -95,6 +98,45 @@ public sealed class EquipmentController : ControllerBase
         if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
         var result = await _service.GetAssetAsync(id, ct);
         return result == null ? NotFound() : Ok(result);
+    }
+
+    [HttpGet("schema/{deptCode}")]
+    public async Task<ActionResult<List<EquipmentFieldDefinitionDto>>> Schema(string deptCode, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
+        return Ok(await _import.GetFieldDefinitionsAsync(deptCode, ct));
+    }
+
+    [HttpPut("schema")]
+    public async Task<ActionResult<EquipmentFieldDefinitionDto>> SaveSchema([FromBody] SaveEquipmentFieldDefinitionRequest request, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
+        return Ok(await _import.SaveFieldDefinitionAsync(request, ct));
+    }
+
+    [HttpPost("import")]
+    [RequestSizeLimit(25_000_000)]
+    public async Task<ActionResult<EquipmentImportBatchDto>> Import(IFormFile file, [FromQuery] string deptCode, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
+        if (file == null || file.Length == 0) return BadRequest("File Excel rỗng.");
+        await using var stream = file.OpenReadStream();
+        return Ok(await _import.StageExcelAsync(deptCode, file.FileName, stream, ct));
+    }
+
+    [HttpGet("import/{batchId:int}")]
+    public async Task<ActionResult<EquipmentImportBatchDto>> ImportBatch(int batchId, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
+        var result = await _import.GetBatchAsync(batchId, ct);
+        return result == null ? NotFound() : Ok(result);
+    }
+
+    [HttpPost("import/{batchId:int}/commit")]
+    public async Task<ActionResult<EquipmentImportCommitResultDto>> CommitImport(int batchId, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
+        return Ok(await _import.CommitAsync(batchId, ct));
     }
 
     [HttpGet("qr/{qrToken}/image")]
