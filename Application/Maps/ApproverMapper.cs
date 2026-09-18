@@ -10,7 +10,7 @@ namespace FVN_REGISTER.Application.Maps
         public static ApproverDto ToDto(F03Approver a) => new()
         {
             Id = a.Id,
-            RequestType = a.RequestType.ToString(),
+            RequestType = a.RequestType,
             ApproverCode = a.ApproverCode ?? string.Empty,
             ApproverName = a.ApproverName ?? string.Empty,
             ApproverEmail = a.ApproverEmail ?? string.Empty,
@@ -26,7 +26,7 @@ namespace FVN_REGISTER.Application.Maps
 
         public static F03Approver ToEntity(ApproverDto dto, int currentUserId) => new()
         {
-            RequestType = dto.RequestType ?? string.Empty,
+            RequestType = dto.RequestType ,
             ApproverCode = dto.ApproverCode ?? string.Empty,
             ApproverName = dto.ApproverName ?? string.Empty,
             ApproverEmail = dto.ApproverEmail ?? string.Empty,

@@ -8,12 +8,12 @@ namespace FVN_REGISTER.Application.Maps
         public static NotificationDto ToDto(F03AppNotification entity) => new()
         {
             Id = entity.Id,
-            Module = entity.RequestModule.ToString(),
-            Action = entity.Action.ToString(),
+            Module = entity.RequestModule,
+            Action = entity.Action,
             Title = entity.Title ?? string.Empty,
             Body = entity.Body ?? string.Empty,
             ApprovalLevel = entity.ApprovalLevel,
-            ActionUrl = entity.ActionUrl,
+            ActionUrl = entity.ActionUrl?? string.Empty,
             IsRead = entity.IsRead,
             CreatedAt = entity.CreatedAt
         };

@@ -52,7 +52,7 @@ namespace FVN_REGISTER.Application.Maps
                 DeptName = v.DeptName ?? string.Empty,
                 WorkYear = v.OTDate.Year,
                 OTDate = v.OTDate,
-                OTTypeCode = v.OTTypeCode,
+                OTTypeCode = v.OTTypeCode??string.Empty,
                 OtPurpose = v.OTReasonSummary ?? string.Empty,
                 ApprovalSteps = new List<ApprovalStepDto>(),
                 Attachments = new List<AttachmentDto>(),
@@ -75,7 +75,7 @@ namespace FVN_REGISTER.Application.Maps
             OTReasonCategoryCode = e.OTReasonCategoryCode ?? string.Empty,
             OTReasonDetail = e.OTReasonDetail ?? string.Empty,
             Note = e.Note ?? string.Empty,
-            ValidationStatus = e.ValidationStatus.ToString(),
+            ValidationStatus = e.ValidationStatus,
             ValidationMessage = e.ValidationMessage ?? string.Empty
         };
 

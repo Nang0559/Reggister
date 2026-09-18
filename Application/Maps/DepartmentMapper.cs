@@ -12,7 +12,7 @@ namespace FVN_REGISTER.Application.Maps
             Id = d.Id,
             DeptCode = d.DeptCode,
             DeptName = d.DeptName,
-            IsActive = d.IsActive,
+            IsActive = d.IsActive ?? false,
             EmployeeCount = employeeCount
         };
 
