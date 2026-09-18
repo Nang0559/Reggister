@@ -36,6 +36,9 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             DeptCode = s.EntityKey,
             DeptName = s.DeptName,
             IsActive = true,
+            ParentDeptCode = s.ParentDeptCode,
+            DisplayPriority = s.DisplayPriority,
+            ShowInReport = s.ShowInReport,
             LastModifiedSource = SyncSourceTags.Hrm
         };
 
@@ -54,6 +57,10 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                 e.DeptName = s.DeptName;
                 changed = true;
             }
+
+            if (e.ParentDeptCode != s.ParentDeptCode) { e.ParentDeptCode = s.ParentDeptCode; changed = true; }
+            if (e.DisplayPriority != s.DisplayPriority) { e.DisplayPriority = s.DisplayPriority; changed = true; }
+            if (e.ShowInReport != s.ShowInReport) { e.ShowInReport = s.ShowInReport; changed = true; }
 
             // Case 2: reactivate (Admin từng tắt tay, HRM báo vẫn active)
             if (e.IsActive != true)
