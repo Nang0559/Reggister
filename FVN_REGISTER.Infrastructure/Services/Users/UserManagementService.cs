@@ -75,7 +75,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
             var user = await _uow.Repository<F03User>().Query()
                 .AsNoTracking()
                 .Include(x => x.PermissionCodeNavigation)
-                .FirstOrDefaultAsync(x => x.IdUser == id, ct);
+                .FirstOrDefaultAsync(x => x.Id == id, ct);
 
             if (user == null) return null;
 
@@ -173,7 +173,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
             try
             {
                 var user = await _uow.Repository<F03User>().Query()
-                    .FirstOrDefaultAsync(x => x.IdUser == request.IdUser, ct);
+                    .FirstOrDefaultAsync(x => x.Id == request.IdUser, ct);
                 if (user == null)
                     return ServiceResult.Fail("Không tìm thấy tài khoản.");
 
@@ -243,7 +243,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
             try
             {
                 var user = await _uow.Repository<F03User>().Query()
-                    .FirstOrDefaultAsync(x => x.IdUser == id, ct);
+                    .FirstOrDefaultAsync(x => x.Id == id, ct);
                 if (user == null)
                     return ServiceResult.Fail("Không tìm thấy tài khoản.");
 
@@ -279,7 +279,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
             try
             {
                 var user = await _uow.Repository<F03User>().Query()
-                    .FirstOrDefaultAsync(x => x.IdUser == id, ct);
+                    .FirstOrDefaultAsync(x => x.Id == id, ct);
                 if (user == null)
                     return ServiceResult.Fail("Không tìm thấy tài khoản.");
 
@@ -306,7 +306,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
             try
             {
                 var user = await _uow.Repository<F03User>().Query()
-                    .FirstOrDefaultAsync(x => x.IdUser == id, ct);
+                    .FirstOrDefaultAsync(x => x.Id == id, ct);
                 if (user == null)
                     return ServiceResult.Fail("Không tìm thấy tài khoản.");
 
@@ -361,7 +361,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                     return ServiceResult.Fail("Mật khẩu mới không được để trống.");
 
                 var user = await _uow.Repository<F03User>().Query()
-                    .FirstOrDefaultAsync(x => x.IdUser == id, ct);
+                    .FirstOrDefaultAsync(x => x.Id == id, ct);
                 if (user == null)
                     return ServiceResult.Fail("Không tìm thấy tài khoản.");
 
