@@ -1,4 +1,3 @@
-﻿
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Core.Entities.Common;
@@ -7,15 +6,8 @@ using FVN_REGISTER.Core.Entities.OT;
 using FVN_REGISTER.Core.Entities.Views;
 using FVN_REGISTER.Core.Enums;
 
-
-
-
 namespace FVN_REGISTER.Application.Maps
 {
-    /// <summary>
-    /// Cung cấp các phương thức ánh xạ (Mapping) dữ liệu giữa các Entity Database 
-    /// (VF03OTRequest, F03OTRequest, F03OTEmployee...) và các ViewModel hiển thị cho đơn OT.
-    /// </summary>
     public static class OTMapper
     {
         // Entity -> DTO (dùng khi đã có đủ header + requester + department)
@@ -59,6 +51,7 @@ namespace FVN_REGISTER.Application.Maps
                 DeptCode = v.DeptCode ?? string.Empty,
                 DeptName = v.DeptName ?? string.Empty,
                 WorkYear = v.OTDate.Year,
+                OTDate = v.OTDate,
                 OTTypeCode = v.OTTypeCode,
                 OtPurpose = v.OTReasonSummary ?? string.Empty,
                 ApprovalSteps = new List<ApprovalStepDto>(),
@@ -82,7 +75,7 @@ namespace FVN_REGISTER.Application.Maps
             OTReasonCategoryCode = e.OTReasonCategoryCode ?? string.Empty,
             OTReasonDetail = e.OTReasonDetail ?? string.Empty,
             Note = e.Note ?? string.Empty,
-            ValidationStatus = e.ValidationStatus ?? string.Empty,
+            ValidationStatus = e.ValidationStatus.ToString(),
             ValidationMessage = e.ValidationMessage ?? string.Empty
         };
 
@@ -103,13 +96,5 @@ namespace FVN_REGISTER.Application.Maps
                 CanApprove = canApprove
             };
         }
-
-        // ĐÃ XÓA theo sơ đồ D3 (dead code, thay thế bởi OTReconciliationItemDto):
-        //   ToUnconfirmedDto(OTUnconfirmedResult)
-        //   ParseCheckStatus(string) -> OtHoursCheckStatus
-        //   ParseSituation(string) -> OtSyncSituation
-        // Nếu cần logic map tương đương cho Reconciliation, viết trong
-        // OTReconciliationMapper riêng (Infrastructure/Mappers), dùng đúng
-        // OTReconciliationStatus/OTHourValidationStatus đã chốt ở D3.
     }
 }
