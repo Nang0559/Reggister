@@ -66,9 +66,16 @@ GO
 /*
   Pipeline B — HRM attendance -> local staging -> OT reconciliation.
 
-  NOTE:
-  HRM.dbo.fn_OTActualCheckInOut is an external dependency. The returned
-  column names must remain compatible with this SELECT.
+  ARCHITECTURE RULE:
+  HRM is a SOURCE ONLY. FVN_REGISTER owns attendance pairing,
+  OT calculation, holiday classification and reconciliation rules.
+
+  This procedure reads HRM base tables directly. It MUST NOT call an
+  HRM function that contains FVN_REGISTER business logic.
+
+  OT start authority:
+  F03OTRequests.StartTime of an APPROVED OT request is the local
+  business source for the beginning of the requested OT window.
 */
 CREATE OR ALTER PROCEDURE dbo.usp_SyncAttendanceStaging
     @WorkDate date
@@ -81,38 +88,155 @@ BEGIN
     WHERE WorkDate >= @WorkDate
       AND WorkDate < DATEADD(day,1,@WorkDate);
 
+    ;WITH EmployeeCards AS
+    (
+        SELECT DISTINCT CTMaNV, CTMaThe
+        FROM HRM.dbo.tblCapThe
+        WHERE CTMaNV IS NOT NULL
+          AND CTMaThe IS NOT NULL
+    ),
+    RawSwipes AS
+    (
+        SELECT
+            RTRIM(nv.NVMaNV) AS EmployeeCode,
+            RTRIM(nv.NVHoTen) AS FullName,
+            fe.DeptCode,
+            r.ThoiGian,
+            CAST(dd.DDChinhVao AS int) AS IsCheckIn
+        FROM HRM.dbo.RecordDataNew r
+        INNER JOIN HRM.dbo.tblDauDoc dd
+            ON dd.DDMa = r.IDM
+        INNER JOIN EmployeeCards ec
+            ON ec.CTMaThe = r.IDCard
+        INNER JOIN HRM.dbo.tblNhanVien nv
+            ON nv.NVMa = ec.CTMaNV
+        INNER JOIN dbo.F03Employees fe
+            ON fe.EmployeeCode = RTRIM(nv.NVMaNV)
+           AND fe.IsActive = 1
+        WHERE r.ThoiGian >= DATEADD(HOUR,17,CAST(DATEADD(DAY,-1,@WorkDate) AS datetime))
+          AND r.ThoiGian <  DATEADD(HOUR,7,CAST(DATEADD(DAY,1,@WorkDate) AS datetime))
+    ),
+    FirstIn AS
+    (
+        SELECT
+            EmployeeCode,
+            MAX(FullName) AS FullName,
+            MAX(DeptCode) AS DeptCode,
+            MIN(ThoiGian) AS CheckInDateTime
+        FROM RawSwipes
+        WHERE IsCheckIn = 1
+        GROUP BY EmployeeCode
+    ),
+    LastOut AS
+    (
+        SELECT
+            i.EmployeeCode,
+            MAX(r.ThoiGian) AS CheckOutDateTime
+        FROM FirstIn i
+        INNER JOIN RawSwipes r
+            ON r.EmployeeCode = i.EmployeeCode
+           AND r.IsCheckIn = 0
+           AND r.ThoiGian > i.CheckInDateTime
+           AND r.ThoiGian <= DATEADD(HOUR,16,i.CheckInDateTime)
+        GROUP BY i.EmployeeCode
+    ),
+    ApprovedOT AS
+    (
+        SELECT
+            oe.EmployeeCode,
+            MIN(ot.StartTime) AS OTStartTime,
+            MAX(ot.EndTime) AS OTPlannedEndTime,
+            MAX(ot.DeptCode) AS OTDeptCode
+        FROM dbo.F03OTRequests ot
+        INNER JOIN dbo.F03OTEmployees oe
+            ON oe.OTRequestId = ot.Id
+           AND oe.IsActive = 1
+        WHERE ot.IsActive = 1
+          AND CAST(ot.OTDate AS date) = @WorkDate
+          AND ot.RequestStatus = 3
+        GROUP BY oe.EmployeeCode
+    ),
+    Holidays AS
+    (
+        SELECT
+            HolidayDate,
+            Description,
+            CASE
+                WHEN DATEPART(WEEKDAY,HolidayDate) = 1 THEN N'SUNDAY'
+                WHEN DATEPART(WEEKDAY,HolidayDate) = 7 THEN N'SATURDAY'
+                ELSE N'PUBLIC_HOLIDAY'
+            END AS HolidayType
+        FROM dbo.F03CompanyHolidays
+        WHERE IsActive = 1
+          AND HolidayDate = @WorkDate
+    )
     INSERT dbo.F03AttendanceStaging
-    (WorkDate,EmployeeCode,DeptCode,DeptName,FullName,CheckInText,CheckOutText,
-     CheckInDateTime,CheckOutDateTime,ShiftCode,ShiftName,ShiftAbbr,ShiftCategory,
-     OtHours,TotalHours,IsHoliday,HolidayType,ShiftType,SyncedAt)
+    (
+        WorkDate,EmployeeCode,DeptCode,DeptName,FullName,
+        CheckInText,CheckOutText,CheckInDateTime,CheckOutDateTime,
+        ShiftCode,ShiftName,ShiftAbbr,ShiftCategory,
+        OtHours,TotalHours,IsHoliday,HolidayType,ShiftType,SyncedAt
+    )
     SELECT
-        CAST(cc.WorkDate AS datetime2(0)),
-        cc.EmployeeCode,
-        cc.DeptCode,
+        CAST(@WorkDate AS datetime2(0)),
+        i.EmployeeCode,
+        COALESCE(ao.OTDeptCode,i.DeptCode),
         d.DeptName,
-        cc.FullName,
-        cc.CheckInText,
-        cc.CheckOutText,
-        cc.CheckInDateTime,
-        cc.CheckOutDateTime,
-        cc.ShiftCode,
-        cc.ShiftName,
-        cc.ShiftAbbr,
-        TRY_CONVERT(int,cc.ShiftCategory),
-        CAST(ISNULL(cc.OTHours,0) AS decimal(5,2)),
-        CAST(ISNULL(cc.TotalHours,0) AS decimal(5,2)),
-        CAST(ISNULL(cc.IsHoliday,0) AS bit),
-        cc.HolidayType,
-        cc.ShiftType,
+        i.FullName,
+        CONVERT(varchar(5),CAST(i.CheckInDateTime AS time(0)),108),
+        CONVERT(varchar(5),CAST(o.CheckOutDateTime AS time(0)),108),
+        i.CheckInDateTime,
+        o.CheckOutDateTime,
+        NULL,NULL,NULL,NULL,
+
+        CAST(
+            CASE
+                WHEN o.CheckOutDateTime IS NULL OR ao.OTStartTime IS NULL THEN 0
+                WHEN o.CheckOutDateTime <= ao.OTStartTime THEN 0
+                ELSE DATEDIFF(
+                    MINUTE,
+                    CASE WHEN i.CheckInDateTime > ao.OTStartTime
+                         THEN i.CheckInDateTime ELSE ao.OTStartTime END,
+                    o.CheckOutDateTime
+                ) / 60.0
+            END AS decimal(5,2)
+        ),
+
+        CAST(
+            CASE
+                WHEN o.CheckOutDateTime IS NULL THEN 0
+                ELSE DATEDIFF(MINUTE,i.CheckInDateTime,o.CheckOutDateTime) / 60.0
+            END AS decimal(5,2)
+        ),
+
+        CAST(CASE WHEN h.HolidayDate IS NULL THEN 0 ELSE 1 END AS bit),
+        h.HolidayType,
+
+        CASE
+            WHEN o.CheckOutDateTime IS NULL THEN N'NO_CHECKOUT'
+            WHEN h.HolidayType = N'PUBLIC_HOLIDAY' THEN N'OT_HOLIDAY'
+            WHEN h.HolidayType = N'SUNDAY' THEN N'OT_SUNDAY'
+            WHEN h.HolidayType = N'SATURDAY' THEN N'OT_SATURDAY'
+            ELSE N'HC_OT'
+        END,
+
         GETDATE()
-    FROM HRM.dbo.fn_OTActualCheckInOut(@WorkDate) cc
+    FROM FirstIn i
+    INNER JOIN ApprovedOT ao
+        ON ao.EmployeeCode = i.EmployeeCode
+    LEFT JOIN LastOut o
+        ON o.EmployeeCode = i.EmployeeCode
     LEFT JOIN dbo.F03Departments d
-      ON d.DeptCode=cc.DeptCode AND d.IsActive=1
-    WHERE cc.CheckOutDateTime IS NOT NULL;
+        ON d.DeptCode = COALESCE(ao.OTDeptCode,i.DeptCode)
+       AND d.IsActive = 1
+    LEFT JOIN Holidays h
+        ON h.HolidayDate = @WorkDate
+    WHERE o.CheckOutDateTime IS NOT NULL;
 
-    DECLARE @Count int=@@ROWCOUNT;
+    DECLARE @Count int = @@ROWCOUNT;
 
-    SELECT @Count AS SyncedCount, CAST(@WorkDate AS date) AS WorkDate;
+    SELECT @Count AS SyncedCount,
+           CAST(@WorkDate AS date) AS WorkDate;
 END;
 GO
 
