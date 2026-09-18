@@ -11,7 +11,7 @@ namespace FVN_REGISTER.Application.Maps
             return new F03ApprovalSnapshot
             {
                 RequestId = requestId,
-                RequestType = dto.ModuleName.ToString(),
+                RequestType = dto.ModuleName,
                 Steps = dto.Steps
                     .OrderBy(s => s.Level)
                     .Select(s => new F03ApprovalStepSnapshot
