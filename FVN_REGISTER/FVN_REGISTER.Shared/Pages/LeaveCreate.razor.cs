@@ -21,7 +21,7 @@ public partial class LeaveCreate : IAsyncDisposable
     [Inject] private NavigationManager Nav { get; set; } = default!;
     [Inject] private ILogger<LeaveCreate> Logger { get; set; } = default!;
 
-    private SystemMasterDataDto? _model;
+    private LeaveCalendarDataDto? _model;
     private bool _isLoading = true;
     private int _selectedYear = DateTime.Now.Year;
     private ElementReference _calendarRef;
@@ -29,7 +29,7 @@ public partial class LeaveCreate : IAsyncDisposable
     private bool _calendarInitialized;
     private readonly CancellationTokenSource _cts = new();
 
-    private List<LeaveCalendarEventDto> LeaveEventsFiltered => _model?.LeaveEvents
+    private List<LeaveCalendarEventDto> LeaveEventsFiltered => _model?.MasterData.LeaveEvents
         .Where(x => x.StartDate.Year == _selectedYear)
         .OrderByDescending(x => x.StartDate)
         .ToList() ?? new();
@@ -60,7 +60,6 @@ public partial class LeaveCreate : IAsyncDisposable
         if (!_calendarInitialized && !_isLoading && _model != null)
         {
             await InitCalendarAsync();
-            await InvokeAsync(StateHasChanged);
         }
     }
 
@@ -85,7 +84,7 @@ public partial class LeaveCreate : IAsyncDisposable
         _model = result.Data;
         var leaveTypes = await LeaveTypeService.GetListAsync(isActive: true, ct: _cts.Token);
         if (leaveTypes.IsSuccess && leaveTypes.Data != null)
-            _model.LeaveTypes = leaveTypes.Data;
+            _model.MasterData.LeaveTypes = leaveTypes.Data;
     }
 
     private async Task OnYearChanged(int year)
@@ -97,7 +96,6 @@ public partial class LeaveCreate : IAsyncDisposable
             await JS.InvokeVoidAsync("leaveCalendar.updateEvents", BuildCalendarEvents());
             await JS.InvokeVoidAsync("leaveCalendar.updateHolidays", GetHolidayDates());
         }
-        StateHasChanged();
     }
 
     private async Task InitCalendarAsync()
@@ -117,7 +115,7 @@ public partial class LeaveCreate : IAsyncDisposable
             await JS.InvokeVoidAsync("leaveCalendar.updateEvents", BuildCalendarEvents());
     }
 
-    private List<string> GetHolidayDates() => _model?.CompanyHolidays
+    private List<string> GetHolidayDates() => _model?.MasterData.CompanyHolidays
         .Select(x => x.Start.ToString("yyyy-MM-dd"))
         .Distinct()
         .ToList() ?? new();
@@ -169,7 +167,7 @@ public partial class LeaveCreate : IAsyncDisposable
             Snackbar.Add("Không xác định được đơn nghỉ", Severity.Warning);
             return;
         }
-        var item = _model?.LeaveEvents.FirstOrDefault(x => x.RequestId == requestId);
+        var item = _model?.MasterData.LeaveEvents.FirstOrDefault(x => x.RequestId == requestId);
         if (item != null) await OpenDetailDialog(item);
     }
 
@@ -197,8 +195,8 @@ public partial class LeaveCreate : IAsyncDisposable
         await DialogService.ShowAsync<LeaveDetailDialog>("Chi tiết đơn nghỉ", parameters, new DialogOptions { MaxWidth = MaxWidth.Small, FullWidth = true, CloseOnEscapeKey = true });
     }
 
-    private async Task OnLeaveSaved() { await LoadDataAsync(); await RefreshCalendarAsync(); StateHasChanged(); }
-    private async Task OnLeaveCancelled() { await LoadDataAsync(); await RefreshCalendarAsync(); StateHasChanged(); }
+    private async Task OnLeaveSaved() { await LoadDataAsync(); await RefreshCalendarAsync(); }
+    private async Task OnLeaveCancelled() { await LoadDataAsync(); await RefreshCalendarAsync(); }
 
     public async ValueTask DisposeAsync()
     {
