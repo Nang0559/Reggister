@@ -47,7 +47,7 @@
                              Variant="Variant.Outlined" Min="0" />
         </MudItem>
         <MudItem xs="12" md="2" Class="d-flex align-center">
-            <MudSwitch @bind-Value="_form.IsActive" Color="Color.Primary">Active</MudSwitch>
+            <MudSwitch T="bool" @bind-Value="_form.IsActive" Color="Color.Primary">Active</MudSwitch>
         </MudItem>
         <MudItem xs="12">
             <MudTextField @bind-Value="_form.Note" Label="Ghi chú" Variant="Variant.Outlined" />
