@@ -197,21 +197,18 @@
             <MudTd>
                 <MudStack Row="true" Spacing="0">
                     <MudIconButton Icon="@Icons.Material.Filled.Visibility"
-                                   Size="Size.Small" Color="Color.Info"
-                                   Title="Xem nội dung"
+                                   Size="Size.Small" Color="Color.Info" title="Xem nội dung"
                                    OnClick="@(() => ViewPayload(context))" />
                     @if (context.Status is "Failed" or "Retry" or "Pending")
                     {
                         <MudIconButton Icon="@Icons.Material.Filled.Send"
-                                       Size="Size.Small" Color="Color.Success"
-                                       Title="Gửi lại"
+                                       Size="Size.Small" Color="Color.Success" title="Gửi lại"
                                        OnClick="@(() => RetrySingle(context))" />
                     }
                     @if (context.Status is not "Sent" and not "Cancelled")
                     {
                         <MudIconButton Icon="@Icons.Material.Filled.Cancel"
-                                       Size="Size.Small" Color="Color.Error"
-                                       Title="Hủy"
+                                       Size="Size.Small" Color="Color.Error" title="Hủy"
                                        OnClick="@(() => CancelSingle(context))" />
                     }
                 </MudStack>
