@@ -1,5 +1,6 @@
 ﻿@* FVN_REGISTER.Shared/Components/Approvals/RejectDialog.razor *@
 @using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Core.Enums
 @inject MudBlazor.IDialogService DialogService
 
 <MudDialog>
@@ -30,14 +31,14 @@
                     <b>@item.EmployeeName</b> (@item.EmployeeCode)
                 </MudText>
                 <MudText Typo="Typo.caption" Class="mud-text-secondary">
-                    @item.KindDisplay
-                    — @item.FromDate.ToString("dd/MM/yyyy")
-                    @if (item.FromDate.Date != item.ToDate.Date)
+                    @GetKindDisplay(item.Kind)
+                    — @(item.FromDate?.ToString("dd/MM/yyyy") ?? "—")
+                    @if (item.FromDate.Value.Date != item.ToDate.Value.Date)
                     {
                         @(" → ")
-                        @item.ToDate.ToString("dd/MM/yyyy")
+                        @(item.ToDate?.ToString("dd/MM/yyyy") ?? "—")
                     }
-                    — @item.TotalUnits @item.UnitDisplay
+                    — @item.TotalUnits.ToString("N1") @GetUnitLabel(item.Kind)
                 </MudText>
             </MudPaper>
         }
@@ -72,6 +73,16 @@
     [Parameter] public bool IsBatchMode { get; set; }
 
     private string _comment = string.Empty;
+
+    private static string GetKindDisplay(RequestModule kind) => kind switch
+    {
+        RequestModule.Overtime => "OT",
+        RequestModule.Trip => "Công tác",
+        RequestModule.Leave => "Nghỉ phép",
+        _ => kind.ToString()
+    };
+
+    private static string GetUnitLabel(RequestModule kind) => kind == RequestModule.Overtime ? "giờ" : "ngày";
 
     private void Cancel() => MudDialog.Cancel();
 
