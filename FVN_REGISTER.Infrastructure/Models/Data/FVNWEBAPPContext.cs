@@ -33,6 +33,19 @@ public class FVNWEBAPPContext : DbContext
     {
         base.OnModelCreating(modelBuilder); modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
         modelBuilder.Entity<VwShiftCheckInOut>(entity => { entity.HasNoKey(); entity.ToView("VwShiftCheckInOut"); });
+        modelBuilder.Entity<F03RoleFunction>(entity =>
+        {
+            entity.HasKey(x => new { x.IdRole, x.IdFunction });
+            entity.HasOne(x => x.Role).WithMany(x => x.RoleFunctions).HasForeignKey(x => x.IdRole);
+            entity.HasOne(x => x.Function).WithMany(x => x.RoleFunctions).HasForeignKey(x => x.IdFunction);
+        });
+        modelBuilder.Entity<F03UserRole>(entity =>
+        {
+            entity.HasKey(x => new { x.IdUser, x.IdRole });
+            entity.HasOne(x => x.User).WithMany(x => x.UserRoles).HasForeignKey(x => x.IdUser);
+            entity.HasOne(x => x.Role).WithMany(x => x.UserRoles).HasForeignKey(x => x.IdRole);
+        });
+        modelBuilder.Entity<F03Role>(entity => entity.HasIndex(x => x.RoleCode).IsUnique());
     }
     public override int SaveChanges() { ApplyAuditInfo(); return base.SaveChanges(); }
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) { ApplyAuditInfo(); return base.SaveChangesAsync(cancellationToken); }
