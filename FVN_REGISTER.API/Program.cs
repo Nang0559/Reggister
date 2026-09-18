@@ -56,10 +56,8 @@ using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Infrastructure;
 using FVN_REGISTER.Infrastructure.Utils;
 using FVN_REGISTER.Infrastructure.Services;
-using FVN_REGISTER.API.Services.OT;
 using FVN_REGISTER.Application.Services.Statics;
 using FVN_REGISTER.Infrastructure.Services.Departments;
-using FVN_REGISTER.API.Services.Histories;
 using FVN_REGISTER.Application.Policies;
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
