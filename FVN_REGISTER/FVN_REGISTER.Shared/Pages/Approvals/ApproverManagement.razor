@@ -31,7 +31,7 @@
         </MudSelect></MudItem>
         <MudItem xs="12" sm="3"><MudSelect T="RequestModule?" Label="Loại đơn" @bind-Value="_filterType" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Leave)">Nghỉ phép</MudSelectItem>
-            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.OT)">OT</MudSelectItem>
+            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Overtime)">OT</MudSelectItem>
         </MudSelect></MudItem>
         <MudItem xs="12" sm="2"><MudButton FullWidth="true" Variant="Variant.Outlined" OnClick="ResetFilter">Tất cả</MudButton></MudItem>
     </MudGrid>
