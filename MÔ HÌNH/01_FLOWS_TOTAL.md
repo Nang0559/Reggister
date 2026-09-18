@@ -148,18 +148,35 @@ Một endpoint chung xử lý nhiều module; dispatcher/handler route tới wor
 
 ## 6. D3 — OT Attendance Reconciliation
 
+D3 gồm hai lớp dữ liệu phụ thuộc lẫn nhau nhưng khác trách nhiệm:
+
+1. **HRM Shift Master Sync:** HRM cung cấp cấu hình ca/lịch; `usp_SyncHrmShiftMaster` đồng bộ vào `F03Shifts`, `F03ShiftSchedules`, `F03ShiftScheduleDays`, `F03EmployeeShiftSchedules`.
+2. **Attendance Staging / Reconciliation:** `usp_SyncAttendanceStaging(@WorkDate)` đọc dữ liệu chấm công HRM và tự gọi `usp_SyncHrmShiftMaster` trước khi resolve ca. Sau đó ghi `F03AttendanceStaging`; `usp_SyncOTActualHours` dùng staging này để cập nhật actual OT vào `F03OTEmployees`.
+
 ```mermaid
 flowchart LR
-    HRM[(HRM Attendance)] --> P1[usp_SyncAttendanceStaging]
-    P1 --> S[F03AttendanceStaging]
-    S --> ST[IOTAttendanceStagingService]
-    ST --> RC[IOTAttendanceReconciliationService]
-    RC --> P2[usp_SyncOTActualHours]
-    P2 --> OT[(F03OTEmployee ActualHours / Start / End)]
-    ADMIN[Admin command] --> RC
+    subgraph HRM[HRM — READ ONLY]
+        HM[Master / Shift Configuration]
+        HA[Attendance / Card / Device]
+    end
+
+    HM -->|READ ONLY| P1[usp_SyncHrmShiftMaster]
+    P1 --> SM[(F03Shifts)]
+    P1 --> SS[(F03ShiftSchedules)]
+    P1 --> SD[(F03ShiftScheduleDays)]
+    P1 --> ES[(F03EmployeeShiftSchedules)]
+
+    HA -->|READ ONLY| P2[usp_SyncAttendanceStaging]
+    SM --> P2
+    SS --> P2
+    SD --> P2
+    ES --> P2
+    P2 --> AST[(F03AttendanceStaging)]
+    AST --> P3[usp_SyncOTActualHours]
+    P3 --> OT[(F03OTEmployees)]
 ```
 
-Đây là **command-with-result** vì reconciliation có ghi dữ liệu. UI chỉ thực hiện khi Admin chủ động bấm "Đối chiếu"; không gọi trong lifecycle render/timer.
+**Invariant:** FVN_REGISTER chỉ đọc HRM; không ghi ngược vào các bảng HRM. `tblBaoCao` được dùng làm dữ liệu tham chiếu/snapshot chấm công HRM, không phải bảng do FVN_REGISTER sở hữu.
 
 ## 7. D4 — Notification Pipeline
 
