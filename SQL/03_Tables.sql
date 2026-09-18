@@ -1,289 +1,67 @@
 USE [FVN_REGISTER];
 GO
+SET ANSI_NULLS ON; SET QUOTED_IDENTIFIER ON;
+GO
+/* Current EF Core model - dbo/F03* tables. */
+IF OBJECT_ID('dbo.F03Permissions','U') IS NULL CREATE TABLE dbo.F03Permissions(
+ IdPermission int IDENTITY PRIMARY KEY, Id int NULL, IsActive bit NULL DEFAULT 1, CreatedBy int NOT NULL DEFAULT 0, LastModifiedSource nvarchar(50), CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(), ModifiedBy int NULL, ModifiedAt datetime2(0) NULL, PermissionCode int NOT NULL, PermissionName nvarchar(100) NOT NULL, Detail nvarchar(500) NOT NULL);
+IF OBJECT_ID('dbo.F03Functions','U') IS NULL CREATE TABLE dbo.F03Functions(
+ IdFunction int IDENTITY PRIMARY KEY, Id int NULL, IsActive bit NULL DEFAULT 1, CreatedBy int NOT NULL DEFAULT 0, LastModifiedSource nvarchar(50), CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(), ModifiedBy int NULL, ModifiedAt datetime2(0) NULL, FunctionCode int NOT NULL, FunctionName nvarchar(100) NOT NULL, Detail nvarchar(500) NOT NULL);
+IF OBJECT_ID('dbo.F03Users','U') IS NULL CREATE TABLE dbo.F03Users(
+ IdUser int IDENTITY PRIMARY KEY, Id int NULL, IsActive bit NULL DEFAULT 1, CreatedBy int NOT NULL DEFAULT 0, LastModifiedSource nvarchar(50), CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(), ModifiedBy int NULL, ModifiedAt datetime2(0) NULL, Password nvarchar(255) NOT NULL, Avatar nvarchar(255) NULL, EmployeeCode nvarchar(50) NOT NULL, FullName nvarchar(100) NULL, PermissionCode int NOT NULL, LastLogin datetime2(0) NULL, LockoutEnable bit NOT NULL DEFAULT 1, LockoutEndDate datetime2(0) NULL, NumLoginFailed int NOT NULL DEFAULT 0, LevelApprove int NOT NULL DEFAULT 0, DeptCode nvarchar(20) NULL, Cvcode nvarchar(20) NULL);
+IF OBJECT_ID('dbo.F03UserFunctions','U') IS NULL CREATE TABLE dbo.F03UserFunctions(Id int IDENTITY PRIMARY KEY,IdUser int NOT NULL,IdPermission int NOT NULL,IdFunction int NOT NULL);
+IF OBJECT_ID('dbo.F03UserSessions','U') IS NULL CREATE TABLE dbo.F03UserSessions(Id int IDENTITY PRIMARY KEY,UserId int NOT NULL,DeviceType nvarchar(10) NOT NULL,DeviceId nvarchar(100) NOT NULL,DeviceName nvarchar(100) NULL,JwtToken nvarchar(max) NULL,ExpiresAt datetime2(0) NULL,SignalRConnectionId nvarchar(100) NULL,IsActive bit NOT NULL DEFAULT 1,CreatedAt datetime2(0) NOT NULL DEFAULT GETUTCDATE(),LastSeenAt datetime2(0) NULL,RevokedAt datetime2(0) NULL,RememberMe bit NOT NULL DEFAULT 0);
 
-/* Identity / authorization */
-IF OBJECT_ID(N'auth.UserAccount','U') IS NULL
-CREATE TABLE auth.UserAccount(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_UserAccount PRIMARY KEY,
-    EmployeeCode nvarchar(50) NOT NULL,
-    UserName nvarchar(100) NULL,
-    PasswordHash nvarchar(500) NULL,
-    Email nvarchar(255) NULL,
-    IsActive bit NOT NULL CONSTRAINT DF_UserAccount_IsActive DEFAULT(1),
-    CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_UserAccount_CreatedAt DEFAULT(SYSDATETIME()),
-    UpdatedAt datetime2(0) NULL,
-    CONSTRAINT UQ_UserAccount_EmployeeCode UNIQUE(EmployeeCode)
-);
-IF OBJECT_ID(N'auth.Role','U') IS NULL
-CREATE TABLE auth.Role(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_Role PRIMARY KEY,
-    Code nvarchar(50) NOT NULL,
-    Name nvarchar(150) NOT NULL,
-    IsActive bit NOT NULL CONSTRAINT DF_Role_IsActive DEFAULT(1),
-    CONSTRAINT UQ_Role_Code UNIQUE(Code)
-);
-IF OBJECT_ID(N'auth.Permission','U') IS NULL
-CREATE TABLE auth.Permission(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_Permission PRIMARY KEY,
-    Code nvarchar(100) NOT NULL,
-    Name nvarchar(200) NOT NULL,
-    CONSTRAINT UQ_Permission_Code UNIQUE(Code)
-);
-IF OBJECT_ID(N'auth.UserRole','U') IS NULL
-CREATE TABLE auth.UserRole(
-    UserId int NOT NULL,
-    RoleId int NOT NULL,
-    AssignedAt datetime2(0) NOT NULL CONSTRAINT DF_UserRole_AssignedAt DEFAULT(SYSDATETIME()),
-    CONSTRAINT PK_UserRole PRIMARY KEY(UserId,RoleId)
-);
-IF OBJECT_ID(N'auth.RolePermission','U') IS NULL
-CREATE TABLE auth.RolePermission(
-    RoleId int NOT NULL,
-    PermissionId int NOT NULL,
-    CONSTRAINT PK_RolePermission PRIMARY KEY(RoleId,PermissionId)
-);
+IF OBJECT_ID('dbo.F03Departments','U') IS NULL CREATE TABLE dbo.F03Departments(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,DeptCode nvarchar(20) NOT NULL,DeptName nvarchar(100) NOT NULL,ParentDeptCode nvarchar(50) NULL,DisplayPriority int NULL,ShowInReport bit NOT NULL DEFAULT 1);
+IF OBJECT_ID('dbo.F03Positions','U') IS NULL CREATE TABLE dbo.F03Positions(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,PositionCode nvarchar(20) NOT NULL,PositionName nvarchar(100) NOT NULL,IsApprove bit NOT NULL DEFAULT 0,IsAllowApprove bit NOT NULL DEFAULT 0,DefaultApproveLevel int NULL);
+IF OBJECT_ID('dbo.F03Genders','U') IS NULL CREATE TABLE dbo.F03Genders(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,GenderCode nvarchar(10) NOT NULL,GenderName nvarchar(50) NOT NULL);
+IF OBJECT_ID('dbo.F03Employees','U') IS NULL CREATE TABLE dbo.F03Employees(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,EmployeeCode nvarchar(50) NOT NULL,EmployeeName nvarchar(100) NOT NULL,DeptCode nvarchar(20) NOT NULL,PositionCode nvarchar(20) NOT NULL,BirthDate datetime2(0) NULL,GenderCode int NULL,EmailAddress nvarchar(100) NOT NULL,PhoneNumber nvarchar(20) NULL,FirstWorkingDate datetime2(0) NULL,EndWorkingDate datetime2(0) NULL,TotalLeaveDays decimal(5,2) NOT NULL DEFAULT 0,EmployeeNo int NULL,LevelApprove int NULL);
+IF OBJECT_ID('dbo.F03WorkYears','U') IS NULL CREATE TABLE dbo.F03WorkYears(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,WorkYear int NOT NULL,StartDate date NOT NULL,EndDate date NOT NULL,Remark nvarchar(500) NULL);
+IF OBJECT_ID('dbo.F03CompanyHolidays','U') IS NULL CREATE TABLE dbo.F03CompanyHolidays(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,HolidayDate date NOT NULL,Description nvarchar(200) NOT NULL,Year int NOT NULL,IsPaidLeave bit NOT NULL DEFAULT 1);
 
-/* HR master */
-IF OBJECT_ID(N'hr.Department','U') IS NULL
-CREATE TABLE hr.Department(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_Department PRIMARY KEY,
-    Code nvarchar(50) NOT NULL,
-    Name nvarchar(200) NOT NULL,
-    ParentId int NULL,
-    IsActive bit NOT NULL CONSTRAINT DF_Department_IsActive DEFAULT(1),
-    CONSTRAINT UQ_Department_Code UNIQUE(Code)
-);
-IF OBJECT_ID(N'hr.Employee','U') IS NULL
-CREATE TABLE hr.Employee(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_Employee PRIMARY KEY,
-    EmployeeCode nvarchar(50) NOT NULL,
-    FullName nvarchar(200) NOT NULL,
-    Email nvarchar(255) NULL,
-    DepartmentId int NULL,
-    PositionCode nvarchar(50) NULL,
-    PositionName nvarchar(150) NULL,
-    IsActive bit NOT NULL CONSTRAINT DF_Employee_IsActive DEFAULT(1),
-    CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_Employee_CreatedAt DEFAULT(SYSDATETIME()),
-    UpdatedAt datetime2(0) NULL,
-    CONSTRAINT UQ_Employee_Code UNIQUE(EmployeeCode)
-);
+IF OBJECT_ID('dbo.F03LeaveType','U') IS NULL CREATE TABLE dbo.F03LeaveType(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,LeaveTypeCode nvarchar(50) NOT NULL,LeaveTypeName nvarchar(200) NOT NULL,LeaveTypeName2 nvarchar(200) NULL,IsCountedAsLeave bit NOT NULL DEFAULT 0,HRMCode nvarchar(50) NULL);
+IF OBJECT_ID('dbo.F03LeaveBalances','U') IS NULL CREATE TABLE dbo.F03LeaveBalances(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,EmployeeCode nvarchar(50) NOT NULL,WorkYear int NOT NULL,TotalDays decimal(5,2) NOT NULL DEFAULT 0);
+IF OBJECT_ID('dbo.F03LeaveDays','U') IS NULL CREATE TABLE dbo.F03LeaveDays(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,EmployeeCode nvarchar(50) NOT NULL,DeptCode nvarchar(20) NULL,RequestStatus int NOT NULL DEFAULT 0,WorkYear int NOT NULL,StartTime datetime2(0) NOT NULL,EndTime datetime2(0) NOT NULL,TotalDay decimal(5,2) NOT NULL,RegisterId int NOT NULL,LeaveReason nvarchar(500) NOT NULL,Sync bit NULL,LastSync datetime2(0) NULL,LeaveTypeCode nvarchar(10) NULL,TotalLeaveDay decimal(5,2) NULL);
+IF OBJECT_ID('dbo.F03LeaveDayDetails','U') IS NULL CREATE TABLE dbo.F03LeaveDayDetails(Id int IDENTITY PRIMARY KEY,LeaveDaysId int NOT NULL,LeaveDate date NOT NULL,LeaveTypeCode nvarchar(10) NOT NULL,LeaveTypeName nvarchar(100) NULL,IsCountedAsLeave bit NOT NULL DEFAULT 0,IsHalfDay bit NOT NULL DEFAULT 0,HalfDayOption nvarchar(20) NULL,DayValue decimal(5,2) NOT NULL,CreatedAt datetime2(0) NULL,CreatedBy int NULL);
+IF OBJECT_ID('dbo.F03AttendanceStaging','U') IS NULL CREATE TABLE dbo.F03AttendanceStaging(Id int IDENTITY PRIMARY KEY,WorkDate datetime2(0) NOT NULL,EmployeeCode nvarchar(50) NOT NULL,DeptCode nvarchar(20) NULL,DeptName nvarchar(100) NULL,FullName nvarchar(100) NULL,CheckInText nvarchar(max) NULL,CheckOutText nvarchar(max) NULL,CheckInDateTime datetime2(0) NULL,CheckOutDateTime datetime2(0) NULL,ShiftCode nvarchar(20) NULL,ShiftName nvarchar(100) NULL,ShiftAbbr nvarchar(10) NULL,ShiftCategory int NULL,OtHours decimal(5,2) NULL,TotalHours decimal(5,2) NULL,IsHoliday bit NOT NULL DEFAULT 0,HolidayType nvarchar(50) NULL,ShiftType nvarchar(20) NULL,SyncedAt datetime2(0) NOT NULL DEFAULT GETDATE());
 
-/* Configuration */
-IF OBJECT_ID(N'config.WorkYear','U') IS NULL
-CREATE TABLE config.WorkYear(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_WorkYear PRIMARY KEY,
-    YearValue int NOT NULL,
-    StartDate date NOT NULL,
-    EndDate date NOT NULL,
-    IsCurrent bit NOT NULL CONSTRAINT DF_WorkYear_IsCurrent DEFAULT(0),
-    CONSTRAINT UQ_WorkYear_Year UNIQUE(YearValue),
-    CONSTRAINT CK_WorkYear_Date CHECK(StartDate<=EndDate)
-);
-IF OBJECT_ID(N'config.CompanyHoliday','U') IS NULL
-CREATE TABLE config.CompanyHoliday(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_CompanyHoliday PRIMARY KEY,
-    HolidayDate date NOT NULL,
-    Name nvarchar(200) NOT NULL,
-    IsActive bit NOT NULL CONSTRAINT DF_CompanyHoliday_IsActive DEFAULT(1),
-    CONSTRAINT UQ_CompanyHoliday_Date UNIQUE(HolidayDate)
-);
-IF OBJECT_ID(N'config.LeaveType','U') IS NULL
-CREATE TABLE config.LeaveType(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_LeaveType PRIMARY KEY,
-    Code nvarchar(50) NOT NULL,
-    Name nvarchar(200) NOT NULL,
-    IsCountedAsLeave bit NOT NULL CONSTRAINT DF_LeaveType_IsCountedAsLeave DEFAULT(1),
-    IsPaid bit NOT NULL CONSTRAINT DF_LeaveType_IsPaid DEFAULT(1),
-    IsActive bit NOT NULL CONSTRAINT DF_LeaveType_IsActive DEFAULT(1),
-    CONSTRAINT UQ_LeaveType_Code UNIQUE(Code)
-);
+IF OBJECT_ID('dbo.F03OTTypes','U') IS NULL CREATE TABLE dbo.F03OTTypes(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,OTTypeCode nvarchar(50) NOT NULL,OTTypeName nvarchar(200) NOT NULL,OTTypeName2 nvarchar(200) NULL,RateMultiplier decimal(3,1) NOT NULL DEFAULT 1.5,HRMCode nvarchar(50) NULL);
+IF OBJECT_ID('dbo.F03OTRequests','U') IS NULL CREATE TABLE dbo.F03OTRequests(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,EmployeeCode nvarchar(50) NOT NULL,DeptCode nvarchar(20) NULL,RequestStatus int NOT NULL DEFAULT 0,OTCode nvarchar(20) NOT NULL,CreatedByEmail nvarchar(100) NULL,ScopeType nvarchar(20) NOT NULL,OTDate datetime2(0) NOT NULL,StartTime datetime2(0) NOT NULL,EndTime datetime2(0) NOT NULL,PlannedHours decimal(5,2) NOT NULL,TotalOTHours decimal(5,2) NOT NULL,OTTypeCode nvarchar(20) NOT NULL,OTReasonSummary nvarchar(500) NULL);
+IF OBJECT_ID('dbo.F03OTEmployees','U') IS NULL CREATE TABLE dbo.F03OTEmployees(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,OTRequestId int NOT NULL,EmployeeCode nvarchar(50) NOT NULL,EmployeeName nvarchar(100) NULL,DeptCode nvarchar(20) NULL,DeptName nvarchar(100) NULL,CvCode nvarchar(10) NULL,OTTypeCode nvarchar(20) NULL,StartTime datetime2(0) NULL,EndTime datetime2(0) NULL,OTHours decimal(5,2) NOT NULL,ActualHours decimal(5,2) NULL,ActualStartTime datetime2(0) NULL,ActualEndTime datetime2(0) NULL,OTReasonCategoryCode nvarchar(10) NULL,OTReasonDetail nvarchar(500) NULL,OTRateMultiplier decimal(3,1) NOT NULL DEFAULT 1.5,ValidationStatus int NOT NULL DEFAULT 0,ValidationMessage nvarchar(255) NULL,Note nvarchar(500) NULL);
+IF OBJECT_ID('dbo.F03OTLimitRules','U') IS NULL CREATE TABLE dbo.F03OTLimitRules(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,LimitType nvarchar(20) NOT NULL,LimitValue decimal(5,2) NOT NULL,PositionCode nvarchar(20) NULL,DeptCode nvarchar(20) NULL,LimitHours decimal(5,2) NOT NULL,Description nvarchar(500) NULL);
+IF OBJECT_ID('dbo.F03OTCodes','U') IS NULL CREATE TABLE dbo.F03OTCodes(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,ReasonCode nvarchar(10) NOT NULL,DisplayName nvarchar(100) NOT NULL,Description nvarchar(255) NULL,DisplayOrder int NOT NULL DEFAULT 0);
 
-/* Approval configuration + immutable request snapshot */
-IF OBJECT_ID(N'config.ApprovalLevel','U') IS NULL
-CREATE TABLE config.ApprovalLevel(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_ApprovalLevel PRIMARY KEY,
-    LevelNo int NOT NULL,
-    Code nvarchar(50) NOT NULL,
-    Name nvarchar(150) NOT NULL,
-    IsActive bit NOT NULL CONSTRAINT DF_ApprovalLevel_IsActive DEFAULT(1),
-    CONSTRAINT UQ_ApprovalLevel_Level UNIQUE(LevelNo),
-    CONSTRAINT UQ_ApprovalLevel_Code UNIQUE(Code)
-);
-IF OBJECT_ID(N'config.Approver','U') IS NULL
-CREATE TABLE config.Approver(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_Approver PRIMARY KEY,
-    EmployeeCode nvarchar(50) NOT NULL,
-    PositionCode nvarchar(50) NULL,
-    ApprovalLevelId int NOT NULL,
-    IsActive bit NOT NULL CONSTRAINT DF_Approver_IsActive DEFAULT(1),
-    CONSTRAINT UQ_Approver_Employee_Level UNIQUE(EmployeeCode,ApprovalLevelId)
-);
+IF OBJECT_ID('dbo.F03TripRequests','U') IS NULL CREATE TABLE dbo.F03TripRequests(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,EmployeeCode nvarchar(50) NOT NULL,DeptCode nvarchar(20) NULL,RequestStatus int NOT NULL DEFAULT 0,TripCode nvarchar(30) NOT NULL,StartDate datetime2(0) NOT NULL,EndDate datetime2(0) NOT NULL,Destination nvarchar(250) NOT NULL,Purpose nvarchar(1000) NOT NULL,CustomerOrPartner nvarchar(250) NULL,TransportMethod nvarchar(100) NULL,CompanionEmployeeCodes nvarchar(500) NULL,EstimatedCost decimal(18,2) NULL,Accommodation nvarchar(500) NULL,Note nvarchar(1000) NULL);
+IF OBJECT_ID('dbo.F03StagingTrips','U') IS NULL CREATE TABLE dbo.F03StagingTrips(Id int IDENTITY PRIMARY KEY,EmployeeCode nvarchar(50) NULL,StartDate datetime2(0) NULL,EndDate datetime2(0) NULL,Destination nvarchar(255) NULL,Purpose nvarchar(500) NULL,IsProcessed bit NOT NULL DEFAULT 0,ErrorMessage nvarchar(1000) NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),CreatedBy nvarchar(100) NULL);
 
-/* Leave */
-IF OBJECT_ID(N'leave.LeaveRequest','U') IS NULL
-CREATE TABLE leave.LeaveRequest(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_LeaveRequest PRIMARY KEY,
-    RequestCode nvarchar(50) NOT NULL,
-    EmployeeCode nvarchar(50) NOT NULL,
-    LeaveTypeId int NOT NULL,
-    WorkYearId int NOT NULL,
-    StartDate date NOT NULL,
-    EndDate date NOT NULL,
-    TotalUnits decimal(10,2) NOT NULL,
-    IsHalfDay bit NOT NULL CONSTRAINT DF_LeaveRequest_IsHalfDay DEFAULT(0),
-    HalfDayOption tinyint NULL,
-    LeavePaymentType tinyint NOT NULL,
-    Reason nvarchar(1000) NULL,
-    Status tinyint NOT NULL CONSTRAINT DF_LeaveRequest_Status DEFAULT(0),
-    SubmittedAt datetime2(0) NULL,
-    CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_LeaveRequest_CreatedAt DEFAULT(SYSDATETIME()),
-    UpdatedAt datetime2(0) NULL,
-    RowVersion rowversion NOT NULL,
-    CONSTRAINT UQ_LeaveRequest_Code UNIQUE(RequestCode),
-    CONSTRAINT CK_LeaveRequest_Date CHECK(StartDate<=EndDate),
-    CONSTRAINT CK_LeaveRequest_Total CHECK(TotalUnits>=0)
-);
-IF OBJECT_ID(N'leave.LeaveAttachment','U') IS NULL
-CREATE TABLE leave.LeaveAttachment(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_LeaveAttachment PRIMARY KEY,
-    LeaveRequestId int NOT NULL,
-    FileName nvarchar(255) NOT NULL,
-    ContentType nvarchar(100) NOT NULL,
-    FileSize bigint NOT NULL,
-    StoragePath nvarchar(1000) NULL,
-    CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_LeaveAttachment_CreatedAt DEFAULT(SYSDATETIME())
-);
-IF OBJECT_ID(N'leave.Approval','U') IS NULL
-CREATE TABLE leave.Approval(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_LeaveApproval PRIMARY KEY,
-    LeaveRequestId int NOT NULL,
-    LevelNo int NOT NULL,
-    ApproverCode nvarchar(50) NULL,
-    ApproverName nvarchar(200) NULL,
-    ApproverEmail nvarchar(255) NULL,
-    Decision tinyint NOT NULL CONSTRAINT DF_LeaveApproval_Decision DEFAULT(0),
-    ApproveTime datetime2(0) NULL,
-    Comment nvarchar(1000) NULL,
-    IsRequired bit NOT NULL CONSTRAINT DF_LeaveApproval_IsRequired DEFAULT(1),
-    IsOverriddenByAdmin bit NOT NULL CONSTRAINT DF_LeaveApproval_IsOverridden DEFAULT(0),
-    OverriddenByName nvarchar(200) NULL,
-    OverriddenAt datetime2(0) NULL,
-    CONSTRAINT UQ_LeaveApproval_Request_Level UNIQUE(LeaveRequestId,LevelNo)
-);
+IF OBJECT_ID('dbo.F03EquipmentAssets','U') IS NULL CREATE TABLE dbo.F03EquipmentAssets(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,EquipmentCode nvarchar(30) NOT NULL,EquipmentName nvarchar(250) NOT NULL,Specification nvarchar(1000) NULL,SerialNumber nvarchar(100) NULL,AssetCode nvarchar(50) NULL,PurchasePrice decimal(18,2) NOT NULL,PurchaseDate datetime2(0) NOT NULL,ExpectedDepreciationDate datetime2(0) NOT NULL,DeptCode nvarchar(20) NOT NULL,Location nvarchar(250) NULL,QrToken nvarchar(128) NOT NULL,IsQrActive bit NOT NULL DEFAULT 0,Note nvarchar(1000) NULL);
+IF OBJECT_ID('dbo.F03EquipmentRequests','U') IS NULL CREATE TABLE dbo.F03EquipmentRequests(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,EmployeeCode nvarchar(50) NOT NULL,DeptCode nvarchar(20) NULL,RequestStatus int NOT NULL DEFAULT 0,RequestKind int NOT NULL,AssetId int NULL,SelectedApproverCode nvarchar(50) NOT NULL,QrToken nvarchar(128) NOT NULL,OperatorUserId int NOT NULL,EquipmentName nvarchar(250) NOT NULL,Specification nvarchar(1000) NULL,SerialNumber nvarchar(100) NULL,AssetCode nvarchar(50) NULL,PurchasePrice decimal(18,2) NOT NULL,PurchaseDate datetime2(0) NULL,ExpectedDepreciationDate datetime2(0) NULL,Location nvarchar(250) NULL,Note nvarchar(1000) NULL,RepairDate datetime2(0) NULL,RepairContent nvarchar(1000) NULL,RepairVendor nvarchar(250) NULL,RepairCost decimal(18,2) NULL,RepairResult nvarchar(1000) NULL);
+IF OBJECT_ID('dbo.F03EquipmentRepairHistory','U') IS NULL CREATE TABLE dbo.F03EquipmentRepairHistory(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,AssetId int NOT NULL,RequestId int NOT NULL,RepairDate datetime2(0) NOT NULL,OperatorUserId int NOT NULL,RepairCost decimal(18,2) NULL,RepairContent nvarchar(1000) NOT NULL,RepairVendor nvarchar(250) NULL,RepairResult nvarchar(1000) NULL,Note nvarchar(1000) NULL,IsApproved bit NOT NULL DEFAULT 0);
 
-/* OT */
-IF OBJECT_ID(N'ot.OTRequest','U') IS NULL
-CREATE TABLE ot.OTRequest(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_OTRequest PRIMARY KEY,
-    RequestCode nvarchar(50) NOT NULL,
-    EmployeeCode nvarchar(50) NOT NULL,
-    WorkDate date NOT NULL,
-    StartTime time(0) NOT NULL,
-    EndTime time(0) NOT NULL,
-    TotalHours decimal(10,2) NOT NULL,
-    OTRateMultiplier decimal(10,2) NOT NULL,
-    Reason nvarchar(1000) NULL,
-    Status tinyint NOT NULL CONSTRAINT DF_OTRequest_Status DEFAULT(0),
-    SubmittedAt datetime2(0) NULL,
-    CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_OTRequest_CreatedAt DEFAULT(SYSDATETIME()),
-    UpdatedAt datetime2(0) NULL,
-    RowVersion rowversion NOT NULL,
-    CONSTRAINT UQ_OTRequest_Code UNIQUE(RequestCode),
-    CONSTRAINT CK_OTRequest_Hours CHECK(TotalHours>=0)
-);
-IF OBJECT_ID(N'ot.Approval','U') IS NULL
-CREATE TABLE ot.Approval(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_OTApproval PRIMARY KEY,
-    OTRequestId int NOT NULL,
-    LevelNo int NOT NULL,
-    ApproverCode nvarchar(50) NULL,
-    ApproverName nvarchar(200) NULL,
-    Decision tinyint NOT NULL CONSTRAINT DF_OTApproval_Decision DEFAULT(0),
-    ApproveTime datetime2(0) NULL,
-    Comment nvarchar(1000) NULL,
-    IsRequired bit NOT NULL CONSTRAINT DF_OTApproval_IsRequired DEFAULT(1),
-    CONSTRAINT UQ_OTApproval_Request_Level UNIQUE(OTRequestId,LevelNo)
-);
+IF OBJECT_ID('dbo.F03Approvers','U') IS NULL CREATE TABLE dbo.F03Approvers(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,UserId int NULL,RequestType nvarchar(20) NOT NULL,ApproverCode nvarchar(50) NOT NULL,PositionCode nvarchar(20) NULL,ApproverName nvarchar(100) NOT NULL,ApproverEmail nvarchar(100) NOT NULL,ApproverDeptCode nvarchar(20) NOT NULL,ApproverDeptName nvarchar(100) NOT NULL,ApproveForDeptCode nvarchar(20) NOT NULL,ApproveForDeptName nvarchar(100) NOT NULL,Level int NOT NULL,RoleName nvarchar(50) NOT NULL);
+IF OBJECT_ID('dbo.F03ApprovalSteps','U') IS NULL CREATE TABLE dbo.F03ApprovalSteps(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,RequestType nvarchar(20) NOT NULL,RequestId int NOT NULL,Level int NOT NULL,LevelName nvarchar(50) NULL,RoleName nvarchar(50) NOT NULL,ApproverCode nvarchar(50) NULL,ApproverName nvarchar(100) NULL,ApproverEmail nvarchar(100) NULL,Required bit NOT NULL DEFAULT 1,Approved bit NULL,ApprovedAt datetime2(0) NULL,Comment nvarchar(500) NULL,ReminderSent bit NOT NULL DEFAULT 0,IsOverriddenByAdmin bit NOT NULL DEFAULT 0,OverriddenByCode nvarchar(50) NULL,OverriddenByName nvarchar(100) NULL,OverriddenAt datetime2(0) NULL);
+IF OBJECT_ID('dbo.F03ApprovalSnapshots','U') IS NULL CREATE TABLE dbo.F03ApprovalSnapshots(Id int IDENTITY PRIMARY KEY,RequestId int NOT NULL,RequestType int NOT NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETUTCDATE());
+IF OBJECT_ID('dbo.F03ApprovalStepSnapshots','U') IS NULL CREATE TABLE dbo.F03ApprovalStepSnapshots(Id int IDENTITY PRIMARY KEY,SnapshotId int NOT NULL,Level int NOT NULL,ApproverCode nvarchar(20) NOT NULL,ApproverName nvarchar(100) NOT NULL,ApproverEmail nvarchar(100) NOT NULL,RoleName nvarchar(100) NOT NULL,IsRequired bit NOT NULL);
+IF OBJECT_ID('dbo.ApprovalHistories','U') IS NULL CREATE TABLE dbo.ApprovalHistories(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,RequestType int NOT NULL,RequestId int NOT NULL,StepId int NOT NULL,IsOverriddenByAdmin bit NOT NULL DEFAULT 0,ApproverCode nvarchar(50) NOT NULL,ApproverName nvarchar(100) NOT NULL,OverriddenByCode nvarchar(50) NULL,OverriddenByName nvarchar(100) NULL,OverriddenAt datetime2(0) NULL,Decision int NOT NULL,Comment nvarchar(max) NULL,ActionAt datetime2(0) NOT NULL);
+IF OBJECT_ID('dbo.F03ApprovalReminderLog','U') IS NULL CREATE TABLE dbo.F03ApprovalReminderLog(Id int IDENTITY PRIMARY KEY,RequestType int NOT NULL,RequestId int NOT NULL,Level int NOT NULL,SentAt datetime2(0) NOT NULL DEFAULT GETDATE());
 
-/* Trip */
-IF OBJECT_ID(N'trip.TripRequest','U') IS NULL
-CREATE TABLE trip.TripRequest(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_TripRequest PRIMARY KEY,
-    TripCode nvarchar(50) NOT NULL,
-    EmployeeCode nvarchar(50) NOT NULL,
-    FromDate date NOT NULL,
-    ToDate date NOT NULL,
-    Destination nvarchar(500) NULL,
-    Purpose nvarchar(1000) NULL,
-    Status tinyint NOT NULL CONSTRAINT DF_TripRequest_Status DEFAULT(0),
-    SubmittedAt datetime2(0) NULL,
-    CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_TripRequest_CreatedAt DEFAULT(SYSDATETIME()),
-    UpdatedAt datetime2(0) NULL,
-    RowVersion rowversion NOT NULL,
-    CONSTRAINT UQ_TripRequest_Code UNIQUE(TripCode),
-    CONSTRAINT CK_TripRequest_Date CHECK(FromDate<=ToDate)
-);
-IF OBJECT_ID(N'trip.Approval','U') IS NULL
-CREATE TABLE trip.Approval(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_TripApproval PRIMARY KEY,
-    TripRequestId int NOT NULL,
-    LevelNo int NOT NULL,
-    ApproverCode nvarchar(50) NULL,
-    Decision tinyint NOT NULL CONSTRAINT DF_TripApproval_Decision DEFAULT(0),
-    ApproveTime datetime2(0) NULL,
-    Comment nvarchar(1000) NULL,
-    IsRequired bit NOT NULL CONSTRAINT DF_TripApproval_IsRequired DEFAULT(1),
-    CONSTRAINT UQ_TripApproval_Request_Level UNIQUE(TripRequestId,LevelNo)
-);
+IF OBJECT_ID('dbo.F03Attachment','U') IS NULL CREATE TABLE dbo.F03Attachment(FileId int IDENTITY PRIMARY KEY,Module int NOT NULL,RequestId int NOT NULL,FileName nvarchar(200) NOT NULL,FilePath nvarchar(255) NOT NULL,FileExtension nvarchar(10) NULL,FileSize bigint NOT NULL DEFAULT 0,IsActive bit NULL DEFAULT 1,CreatedBy int NULL,CreatedAt datetime2(0) NULL);
+IF OBJECT_ID('dbo.F03AppNotifications','U') IS NULL CREATE TABLE dbo.F03AppNotifications(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,UserId int NOT NULL,EmployeeCode nvarchar(50) NULL,RequestModule nvarchar(20) NOT NULL,Action nvarchar(20) NOT NULL,Title nvarchar(200) NOT NULL,Body nvarchar(1000) NULL,ActionUrl nvarchar(500) NULL,RelatedLeaveId int NULL,RelatedOTId int NULL,ApprovalLevel int NULL,IsHighPriority bit NOT NULL DEFAULT 0,Metadata nvarchar(2000) NULL,IsRead bit NOT NULL DEFAULT 0,ReadAt datetime2(0) NULL);
+IF OBJECT_ID('dbo.F03EmailQueues','U') IS NULL CREATE TABLE dbo.F03EmailQueues(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,ToEmail nvarchar(255) NOT NULL,Subject nvarchar(255) NOT NULL,Body nvarchar(max) NOT NULL,TemplateCode nvarchar(50) NULL,Payload nvarchar(max) NULL,Status nvarchar(20) NOT NULL DEFAULT 'Pending',RetryCount int NOT NULL DEFAULT 0,MaxRetry int NOT NULL DEFAULT 3,ErrorMessage nvarchar(1000) NULL,SentAt datetime2(0) NULL);
+IF OBJECT_ID('dbo.F03EmailLogs','U') IS NULL CREATE TABLE dbo.F03EmailLogs(Id int IDENTITY PRIMARY KEY,QueueId int NULL,ToEmail nvarchar(255) NOT NULL,Subject nvarchar(255) NOT NULL,Status nvarchar(20) NOT NULL,SentAt datetime2(0) NOT NULL DEFAULT GETDATE(),ErrorMessage nvarchar(1000) NULL);
+IF OBJECT_ID('dbo.F03EmailTemplates','U') IS NULL CREATE TABLE dbo.F03EmailTemplates(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,Code nvarchar(50) NOT NULL,Subject nvarchar(255) NOT NULL,Body nvarchar(max) NOT NULL,Description nvarchar(500) NULL);
+IF OBJECT_ID('dbo.F03EmailProfiles','U') IS NULL CREATE TABLE dbo.F03EmailProfiles(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,ParentId int NOT NULL,IsGroup bit NOT NULL,Code nvarchar(20) NOT NULL,Name nvarchar(100) NOT NULL,NameEn nvarchar(100) NULL,EmailServerName nvarchar(100) NOT NULL,EmailServerType nvarchar(20) NOT NULL,EmailServerPort int NOT NULL,EmailServerEnableSsl bit NOT NULL,EmailAccountName nvarchar(100) NOT NULL,EmailAddress nvarchar(100) NOT NULL,EmailPassword nvarchar(255) NULL,SiteUrl nvarchar(255) NULL,Timestamp rowversion NOT NULL);
+IF OBJECT_ID('dbo.F03BusinessRules','U') IS NULL CREATE TABLE dbo.F03BusinessRules(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,Module nvarchar(20) NOT NULL,Code nvarchar(50) NOT NULL,Name nvarchar(100) NOT NULL,ConfigJson nvarchar(max) NULL,HrmCode nvarchar(50) NULL);
+IF OBJECT_ID('dbo.F03EscalationRules','U') IS NULL CREATE TABLE dbo.F03EscalationRules(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,RequestModule nvarchar(20) NOT NULL,Level int NOT NULL,DeptCode nvarchar(20) NULL,WarningHours decimal(5,2) NOT NULL,EscalateHours decimal(5,2) NOT NULL,DeadlineHour int NOT NULL);
+IF OBJECT_ID('dbo.F03EscalationLogs','U') IS NULL CREATE TABLE dbo.F03EscalationLogs(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,RequestId int NOT NULL,RequestModule nvarchar(20) NOT NULL,Level int NOT NULL,Action nvarchar(50) NULL);
+IF OBJECT_ID('dbo.F03AuditLogs','U') IS NULL CREATE TABLE dbo.F03AuditLogs(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,UserId int NULL,UserName nvarchar(100) NULL,Action nvarchar(100) NOT NULL,Description nvarchar(2000) NULL,IpAddress nvarchar(50) NULL,UserAgent nvarchar(255) NULL);
+IF OBJECT_ID('dbo.F03UserLogs','U') IS NULL CREATE TABLE dbo.F03UserLogs(Id int IDENTITY PRIMARY KEY,UserId int NOT NULL,LastSeen nvarchar(255) NOT NULL,LastSeenUrl nvarchar(500) NOT NULL,ApplicationName nvarchar(100) NOT NULL,ApplicationVersion nvarchar(20) NOT NULL,WorkstationName nvarchar(100) NOT NULL,WorkstationUser nvarchar(100) NOT NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE());
 
-/* Equipment */
-IF OBJECT_ID(N'equipment.Request','U') IS NULL
-CREATE TABLE equipment.Request(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_EquipmentRequest PRIMARY KEY,
-    RequestCode nvarchar(50) NOT NULL,
-    EmployeeCode nvarchar(50) NOT NULL,
-    ItemName nvarchar(300) NOT NULL,
-    Quantity decimal(18,2) NOT NULL,
-    Reason nvarchar(1000) NULL,
-    Status tinyint NOT NULL CONSTRAINT DF_EquipmentRequest_Status DEFAULT(0),
-    SubmittedAt datetime2(0) NULL,
-    CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_EquipmentRequest_CreatedAt DEFAULT(SYSDATETIME()),
-    CONSTRAINT UQ_EquipmentRequest_Code UNIQUE(RequestCode),
-    CONSTRAINT CK_EquipmentRequest_Quantity CHECK(Quantity>0)
-);
-
-/* Notifications / email */
-IF OBJECT_ID(N'notify.Notification','U') IS NULL
-CREATE TABLE notify.Notification(
-    Id bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_Notification PRIMARY KEY,
-    EmployeeCode nvarchar(50) NOT NULL,
-    Title nvarchar(300) NOT NULL,
-    Message nvarchar(2000) NOT NULL,
-    IsRead bit NOT NULL CONSTRAINT DF_Notification_IsRead DEFAULT(0),
-    CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_Notification_CreatedAt DEFAULT(SYSDATETIME()),
-    ReadAt datetime2(0) NULL
-);
-IF OBJECT_ID(N'notify.EmailTemplate','U') IS NULL
-CREATE TABLE notify.EmailTemplate(
-    Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_EmailTemplate PRIMARY KEY,
-    Code nvarchar(100) NOT NULL,
-    Name nvarchar(200) NOT NULL,
-    SubjectTemplate nvarchar(500) NOT NULL,
-    BodyTemplate nvarchar(max) NOT NULL,
-    IsActive bit NOT NULL CONSTRAINT DF_EmailTemplate_IsActive DEFAULT(1),
-    CONSTRAINT UQ_EmailTemplate_Code UNIQUE(Code)
-);
-IF OBJECT_ID(N'notify.EmailQueue','U') IS NULL
-CREATE TABLE notify.EmailQueue(
-    Id bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_EmailQueue PRIMARY KEY,
-    TemplateCode nvarchar(100) NULL,
-    Recipient nvarchar(255) NOT NULL,
-    Subject nvarchar(500) NOT NULL,
-    Body nvarchar(max) NOT NULL,
-    Status tinyint NOT NULL CONSTRAINT DF_EmailQueue_Status DEFAULT(0),
-    RetryCount int NOT NULL CONSTRAINT DF_EmailQueue_RetryCount DEFAULT(0),
-    LastError nvarchar(2000) NULL,
-    CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_EmailQueue_CreatedAt DEFAULT(SYSDATETIME()),
-    SentAt datetime2(0) NULL
-);
+IF OBJECT_ID('dbo.F03StagingDepartment','U') IS NULL CREATE TABLE dbo.F03StagingDepartment(Id int IDENTITY PRIMARY KEY,EntityKey nvarchar(255) NOT NULL,Action int NOT NULL,IsProcessed bit NOT NULL DEFAULT 0,ErrorMessage nvarchar(1000) NULL,CreatedAt datetime2(0) NOT NULL,CreatedBy nvarchar(100) NULL,DeptName nvarchar(255) NOT NULL);
+IF OBJECT_ID('dbo.F03StagingEmployee','U') IS NULL CREATE TABLE dbo.F03StagingEmployee(Id int IDENTITY PRIMARY KEY,EntityKey nvarchar(255) NOT NULL,Action int NOT NULL,IsProcessed bit NOT NULL DEFAULT 0,ErrorMessage nvarchar(1000) NULL,CreatedAt datetime2(0) NOT NULL,CreatedBy nvarchar(100) NULL,EmployeeName nvarchar(255) NOT NULL,DeptCode nvarchar(20) NULL,PositionCode nvarchar(20) NULL,EmailAddress nvarchar(100) NOT NULL,PhoneNumber nvarchar(20) NULL,BirthDate datetime2(0) NULL,GenderCode int NULL,FirstWorkingDate datetime2(0) NULL,EndWorkingDate datetime2(0) NULL,TotalLeaveDays decimal(5,2) NULL);
+IF OBJECT_ID('dbo.F03StagingLeaveType','U') IS NULL CREATE TABLE dbo.F03StagingLeaveType(Id int IDENTITY PRIMARY KEY,EntityKey nvarchar(255) NOT NULL,Action int NOT NULL,IsProcessed bit NOT NULL DEFAULT 0,ErrorMessage nvarchar(1000) NULL,CreatedAt datetime2(0) NOT NULL,CreatedBy nvarchar(100) NULL,LeaveTypeName nvarchar(255) NOT NULL,LeaveTypeName2 nvarchar(255) NULL,TinhPhep bit NOT NULL,HRMCode nvarchar(50) NULL);
+IF OBJECT_ID('dbo.F03StagingOTType','U') IS NULL CREATE TABLE dbo.F03StagingOTType(Id int IDENTITY PRIMARY KEY,EntityKey nvarchar(255) NOT NULL,Action int NOT NULL,IsProcessed bit NOT NULL DEFAULT 0,ErrorMessage nvarchar(1000) NULL,CreatedAt datetime2(0) NOT NULL,CreatedBy nvarchar(100) NULL,OTTypeName nvarchar(255) NOT NULL,OTTypeName2 nvarchar(255) NULL,RateMultiplier decimal(3,1) NOT NULL,HRMCode nvarchar(50) NULL);
+IF OBJECT_ID('dbo.F03StagingPosition','U') IS NULL CREATE TABLE dbo.F03StagingPosition(Id int IDENTITY PRIMARY KEY,EntityKey nvarchar(255) NOT NULL,Action int NOT NULL,IsProcessed bit NOT NULL DEFAULT 0,ErrorMessage nvarchar(1000) NULL,CreatedAt datetime2(0) NOT NULL,CreatedBy nvarchar(100) NULL,PositionName nvarchar(255) NOT NULL,DefaultApproveLevel int NULL);
+IF OBJECT_ID('dbo.F03SyncReviewFlag','U') IS NULL CREATE TABLE dbo.F03SyncReviewFlag(Id int IDENTITY PRIMARY KEY,EntityType nvarchar(100) NOT NULL,EntityKey nvarchar(255) NOT NULL,FlagType nvarchar(100) NOT NULL,Message nvarchar(1000) NOT NULL,DetectedAt datetime2(0) NOT NULL DEFAULT GETDATE(),IsResolved bit NOT NULL DEFAULT 0,ResolvedAt datetime2(0) NULL,ResolvedBy nvarchar(100) NULL);
+IF OBJECT_ID('dbo.HrmLeaveTypeChangeLogs','U') IS NULL CREATE TABLE dbo.HrmLeaveTypeChangeLogs(Id bigint IDENTITY PRIMARY KEY,LeaveTypeCode nvarchar(50) NOT NULL,LeaveTypeName nvarchar(200) NULL,LeaveTypeName2 nvarchar(200) NULL,TinhPhep bit NULL,HRMCode nvarchar(50) NULL,ActionType int NOT NULL,ChangedAt datetime2(0) NOT NULL,IsProcessed bit NOT NULL DEFAULT 0,ProcessedAt datetime2(0) NULL);
 GO
