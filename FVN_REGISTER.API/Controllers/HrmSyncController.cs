@@ -34,9 +34,9 @@ public sealed class HrmSyncController : BaseApiController
     }
 
     [HttpGet("status")]
-    public IActionResult Status()
+    public async Task<IActionResult> Status(CancellationToken ct)
     {
-        if (!Can(SecurityFunctionCodes.HrmSyncViewStatus))
+        if (!await CanAsync(SecurityFunctionCodes.HrmSyncViewStatus, ct))
             return Forbid();
 
         return Ok(ApiResponse<HrmSyncRuntimeStatusDto>.Ok(_sync.GetRuntimeStatus()));
@@ -77,8 +77,6 @@ public sealed class HrmSyncController : BaseApiController
         return HandleResult(result);
     }
 
-    private bool Can(int functionCode)
-        => UserInfo != null && _authorization.HasAsync(UserInfo, functionCode).GetAwaiter().GetResult();
 
     private async Task<bool> CanAsync(int functionCode, CancellationToken ct)
         => UserInfo != null && await _authorization.HasAsync(UserInfo, functionCode, ct);
