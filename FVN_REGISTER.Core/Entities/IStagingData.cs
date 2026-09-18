@@ -1,13 +1,10 @@
-﻿
+namespace FVN_REGISTER.Core.Entities;
 
-namespace FVN_REGISTER.Core.Entities
+public interface IStagingData
 {
-    public interface IStagingData
-    {
-        int Id {  get; }
-        bool IsProcessed { get; set; }
-        string? ErrorMessage { get; set; }
-        DateTime CreatedAt { get; set; }
-        public string? CreatedBy { get; set; }
-    }
+    int Id { get; }
+    bool IsProcessed { get; set; }
+    string? ErrorMessage { get; set; }
+    DateTime CreatedAt { get; set; }
+    string? CreatedBy { get; set; }
 }
