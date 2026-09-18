@@ -1,27 +1,27 @@
-﻿using FVN_REGISTER.Core.Constants;
-using FVN_REGISTER.Core.Entities.Approvers;
+using FVN_REGISTER.Application.Interfaces.Auths;
+using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Entities.Common;
 using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Entities.HRM;
+using FVN_REGISTER.Core.Entities.Security;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob;
+using FVN_REGISTER.Infrastructure.Utils;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
-
 
 namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
 {
     public class EmployeeHrmSyncJob : HrmSyncJob<F03StagingEmployee, F03Employee>
     {
         private readonly List<string> _changedApproverRelevantCodes = new();
-        private Dictionary<string, int?> _positionLevelCache = new();
+        private readonly Dictionary<string, int?> _positionLevelCache = new();
 
         public EmployeeHrmSyncJob(IUnitOfWork uow) : base(uow) { }
 
         public override string EntityType => "Employee";
         public override int SyncOrder => 1;
         public override bool IsBlockingDependency => false;
-        // Employee KHÔNG chặn job khác nếu lỗi — vì không có entity nào phụ thuộc FK
-        // ngược vào Employee trong Pipeline A (ngược lại Employee mới là bên phụ thuộc
-        // Department/Position, nên Department/Position mới cần IsBlockingDependency=true)
 
         protected override async Task<Dictionary<string, F03Employee>> LoadExistingEntitiesAsync(
             List<string> keys, CancellationToken ct)
@@ -30,9 +30,13 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                 .Where(x => keys.Contains(x.EmployeeCode))
                 .ToListAsync(ct);
 
-            _positionLevelCache = await Uow.Repository<F03Position>().Query()
+            var positionLevels = await Uow.Repository<F03Position>().Query()
                 .Where(p => p.IsActive == true)
                 .ToDictionaryAsync(p => p.PositionCode, p => p.DefaultApproveLevel, ct);
+
+            _positionLevelCache.Clear();
+            foreach (var item in positionLevels)
+                _positionLevelCache[item.Key] = item.Value;
 
             return list.ToDictionary(x => x.EmployeeCode);
         }
@@ -53,26 +57,23 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             TotalLeaveDays = s.TotalLeaveDays ?? 0,
             LevelApprove = GetSuggestedLevel(s.PositionCode),
             IsActive = !s.EndWorkingDate.HasValue,
-            LastModifiedSource = SyncSourceTags.Hrm   // ★ MỚI
+            LastModifiedSource = SyncSourceTags.Hrm
         };
 
         protected override bool ApplyUpdate(F03Employee e, F03StagingEmployee s)
         {
             bool changed = false;
 
-            if (e.EmployeeName != s.EmployeeName) { e.EmployeeName = s.EmployeeName; changed = true; }
-
             bool deptChanged = e.DeptCode != (s.DeptCode ?? string.Empty);
-            if (deptChanged) { e.DeptCode = s.DeptCode ?? string.Empty; changed = true; }
-
             bool positionChanged = e.PositionCode != (s.PositionCode ?? string.Empty);
-            if (positionChanged) { e.PositionCode = s.PositionCode ?? string.Empty; changed = true; }
 
+            if (e.EmployeeName != s.EmployeeName) { e.EmployeeName = s.EmployeeName; changed = true; }
+            if (deptChanged) { e.DeptCode = s.DeptCode ?? string.Empty; changed = true; }
+            if (positionChanged) { e.PositionCode = s.PositionCode ?? string.Empty; changed = true; }
             if (e.BirthDate != s.BirthDate) { e.BirthDate = s.BirthDate; changed = true; }
             if (e.GenderCode != s.GenderCode) { e.GenderCode = s.GenderCode; changed = true; }
             if (e.FirstWorkingDate != s.FirstWorkingDate) { e.FirstWorkingDate = s.FirstWorkingDate; changed = true; }
             if (e.EmployeeNo != s.EmployeeNo) { e.EmployeeNo = s.EmployeeNo; changed = true; }
-
             if (e.EmailAddress != (s.EmailAddress ?? "")) { e.EmailAddress = s.EmailAddress; changed = true; }
             if (e.PhoneNumber != s.PhoneNumber) { e.PhoneNumber = s.PhoneNumber; changed = true; }
             if (e.EndWorkingDate != s.EndWorkingDate) { e.EndWorkingDate = s.EndWorkingDate; changed = true; }
@@ -88,14 +89,10 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             }
 
             if (positionChanged || deptChanged)
-            {
                 _changedApproverRelevantCodes.Add(e.EmployeeCode);
-            }
 
             if (changed)
-            {
-                e.LastModifiedSource = SyncSourceTags.Hrm;   // ★ MỚI — chỉ set khi thực sự có thay đổi
-            }
+                e.LastModifiedSource = SyncSourceTags.Hrm;
 
             return changed;
         }
@@ -106,15 +103,165 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
 
             e.IsActive = false;
             e.EndWorkingDate ??= DateTime.Now;
-            e.LastModifiedSource = SyncSourceTags.Hrm;   // ★ MỚI
-
+            e.LastModifiedSource = SyncSourceTags.Hrm;
             _changedApproverRelevantCodes.Add(e.EmployeeCode);
-
             return true;
         }
 
         protected override async Task AfterBatchAsync(
             HrmSyncBatchContext<F03Employee> batchContext, CancellationToken ct)
+        {
+            await ProvisionUsersAsync(batchContext, ct);
+            await RefreshApproverReviewFlagsAsync(ct);
+        }
+
+        private async Task ProvisionUsersAsync(
+            HrmSyncBatchContext<F03Employee> batchContext,
+            CancellationToken ct)
+        {
+            var employees = batchContext.Added
+                .Concat(batchContext.Updated)
+                .Concat(batchContext.Deleted)
+                .GroupBy(x => x.EmployeeCode)
+                .Select(g => g.Last())
+                .ToList();
+
+            if (employees.Count == 0)
+                return;
+
+            var employeeCodes = employees.Select(x => x.EmployeeCode).ToList();
+
+            var users = await Uow.Repository<F03User>().Query()
+                .Where(x => employeeCodes.Contains(x.EmployeeCode))
+                .ToListAsync(ct);
+
+            var usersByCode = users.ToDictionary(x => x.EmployeeCode);
+
+            foreach (var employee in employees)
+            {
+                try
+                {
+                    var permissionCode = await ResolvePermissionCodeAsync(
+                        employee.DeptCode,
+                        employee.PositionCode,
+                        ct);
+
+                    if (!usersByCode.TryGetValue(employee.EmployeeCode, out var user))
+                    {
+                        user = new F03User
+                        {
+                            EmployeeCode = employee.EmployeeCode,
+                            FullName = employee.EmployeeName,
+                            Password = EncryptUtils.MD5("Fcc@123"),
+                            PermissionCode = permissionCode,
+                            LevelApprove = employee.LevelApprove ?? 0,
+                            DeptCode = employee.DeptCode,
+                            Cvcode = employee.PositionCode,
+                            IsActive = employee.IsActive,
+                            LastModifiedSource = SyncSourceTags.Hrm
+                        };
+
+                        await Uow.Repository<F03User>().AddAsync(user, ct);
+                        usersByCode[employee.EmployeeCode] = user;
+
+                        if (employee.IsActive && !string.IsNullOrWhiteSpace(employee.EmailAddress))
+                            await QueueRegistrationEmailAsync(employee, ct);
+                    }
+                    else
+                    {
+                        var wasActive = user.IsActive == true;
+
+                        user.FullName = employee.EmployeeName;
+                        user.DeptCode = employee.DeptCode;
+                        user.Cvcode = employee.PositionCode;
+                        user.LevelApprove = employee.LevelApprove ?? 0;
+                        user.PermissionCode = permissionCode;
+                        user.IsActive = employee.IsActive;
+                        user.LastModifiedSource = SyncSourceTags.Hrm;
+
+                        if (wasActive && employee.IsActive == false)
+                            user.LockoutEndDate = DateTime.Now;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    await Uow.Repository<F03SyncReviewFlag>().AddAsync(new F03SyncReviewFlag
+                    {
+                        EntityType = "Employee",
+                        EntityKey = employee.EmployeeCode,
+                        FlagType = "UserProvisioningFailed",
+                        Message = $"Không thể đồng bộ tài khoản F03User cho nhân viên {employee.EmployeeCode}: {ex.Message}"
+                    }, ct);
+                }
+            }
+        }
+
+        private async Task<int> ResolvePermissionCodeAsync(
+            string? deptCode,
+            string? positionCode,
+            CancellationToken ct)
+        {
+            const string sql = @"
+SELECT TOP (1)
+    PermissionCode
+FROM dbo.F03HrmUserRoleRules
+WHERE IsActive = 1
+  AND (DeptCode = @DeptCode OR DeptCode IS NULL)
+  AND (PositionCode = @PositionCode OR PositionCode IS NULL)
+ORDER BY
+    CASE
+        WHEN DeptCode = @DeptCode AND PositionCode = @PositionCode THEN 0
+        WHEN DeptCode = @DeptCode AND PositionCode IS NULL THEN 1
+        WHEN DeptCode IS NULL AND PositionCode = @PositionCode THEN 2
+        ELSE 3
+    END,
+    Priority,
+    Id;";
+
+            var rows = await Uow.SqlQueryRawAsync<UserRoleRuleRow>(
+                sql,
+                ct,
+                new SqlParameter("@DeptCode", (object?)deptCode ?? DBNull.Value),
+                new SqlParameter("@PositionCode", (object?)positionCode ?? DBNull.Value));
+
+            return rows.FirstOrDefault()?.PermissionCode ?? UserPermissionCodes.User;
+        }
+
+        private async Task QueueRegistrationEmailAsync(F03Employee employee, CancellationToken ct)
+        {
+            var email = employee.EmailAddress.Trim();
+            if (email.Length == 0) return;
+
+            var exists = await Uow.Repository<F03EmailQueue>().Query()
+                .AnyAsync(x =>
+                    x.ToEmail == email &&
+                    x.TemplateCode == "HRM_USER_REGISTER" &&
+                    x.Status != FVN_REGISTER.Core.Enums.EmailStatus.Sent,
+                    ct);
+
+            if (exists) return;
+
+            var body = $"""
+                <p>Xin chào <strong>{System.Net.WebUtility.HtmlEncode(employee.EmployeeName)}</strong>,</p>
+                <p>Tài khoản FVN Register của bạn đã được tạo tự động từ hệ thống HRM.</p>
+                <p><strong>Mã nhân viên:</strong> {System.Net.WebUtility.HtmlEncode(employee.EmployeeCode)}</p>
+                <p><strong>Mật khẩu ban đầu:</strong> Fcc@123</p>
+                <p>Vui lòng đăng nhập và đổi mật khẩu ngay sau lần đăng nhập đầu tiên.</p>
+                """;
+
+            await Uow.Repository<F03EmailQueue>().AddAsync(new F03EmailQueue
+            {
+                ToEmail = email,
+                Subject = "FVN Register - Tài khoản đã được tạo",
+                Body = body,
+                TemplateCode = "HRM_USER_REGISTER",
+                Status = FVN_REGISTER.Core.Enums.EmailStatus.Pending,
+                MaxRetry = 3,
+                LastModifiedSource = SyncSourceTags.Hrm
+            }, ct);
+        }
+
+        private async Task RefreshApproverReviewFlagsAsync(CancellationToken ct)
         {
             if (_changedApproverRelevantCodes.Count == 0) return;
 
@@ -125,7 +272,6 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             if (affectedApprovers.Count == 0) return;
 
             var flagRepo = Uow.Repository<F03SyncReviewFlag>();
-
             foreach (var approver in affectedApprovers)
             {
                 await flagRepo.AddAsync(new F03SyncReviewFlag
@@ -143,5 +289,10 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
 
         private int? GetSuggestedLevel(string? positionCode)
             => positionCode != null && _positionLevelCache.TryGetValue(positionCode, out var level) ? level : null;
+
+        private sealed class UserRoleRuleRow
+        {
+            public int PermissionCode { get; set; }
+        }
     }
 }
