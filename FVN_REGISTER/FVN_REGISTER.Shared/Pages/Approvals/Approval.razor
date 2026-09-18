@@ -22,7 +22,7 @@
     <MudStack Spacing="0">
         <MudText Typo="Typo.h5">Danh sách chờ phê duyệt</MudText>
         <MudText Typo="Typo.caption" Class="mud-text-secondary">
-            Tổng @_allItems.Count đơn — Nghỉ phép @_allItems.Count(x => x.Kind == RequestModule.Leave) — OT @_allItems.Count(x => x.Kind == RequestModule.Overtime) — Công tác @_allItems.Count(x => x.Kind == RequestModule.Trip)
+            Tổng @_allItems.Count() đơn — Nghỉ phép @_allItems.Count(x => x.Kind == RequestModule.Leave) — OT @_allItems.Count(x => x.Kind == RequestModule.Overtime) — Công tác @_allItems.Count(x => x.Kind == RequestModule.Trip)
             @if (_loadedAt.HasValue) { <span> — @_loadedAt.Value.ToString("HH:mm:ss")</span> }
         </MudText>
     </MudStack>
@@ -192,7 +192,7 @@
         _processing = true;
         try
         {
-            foreach (var group in list.GroupBy(x => new { x.Kind, x.CurrentApprovalLevel }))
+            foreach (var group in list.GroupBy(x => new { x.Kind, Level = GetCurrentApprovalLevel(x) }))
             {
                 var r = await ApprovalService.RejectAsync(group.Select(x => x.RequestId).ToList(), group.Key.Kind, group.Key.Level, comment, _cts.Token);
                 if (!r.IsSuccess) Snackbar.Add(r.Message ?? "Lỗi từ chối", Severity.Error);
