@@ -41,7 +41,8 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.Importers
             GenderCode = row.GenderCode,
             FirstWorkingDate = row.FirstWorkingDate,
             EndWorkingDate = row.EndWorkingDate,
-            TotalLeaveDays = row.TotalLeaveDays
+            TotalLeaveDays = row.TotalLeaveDays,
+            EmployeeNo = row.EmployeeNo
             // LevelApprove KHÔNG map từ HRM — cấu hình nghiệp vụ thuần của FVN (ai được
             // duyệt cấp mấy). EmployeeHrmSyncJob.ApplyUpdate PHẢI bỏ qua field này khi
             // ghi đè, tương tự cách PositionHrmSyncJob bỏ qua IsApprove/IsAllowApprove.
