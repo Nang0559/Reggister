@@ -123,3 +123,58 @@ The following API surfaces now resolve effective permissions from the database b
 ### Important
 
 `ScopeCode` is still metadata for the next authorization phase. For example, `Leave.View=Own` and `Leave.Approve=Department` describe intended data scope, but query-level scope filtering must be implemented separately and must not be inferred from the action permission alone.
+
+## Phase 3 — Capability + Data Scope
+
+Phase 3 makes `ScopeCode` executable authorization metadata.
+
+The effective authorization decision is:
+
+```text
+User
+  -> Function/Action capability
+  -> Effective Scope
+       -> Own
+       -> Employee
+       -> Department
+       -> All
+  -> query filter
+```
+
+### Scope semantics
+
+| ScopeCode | Meaning | Request data example |
+|---|---|---|
+| `Own` | only records belonging to the authenticated employee | `EmployeeCode == current.EmployeeCode` |
+| `Employee` | explicitly selected employee scope; currently equivalent to Own for request data | selected/current employee |
+| `Department` | records belonging to the authenticated employee's department | `DeptCode == current.DeptCode` |
+| `All` | no department/employee restriction | unrestricted, subject to business filters |
+
+Scope is **not** inferred from role names or `IsAdmin`. An administrator only receives the scope granted by the effective function mapping.
+
+### Enforcement boundary
+
+`IAuthorizationService.GetScopeAsync` resolves the broadest effective scope across all active roles and legacy direct grants:
+
+```text
+All > Department > Employee > Own > None
+```
+
+`IAuthorizationService.CanAccessAsync` evaluates a target employee/department against that scope.
+
+Phase 3 applies query filtering to Leave, OT, Trip and Equipment data paths. A caller with `Own` cannot broaden a query by supplying another department code; a caller with `Department` is constrained to their own department; only `All` can intentionally use an arbitrary department filter.
+
+### Important security rule
+
+Action permission and data scope are independent:
+
+- `Approve` does not imply `All`.
+- `View=Department` does not grant `Edit=Department`.
+- Each function/action has its own `ScopeCode`.
+- Client-side filtering is never considered authorization.
+
+### Migration
+
+Legacy `F03UserFunctions` remain effective. When an old direct grant has no scope metadata, Phase 3 treats it as `Own` rather than expanding access.
+
+The existing HRM → FVN master synchronization boundary is unchanged: HRM remains read-only source-of-truth for HR master data; FVN remains owner of authorization and security state.
