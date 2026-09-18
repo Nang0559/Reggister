@@ -58,6 +58,8 @@ else
     private bool CanTrip => _permission?.Has(SecurityFunctionCodes.TripView)==true;
     private bool CanEquipment => _permission?.Has(SecurityFunctionCodes.EquipmentView)==true;
     private bool CanAttendance => _permission?.Has(SecurityFunctionCodes.AttendanceView)==true;
+    private string ModuleKey => (Module ?? "trip").ToLowerInvariant();
+    private bool IsModuleAllowed => ModuleKey switch { "trip" => CanTrip, "equipment" => CanEquipment, "attendance" => CanAttendance, _ => false };
 
     private ReportType _type => Module?.ToLowerInvariant() switch
     {
