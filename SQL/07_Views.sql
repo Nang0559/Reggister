@@ -19,7 +19,7 @@ SELECT l.Id,l.Id AS LeaveCode,l.WorkYear,l.EmployeeCode,e.EmployeeName,g.GenderN
 l.TotalDay,l.TotalLeaveDay,l.LeaveTypeCode,lt.LeaveTypeName,l.LeaveReason,
 CASE l.RequestStatus WHEN 0 THEN N'Draft' WHEN 1 THEN N'Pending' WHEN 2 THEN N'InProgress' WHEN 3 THEN N'Approved' WHEN 4 THEN N'Rejected' WHEN 5 THEN N'Cancelled' WHEN 6 THEN N'Escalated' WHEN 7 THEN N'NeedsRevision' END RequestStatus,
 p.PositionCode,p.PositionName,l.IsActive,l.CreatedAt,l.ModifiedAt,
-(SELECT STRING_AGG(a.FileName,N', ') FROM dbo.F03Attachment a WHERE a.Module=0 AND a.RequestId=l.Id AND a.IsActive=1) AttachedDocuments
+(SELECT STUFF((SELECT N', ' + a2.FileName FROM dbo.F03Attachment a2 WHERE a2.Module=0 AND a2.RequestId=l.Id AND a2.IsActive=1 FOR XML PATH(N''), TYPE).value(N'.',N'nvarchar(max)'),1,2,N'')) AttachedDocuments
 FROM dbo.F03LeaveDays l LEFT JOIN dbo.F03Employees e ON e.EmployeeCode=l.EmployeeCode LEFT JOIN dbo.F03Departments d ON d.DeptCode=l.DeptCode LEFT JOIN dbo.F03Genders g ON g.Id=e.GenderCode LEFT JOIN dbo.F03Positions p ON p.PositionCode=e.PositionCode LEFT JOIN dbo.F03LeaveType lt ON lt.LeaveTypeCode=l.LeaveTypeCode;
 GO
 CREATE OR ALTER VIEW dbo.vF03LeaveRequestDetail AS
