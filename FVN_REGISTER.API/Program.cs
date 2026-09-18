@@ -138,6 +138,7 @@ builder.Services.AddScoped<IEmployeeManagementService, EmployeeManagementService
 builder.Services.AddScoped<ILeaveTypeManagementService, LeaveTypeManagementService>();
 
 // History / email / notifications
+builder.Services.AddScoped<IApprovalHistoryService, ApprovalHistoryService>();
 builder.Services.AddScoped<IHistoryHandler, LeaveHistoryHandler>();
 builder.Services.AddScoped<IHistoryHandler, OTHistoryHandler>();
 builder.Services.AddScoped<IHistoryDispatcher, HistoryDispatcher>();
