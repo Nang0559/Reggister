@@ -23,9 +23,6 @@ namespace FVN_REGISTER.Core.Entities.Approvers
     [Table("F03Approvers")]
     public partial class F03Approver : BaseAuditEntity
     {
-        [Key]
-        public int Id { get; set; }
-
         public int? UserId { get; set; }
 
         [Required]
