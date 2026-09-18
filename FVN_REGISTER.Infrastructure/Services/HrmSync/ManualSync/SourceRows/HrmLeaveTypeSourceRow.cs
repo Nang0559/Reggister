@@ -7,10 +7,11 @@
     /// field business tự cấu hình ở FVN, HrmSyncJob không đụng vào (xem LeaveTypeHrmSyncJob).
     /// </summary>
     public class HrmLeaveTypeSourceRow
-    {
-        public string LeaveTypeCode { get; set; } = string.Empty;
-        public string LeaveTypeName { get; set; } = string.Empty;
-        public string? LeaveTypeName2 { get; set; }
-        public string? HRMCode { get; set; }
-    }
+{
+    public string LeaveTypeCode { get; set; } = string.Empty;
+    public string LeaveTypeName { get; set; } = string.Empty;
+    public string? LeaveTypeName2 { get; set; }
+    public bool TinhPhep { get; set; }
+    public string? HRMCode { get; set; }
+}
 }
