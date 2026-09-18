@@ -1,4 +1,5 @@
 @using FVN_REGISTER.Contract.Dtos.Notifications
+@using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.Notifications
 @using FVN_REGISTER.Shared.Utils
 @using Microsoft.AspNetCore.SignalR.Client
@@ -54,8 +55,8 @@
                 @foreach (var item in NotifyService.Notifications)
                 {
                     <div @key="item.Id" style="display:flex; gap:12px; padding:12px 16px; cursor:pointer; background:@(item.IsRead ? "transparent" : "rgba(25,118,210,0.05)"); border-bottom:1px solid var(--mud-palette-divider); transition:background 0.2s;" @onclick="() => OnItemClick(item)">
-                        <div style="width:36px; height:36px; border-radius:50%; background:@GetIconBg(item.Color); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
-                            <MudIcon Icon="@GetMudIcon(item.NotificationType)" Style="@($"color:{GetIconColor(item.Color)}; font-size:18px;")" />
+                        <div style="width:36px; height:36px; border-radius:50%; background:@GetIconBg(GetNotificationColor(item.Action)); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
+                            <MudIcon Icon="@GetMudIcon(item.Action)" Style="@($"color:{GetIconColor(item.Color)}; font-size:18px;")" />
                         </div>
                         <div style="flex:1; min-width:0;">
                             <div style="font-size:13px; font-weight:@(item.IsRead ? "400" : "500"); color:var(--mud-palette-text-primary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">@item.Title</div>
@@ -63,7 +64,7 @@
                             {
                                 <div style="font-size:12px; color:var(--mud-palette-text-secondary); margin-top:2px;">@item.Body</div>
                             }
-                            <div style="font-size:11px; color:var(--mud-palette-text-disabled); margin-top:4px;">@item.TimeAgo</div>
+                            <div style="font-size:11px; color:var(--mud-palette-text-disabled); margin-top:4px;">@GetTimeAgo(item.CreatedAt)</div>
                         </div>
                         @if (!item.IsRead)
                         {
@@ -112,7 +113,7 @@
                 _ = InvokeAsync(StateHasChanged);
             });
 
-            _hubConnection.On<int>("BadgeUpdated", _ => _ = InvokeAsync(StateHasChanged));
+            _hubConnection.On<int>("BadgeUpdated", _value => _ = InvokeAsync(StateHasChanged));
             await _hubConnection.StartAsync();
         }
         catch
@@ -157,29 +158,33 @@
 
     private void OnNotifyChanged() => _ = InvokeAsync(StateHasChanged);
 
-    private static string GetMudIcon(string type) => type switch
+    private static string GetMudIcon(NotificationAction action) => action switch
     {
-        "LEAVE_PENDING" => Icons.Material.Filled.HourglassEmpty,
-        "LEAVE_APPROVED" => Icons.Material.Filled.CheckCircle,
-        "LEAVE_REJECTED" => Icons.Material.Filled.Cancel,
+        NotificationAction.Pending or NotificationAction.PendingNextLevel => Icons.Material.Filled.HourglassEmpty,
+        NotificationAction.Approved => Icons.Material.Filled.CheckCircle,
+        NotificationAction.Rejected => Icons.Material.Filled.Cancel,
+        NotificationAction.Reminder => Icons.Material.Filled.NotificationsActive,
+        NotificationAction.Escalated => Icons.Material.Filled.Warning,
         _ => Icons.Material.Filled.Notifications
     };
 
-    private static string GetIconBg(string color) => color switch
+    private static string GetNotificationColor(NotificationAction action) => action switch
     {
-        "warning" => "rgba(255,152,0,0.12)",
-        "success" => "rgba(76,175,80,0.12)",
-        "error" => "rgba(244,67,54,0.12)",
-        _ => "rgba(33,150,243,0.12)"
+        NotificationAction.Approved => "success",
+        NotificationAction.Rejected => "error",
+        NotificationAction.Escalated or NotificationAction.Reminder => "warning",
+        _ => "info"
     };
 
-    private static string GetIconColor(string color) => color switch
+    private static string GetTimeAgo(DateTime createdAt)
     {
-        "warning" => "#FF9800",
-        "success" => "#4CAF50",
-        "error" => "#F44336",
-        _ => "#2196F3"
-    };
+        var elapsed = DateTime.Now - createdAt;
+        if (elapsed.TotalMinutes < 1) return "Vừa xong";
+        if (elapsed.TotalHours < 1) return $"{(int)elapsed.TotalMinutes} phút trước";
+        if (elapsed.TotalDays < 1) return $"{(int)elapsed.TotalHours} giờ trước";
+        if (elapsed.TotalDays < 30) return $"{(int)elapsed.TotalDays} ngày trước";
+        return createdAt.ToString("dd/MM/yyyy HH:mm");
+    }
 
     public async ValueTask DisposeAsync()
     {
