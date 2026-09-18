@@ -21,6 +21,6 @@ namespace FVN_REGISTER.Application.Interfaces.Orchestrators
 
         Task<List<PendingApprovalItemDto>> GetPendingForApproverAsync(string approverEmail, CancellationToken ct);
 
-        Task<List<ApprovalStepCalculatedDto>> GetStepsAsync(int requestId, CancellationToken ct);
+        Task<List<ApprovalStepDto>> GetStepsAsync(int requestId, CancellationToken ct);
     }
 }
