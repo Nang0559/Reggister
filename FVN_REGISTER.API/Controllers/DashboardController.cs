@@ -1,5 +1,5 @@
 using FVN_REGISTER.Application.Configuration;
-using FVN_REGISTER.Application.Interfaces.Statics;
+using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Responses;
 using Microsoft.AspNetCore.Authorization;
@@ -13,17 +13,17 @@ namespace FVN_REGISTER.API.Controllers
     [Route("api/[controller]")]
     public class DashboardController : BaseApiController
     {
-        private readonly IDashboardService _dashboardService;
+        private readonly IDashboardOrchestrator _dashboardOrchestrator;
 
         public DashboardController(
             ICurrentUserService currentUser,
             IUserLogService userLog,
             ILogger<DashboardController> logger,
             IOptionsMonitor<AuthDebugOptions> options,
-            IDashboardService dashboardService)
+            IDashboardOrchestrator dashboardOrchestrator)
             : base(currentUser, userLog, logger, options)
         {
-            _dashboardService = dashboardService;
+            _dashboardOrchestrator = dashboardOrchestrator;
         }
 
         [HttpGet]
@@ -32,7 +32,7 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
 
-            var result = await _dashboardService.GetDashboardAsync(UserInfo, ct);
+            var result = await _dashboardOrchestrator.BuildAsync(UserInfo, ct);
             await LogActionAsync("Xem dữ liệu Dashboard");
             return HandleResult(result);
         }
