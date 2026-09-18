@@ -3,6 +3,9 @@ using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Histories;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Contract.Dtos.Authentication;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Maps;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using FVN_REGISTER.Contract.Dtos;
@@ -22,6 +25,8 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
           IOTQueryService
     {
         private readonly IApprovalProvider<OTRequestSubject> _approvalProvider;
+        private readonly ICurrentUserService _currentUser;
+        private readonly IAuthorizationService _authorization;
 
         protected override RequestModule Module => RequestModule.Overtime;
 
@@ -30,10 +35,13 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             IApprovalHistoryService historyService,
             IAttachmentService attachmentService,
             ICurrentUserService currentUserService,
-            IApprovalProvider<OTRequestSubject> approvalProvider)
+            IApprovalProvider<OTRequestSubject> approvalProvider,
+            IAuthorizationService authorization)
             : base(uow, historyService, attachmentService, currentUserService)
         {
             _approvalProvider = approvalProvider;
+            _currentUser = currentUserService;
+            _authorization = authorization;
         }
 
         protected override async Task<OTRequestDto?> GetHeaderByIdAsync(int requestId, CancellationToken ct)
@@ -43,6 +51,10 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct);
 
             if (entity == null)
+                return null;
+
+            var user = _currentUser.GetCurrentUser();
+            if (user == null || !await _authorization.CanAccessAsync(user, SecurityFunctionCodes.OTView, entity.EmployeeCode, entity.DeptCode, ct))
                 return null;
 
             var requester = await Uow.Repository<VF03employee>().Query()
@@ -120,7 +132,19 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .AsNoTracking()
                 .Where(x => x.IsActive == true);
 
-            if (!string.IsNullOrWhiteSpace(deptCode))
+            var user = _currentUser.GetCurrentUser();
+            if (user == null)
+                return new PaginationResult<OTSummaryDto>(new List<OTSummaryDto>(), 0, page, pageSize);
+
+            var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.OTView, ct);
+            if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
+                query = query.Where(x => x.EmployeeCode == user.EmployeeCode);
+            else if (scope == AuthorizationScopeCodes.Department)
+                query = query.Where(x => x.DeptCode == user.DeptCode);
+            else if (scope != AuthorizationScopeCodes.All)
+                query = query.Where(x => false);
+
+            if (!string.IsNullOrWhiteSpace(deptCode) && scope == AuthorizationScopeCodes.All)
                 query = query.Where(x => x.DeptCode == deptCode);
             if (status.HasValue)
                 query = query.Where(x => x.RequestStatus == status.Value);
@@ -144,9 +168,21 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         public override async Task<List<OTRequestDto>> GetDeptByDateAsync(
             string deptCode, DateTime date, CancellationToken ct = default)
         {
+            var user = _currentUser.GetCurrentUser();
+            if (user == null)
+                return new List<OTRequestDto>();
+
+            var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.OTView, ct);
             var data = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
                 .Where(x => x.IsActive == true
+                    && (scope == AuthorizationScopeCodes.All
+                        ? x.DeptCode == deptCode
+                        : scope == AuthorizationScopeCodes.Department
+                            ? x.DeptCode == user.DeptCode
+                            : (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
+                                ? x.EmployeeCode == user.EmployeeCode
+                                : false)
                     && x.DeptCode == deptCode
                     && x.OTDate.Date == date.Date
                     && x.RequestStatus != ApprovalStatus.Cancelled
