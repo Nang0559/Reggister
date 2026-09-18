@@ -1,0 +1,98 @@
+@using Microsoft.AspNetCore.Components.Routing
+@implements IDisposable
+@inject NavigationManager Navigation
+
+<MudTooltip Text="Trợ giúp chức năng">
+    <MudIconButton Icon="@Icons.Material.Filled.HelpOutline" Color="Color.Inherit" Size="Size.Medium" OnClick="Open" />
+</MudTooltip>
+
+<MudDrawer @bind-Open="_open" Anchor="Anchor.Right" Elevation="8" Width="420px" Variant="DrawerVariant.Temporary">
+    <MudDrawerHeader>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="w-100">
+            <div>
+                <MudText Typo="Typo.h6">@_content.Title</MudText>
+                <MudText Typo="Typo.caption" Class="mud-text-secondary">Trợ giúp ngữ cảnh • @_content.FeatureCode</MudText>
+            </div>
+            <MudIconButton Icon="@Icons.Material.Filled.Close" OnClick="Close" />
+        </MudStack>
+    </MudDrawerHeader>
+    <MudDivider />
+    <MudDrawerContainer Class="pa-4">
+        <MudText Typo="Typo.body2" Class="mb-4">@_content.Summary</MudText>
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Luồng thao tác</MudText>
+        <MudPaper Outlined="true" Class="pa-3 mb-4" Style="white-space:pre-line;font-family:monospace;font-size:.82rem">@_content.Flow</MudPaper>
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Các bước</MudText>
+        <MudList Dense="true" Class="mb-4">
+            @foreach (var step in _content.Steps)
+            {
+                <MudListItem Icon="@Icons.Material.Filled.CheckCircleOutline">@step</MudListItem>
+            }
+        </MudList>
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Ví dụ</MudText>
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">@_content.Example</MudAlert>
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Quyền & dữ liệu</MudText>
+        <MudText Typo="Typo.body2" Class="mb-4">@_content.Security</MudText>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.MenuBook" OnClick="OpenGuide">Mở tài liệu chi tiết</MudButton>
+    </MudDrawerContainer>
+</MudDrawer>
+
+@code {
+    private bool _open;
+    private HelpContent _content = HelpCatalog.Resolve("/");
+
+    protected override void OnInitialized()
+    {
+        Navigation.LocationChanged += OnLocationChanged;
+        _content = HelpCatalog.Resolve(Navigation.ToBaseRelativePath(Navigation.Uri));
+    }
+
+    private void Open()
+    {
+        _content = HelpCatalog.Resolve(Navigation.ToBaseRelativePath(Navigation.Uri));
+        _open = true;
+    }
+
+    private void Close() => _open = false;
+
+    private void OpenGuide()
+    {
+        Navigation.NavigateTo($"/huong-dan?feature={Uri.EscapeDataString(_content.FeatureCode)}");
+        _open = false;
+    }
+
+    private void OnLocationChanged(object? sender, LocationChangedEventArgs e)
+    {
+        _content = HelpCatalog.Resolve(Navigation.ToBaseRelativePath(e.Location));
+        InvokeAsync(StateHasChanged);
+    }
+
+    public void Dispose() => Navigation.LocationChanged -= OnLocationChanged;
+
+    private sealed record HelpContent(string FeatureCode, string Title, string Summary, string Flow, IReadOnlyList<string> Steps, string Example, string Security);
+
+    private static class HelpCatalog
+    {
+        public static HelpContent Resolve(string route)
+        {
+            route = "/" + route.Trim('/');
+            if (route.StartsWith("//")) route = route[1..];
+            if (route.Contains("equipment", StringComparison.OrdinalIgnoreCase)) return Equipment;
+            if (route.Contains("public-information", StringComparison.OrdinalIgnoreCase) || route.Contains("thong-tin-cong-khai", StringComparison.OrdinalIgnoreCase)) return PublicInfo;
+            if (route.Contains("security", StringComparison.OrdinalIgnoreCase) || route.Contains("admin", StringComparison.OrdinalIgnoreCase)) return Security;
+            if (route.Contains("approval", StringComparison.OrdinalIgnoreCase) || route.Contains("inbox", StringComparison.OrdinalIgnoreCase)) return Approval;
+            if (route.Contains("leave", StringComparison.OrdinalIgnoreCase)) return Leave;
+            if (route.Contains("ot", StringComparison.OrdinalIgnoreCase)) return OT;
+            if (route.Contains("trip", StringComparison.OrdinalIgnoreCase)) return Trip;
+            return Home;
+        }
+
+        private static readonly HelpContent Home = new("HOME_WORKSPACE", "Workspace cá nhân", "Trang chủ gom việc cần làm, thông báo, phê duyệt và các module mà tài khoản được phép sử dụng.", "USER → ACTION CENTER → MY WORK → NOTIFICATION/APPROVAL → MODULE", new[] { "Kiểm tra việc cần làm.", "Mở thông báo hoặc hồ sơ cần xử lý.", "Dùng các ô module theo quyền được cấp.", "Xem tổng quan quản lý chỉ khi có capability tương ứng." }, "Nhân viên có LeaveView nhưng không có LeaveApprove chỉ thấy thao tác cá nhân; ẩn nút không phải cơ chế bảo mật.", "Capability và data scope được kiểm tra ở server; UI chỉ phản ánh quyền.");
+        private static readonly HelpContent Approval = new("APPROVAL_INBOX", "Hộp việc phê duyệt", "Một nơi để xem và xử lý Leave, OT, Trip và Equipment thuộc phạm vi được phép.", "PENDING → SCOPE CHECK → REVIEW → APPROVE/REJECT → AUDIT", new[] { "Lọc theo module.", "Mở chi tiết.", "Chọn các mục cùng cấp xử lý.", "Approve/Reject; server kiểm tra lại scope trước workflow." }, "Nếu chọn 5 đơn nhưng 1 đơn vượt scope, cả batch bị từ chối thay vì silently skip.", "Approve là capability riêng; Approve không tự động cấp All.");
+        private static readonly HelpContent Equipment = new("EQUIPMENT_WORKSPACE", "Thiết bị", "Thiết bị dùng Core + trường động theo phòng ban để các phòng ban có bộ thông tin khác nhau mà không đổi bảng lõi.", "SCHEMA → EXCEL → STAGING → VALIDATE → REVIEW → COMMIT → AUDIT", new[] { "Chọn phòng ban và xem schema.", "Khai báo field khi cần.", "Upload Excel đúng header.", "Xem preview và lỗi từng dòng.", "Commit khi batch hợp lệ." }, "IT có IP Address/MAC Address; Hành chính có Vị trí/Nhà cung cấp. Cả hai dùng F03EquipmentAssets + CustomDataJson.", "EquipmentImport yêu cầu capability và scope Department; import không được ghi ngoài phạm vi.");
+        private static readonly HelpContent PublicInfo = new("PUBLIC_INFORMATION_CMS", "CMS thông tin công khai", "Quản trị thông báo, quy định, hướng dẫn và chính sách theo Draft → Published → Archived.", "DRAFT → PREVIEW → PUBLISH → PUBLIC READ → ARCHIVE", new[] { "Tạo bản nháp.", "Nhập nội dung và thời gian hiệu lực.", "Preview.", "Publish.", "Archive khi kết thúc." }, "Quy định có EffectiveFrom 01/10 chỉ xuất hiện trong cửa sổ hiệu lực đã cấu hình.", "Chỉ PublicInformationManage được thay đổi; endpoint public chỉ trả Published hợp lệ.");
+        private static readonly HelpContent Security = new("SECURITY_CENTER", "Security Center", "Quản lý role, function/action, effective permission và audit; capability tách khỏi data scope.", "USER → ROLE → FUNCTION/ACTION → SCOPE → AUDIT", new[] { "Xem effective permission.", "Kiểm tra Role → Function/Action.", "Gán role/function.", "Kiểm tra audit." }, "LeaveApprove + Department cho phép duyệt trong phạm vi phòng ban; không đồng nghĩa xem toàn công ty.", "DB là authority; JWT/UI chỉ hỗ trợ UX. Command nhạy cảm phải kiểm tra lại ở service.");
+        private static readonly HelpContent Leave = new("LEAVE", "Nghỉ phép", "Đăng ký, chỉnh sửa, hủy và phê duyệt nghỉ phép theo capability và scope.", "CREATE → SUBMIT → PENDING → APPROVE/REJECT → HISTORY", new[] { "Tạo đơn.", "Kiểm tra ngày và loại nghỉ.", "Submit.", "Theo dõi lịch sử hoặc Inbox." }, "Own chỉ xử lý dữ liệu của chính mình; Department mở rộng theo phòng ban.", "Create/Edit/Cancel/Approve là capability độc lập.");
+        private static readonly HelpContent OT = new("OT", "Làm thêm giờ", "Quản lý OT theo capability và phạm vi dữ liệu được cấp.", "CREATE → EDIT → SUBMIT → APPROVAL → RECONCILE", new[] { "Tạo OT.", "Bổ sung nhân viên nếu được phép.", "Submit.", "Theo dõi duyệt và đối soát." }, "OTApprove không cấp quyền sửa OT; OTEdit vẫn phải kiểm tra riêng.", "Mọi command kiểm tra capability + target scope.");
+        private static readonly HelpContent Trip = new("TRIP", "Công tác", "Quản lý công tác theo workflow và scope.", "CREATE → SUBMIT → APPROVAL → COMPLETE", new[] { "Tạo kế hoạch.", "Kiểm tra người đi/phòng ban.", "Submit.", "Theo dõi Approval Inbox." }, "TripCreate chỉ cho target scope hợp lệ; IsAdmin không tự động mở rộng dữ liệu.", "TripCreate/TripEdit/TripApprove là capability độc lập.");
+    }
+}
