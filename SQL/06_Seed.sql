@@ -128,7 +128,7 @@ SELECT 1,0,u.IdUser,N'Leave',v.Code,v.Position,v.Name,v.Email,v.Dept,d.DeptName,
 FROM (VALUES
 (N'E0002',N'SL',N'Tran Thi Binh',N'e0002@test.local',N'IT',N'IT',N'IT',1,N'Lead/Sub Lead'),
 (N'E0003',N'CHIEF',N'Le Van Cuong',N'e0003@test.local',N'PROD',N'PROD',N'PROD',2,N'Chief/A Chief'),
-(N'E0004',N'MGR',N'Pham Thi Dung',N'e0004@test.local',N'HR',N'HR',3,N'Manager/A Manager'),
+(N'E0004',N'MGR',N'Pham Thi Dung',N'e0004@test.local',N'HR',N'HR',N'HR',3,N'Manager/A Manager'),
 (N'E0005',N'GM',N'Hoang Van Em',N'e0005@test.local',N'PROD',N'PROD',N'PROD',4,N'General Manager'),
 (N'E0003',N'CHIEF',N'Le Van Cuong',N'e0003@test.local',N'PROD',N'PRODUCTION',N'PROD',1,N'Lead/Sub Lead')
 ) AS v(Code,Position,Name,Email,Dept,DeptName,ForDept,Level,RoleName)
