@@ -31,8 +31,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
             var widgets = new List<WidgetCounterDto>(
                 await _otQuery.GetMyWidgetsAsync(user.EmployeeCode!, ct));
 
-            var balanceTask = _otQuery.GetSimpleBalanceAsync(user.EmployeeCode!, year, ct);
-            var recentTask = _otQuery.GetRecentSummaryAsync(user.EmployeeCode!, 5, ct);
+            var personalBalance = await _otQuery.GetSimpleBalanceAsync(
+                user.EmployeeCode!, year, ct);
+            var recentSummary = await _otQuery.GetRecentSummaryAsync(
+                user.EmployeeCode!, 5, ct);
 
             List<OTBalanceDto> nearLimitEmployees = new();
             if (!string.IsNullOrEmpty(user.DeptCode) && user.Permission.IsApprover())
@@ -56,13 +58,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
                 }
             }
 
-            await Task.WhenAll(balanceTask, recentTask);
-
             var detail = new OTDashboardDto
             {
                 Widgets = widgets,
-                PersonalBalance = await balanceTask,
-                RecentRequests = await recentTask,
+                PersonalBalance = personalBalance,
+                RecentRequests = recentSummary,
                 NearLimitEmployees = nearLimitEmployees
             };
 
