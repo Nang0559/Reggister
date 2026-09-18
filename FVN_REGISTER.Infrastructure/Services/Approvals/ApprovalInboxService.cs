@@ -7,6 +7,7 @@ using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Application.Models.Subjects;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -18,6 +19,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         private readonly IApprovalWorkflowOrchestrator<LeaveRequestSubject> _leaveWorkflow;
         private readonly IApprovalWorkflowOrchestrator<OTRequestSubject> _otWorkflow;
         private readonly IApprovalWorkflowOrchestrator<TripRequestSubject> _tripWorkflow;
+        private readonly IApprovalWorkflowOrchestrator<EquipmentRequestSubject> _equipmentWorkflow;
         private readonly IApprovalGroupingPolicy _groupingPolicy;
         private readonly IAuthorizationService _authorization;
 
@@ -25,6 +27,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             IApprovalWorkflowOrchestrator<LeaveRequestSubject> leaveWorkflow,
             IApprovalWorkflowOrchestrator<OTRequestSubject> otWorkflow,
             IApprovalWorkflowOrchestrator<TripRequestSubject> tripWorkflow,
+            IApprovalWorkflowOrchestrator<EquipmentRequestSubject> equipmentWorkflow,
             IApprovalGroupingPolicy groupingPolicy,
             IAuthorizationService authorization,
             ILogger<ApprovalInboxService> logger,
@@ -34,6 +37,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             _leaveWorkflow = leaveWorkflow;
             _otWorkflow = otWorkflow;
             _tripWorkflow = tripWorkflow;
+            _equipmentWorkflow = equipmentWorkflow;
             _groupingPolicy = groupingPolicy;
             _authorization = authorization;
         }
@@ -53,7 +57,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 {
                     [RequestModule.Leave] = await leaveItemsTask,
                     [RequestModule.Overtime] = await otItemsTask,
-                    [RequestModule.Trip] = await tripItemsTask
+                    [RequestModule.Trip] = await tripItemsTask,
+                    [RequestModule.Equipment] = await _equipmentWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct)
                 };
 
                 var scopedByModule = new Dictionary<RequestModule, List<PendingApprovalItemDto>>();
@@ -64,6 +69,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                         RequestModule.Leave => SecurityFunctionCodes.LeaveApprove,
                         RequestModule.Overtime => SecurityFunctionCodes.OTApprove,
                         RequestModule.Trip => SecurityFunctionCodes.TripApprove,
+                        RequestModule.Equipment => SecurityFunctionCodes.EquipmentApprove,
                         _ => 0
                     };
 
@@ -119,6 +125,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     RequestModule.Leave => await _leaveWorkflow.ApproveAsync(action, ct),
                     RequestModule.Overtime => await _otWorkflow.ApproveAsync(action, ct),
                     RequestModule.Trip => await _tripWorkflow.ApproveAsync(action, ct),
+                    RequestModule.Equipment => await _equipmentWorkflow.ApproveAsync(action, ct),
                     _ => throw new NotSupportedException($"Module {kind} chưa được hỗ trợ ở Inbox.")
                 };
 
@@ -162,6 +169,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     RequestModule.Leave => await _leaveWorkflow.RejectAsync(action, ct),
                     RequestModule.Overtime => await _otWorkflow.RejectAsync(action, ct),
                     RequestModule.Trip => await _tripWorkflow.RejectAsync(action, ct),
+                    RequestModule.Equipment => await _equipmentWorkflow.RejectAsync(action, ct),
                     _ => throw new NotSupportedException($"Module {kind} chưa được hỗ trợ ở Inbox.")
                 };
 
