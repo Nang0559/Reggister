@@ -1,5 +1,6 @@
 @using FVN_REGISTER.Contract.Dtos.Approvals
 @using FVN_REGISTER.Contract.Dtos.Dashboard
+@using FVN_REGISTER.Contract.Responses
 @using FVN_REGISTER.Core.Enums
 
 @if (Data == null)
@@ -64,7 +65,7 @@ else
     }
 
     <MudGrid>
-        @if (Data.Leave?.Balance != null)
+        @if (Data.Leave?.PersonalBalance != null)
         {
             <MudItem xs="12" md="6">
                 <MudCard Elevation="2">
@@ -74,16 +75,16 @@ else
                     </MudCardHeader>
                     <MudCardContent>
                         <MudGrid>
-                            <MudItem xs="4"><MudText Typo="Typo.caption">Được hưởng</MudText><MudText Typo="Typo.h6">@Data.Leave.Balance.TotalEntitled.ToString("N1")</MudText></MudItem>
-                            <MudItem xs="4"><MudText Typo="Typo.caption">Đã dùng</MudText><MudText Typo="Typo.h6">@Data.Leave.Balance.Used.ToString("N1")</MudText></MudItem>
-                            <MudItem xs="4"><MudText Typo="Typo.caption">Còn lại</MudText><MudText Typo="Typo.h6">@Data.Leave.Balance.Remaining.ToString("N1")</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.caption">Được hưởng</MudText><MudText Typo="Typo.h6">@Data.Leave.PersonalBalance.TotalEntitled.ToString("N1")</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.caption">Đã dùng</MudText><MudText Typo="Typo.h6">@Data.Leave.PersonalBalance.Used.ToString("N1")</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.caption">Còn lại</MudText><MudText Typo="Typo.h6">@Data.Leave.PersonalBalance.Remaining.ToString("N1")</MudText></MudItem>
                         </MudGrid>
                     </MudCardContent>
                 </MudCard>
             </MudItem>
         }
 
-        @if (Data.Overtime?.Balance != null)
+        @if (Data.OT?.PersonalBalance != null)
         {
             <MudItem xs="12" md="6">
                 <MudCard Elevation="2">
@@ -93,8 +94,8 @@ else
                     </MudCardHeader>
                     <MudCardContent>
                         <MudGrid>
-                            <MudItem xs="6"><MudText Typo="Typo.caption">OT tháng</MudText><MudText Typo="Typo.h6">@Data.Overtime.Balance.UsedHoursThisMonth.ToString("N1") / @Data.Overtime.Balance.MonthlyLimit.ToString("N1") h</MudText></MudItem>
-                            <MudItem xs="6"><MudText Typo="Typo.caption">OT năm</MudText><MudText Typo="Typo.h6">@Data.Overtime.Balance.UsedHoursThisYear.ToString("N1") / @Data.Overtime.Balance.YearlyLimit.ToString("N1") h</MudText></MudItem>
+                            <MudItem xs="6"><MudText Typo="Typo.caption">OT tháng</MudText><MudText Typo="Typo.h6">@Data.OT.PersonalBalance.UsedHoursThisMonth.ToString("N1") / @Data.OT.PersonalBalance.MonthlyLimit.ToString("N1") h</MudText></MudItem>
+                            <MudItem xs="6"><MudText Typo="Typo.caption">OT năm</MudText><MudText Typo="Typo.h6">@Data.OT.PersonalBalance.UsedHoursThisYear.ToString("N1") / @Data.OT.PersonalBalance.YearlyLimit.ToString("N1") h</MudText></MudItem>
                         </MudGrid>
                     </MudCardContent>
                 </MudCard>
@@ -153,7 +154,7 @@ else
 }
 
 @code {
-    [Parameter] public DashboardDto? Data { get; set; }
+    [Parameter] public DashboardResponse? Data { get; set; }
     [Inject] private NavigationManager Navigation { get; set; } = default!;
 
     private static int GetCurrentApprovalLevel(PendingApprovalItemDto item) => item.ApprovalSteps.OrderBy(x => x.Level).FirstOrDefault(x => x.IsRequired && x.IsApproved == null)?.Level ?? 0;

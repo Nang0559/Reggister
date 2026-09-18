@@ -1,6 +1,6 @@
 @page "/"
 @attribute [Authorize]
-@using FVN_REGISTER.Contract.Dtos.Dashboard
+@using FVN_REGISTER.Contract.Responses
 @using FVN_REGISTER.Shared.Components
 @using FVN_REGISTER.Shared.Services.Dashboards
 @using FVN_REGISTER.Shared.Services.Users
@@ -22,16 +22,67 @@ else if (_model != null)
     <EquipmentDashboardTile />
     <DashboardOverview Data="_model" />
 }
-else { <MudAlert Severity="Severity.Info">Không có dữ liệu hiển thị hoặc phiên làm việc hết hạn.</MudAlert> }
+else if (!string.IsNullOrWhiteSpace(_errorMessage))
+{
+    <MudAlert Severity="Severity.Error">@_errorMessage</MudAlert>
+}
+else
+{
+    <MudAlert Severity="Severity.Info">
+        Dashboard không có dữ liệu để hiển thị.
+    </MudAlert>
+}
 
 @code {
-    private DashboardDto? _model; private bool _isLoading = true; private readonly CancellationTokenSource _cts = new();
+    private DashboardResponse? _model;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+    private readonly CancellationTokenSource _cts = new();
+
     protected override async Task OnInitializedAsync()
     {
-        try { await CurrentUserService.InitializeAsync(); if (!CurrentUserService.IsLoggedIn) return; var result = await DashboardService.GetDashboardDataAsync(_cts.Token); if (result.IsSuccess) _model = result.Data; else if (!result.IsUnauthorized) Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error); }
-        catch (OperationCanceledException) when (_cts.IsCancellationRequested) { }
-        catch (Exception ex) { Snackbar.Add($"Không thể tải dashboard: {ex.Message}", Severity.Error); }
-        finally { _isLoading = false; }
+        try
+        {
+            await CurrentUserService.InitializeAsync();
+
+            if (!CurrentUserService.IsLoggedIn)
+            {
+                _errorMessage = "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.";
+                return;
+            }
+
+            var result = await DashboardService.GetDashboardDataAsync(_cts.Token);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                _model = result.Data;
+            }
+            else if (result.IsUnauthorized)
+            {
+                _errorMessage = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
+            }
+            else
+            {
+                _errorMessage = result.Message ?? "Không thể tải Dashboard.";
+            }
+        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
+        {
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Không thể tải Dashboard: {ex.Message}";
+            Snackbar.Add(_errorMessage, Severity.Error);
+        }
+        finally
+        {
+            _isLoading = false;
+        }
     }
-    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
+
+    public void Dispose()
+    {
+        _cts.Cancel();
+        _cts.Dispose();
+    }
 }

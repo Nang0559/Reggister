@@ -12,20 +12,13 @@ using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Utils;
 
-
 namespace FVN_REGISTER.Application.Orchestrators
 {
     /// <summary>
-    /// Nơi DUY NHẤT lắp ráp Dashboard tổng. Không biết chi tiết nghiệp vụ của từng module -
-    /// chỉ biết lặp qua IModuleDashboardProvider, gọi IApprovalInboxService lấy pending
-    /// đa module, rồi nhờ DashboardWidgetPolicy sắp xếp. Thêm module mới KHÔNG sửa file này.
+    /// Nơi duy nhất lắp ráp Dashboard tổng. Orchestrator không biết chi tiết
+    /// nghiệp vụ của từng module; module tự đóng góp qua provider.
     /// </summary>
-    /// <summary>
-    /// Nơi DUY NHẤT lắp ráp Dashboard tổng. Không biết chi tiết nghiệp vụ của từng module -
-    /// chỉ biết lặp qua IModuleDashboardProvider, gọi IApprovalInboxService lấy pending
-    /// đa module, rồi nhờ DashboardWidgetPolicy sắp xếp. Thêm module mới KHÔNG sửa file này.
-    /// </summary>
-    public class DashboardOrchestrator : IDashboardOrchestrator
+    public sealed class DashboardOrchestrator : IDashboardOrchestrator
     {
         private readonly IEnumerable<IModuleDashboardProvider> _providers;
         private readonly IApprovalInboxService _approvalInbox;
@@ -38,8 +31,13 @@ namespace FVN_REGISTER.Application.Orchestrators
             _approvalInbox = approvalInbox;
         }
 
-        public async Task<ServiceResult<DashboardResponse>> BuildAsync(UserIdentityDto user, CancellationToken ct = default)
+        public async Task<ServiceResult<DashboardResponse>> BuildAsync(
+            UserIdentityDto user, CancellationToken ct = default)
         {
+            if (string.IsNullOrWhiteSpace(user.EmployeeCode))
+                return ServiceResult<DashboardResponse>.Fail(
+                    "Tài khoản chưa liên kết với hồ sơ nhân viên.");
+
             try
             {
                 var response = new DashboardResponse
@@ -56,21 +54,29 @@ namespace FVN_REGISTER.Application.Orchestrators
 
                     switch (contribution.Module)
                     {
-                        case RequestModule.Leave:
-                            response.Leave = contribution.Detail as LeaveDashboardDto;
+                        case RequestModule.Leave when contribution.Detail is LeaveDashboardDto leave:
+                            response.Leave = leave;
+                            response.DeptWarning = leave.DeptWarning;
+                            response.DepartmentStatistics = leave.DepartmentStatistics;
                             break;
-                        case RequestModule.Overtime:
-                            response.OT = contribution.Detail as OTDashboardDto;
+
+                        case RequestModule.Overtime when contribution.Detail is OTDashboardDto overtime:
+                            response.OT = overtime;
                             break;
+
                         case RequestModule.Trip:
                             response.Trip = contribution.Detail;
+                            break;
+
+                        default:
+                            // A provider may intentionally return no typed detail.
                             break;
                     }
                 }
 
                 response.Widgets = DashboardWidgetPolicy.Arrange(user, rawWidgets);
 
-                // Chỉ hiện pending inbox cho người có quyền duyệt — tránh gọi thừa cho nhân viên thường
+                // Pending inbox is useful only to users who can approve.
                 if (response.ShowManagerView)
                 {
                     var pendingResult = await _approvalInbox.GetPendingAsync(user, ct);
@@ -81,9 +87,14 @@ namespace FVN_REGISTER.Application.Orchestrators
 
                 return ServiceResult<DashboardResponse>.Ok(response);
             }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
             catch (Exception ex)
             {
-                return ServiceResult<DashboardResponse>.Fail($"Không thể tải Dashboard: {ex.Message}");
+                return ServiceResult<DashboardResponse>.Fail(
+                    "Không thể tải Dashboard.");
             }
         }
     }

@@ -1,25 +1,30 @@
 ﻿using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.Dashboard;
-
+using FVN_REGISTER.Contract.Dtos.Leaves;
 
 namespace FVN_REGISTER.Contract.Responses
 {
-    public class DashboardResponse
+    /// <summary>
+    /// HTTP/application response for the dashboard. It is the composition boundary;
+    /// module details remain module DTOs and no EF entity crosses the boundary.
+    /// </summary>
+    public sealed class DashboardResponse
     {
         public bool ShowManagerView { get; set; }
 
-        // Widget đã được DashboardWidgetPolicy sắp xếp, gộp từ mọi module
         public List<WidgetCounterDto> Widgets { get; set; } = new();
 
-        // Đơn chờ duyệt xuyên suốt Leave/OT/Trip - lấy 1 lần từ IApprovalInboxService,
-        // KHÔNG tự query riêng từng module ở Dashboard nữa.
         public List<PendingApprovalGroupDto> PendingApprovals { get; set; } = new();
 
         public LeaveDashboardDto? Leave { get; set; }
+
         public OTDashboardDto? OT { get; set; }
 
-        // TODO: đổi thành TripDashboardDto khi module Trip có Query/Statistics service
+        public AbsenceWarningDto? DeptWarning { get; set; }
+
+        public List<LeaveStatisticsDto> DepartmentStatistics { get; set; } = new();
+
         public object? Trip { get; set; }
     }
 }

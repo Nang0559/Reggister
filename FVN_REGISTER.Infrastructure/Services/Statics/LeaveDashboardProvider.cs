@@ -7,54 +7,62 @@ using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Enums;
 
-
 namespace FVN_REGISTER.Infrastructure.Services.Statics
 {
     /// <summary>
-    /// KHÔNG tự viết query mới ở đây - chỉ tái sử dụng ILeaveQueryService (widget cá nhân,
-    /// balance, recent requests) và IStatisticsService (widget phòng ban/công ty đã tách
-    /// theo quyền ở lần review trước).
+    /// Leave-specific dashboard contribution. All Leave data access stays behind
+    /// existing query/statistics ports; the provider does not introduce new EF queries.
     /// </summary>
-    public class LeaveDashboardProvider : IModuleDashboardProvider
+    public sealed class LeaveDashboardProvider : IModuleDashboardProvider
     {
         private readonly ILeaveQueryService _leaveQuery;
         private readonly IStatisticsService _statistics;
 
         public RequestModule Module => RequestModule.Leave;
 
-        public LeaveDashboardProvider(ILeaveQueryService leaveQuery, IStatisticsService statistics)
+        public LeaveDashboardProvider(
+            ILeaveQueryService leaveQuery,
+            IStatisticsService statistics)
         {
             _leaveQuery = leaveQuery;
             _statistics = statistics;
         }
 
-        public async Task<ModuleDashboardContribution> GetContributionAsync(UserIdentityDto user, CancellationToken ct = default)
+        public async Task<ModuleDashboardContribution> GetContributionAsync(
+            UserIdentityDto user, CancellationToken ct = default)
         {
-            var widgets = new List<WidgetCounterDto>(await _leaveQuery.GetMyWidgetsAsync(user.EmployeeCode!, ct));
             var year = DateTime.Now.Year;
 
-            var balanceTask = _leaveQuery.GetSimpleBalanceAsync(user.EmployeeCode!, year, ct);
-            var recentTask = _leaveQuery.GetRecentSummaryAsync(user.EmployeeCode!, 5, ct);   // SỬA: đúng tên method thật
+            var widgets = new List<WidgetCounterDto>(
+                await _leaveQuery.GetMyWidgetsAsync(user.EmployeeCode!, ct));
+
+            var balanceTask = _leaveQuery.GetSimpleBalanceAsync(
+                user.EmployeeCode!, year, ct);
+            var recentTask = _leaveQuery.GetRecentSummaryAsync(
+                user.EmployeeCode!, 5, ct);
 
             AbsenceWarningDto? deptWarning = null;
-            List<LeaveStatisticsDto> deptStats = new();
+            var departmentStatistics = new List<LeaveStatisticsDto>();
 
-            if (!string.IsNullOrEmpty(user.DeptCode) && user.Permission.IsApprover())
+            if (user.Permission.IsApprover())
             {
-                var deptWidgets = await _statistics.GetDeptDashboardWidgetsAsync(user.DeptCode, ct);
-                foreach (var w in deptWidgets)
-                    w.IsPersonal = false;   // widget quản lý, không phải "của tôi"
+                if (!string.IsNullOrWhiteSpace(user.DeptCode))
+                {
+                    deptWarning = await _statistics.GetAbsenceWarningAsync(
+                        user.DeptCode, ct);
+                }
 
-                widgets.AddRange(deptWidgets);
-            }
-
-            if (user.Permission.IsAdmin())
-            {
-                var companyWidgets = await _statistics.GetCompanyDashboardWidgetsAsync(ct);
-                foreach (var w in companyWidgets)
-                    w.IsPersonal = false;
-
-                widgets.AddRange(companyWidgets);
+                if (user.Permission.IsAdmin())
+                {
+                    departmentStatistics = await _statistics.GetLeaveStatisticsAsync(
+                        includeCompanyTotal: true, ct);
+                }
+                else if (!string.IsNullOrWhiteSpace(user.DeptCode))
+                {
+                    departmentStatistics.Add(
+                        await _statistics.GetDepartmentStatisticsAsync(
+                            user.DeptCode, ct));
+                }
             }
 
             await Task.WhenAll(balanceTask, recentTask);
@@ -63,9 +71,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
             {
                 Widgets = widgets,
                 PersonalBalance = await balanceTask,
-                RecentRequests = await recentTask,   // SỬA: gán thẳng, kiểu đã khớp List<LeaveSummaryDto>, không cần map
+                RecentRequests = await recentTask,
                 DeptWarning = deptWarning,
-                DepartmentStatistics = deptStats
+                DepartmentStatistics = departmentStatistics
             };
 
             return new ModuleDashboardContribution

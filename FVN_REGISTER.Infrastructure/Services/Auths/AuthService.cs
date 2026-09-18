@@ -335,12 +335,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 new("PermissionCode", user.PermissionCode.ToString())
             };
 
-            var userRole = (UserRole)user.PermissionCode;
-            foreach (UserRole role in Enum.GetValues(typeof(UserRole)))
-            {
-                if (role != UserRole.None && userRole.HasFlag(role))
-                    claims.Add(new Claim(ClaimTypes.Role, role.ToString()));
-            }
+            // PermissionCode represents exactly one role. UserRole is an ordinal enum,
+            // not a [Flags] enum; HasFlag() would therefore emit unrelated roles.
+            var role = Enum.IsDefined(typeof(UserRole), user.PermissionCode)
+                ? ((UserRole)user.PermissionCode).ToString()
+                : UserRole.Guest.ToString();
+
+            claims.Add(new Claim(ClaimTypes.Role, role));
 
             var expires = rememberMe
                 ? DateTime.UtcNow.AddDays(AccessTokenDaysRemember)

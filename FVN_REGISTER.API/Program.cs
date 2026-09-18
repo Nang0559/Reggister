@@ -51,6 +51,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
+using System.Security.Claims;
 using System.Text;
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Infrastructure;
@@ -95,7 +96,10 @@ builder.Services.AddScoped<IDepartmentManagementService, DepartmentManagementSer
 
 // Dashboard / Leave
 builder.Services.AddScoped<IStatisticsService, StatisticsService>();
+builder.Services.AddScoped<IDashboardOrchestrator, DashboardOrchestrator>();
 builder.Services.AddScoped<IDashboardService, DashboardService>();
+builder.Services.AddScoped<IModuleDashboardProvider, LeaveDashboardProvider>();
+builder.Services.AddScoped<IModuleDashboardProvider, OTDashboardProvider>();
 builder.Services.AddScoped<ILeaveQueryService, LeaveQueryService>();
 builder.Services.AddScoped<IEscalationRuleService, EscalationRuleService>();
 builder.Services.AddScoped<ILeaveValidator, LeaveValidator>();
@@ -206,7 +210,7 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]!)),
         ValidateLifetime = true, ClockSkew = TimeSpan.FromMinutes(5),
-        NameClaimType = "unique_name", RoleClaimType = "role"
+        NameClaimType = ClaimTypes.Name, RoleClaimType = ClaimTypes.Role
     };
     options.Events = new JwtBearerEvents
     {
