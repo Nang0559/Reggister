@@ -10,4 +10,5 @@ public interface IAuthorizationService
     Task<List<SecurityRoleDto>> GetRolesAsync(CancellationToken ct = default);
     Task<List<SecurityFunctionDto>> GetFunctionsAsync(CancellationToken ct = default);
     Task<PermissionSnapshotDto> SetUserRolesAsync(int userId, IReadOnlyCollection<int> roleCodes, int actorUserId, CancellationToken ct = default);
+    Task<SecurityRoleDto> SetRoleFunctionsAsync(int roleCode, IReadOnlyCollection<int> functionCodes, int actorUserId, CancellationToken ct = default);
 }
