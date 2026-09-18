@@ -25,7 +25,7 @@
             var level = Level > 0 ? Level : GetCurrentApprovalLevel(item);
             <MudCard Elevation="2" Class="mb-2">
                 <MudCardContent>
-                    <MudGrid AlignItems="AlignItems.Center">
+                    <MudGrid>
                         <MudItem xs="12" sm="4">
                             <MudText Typo="Typo.body2"><strong>@item.EmployeeName</strong></MudText>
                             <MudText Typo="Typo.caption" Color="Color.Secondary">@item.EmployeeCode — @item.DeptName</MudText>
