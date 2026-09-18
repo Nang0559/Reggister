@@ -1,0 +1,82 @@
+@using FVN_REGISTER.Contract.Dtos.Calendar
+@using FVN_REGISTER.Shared.Services.Calendar
+@inject IWorkCalendarClientService CalendarService
+@inject ICurrentUserClientService CurrentUser
+
+<MudPaper Class="pa-3" Elevation="0">
+    <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="1" Class="mb-2">
+        <MudChip T="string" Size="Size.Small">Tất cả</MudChip>
+        <MudChip T="string" Size="Size.Small">Công ty</MudChip>
+        <MudChip T="string" Size="Size.Small">Nghỉ phép</MudChip>
+        <MudChip T="string" Size="Size.Small">OT</MudChip>
+        <MudChip T="string" Size="Size.Small">Công tác</MudChip>
+    </MudStack>
+    <div @ref="_element" style="min-height:450px; touch-action:manipulation; user-select:none;"></div>
+</MudPaper>
+
+@code {
+    [Parameter] public string ModuleContext { get; set; } = "ALL";
+    [Parameter] public EventCallback<DateTime> OnDateSelected { get; set; }
+    [Parameter] public EventCallback<WorkCalendarEventDto> OnEventSelected { get; set; }
+
+    private ElementReference _element;
+    private DotNetObjectReference<WorkCalendar>? _ref;
+    private bool _initialized;
+    private DateTime _from = new(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime _to => _from.AddMonths(1).AddDays(-1);
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _initialized) return;
+        await LoadAsync();
+        _ref = DotNetObjectReference.Create(this);
+        await JS.InvokeVoidAsync("workCalendar.init", _element, _ref, BuildEvents(), _from, ModuleContext);
+        _initialized = true;
+    }
+
+    private async Task LoadAsync()
+    {
+        if (!CurrentUser.IsLoggedIn) await CurrentUser.InitializeAsync();
+        var result = await CalendarService.GetAsync(_from, _to);
+        if (result.IsSuccess && result.Data != null)
+            _data = result.Data;
+    }
+
+    private WorkCalendarDto _data = new();
+
+    private List<object> BuildEvents() => _data.Events.Select(e => new
+    {
+        id = e.Id,
+        title = e.Title,
+        start = e.Start.ToString("s"),
+        end = e.End.ToString("s"),
+        moduleCode = e.ModuleCode,
+        status = e.Status,
+        requestId = e.RequestId,
+        display = e.ModuleCode == "COMPANY" ? "background" : "auto"
+    }).ToList();
+
+    [JSInvokable]
+    public async Task OnCalendarDateClick(string date)
+    {
+        if (DateTime.TryParse(date, out var value) && OnDateSelected.HasDelegate)
+            await OnDateSelected.InvokeAsync(value.Date);
+    }
+
+    [JSInvokable]
+    public async Task OnCalendarEventClick(string id)
+    {
+        var item = _data.Events.FirstOrDefault(x => x.Id == id);
+        if (item != null && OnEventSelected.HasDelegate)
+            await OnEventSelected.InvokeAsync(item);
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _ref?.Dispose();
+        if (_initialized)
+        {
+            try { await JS.InvokeVoidAsync("workCalendar.destroy", _element); } catch { }
+        }
+    }
+}
