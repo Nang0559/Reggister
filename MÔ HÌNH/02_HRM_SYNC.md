@@ -6,7 +6,8 @@
 flowchart TB
     HRM[(HRM)]
     subgraph A[Pipeline A — Master Data Sync]
-        HRM --> IMP[Trigger / IHrmStagingImporter]
+        HRM --> SP[usp_SyncHrm*Source]
+        SP --> IMP[IHrmStagingImporter]
         IMP --> ST[F03StagingXxx]
         ST --> JOB[HrmSyncJob<TStaging,TEntity>]
         JOB --> MASTER[(F03 Master Data)]
@@ -53,7 +54,7 @@ sequenceDiagram
     S-->>W: Ready for sync job
 ```
 
-`IHrmSourceReader<TSourceRow>` đọc dữ liệu HRM. Implementation SQL dùng Dapper và có thể truy vấn cross-database bằng three-part name như `[HRM].[dbo].[tblXxx]`.
+`IHrmSourceReader<TSourceRow>` đọc dữ liệu HRM. Implementation SQL dùng Dapper và gọi các source-contract stored procedure `dbo.usp_SyncHrm*Source` trong FVN. Các procedure này chỉ đọc `[HRM].[dbo].[tblXxx]`, chuẩn hóa kiểu/NULL/sentinel và trả alias ổn định cho SourceRow. Không đặt business update vào HRM.
 
 `HrmStagingImporterBase<TSourceRow,TStaging,TEntity>` chịu trách nhiệm logic chung:
 
@@ -65,6 +66,15 @@ sequenceDiagram
 - nếu số key mất vượt ngưỡng an toàn (`> 50%`) thì không phát Delete để tránh sự cố nguồn làm xóa hàng loạt.
 
 Các hook: `GetSourceKey`, `GetEntityKeySelector`, `MapToStaging`, `BuildDeleteStaging`.
+
+Master source contracts hiện có:
+
+- `usp_SyncHrmLeaveTypeSource` → `HRM.dbo.tblLoaiNghi` → `F03StagingLeaveType` → `F03LeaveType`.
+- `usp_SyncHrmDepartmentSource` → `HRM.dbo.tblBoPhan` → `F03StagingDepartment` → `F03Departments`.
+- `usp_SyncHrmPositionSource` → `HRM.dbo.tblChucVu` → `F03StagingPosition` → `F03Positions`.
+- `usp_SyncHrmEmployeeSource` → `HRM.dbo.tblNhanVien` → `F03StagingEmployee` → `F03Employees`.
+
+Quy tắc mapping: `tblLoaiNghi.LNTinhDKNgayNghi` → `TinhPhep/IsCountedAsLeave`; `tblBoPhan.BPMaCha/BPUuTien/BPHienThiBC` → các field tương ứng; `tblNhanVien.NVMa` → `EmployeeNo`; ngày nghỉ sentinel `>= 9990-01-01` → `NULL`. `IsApprove`, `IsAllowApprove` và approval hierarchy cục bộ không bị HRM ghi đè khi nguồn không cung cấp dữ liệu tương ứng.
 
 ## 3. Staging contract
 
@@ -126,7 +136,7 @@ flowchart LR
     W --> E
 ```
 
-Employee phụ thuộc Department/Position. `IHrmSyncJobResolver.GetAll()` phải `OrderBy(j => j.SyncOrder)`; không phụ thuộc thứ tự registration của DI.
+Employee phụ thuộc Department/Position. `IHrmSyncJobResolver.GetAll()` phải `OrderBy(j => j.SyncOrder)`; không phụ thuộc thứ tự registration của DI. Hiện resolver đã sắp xếp `SyncOrder` rồi `EntityType`.
 
 Nếu một job có `IsBlockingDependency=true` và thất bại, `HrmSyncWorker` dừng chuỗi job còn lại; lỗi của từng job vẫn phải được catch/log riêng để worker không chết.
 
