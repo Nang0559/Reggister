@@ -48,7 +48,7 @@ public sealed class TripController : ControllerBase
     [HttpPost("{id:int}/cancel")]
     public async Task<IActionResult> Cancel(int id, [FromBody] CancelTripRequestDto request, CancellationToken ct)
     {
-        if (!await CanAsync(SecurityFunctionCodes.TripEdit, ct)) return Forbid();
+        if (!await CanAsync(SecurityFunctionCodes.TripCancel, ct)) return Forbid();
         await _service.CancelAsync(id, request.Reason, ct);
         return Ok();
     }
