@@ -13,14 +13,17 @@ namespace FVN_REGISTER.Infrastructure.Services.Security;
 public sealed class AuthorizationService : BaseService<AuthorizationService>, IAuthorizationService
 {
     private readonly IUnitOfWork _uow;
+    private readonly FVN_REGISTER.Application.Interfaces.Auths.ISessionService _sessionService;
 
     public AuthorizationService(
         IUnitOfWork uow,
         ILogger<AuthorizationService> logger,
-        IOptionsMonitor<AuthDebugOptions> options)
+        IOptionsMonitor<AuthDebugOptions> options,
+        FVN_REGISTER.Application.Interfaces.Auths.ISessionService sessionService)
         : base(logger, options)
     {
         _uow = uow;
+        _sessionService = sessionService;
     }
 
     public async Task<bool> HasAsync(
@@ -204,6 +207,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         }
 
         await _uow.SaveChangesAsync(ct);
+        await _sessionService.RevokeAllAsync(userId, ct);
         return await GetSnapshotAsync(userId, ct);
     }
 }
