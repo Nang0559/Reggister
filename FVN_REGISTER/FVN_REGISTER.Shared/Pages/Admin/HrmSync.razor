@@ -1,0 +1,250 @@
+@page "/admin/hrm-sync"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.HrmSync
+@using FVN_REGISTER.Shared.Services.HrmSync
+@using Microsoft.AspNetCore.Authorization
+@using FVN_REGISTER.Core.Constants
+@inherits AppComponentBase
+
+@inject IHrmSyncClientService SyncService
+@inject IHrmSyncReviewClientService ReviewService
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>Đồng bộ dữ liệu HRM - FCC</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Sync" Color="Color.Primary" Size="Size.Large" />
+    <div>
+        <MudText Typo="Typo.h5" Style="font-weight:700">Đồng bộ dữ liệu HRM</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            Pipeline A: Loại nghỉ, Bộ phận, Chức vụ và Nhân viên
+        </MudText>
+    </div>
+    <MudSpacer />
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.WarningAmber"
+               Color="Color.Warning" OnClick="@(() => Navigation.NavigateTo("/admin/hrm-sync-review"))">
+        Conflict <MudBadge Content="@_conflictCount" Color="Color.Error" Class="ml-2" />
+    </MudButton>
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="LoadAsync" Disabled="@_loading">
+        Làm mới
+    </MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Sync"
+               OnClick="RunAllAsync" Disabled="@(_loading || _status?.IsRunning == true)">
+        Đồng bộ tất cả
+    </MudButton>
+</MudStack>
+
+@if (_status?.IsRunning == true)
+{
+    <MudAlert Severity="Severity.Info" Variant="Variant.Filled" Class="mb-4">
+        <MudText Typo="Typo.body2"><b>Đang đồng bộ HRM...</b></MudText>
+        @if (_status.StartedAt.HasValue)
+        {
+            <MudText Typo="Typo.caption">
+                Bắt đầu: @_status.StartedAt.Value.ToString("dd/MM/yyyy HH:mm:ss")
+                · Người chạy: @_status.TriggeredBy
+            </MudText>
+        }
+    </MudAlert>
+}
+else if (_status?.LastRun != null)
+{
+    <MudAlert Severity="@(_status.LastRun.Success ? Severity.Success : Severity.Error)" Class="mb-4">
+        <MudText Typo="Typo.body2"><b>@(_status.LastRun.Success ? "Đồng bộ hoàn tất" : "Đồng bộ có lỗi")</b></MudText>
+        <MudText Typo="Typo.caption">@_status.LastRun.Summary</MudText>
+    </MudAlert>
+}
+else
+{
+    <MudAlert Severity="Severity.Info" Class="mb-4">
+        Chưa có phiên đồng bộ nào được ghi nhận trong tiến trình API hiện tại.
+    </MudAlert>
+}
+
+<MudGrid Class="mb-4">
+    @foreach (var master in _masters)
+    {
+        var job = _status?.LastRun?.Jobs.FirstOrDefault(x => x.EntityType.Equals(master.EntityType, StringComparison.OrdinalIgnoreCase));
+        <MudItem xs="12" sm="6" md="3">
+            <MudPaper Elevation="1" Class="pa-4" Style="border-radius:12px; height:100%">
+                <MudStack Spacing="1">
+                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                        <MudIcon Icon="@master.Icon" Color="Color.Primary" />
+                        <MudText Typo="Typo.subtitle1" Style="font-weight:700">@master.Name</MudText>
+                    </MudStack>
+
+                    @if (job == null)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Default">Chưa chạy</MudChip>
+                    }
+                    else
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="@(job.Success ? Color.Success : Color.Error)">
+                            @(job.Success ? "Thành công" : "Có lỗi")
+                        </MudChip>
+                        <MudText Typo="Typo.caption">Nguồn: @job.TotalSource</MudText>
+                        <MudText Typo="Typo.caption">
+                            +@job.Added · ↻@job.Updated · −@job.Deactivated · =@job.Unchanged
+                        </MudText>
+                        @if (job.Errors.Count > 0)
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Error">@job.Errors.First()</MudText>
+                        }
+                    }
+
+                    <MudButton Variant="Variant.Text" Size="Size.Small" Color="Color.Primary"
+                               Disabled="@(_loading || _status?.IsRunning == true)"
+                               OnClick="@(() => RunEntityAsync(master.EntityType))">
+                        Đồng bộ riêng
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+@if (_status?.LastRun != null)
+{
+    <MudPaper Elevation="1" Class="mb-4" Style="border-radius:12px; overflow:hidden">
+        <MudStack Class="pa-4" Spacing="1">
+            <MudText Typo="Typo.h6">Kết quả phiên gần nhất</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                @_status.LastRun.StartedAt.ToString("dd/MM/yyyy HH:mm:ss")
+                @if (_status.LastRun.FinishedAt.HasValue)
+                {
+                    <span> → @_status.LastRun.FinishedAt.Value.ToString("HH:mm:ss")</span>
+                }
+                · @_status.LastRun.TriggeredBy
+            </MudText>
+        </MudStack>
+
+        <MudTable Items="@_status.LastRun.Jobs" Dense="true" Hover="true" Striped="true">
+            <HeaderContent>
+                <MudTh>Master</MudTh>
+                <MudTh>Trạng thái</MudTh>
+                <MudTh Style="text-align:right">Nguồn</MudTh>
+                <MudTh Style="text-align:right">Thêm</MudTh>
+                <MudTh Style="text-align:right">Cập nhật</MudTh>
+                <MudTh Style="text-align:right">Vô hiệu</MudTh>
+                <MudTh Style="text-align:right">Không đổi</MudTh>
+                <MudTh>Chi tiết</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd><b>@context.EntityType</b></MudTd>
+                <MudTd>
+                    <MudChip T="string" Size="Size.Small" Color="@(context.Success ? Color.Success : Color.Error)">
+                        @(context.Success ? "OK" : "Lỗi")
+                    </MudChip>
+                </MudTd>
+                <MudTd Style="text-align:right">@context.TotalSource</MudTd>
+                <MudTd Style="text-align:right">@context.Added</MudTd>
+                <MudTd Style="text-align:right">@context.Updated</MudTd>
+                <MudTd Style="text-align:right">@context.Deactivated</MudTd>
+                <MudTd Style="text-align:right">@context.Unchanged</MudTd>
+                <MudTd>
+                    <MudText Typo="Typo.caption">@context.Summary</MudText>
+                    @foreach (var error in context.Errors)
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Error">@error</MudText>
+                    }
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+}
+
+@code {
+    private sealed record MasterInfo(string EntityType, string Name, string Icon);
+
+    private readonly MasterInfo[] _masters =
+    [
+        new("LeaveType", "Loại nghỉ", Icons.Material.Filled.EventBusy),
+        new("Department", "Bộ phận", Icons.Material.Filled.Business),
+        new("Position", "Chức vụ", Icons.Material.Filled.Badge),
+        new("Employee", "Nhân viên", Icons.Material.Filled.People)
+    ];
+
+    private HrmSyncRuntimeStatusDto? _status;
+    private int _conflictCount;
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var status = await SyncService.GetStatusAsync();
+            if (status.IsSuccess)
+                _status = status.Data;
+            else
+                Snackbar.Add(status.Message ?? "Không tải được trạng thái đồng bộ HRM.", Severity.Error);
+
+            var conflicts = await ReviewService.CountAsync();
+            if (conflicts.IsSuccess)
+                _conflictCount = conflicts.Data;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task RunAllAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = await SyncService.RunAllAsync();
+            if (!result.IsSuccess || result.Data == null)
+            {
+                Snackbar.Add(result.Message ?? "Không thể chạy đồng bộ HRM.", Severity.Error);
+                return;
+            }
+
+            _status = new HrmSyncRuntimeStatusDto { IsRunning = false, LastRun = result.Data };
+            Snackbar.Add(result.Data.Success ? "Đồng bộ HRM hoàn tất." : "Đồng bộ HRM hoàn tất nhưng có lỗi.", result.Data.Success ? Severity.Success : Severity.Warning);
+            await RefreshConflictCountAsync();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task RunEntityAsync(string entityType)
+    {
+        _loading = true;
+        try
+        {
+            var result = await SyncService.RunEntityAsync(entityType);
+            if (!result.IsSuccess || result.Data == null)
+            {
+                Snackbar.Add(result.Message ?? $"Không thể đồng bộ {entityType}.", Severity.Error);
+                return;
+            }
+
+            _status = new HrmSyncRuntimeStatusDto { IsRunning = false, LastRun = result.Data };
+            Snackbar.Add(result.Data.Success
+                ? $"Đã đồng bộ {entityType}."
+                : $"Đồng bộ {entityType} có lỗi.",
+                result.Data.Success ? Severity.Success : Severity.Warning);
+            await RefreshConflictCountAsync();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task RefreshConflictCountAsync()
+    {
+        var result = await ReviewService.CountAsync();
+        if (result.IsSuccess)
+            _conflictCount = result.Data;
+    }
+}
