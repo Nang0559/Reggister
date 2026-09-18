@@ -15,7 +15,7 @@ using FVN_REGISTER.Shared.Services.Trips;
 using FVN_REGISTER.Shared.Services.Users;
 using FVN_REGISTER.Shared.Utils;
 using FVN_REGISTER.Web.Components;
-using FVN_REGISTER.Web.Services.FVN_REGISTER.Web.Services;
+using FVN_REGISTER.Web.Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using MudBlazor.Services;
 
@@ -56,6 +56,5 @@ builder.Services.AddServerSideBlazor().AddCircuitOptions(options => options.Deta
 var app = builder.Build();
 if (!app.Environment.IsDevelopment()) { app.UseExceptionHandler("/Error", true); app.UseHsts(); }
 app.UseStaticFiles(); app.UseAntiforgery(); app.UseAuthentication(); app.UseAuthorization();
-app.MapWhen(context => context.Request.Path.StartsWithSegments("/api"), apiApp => { });
-app.MapRazorComponents<App>().AddInteractiveServerRenderMode().AddAdditionalAssemblies(typeof(FVN_REGISTER.Shared._Imports).Assembly);
+app.MapRazorComponents<App>().AddInteractiveServerRenderMode().AddAdditionalAssemblies(typeof(FVN_REGISTER.Shared.Routes).Assembly);
 app.Run();

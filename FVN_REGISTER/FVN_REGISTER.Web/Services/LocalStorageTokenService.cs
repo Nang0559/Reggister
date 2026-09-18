@@ -1,113 +1,115 @@
-﻿
+using FVN_REGISTER.Contract.Utils;
+using FVN_REGISTER.Shared.Utils;
+using Microsoft.JSInterop;
 
-namespace FVN_REGISTER.Web.Services
+namespace FVN_REGISTER.Web.Services;
+
+public sealed class LocalStorageTokenService : ITokenStorage
 {
+    private readonly IJSRuntime _jsRuntime;
+    private readonly ILogger<LocalStorageTokenService> _logger;
+    private readonly bool _debug;
 
-    using global::FVN_REGISTER.Contract.Utils;
-    using global::FVN_REGISTER.Shared.Utils;
-    using Microsoft.JSInterop;
-    using System;
-    using System.Threading.Tasks;
+    // Scoped per Blazor Server circuit. Never share JWTs between users.
+    private string? _cachedToken;
 
-    namespace FVN_REGISTER.Web.Services
+    public LocalStorageTokenService(
+        IJSRuntime jsRuntime,
+        ILogger<LocalStorageTokenService> logger,
+        IConfiguration configuration)
     {
-        public class LocalStorageTokenService : ITokenStorage
+        _jsRuntime = jsRuntime;
+        _logger = logger;
+        _debug = configuration.GetValue<bool>("AuthDebug:Enabled");
+    }
+
+    public void MarkJsReady()
+    {
+        if (_debug)
+            _logger.LogDebug("[TokenStorage] JS runtime marked ready.");
+    }
+
+    public async Task<string?> GetTokenAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(_cachedToken))
+            return _cachedToken;
+
+        try
         {
-            private readonly IJSRuntime _jsRuntime;
-            private readonly ILogger<LocalStorageTokenService> _logger;
-            private readonly bool _debug;
+            var token = await _jsRuntime.InvokeAsync<string?>(
+                "localStorage.getItem",
+                AuthConstants.TokenKey);
 
-            // 🔥 CHỐT CHẶN: Dùng static để tất cả các Instance (Handler, AuthProvider, v.v.) 
-            // đều nhìn thấy cùng một giá trị Token trong RAM của Server Circuit.
-            private static string? _staticCachedToken;
-            private bool _jsReady = false;
+            _cachedToken = token?.Trim('"').Trim();
 
-            public void MarkJsReady()
-            {
-                _jsReady = true;
-                if (_debug) _logger.LogInformation("[TokenService:{Id}] JS marked as ready", InstanceId);
-            }
-            public string InstanceId { get; } = Guid.NewGuid().ToString()[..8];
+            if (_debug)
+                _logger.LogDebug("[TokenStorage] Token loaded from browser storage.");
 
-            public LocalStorageTokenService(
-                IJSRuntime jsRuntime,
-                ILogger<LocalStorageTokenService> logger,
-                IConfiguration config)
-            {
-                _jsRuntime = jsRuntime;
-                _logger = logger;
-                _debug = config.GetValue<bool>("AuthDebug:Enabled") || true; // Ép bật debug để dễ theo dõi
+            return _cachedToken;
+        }
+        catch (InvalidOperationException ex)
+        {
+            // JS can be unavailable during an early/prerender lifecycle.
+            if (_debug)
+                _logger.LogDebug(ex, "[TokenStorage] JS runtime is not ready.");
+            return _cachedToken;
+        }
+        catch (JSException ex)
+        {
+            if (_debug)
+                _logger.LogDebug(ex, "[TokenStorage] Browser storage access failed.");
+            return _cachedToken;
+        }
+    }
 
-                if (_debug) _logger.LogInformation("[TokenService:{Id}] Instance Initialized", InstanceId);
-            }
+    public async Task SetTokenAsync(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+            return;
 
-            // ================= GET =================
-            public async Task<string?> GetTokenAsync()
-            {
-                // 1. Ưu tiên số 1: Lấy ngay từ RAM tĩnh (Cực nhanh, không lỗi JS)
-                if (!string.IsNullOrEmpty(_staticCachedToken))
-                {
-                    if (_debug) _logger.LogInformation("[TokenService:{Id}] Token retrieved from STATIC CACHE", InstanceId);
-                    return _staticCachedToken;
-                }
+        _cachedToken = token.Trim('"').Trim();
 
-                try
-                {
-                    // 2. Ưu tiên số 2: Nếu RAM trống (do F5 trang), lấy từ trình duyệt
-                    var token = await _jsRuntime.InvokeAsync<string?>(
-                        "localStorage.getItem",
-                        AuthConstants.TokenKey);
+        try
+        {
+            await _jsRuntime.InvokeVoidAsync(
+                "localStorage.setItem",
+                AuthConstants.TokenKey,
+                _cachedToken);
 
-                    _staticCachedToken = token?.Trim('"');
-                    return _staticCachedToken;
-                }
-                catch (Exception ex)
-                {
-                    if (_debug) _logger.LogWarning("[TokenService:{Id}] JS not ready for GET - Using fallback cache", InstanceId);
-                    return _staticCachedToken;
-                }
-            }
+            if (_debug)
+                _logger.LogDebug("[TokenStorage] Token saved.");
+        }
+        catch (InvalidOperationException ex)
+        {
+            if (_debug)
+                _logger.LogDebug(ex, "[TokenStorage] JS runtime is not ready; token remains in circuit cache.");
+        }
+        catch (JSException ex)
+        {
+            if (_debug)
+                _logger.LogDebug(ex, "[TokenStorage] Browser storage write failed; token remains in circuit cache.");
+        }
+    }
 
-            // ================= SET =================
-            public async Task SetTokenAsync(string token)
-            {
-                if (string.IsNullOrWhiteSpace(token)) return;
+    public async Task RemoveTokenAsync()
+    {
+        _cachedToken = null;
 
-                // 1. Nạp "đạn" vào RAM tĩnh ngay lập tức
-                _staticCachedToken = token.Trim('"').Trim();
-
-                try
-                {
-                    // 2. Đẩy xuống trình duyệt để lưu lâu dài
-                    await _jsRuntime.InvokeVoidAsync(
-                        "localStorage.setItem",
-                        AuthConstants.TokenKey,
-                        _staticCachedToken);
-
-                    if (_debug) _logger.LogInformation("[TokenService:{Id}] Token SAVED to static cache and LocalStorage", InstanceId);
-                }
-                catch (Exception ex)
-                {
-                    // Sử dụng ?. để tránh lỗi ArgumentNullException nếu logger chưa kịp init
-                    _logger?.LogError(ex, "[TokenService:{Id}] SetTokenAsync error", InstanceId);
-                }
-            }
-
-            // ================= REMOVE =================
-            public async Task RemoveTokenAsync()
-            {
-                _staticCachedToken = null;
-                try
-                {
-                    await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", AuthConstants.TokenKey);
-                    if (_debug) _logger.LogInformation("[TokenService:{Id}] Token REMOVED", InstanceId);
-                }
-                catch (Exception ex)
-                {
-                    _logger?.LogWarning("[TokenService:{Id}] RemoveTokenAsync error", InstanceId);
-                }
-            }
-
+        try
+        {
+            await _jsRuntime.InvokeVoidAsync(
+                "localStorage.removeItem",
+                AuthConstants.TokenKey);
+        }
+        catch (InvalidOperationException ex)
+        {
+            if (_debug)
+                _logger.LogDebug(ex, "[TokenStorage] JS runtime is not ready during token removal.");
+        }
+        catch (JSException ex)
+        {
+            if (_debug)
+                _logger.LogDebug(ex, "[TokenStorage] Browser storage removal failed.");
         }
     }
 }
