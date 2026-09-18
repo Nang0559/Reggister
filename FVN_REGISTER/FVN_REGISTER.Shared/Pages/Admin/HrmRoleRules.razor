@@ -1,0 +1,189 @@
+@page "/admin/hrm-role-rules"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.HrmSync
+@using FVN_REGISTER.Contract.Requests.HrmSync
+@using FVN_REGISTER.Shared.Services.HrmSync
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+
+@inject IHrmUserRoleRuleClientService RuleService
+@inject ISnackbar Snackbar
+
+<PageTitle>Rule Role HRM - FCC</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h5" Style="font-weight:700">Mapping Role HRM → F03User</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            Cấu hình quyền tự động theo Phòng ban + Chức vụ. Rule cụ thể được ưu tiên trước rule wildcard.
+        </MudText>
+    </div>
+    <MudSpacer />
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
+               OnClick="LoadAsync" Disabled="@_loading">Làm mới</MudButton>
+</MudStack>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1" Style="border-radius:12px">
+    <MudText Typo="Typo.h6" Class="mb-3">@(_editingId.HasValue ? "Sửa rule" : "Thêm rule")</MudText>
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="3">
+            <MudTextField @bind-Value="_form.DeptCode" Label="Mã phòng ban"
+                          Placeholder="Trống = tất cả" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="3">
+            <MudTextField @bind-Value="_form.PositionCode" Label="Mã chức vụ"
+                          Placeholder="Trống = tất cả" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudSelect T="int" @bind-Value="_form.PermissionCode" Label="Role" Variant="Variant.Outlined">
+                @foreach (var role in _roles)
+                {
+                    <MudSelectItem Value="@role.Code">@role.Code - @role.Name</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="2">
+            <MudNumericField T="int" @bind-Value="_form.Priority" Label="Priority"
+                             Variant="Variant.Outlined" Min="0" />
+        </MudItem>
+        <MudItem xs="12" md="2" Class="d-flex align-center">
+            <MudSwitch @bind-Value="_form.IsActive" Color="Color.Primary">Active</MudSwitch>
+        </MudItem>
+        <MudItem xs="12">
+            <MudTextField @bind-Value="_form.Note" Label="Ghi chú" Variant="Variant.Outlined" />
+        </MudItem>
+    </MudGrid>
+    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+        @if (_editingId.HasValue)
+        {
+            <MudButton Variant="Variant.Text" OnClick="ResetForm">Hủy sửa</MudButton>
+        }
+        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                   OnClick="SaveAsync" Disabled="@_loading">
+            @(_editingId.HasValue ? "Cập nhật" : "Thêm rule")
+        </MudButton>
+    </MudStack>
+</MudPaper>
+
+<MudTable Items="_rules" Dense="true" Hover="true" Striped="true" Loading="_loading">
+    <HeaderContent>
+        <MudTh>Priority</MudTh>
+        <MudTh>Phòng ban</MudTh>
+        <MudTh>Chức vụ</MudTh>
+        <MudTh>Role</MudTh>
+        <MudTh>Active</MudTh>
+        <MudTh>Ghi chú</MudTh>
+        <MudTh />
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd>@context.Priority</MudTd>
+        <MudTd>@context.DeptCode — @context.DeptName</MudTd>
+        <MudTd>@context.PositionCode — @context.PositionName</MudTd>
+        <MudTd><MudChip T="string" Size="Size.Small">@context.PermissionCode - @context.PermissionName</MudChip></MudTd>
+        <MudTd>@(context.IsActive ? "Có" : "Không")</MudTd>
+        <MudTd>@context.Note</MudTd>
+        <MudTd>
+            <MudStack Row="true" Spacing="1">
+                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
+                               OnClick="@(() => Edit(context))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                               OnClick="@(() => DeleteAsync(context))" />
+            </MudStack>
+        </MudTd>
+    </RowTemplate>
+</MudTable>
+
+@code {
+    private List<HrmUserRoleRuleDto> _rules = new();
+    private HrmUserRoleRuleRequest _form = NewForm();
+    private int? _editingId;
+    private bool _loading;
+
+    private readonly (int Code, string Name)[] _roles =
+    [
+        (1, "SuperAdmin"),
+        (2, "Admin"),
+        (3, "Editor"),
+        (4, "Approver"),
+        (5, "User"),
+        (6, "Guest")
+    ];
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = await RuleService.GetAllAsync();
+            if (result.IsSuccess)
+                _rules = result.Data ?? new();
+            else
+                Snackbar.Add(result.Message ?? "Không tải được role rules.", Severity.Error);
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task SaveAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = _editingId.HasValue
+                ? await RuleService.UpdateAsync(_editingId.Value, _form)
+                : await RuleService.CreateAsync(_form);
+
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể lưu rule.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(_editingId.HasValue ? "Đã cập nhật rule." : "Đã thêm rule.", Severity.Success);
+            ResetForm();
+            await LoadAsync();
+        }
+        finally { _loading = false; }
+    }
+
+    private void Edit(HrmUserRoleRuleDto rule)
+    {
+        _editingId = rule.Id;
+        _form = new HrmUserRoleRuleRequest
+        {
+            DeptCode = rule.DeptCode,
+            PositionCode = rule.PositionCode,
+            PermissionCode = rule.PermissionCode,
+            Priority = rule.Priority,
+            Note = rule.Note,
+            IsActive = rule.IsActive
+        };
+    }
+
+    private async Task DeleteAsync(HrmUserRoleRuleDto rule)
+    {
+        var result = await RuleService.DeleteAsync(rule.Id);
+        if (!result.IsSuccess)
+        {
+            Snackbar.Add(result.Message ?? "Không thể vô hiệu hóa rule.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Đã vô hiệu hóa rule.", Severity.Success);
+        await LoadAsync();
+    }
+
+    private void ResetForm()
+    {
+        _editingId = null;
+        _form = NewForm();
+    }
+
+    private static HrmUserRoleRuleRequest NewForm() => new()
+    {
+        PermissionCode = 5,
+        Priority = 100,
+        IsActive = true
+    };
+}
