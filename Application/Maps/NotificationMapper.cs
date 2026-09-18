@@ -1,6 +1,5 @@
-﻿using FVN_REGISTER.Contract.Dtos.Notifications;
+using FVN_REGISTER.Contract.Dtos.Notifications;
 using FVN_REGISTER.Core.Entities.Common;
-
 
 namespace FVN_REGISTER.Application.Maps
 {
@@ -9,8 +8,8 @@ namespace FVN_REGISTER.Application.Maps
         public static NotificationDto ToDto(F03AppNotification entity) => new()
         {
             Id = entity.Id,
-            Module = entity.RequestModule ?? string.Empty,
-            Action = entity.Action ?? string.Empty,
+            Module = entity.RequestModule.ToString(),
+            Action = entity.Action.ToString(),
             Title = entity.Title ?? string.Empty,
             Body = entity.Body ?? string.Empty,
             ApprovalLevel = entity.ApprovalLevel,
