@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Trips;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Trips;
+using FVN_REGISTER.Contract.Requests.Trips;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -34,6 +35,22 @@ public sealed class TripController : ControllerBase
     {
         if (!await CanAsync(SecurityFunctionCodes.TripCreate, ct)) return Forbid();
         return Ok(await _service.CreateDraftAsync(request, ct));
+    }
+
+    [HttpPut("{id:int}")]
+    public async Task<ActionResult<TripRequestDto>> Update(
+        int id, [FromBody] CreateTripRequestDto request, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.TripEdit, ct)) return Forbid();
+        return Ok(await _service.UpdateDraftAsync(id, request, ct));
+    }
+
+    [HttpPost("{id:int}/cancel")]
+    public async Task<IActionResult> Cancel(int id, [FromBody] CancelTripRequestDto request, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.TripEdit, ct)) return Forbid();
+        await _service.CancelAsync(id, request.Reason, ct);
+        return Ok();
     }
 
     [HttpPost("{id:int}/submit")]
