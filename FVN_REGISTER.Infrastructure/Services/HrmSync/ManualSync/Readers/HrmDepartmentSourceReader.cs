@@ -10,11 +10,6 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.Readers
     {
         public HrmDepartmentSourceReader(IConfiguration configuration) : base(configuration) { }
 
-        protected override string Sql => @"
-        SELECT
-            DeptCode = BP.BPMa,
-            DeptName = BP.BPTen
-        FROM [HRM].[dbo].[tblBoPhan] BP
-        WHERE ISNULL(BP.DLocked, 0) = 0";
+        protected override string Sql => @"EXEC dbo.usp_SyncHrmDepartmentSource;";
     }
 }
