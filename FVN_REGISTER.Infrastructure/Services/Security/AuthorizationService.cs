@@ -168,6 +168,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
     {
         if (userId == actorUserId)
             throw new InvalidOperationException("Không thể tự thay đổi role của chính mình.");
+        if (roleCodes == null || roleCodes.Count == 0)
+            throw new InvalidOperationException("Tài khoản phải có ít nhất một role.");
 
         var roles = await _uow.Repository<F03Role>().Query()
             .Where(x => x.IsActive && roleCodes.Contains(x.RoleCode))
