@@ -111,7 +111,7 @@ namespace FVN_REGISTER.Application.Orchestrators
                 if (!currentResult.IsSuccess || currentResult.Data == null)
                     return ServiceResult<OTRequestDto>.Fail("Không tìm thấy đơn tăng ca.");
 
-                var hasDecided = currentResult.Data.ApprovalSteps?.Any(s => s.Status != DecisionType.Pending) ?? false;
+                var hasDecided = currentResult.Data.ApprovalSteps?.Any(s => s.Decision != DecisionType.Pending) ?? false;
                 if (hasDecided && !user.Permission.IsAdmin())
                     return ServiceResult<OTRequestDto>.Fail("Đơn đã có cấp duyệt xử lý, không thể sửa.");
 
