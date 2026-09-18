@@ -262,11 +262,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 .Where(x => x.RequestType == ModuleKind && x.RequestId == requestId)
                 .ToListAsync(ct);
 
-            var calculated = ApprovalStepMapper.MapToCalculatedList(
+            var calculated = ApprovalStepMapper.MapToList(
                 snapshot.Steps.OrderBy(x => x.Level).ToList(), histories);
 
             var next = calculated
-                .Where(x => x.IsRequired && x.Status == DecisionType.Pending)
+                 .Where(x => x.IsRequired && x.Decision == DecisionType.Pending)
                 .OrderBy(x => x.Level)
                 .FirstOrDefault();
             if (next == null) return;
@@ -316,9 +316,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             List<F03ApprovalStepSnapshot> steps,
             List<F03ApprovalHistory> histories)
         {
-            var calculatedList = ApprovalStepMapper.MapToCalculatedList(steps, histories);
-            var currentCalculated = calculatedList.FirstOrDefault(x => x.IsCurrentStep);
-            if (currentCalculated == null || currentCalculated.Status != DecisionType.Pending)
+            var calculatedList = ApprovalStepMapper.MapToList(steps, histories);
+            var currentCalculated = calculatedList
+                .Where(x => x.IsRequired && x.Decision == DecisionType.Pending)
+                .OrderBy(x => x.Level)
+                .FirstOrDefault();
+            if (currentCalculated == null)
                 return null;
 
             var step = steps.First(s => s.Level == currentCalculated.Level);
@@ -361,7 +364,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                 .Where(x => x.RequestType == ModuleKind && x.RequestId == requestId)
                 .ToListAsync(ct);
 
-            var calculated = ApprovalStepMapper.MapToCalculatedList(
+            var calculated = ApprovalStepMapper.MapToList(
                 parent.Steps.OrderBy(x => x.Level).ToList(), histories);
 
             await Provider.ApplyOverallStatusAsync(requestId, calculated, ct);

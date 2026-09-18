@@ -1,7 +1,6 @@
 ﻿using FVN_REGISTER.Application.Interfaces.Reports;
 using FVN_REGISTER.Application.Maps;
 using FVN_REGISTER.Application.Services.Common;
-using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Reports;
@@ -14,7 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-namespace FVN_REGISTER.API.Services.Reports
+namespace FVN_REGISTER.Infrastructure.Services.Reports
 {
     /// <summary>
     /// Base chung cho mọi ReportService (OT, Leave, ...).
@@ -101,17 +100,17 @@ namespace FVN_REGISTER.API.Services.Reports
                 .Where(h => h.RequestType == requestType && ids.Contains(h.RequestId))
                 .ToListAsync(ct);
 
-            var result = new Dictionary<int, List<ApprovalStepCalculatdDto>>();
+            var result = new Dictionary<int, List<ApprovalStepDto>>();
             foreach (var snap in snapshots)
             {
                 var histForThis = histories.Where(h => h.RequestId == snap.RequestId).ToList();
-                result[snap.RequestId] = ApprovalStepMapper.MapToCalculatedList(snap.Steps, histForThis);
+                result[snap.RequestId] = ApprovalStepMapper.MapToList(snap.Steps, histForThis);
             }
             return result;
         }
 
         protected static string? GetApproverName(
-            Dictionary<int, List<ApprovalStepCalculatedDto>> stepsMap,
+            Dictionary<int, List<ApprovalStepDto>> stepsMap,
             int requestId,
             int level)
         {
