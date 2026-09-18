@@ -421,3 +421,7 @@ Bộ SQL chuẩn hiện được tổ chức thành 12 bước:
 12. `12_Verify.sql` — kiểm tra cuối deployment.
 
 `00_Deploy_All.sql` là runner SQLCMD cho toàn bộ 01→12. `99_Verify.sql` được giữ lại để tương thích với các lần triển khai cũ, nhưng `12_Verify.sql` mới là verification chuẩn.
+
+## 20. HRM Role Rule Administration
+
+Admin/Editor có thể quản lý mapping tại `/admin/hrm-role-rules`. API sử dụng `api/hrm-role-rules`. Khi rule thay đổi, các `F03User` do HRM tạo (`LastModifiedSource=HRM`) được reconcile ngay; tài khoản hệ thống/manual không bị tự ý đổi quyền.
