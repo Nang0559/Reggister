@@ -100,6 +100,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
             List<int> ids, int level, UserIdentityDto user, string? comment, bool isReject, CancellationToken ct)
         {
             if (ids == null || ids.Count == 0) return ServiceResult.Fail("Không có đơn nào được chọn.");
+            ids = ids.Distinct().ToList();
+            if (ids.Count == 0) return ServiceResult.Fail("Không có đơn nào được chọn.");
             try
             {
                 var action = new ApprovalActionDto
