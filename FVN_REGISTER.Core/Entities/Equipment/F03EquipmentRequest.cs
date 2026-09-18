@@ -24,5 +24,5 @@ public sealed class F03EquipmentRequest : BaseRequestEntity
     [StringLength(250)] public string? RepairVendor { get; set; }
     [Column(TypeName = "decimal(18,2)")] public decimal? RepairCost { get; set; }
     [StringLength(1000)] public string? RepairResult { get; set; }
-    public virtual F03EquipmentAsset? Asset { get; set; }
+    public F03EquipmentAsset? Asset { get; set; }
 }
