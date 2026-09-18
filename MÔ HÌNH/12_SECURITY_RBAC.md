@@ -88,3 +88,38 @@ Normalized RBAC adds:
 4. HRM synchronization must not overwrite FVN security data.
 5. Role/function changes are security-sensitive and must invalidate stale sessions where appropriate.
 6. Data scope is separate from action permission.
+
+## Phase 2 — Role → Function/Action Matrix
+
+Security Center now exposes the normalized RBAC matrix through:
+
+- `GET /api/security/roles`
+- `GET /api/security/functions`
+- `PUT /api/security/roles/{roleCode}/functions`
+- `PUT /api/security/users/{userId}/roles`
+- `GET /api/security/users/{userId}/permissions`
+
+The Security Center UI has two operational views:
+
+1. **Users & Effective Permission** — assign multiple roles to a user and inspect the effective capability set.
+2. **Role → Function / Action** — edit the role/function matrix directly. Changes are stored in `F03RoleFunctions` and therefore affect every user carrying that role.
+
+The server remains authoritative: the UI is only an administration surface. Role changes revoke the affected user's sessions.
+
+## Phase 2 — API capability enforcement
+
+The following API surfaces now resolve effective permissions from the database before invoking the business service:
+
+| API surface | View | Create | Edit | Cancel | Approve | Other |
+|---|---|---|---|---|---|---|
+| Leave | `Leave.View` | `Leave.Create` | — | `Leave.Cancel` | `Leave.Approve` | pending = Approve |
+| OT | `OT.View` | `OT.Create` | `OT.Edit` | `OT.Cancel` | `OT.Approve` | reconciliation/export reserved |
+| Trip | `Trip.View` | `Trip.Create` | `Trip.Edit` | — | reserved | — |
+| Equipment | `Equipment.View` | `Equipment.Create` | `Equipment.Edit` | — | reserved | `Equipment.Repair` |
+| HRM Sync | `HrmSync.ViewStatus` | — | — | — | — | run = `HrmSync.Sync`, review = `HrmSync.Review` |
+
+`[Authorize]` remains the authentication boundary. Capability checks are the application authorization boundary. A valid JWT alone does not grant module access.
+
+### Important
+
+`ScopeCode` is still metadata for the next authorization phase. For example, `Leave.View=Own` and `Leave.Approve=Department` describe intended data scope, but query-level scope filtering must be implemented separately and must not be inferred from the action permission alone.
