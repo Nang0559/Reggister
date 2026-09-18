@@ -3,6 +3,7 @@ using FVN_REGISTER.Contract.Dtos.HrmSync;
 using FVN_REGISTER.Contract.Requests.HrmSync;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Entities.Security;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -65,6 +66,7 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
 
         await _uow.Repository<F03HrmUserRoleRule>().AddAsync(entity, ct);
         await _uow.SaveChangesAsync(ct);
+        await ReconcileUsersAsync(actorUserId, ct);
         return ServiceResult<HrmUserRoleRuleDto>.Ok(await MapAsync(entity, ct));
     }
 
@@ -87,6 +89,7 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
         entity.LastModifiedSource = "Manual";
 
         await _uow.SaveChangesAsync(ct);
+        await ReconcileUsersAsync(actorUserId, ct);
         return ServiceResult<HrmUserRoleRuleDto>.Ok(await MapAsync(entity, ct));
     }
 
@@ -100,7 +103,46 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
         entity.ModifiedAt = DateTime.Now;
         entity.LastModifiedSource = "Manual";
         await _uow.SaveChangesAsync(ct);
+        await ReconcileUsersAsync(actorUserId, ct);
         return ServiceResult<object>.Ok(new { id, deactivated = true });
+    }
+
+    private async Task ReconcileUsersAsync(int actorUserId, CancellationToken ct)
+    {
+        var rules = await _uow.Repository<F03HrmUserRoleRule>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive)
+            .OrderBy(x => x.Priority)
+            .ThenBy(x => x.Id)
+            .ToListAsync(ct);
+
+        var users = await _uow.Repository<F03User>().Query()
+            .Where(x => x.IsActive)
+            .ToListAsync(ct);
+
+        foreach (var user in users)
+        {
+            var rule = rules
+                .Where(x => (x.DeptCode == null || x.DeptCode == user.DeptCode) &&
+                            (x.PositionCode == null || x.PositionCode == user.Cvcode))
+                .OrderBy(x => x.DeptCode == user.DeptCode && x.PositionCode == user.Cvcode ? 0 :
+                               x.DeptCode == user.DeptCode && x.PositionCode == null ? 1 :
+                               x.DeptCode == null && x.PositionCode == user.Cvcode ? 2 : 3)
+                .ThenBy(x => x.Priority)
+                .ThenBy(x => x.Id)
+                .FirstOrDefault();
+
+            var permission = rule?.PermissionCode ?? UserPermissionCodes.User;
+            if (user.PermissionCode != permission)
+            {
+                user.PermissionCode = permission;
+                user.ModifiedBy = actorUserId;
+                user.ModifiedAt = DateTime.Now;
+                user.LastModifiedSource = "Manual";
+            }
+        }
+
+        await _uow.SaveChangesAsync(ct);
     }
 
     private async Task<string?> ValidateAsync(HrmUserRoleRuleRequest request, int? excludeId, CancellationToken ct)
