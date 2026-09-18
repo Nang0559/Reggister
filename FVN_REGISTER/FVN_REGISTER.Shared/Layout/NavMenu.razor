@@ -73,6 +73,10 @@
     {
         <MudNavGroup Title="Hệ thống" Icon="@Icons.Material.Filled.Settings" Expanded="false">
             <MudNavLink href="/admin/managers" Icon="@Icons.Material.Filled.AdminPanelSettings">Quản trị viên</MudNavLink>
+            @if (Can(SecurityFunctionCodes.SecurityView))
+            {
+                <MudNavLink href="/admin/security" Icon="@Icons.Material.Filled.Security">Security Center</MudNavLink>
+            }
             <MudNavLink href="/admin/email-templates" Icon="@Icons.Material.Filled.Email">Email mẫu</MudNavLink>
             <MudNavLink href="/admin/email-queue" Icon="@Icons.Material.Filled.MarkEmailRead">Email chờ gửi</MudNavLink>
         </MudNavGroup>
