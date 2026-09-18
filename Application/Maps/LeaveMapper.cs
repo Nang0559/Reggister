@@ -34,7 +34,7 @@ namespace FVN_REGISTER.Application.Maps
                 WorkYear = l.WorkYear,
                 RegisterDate = l.CreatedAt,                      // ⚠️ TODO: F03LeaveDay không thấy field RegisterDate rõ ràng,
                                                                  // tạm dùng CreatedAt — xác nhận lại nếu có field khác đúng hơn
-                ApprovalSteps = new List<ApprovalStepCalculatedDto>(),
+                ApprovalSteps = new List<ApprovalStepDto>(),
                 Attachments = AttachmentMapper.ToDtoList(attachments),
                 Details = new List<LeaveRequestDetailDto>()      // gắn sau qua AttachDetails
             };
