@@ -1,35 +1,29 @@
-﻿using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Core.Enums;
-using FVN_REGISTER.Core.Extensions;
 
+namespace FVN_REGISTER.Contract.Dtos.Approvals;
 
-
-namespace FVN_REGISTER.Contract.Dtos.Approvals
+public sealed class PendingApprovalItemDto
 {
-    public sealed class PendingApprovalItemDto
-    {
-        public int RequestId { get; set; }
+    public int RequestId { get; set; }
 
-        public RequestModule Kind { get; set; }
+    public RequestModule Kind { get; set; }
 
-        public string EmployeeCode { get; set; } = string.Empty;
-        public string EmployeeName { get; set; } = string.Empty;
+    public string EmployeeCode { get; set; } = string.Empty;
+    public string EmployeeName { get; set; } = string.Empty;
 
-        public string DeptCode { get; set; } = string.Empty;
-        public string DeptName { get; set; } = string.Empty;
+    public string DeptCode { get; set; } = string.Empty;
+    public string DeptName { get; set; } = string.Empty;
 
-        public DateTime? FromDate { get; set; }
-        public DateTime? ToDate { get; set; }
+    public DateTime? FromDate { get; set; }
+    public DateTime? ToDate { get; set; }
 
-        public decimal TotalUnits { get; set; }
+    public decimal TotalUnits { get; set; }
 
-        public DateTime? SubmittedAt { get; set; }
+    public DateTime? SubmittedAt { get; set; }
 
-        public int? TimeoutDays { get; set; }
+    public int? TimeoutDays { get; set; }
 
-        public List<ApprovalStepDto> ApprovalSteps { get; set; } = new();
+    public List<ApprovalStepDto> ApprovalSteps { get; set; } = new();
 
-        public bool CanApprove { get; set; }
-    }
-
+    public bool CanApprove { get; set; }
 }
