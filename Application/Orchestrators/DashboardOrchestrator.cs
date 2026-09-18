@@ -1,6 +1,7 @@
 ﻿using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Statics;
+using FVN_REGISTER.Application.Interfaces.Dashboards;
 using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Approvals;
