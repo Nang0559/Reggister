@@ -4,10 +4,7 @@ using FVN_REGISTER.Application.Interfaces.Emails;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Contract.Dtos.Approvals;
-using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
-using FVN_REGISTER.Core.Entities.HR;
-using FVN_REGISTER.Core.Entities.OT;
-using FVN_REGISTER.Core.Enums;
+
 using FVN_REGISTER.Core.Extensions;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Infrastructure.Services.Common;
@@ -79,7 +76,7 @@ public class OTApprovalProvider
     }
 
     public override async Task ApplyOverallStatusAsync(
-        int requestId, IReadOnlyList<ApprovalStepCalculatedDto> allSteps, CancellationToken ct)
+        int requestId, IReadOnlyList<ApprovalStepDto> allSteps, CancellationToken ct)
     {
         var entity = await _uow.Repository<F03OTRequest>().Query()
             .FirstOrDefaultAsync(x => x.Id == requestId, ct);
@@ -90,7 +87,7 @@ public class OTApprovalProvider
         await _uow.SaveChangesAsync(ct);
     }
 
-    private static ApprovalStatus ComputeOverallStatus(IReadOnlyList<ApprovalStepCalculatedDto> allSteps)
+    private static ApprovalStatus ComputeOverallStatus(IReadOnlyList<ApprovalStepDto> allSteps)
     {
         var required = allSteps.Where(s => s.IsRequired).OrderBy(s => s.Level).ToList();
         if (required.Any(s => s.Status == DecisionType.Rejected)) return ApprovalStatus.Rejected;
@@ -102,7 +99,7 @@ public class OTApprovalProvider
 
     public override async Task NotifyStepCompletedAsync(
         OTRequestSubject subject,
-        ApprovalStepCalculatedDto completedStep,
+        ApprovalStepDto completedStep,
         bool isFullyApproved,
         CancellationToken ct)
     {
@@ -145,7 +142,7 @@ public class OTApprovalProvider
 
     public override async Task<PendingApprovalItemDto> ToPendingItemAsync(
         OTRequestSubject subject,
-        List<ApprovalStepCalculatedDto> steps,
+        List<ApprovalStepDto> steps,
         bool canApprove,
         CancellationToken ct)
     {
