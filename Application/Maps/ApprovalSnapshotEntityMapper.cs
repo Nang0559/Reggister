@@ -17,15 +17,15 @@ namespace FVN_REGISTER.Application.Maps
             return new F03ApprovalSnapshot
             {
                 RequestId = requestId,
-                RequestType = dto.ModuleName,
+                RequestType = dto.ModuleName ?? string.Empty,
                 Steps = dto.Steps
                     .OrderBy(s => s.Level)
                     .Select(s => new F03ApprovalStepSnapshot
                     {
                         Level = s.Level,
-                        RoleName = s.RoleName,
-                        ApproverCode = s.ApproverCode,
-                        ApproverName = s.ApproverName,
+                        RoleName = s.RoleName ?? string.Empty,
+                        ApproverCode = s.ApproverCode ?? string.Empty,
+                        ApproverName = s.ApproverName ?? string.Empty,
                         ApproverEmail = s.ApproverEmail,   // cần thêm field này vào entity
                         IsRequired = s.IsRequired
                     })
