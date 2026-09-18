@@ -31,8 +31,12 @@ namespace FVN_REGISTER.Shared.Utils.Helpers
                         var value = kvp.Value?.ToString() ?? "";
                         switch (kvp.Key)
                         {
+                            case "name":
                             case "unique_name":
                                 claims.Add(new Claim(ClaimTypes.Name, value.Trim()));
+                                break;
+                            case "sub":
+                                claims.Add(new Claim(ClaimTypes.NameIdentifier, value.Trim()));
                                 break;
                             case "role":
                                 if (kvp.Value is JsonElement element && element.ValueKind == JsonValueKind.Array)
