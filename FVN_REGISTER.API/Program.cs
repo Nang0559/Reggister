@@ -22,7 +22,6 @@ using FVN_REGISTER.Application.Interfaces.Jobs;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Dtos.OT;
-using FVN_REGISTER.Core.Config;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Infrastructure.Hubs;
 using FVN_REGISTER.Infrastructure.Repositories;
