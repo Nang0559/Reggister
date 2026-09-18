@@ -3,11 +3,14 @@
 @using FVN_REGISTER.Contract.Dtos.Reports
 @using FVN_REGISTER.Core.Constants
 @using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Shared.Pages.Reports
 @using FVN_REGISTER.Shared.Services.Leaves
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components
 @inject IReportClientService ReportService
+@inject ISecurityClientService Security
 @inject ISnackbar Snackbar
 @inherits AppComponentBase
 
@@ -65,7 +68,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var r=await AppSecurityClient.GetMyPermissionsAsync();
+        var r=await Security.GetMyPermissionsAsync();
         if(r.IsSuccess) _permission=r.Data;
         var d=await ReportService.GetLookupDepartmentsAsync();
         if(d.IsSuccess) _departments=d.Data;
