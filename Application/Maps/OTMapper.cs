@@ -62,7 +62,7 @@ namespace FVN_REGISTER.Application.Maps
                 OTDate = v.OTDate,
                 OTTypeCode = v.OTTypeCode,
                 OtPurpose = v.OTReasonSummary ?? string.Empty,
-                ApprovalSteps = new List<ApprovalStepCalculatedDto>(),
+                ApprovalSteps = new List<ApprovalStepDto>(),
                 Attachments = new List<AttachmentDto>(),
                 Details = new List<OTEmployeeDto>()
             };

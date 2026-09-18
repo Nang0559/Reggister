@@ -113,7 +113,7 @@ namespace FVN_REGISTER.Application.Orchestrators
             => _engine.GetPendingForApproverAsync(approverEmail, ct);
 
         // ================= STEPS =================
-        public Task<List<ApprovalStepCalculatedDto>> GetStepsAsync(int requestId, CancellationToken ct)
+        public Task<List<ApprovalStepDto>> GetStepsAsync(int requestId, CancellationToken ct)
             => _engine.GetStepsAsync(requestId, ct);
 
         // ================= CORE =================

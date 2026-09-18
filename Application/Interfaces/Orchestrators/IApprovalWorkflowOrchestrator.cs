@@ -1,7 +1,6 @@
 ﻿
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Contract.Dtos.Approvals;
-using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Contract.Responses;
 
 
@@ -21,6 +20,6 @@ namespace FVN_REGISTER.Application.Interfaces.Orchestrators
 
         Task<List<PendingApprovalItemDto>> GetPendingForApproverAsync(string approverEmail, CancellationToken ct);
 
-        Task<List<ApprovalStepCalculatedDto>> GetStepsAsync(int requestId, CancellationToken ct);
+        Task<List<ApprovalStepDto>> GetStepsAsync(int requestId, CancellationToken ct);
     }
 }
