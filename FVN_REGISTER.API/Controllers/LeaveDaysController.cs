@@ -144,8 +144,13 @@ namespace FVN_REGISTER.API.Controllers
         }
 
         [HttpGet("details/{id:int}")]
+        [HttpGet("details/{id:int}")]
         public async Task<IActionResult> GetDetails(int id, CancellationToken ct)
-            => HandleResult(await _queryService.GetFullDetailsAsync(id, ct));
+        {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid();
+            return HandleResult(await _queryService.GetFullDetailsAsync(id, ct));
+        }
 
         [HttpGet("history")]
         public async Task<IActionResult> GetHistory([FromQuery] int? year, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
