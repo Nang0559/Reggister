@@ -36,6 +36,9 @@ public sealed class TripService : ITripService
             ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
         ValidatePeriod(request.StartDate, request.EndDate);
 
+        if (!await _authorization.CanAccessAsync(user, SecurityFunctionCodes.TripCreate, user.EmployeeCode, user.DeptCode, ct))
+            throw new UnauthorizedAccessException("Bạn không có quyền tạo đăng ký công tác theo phạm vi dữ liệu được cấp.");
+
         var employeeCode = user.EmployeeCode
             ?? throw new InvalidOperationException("Tài khoản chưa có EmployeeCode.");
 
@@ -72,8 +75,8 @@ public sealed class TripService : ITripService
             .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct)
             ?? throw new KeyNotFoundException("Không tìm thấy đăng ký công tác.");
 
-        if (!string.Equals(entity.EmployeeCode, user.EmployeeCode, StringComparison.OrdinalIgnoreCase) && !user.IsAdmin)
-            throw new UnauthorizedAccessException("Bạn không có quyền gửi đăng ký này.");
+        if (!await _authorization.CanAccessAsync(user, SecurityFunctionCodes.TripEdit, entity.EmployeeCode, entity.DeptCode, ct))
+            throw new UnauthorizedAccessException("Bạn không có quyền gửi đăng ký này theo phạm vi dữ liệu được cấp.");
 
         if (entity.RequestStatus != ApprovalStatus.Draft && entity.RequestStatus != ApprovalStatus.NeedsRevision)
             throw new InvalidOperationException("Chỉ đăng ký Nháp/NeedsRevision mới được gửi duyệt.");
