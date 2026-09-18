@@ -67,7 +67,7 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
 
     public abstract Task<TSubject?> GetSubjectAsync(int requestId, CancellationToken ct);
     public abstract Task<List<TSubject>> GetSubjectsAsync(List<int> requestIds, CancellationToken ct);
-    public abstract Task ApplyOverallStatusAsync(int requestId, IReadOnlyList<ApprovalStepCalculatedDto> allSteps, CancellationToken ct);
-    public abstract Task NotifyStepCompletedAsync(TSubject subject, ApprovalStepCalculatedDto completedStep, bool isFullyApproved, CancellationToken ct);
-    public abstract Task<PendingApprovalItemDto> ToPendingItemAsync(TSubject subject, List<ApprovalStepCalculatedDto> steps, bool canApprove, CancellationToken ct);
+    public abstract Task ApplyOverallStatusAsync(int requestId, IReadOnlyList<ApprovalStepDto> allSteps, CancellationToken ct);
+    public abstract Task NotifyStepCompletedAsync(TSubject subject, ApprovalStepDto completedStep, bool isFullyApproved, CancellationToken ct);
+    public abstract Task<PendingApprovalItemDto> ToPendingItemAsync(TSubject subject, List<ApprovalStepDto> steps, bool canApprove, CancellationToken ct);
 }
