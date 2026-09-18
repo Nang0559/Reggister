@@ -2,6 +2,7 @@
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Statics;
 using FVN_REGISTER.Application.Interfaces.Dashboards;
+using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Approvals;
@@ -24,16 +25,19 @@ namespace FVN_REGISTER.Application.Orchestrators
     {
         private readonly IEnumerable<IModuleDashboardProvider> _providers;
         private readonly IApprovalInboxService _approvalInbox;
+        private readonly IAuthorizationService _authorization;
         private readonly ILogger<DashboardOrchestrator> _logger;
 
         public DashboardOrchestrator(
             IEnumerable<IModuleDashboardProvider> providers,
             IApprovalInboxService approvalInbox,
-            ILogger<DashboardOrchestrator> logger)
+            ILogger<DashboardOrchestrator> logger,
+            IAuthorizationService authorization)
         {
             _providers = providers;
             _approvalInbox = approvalInbox;
             _logger = logger;
+            _authorization = authorization;
         }
 
         public async Task<ServiceResult<DashboardResponse>> BuildAsync(
@@ -47,8 +51,11 @@ namespace FVN_REGISTER.Application.Orchestrators
             {
                 var response = new DashboardResponse
                 {
-                    ShowManagerView = user.Permission.IsApprover()
+                    ShowManagerView = await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveApprove, ct)
                 };
+
+                if (!await _authorization.HasAsync(user, SecurityFunctionCodes.DashboardView, ct))
+                    return ServiceResult<DashboardResponse>.Fail("Tài khoản chưa được cấp quyền xem Dashboard.");
 
                 var rawWidgets = new List<WidgetCounterDto>();
 
@@ -57,6 +64,9 @@ namespace FVN_REGISTER.Application.Orchestrators
                 // sequentially within this scope.
                 foreach (var provider in _providers)
                 {
+                    if (!await _authorization.HasAsync(user, provider.RequiredFunctionCode, ct))
+                        continue;
+
                     var contribution = await provider.GetContributionAsync(user, ct);
                     rawWidgets.AddRange(contribution.Widgets);
 
