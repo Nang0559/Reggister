@@ -178,7 +178,10 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                         user.DeptCode = employee.DeptCode;
                         user.Cvcode = employee.PositionCode;
                         user.LevelApprove = employee.LevelApprove ?? 0;
-                        user.PermissionCode = permissionCode;
+                        // SECURITY BOUNDARY:
+                        // Existing FVN users keep their role/permissions. HRM only owns
+                        // employee identity/master fields. The HRM role rule is used only
+                        // when provisioning a brand-new F03User.
                         user.IsActive = employee.IsActive;
                         user.LastModifiedSource = SyncSourceTags.Hrm;
 
