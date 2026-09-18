@@ -68,13 +68,5 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         public Task<ServiceResult<List<OTTypeDto>>> GetFilteredAsync(bool? isActive, CancellationToken ct = default)
             => GetFilteredCoreAsync(isActive, extraFilter: null, ct);
 
-        public Task<ServiceResult<OTTypeDto>> GetByIdAsync(int id, CancellationToken ct = default)
-            => base.GetByIdAsync(id, ct);
-
-        public Task<ServiceResult> DeleteAsync(int id, CancellationToken ct = default)
-            => base.DeleteAsync(id, ct);
-
-        public Task<ServiceResult> ToggleActiveAsync(int id, int currentUserId, CancellationToken ct = default)
-            => base.ToggleActiveAsync(id, currentUserId, ct);
     }
 }
