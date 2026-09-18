@@ -33,7 +33,7 @@ WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Positions x WHERE x.PositionCode=v.Positio
 
 INSERT dbo.F03Genders(IsActive,CreatedBy,GenderCode,GenderName)
 SELECT 1,0,v.GenderCode,v.GenderName FROM (VALUES
-(N'M',N'Male'),(N'F',N'Female'),(N'O',N'Other'),(N'U',N'Unknown'),(N'N',N'Not specified)
+(N'M',N'Male'),(N'F',N'Female'),(N'O',N'Other'),(N'U',N'Unknown'),(N'N',N'Not specified')
 ) AS v(GenderCode,GenderName)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Genders x WHERE x.GenderCode=v.GenderCode);
 
