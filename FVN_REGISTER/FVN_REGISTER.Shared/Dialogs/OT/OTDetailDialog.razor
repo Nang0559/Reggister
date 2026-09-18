@@ -26,7 +26,7 @@
                     <MudItem xs="12"><MudText Typo="Typo.subtitle2">Luồng phê duyệt</MudText><MudDivider Class="mb-2" />
                         @foreach(var step in _detail.ApprovalSteps.OrderBy(x => x.Level))
                         {
-                            <MudStack Row="true" Spacing="2" Class="mb-2"><MudIcon Icon="@(step.IsRequired ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)" Color="@(step.IsRequired ? Color.Primary : Color.Default)" /><MudText Typo="Typo.body2">Cấp @step.Level — @step.RoleName — @(step.ApproverName ?? "Chưa phân công") — @step.Status</MudText></MudStack>
+                            <MudStack Row="true" Spacing="2" Class="mb-2"><MudIcon Icon="@(step.IsRequired ? Icons.Material.Filled.RadioButtonChecked : Icons.Material.Filled.RadioButtonUnchecked)" Color="@(step.IsRequired ? Color.Primary : Color.Default)" /><MudText Typo="Typo.body2">Cấp @step.Level — @step.RoleName — @(step.ApproverName ?? "Chưa phân công") — @step.StatusText</MudText></MudStack>
                         }
                     </MudItem>
                 }
