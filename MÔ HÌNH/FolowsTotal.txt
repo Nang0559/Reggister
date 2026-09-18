@@ -341,3 +341,6 @@ DashboardOverview.razor / UserDashboard.razor
   [D5] ContributionDto (ModuleDashboardContribution) ép kiểu Detail —
        đã chốt hướng "is" pattern, nhưng chưa viết code cụ thể trong
        DashboardOrchestrator
+
+--- HRM SHIFT MASTER (2026-09-18) ---
+HRM remains READ ONLY for shift configuration. FVN_REGISTER synchronizes HRM.tblca -> F03Shifts, HRM.CC_LichTrinhCa -> F03ShiftSchedules/F03ShiftScheduleDays, and employee schedule/search mode -> F03EmployeeShiftSchedules. HRM.tblBaoCao is stored only as F03HrmShiftReference for comparison/audit; FVN_REGISTER does not write back to HRM.tblBaoCao. Attendance resolution is performed by dbo.usp_SyncAttendanceStaging using the local F03 shift master and HRM attendance swipes. The resolver supports overnight shifts, scan-before/after windows, TTDD/TTXK search modes, and approved OT start as a separate OT input.
