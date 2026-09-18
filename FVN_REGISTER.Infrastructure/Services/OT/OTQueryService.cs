@@ -402,7 +402,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             var empCodes = employees.Select(e => e.EmployeeCode).ToList();
             var otRecords = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
-                .Where(x => empCodes.Contains(x.EmployeeCode)
+                .Where(x => empCodes.Contains(x.EmployeeCode?? string.Empty)
                     && x.IsActive == true
                     && x.RequestStatus == ApprovalStatus.Approved
                     && x.OTDate.Year == year)
@@ -413,7 +413,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             var rules = await Uow.Repository<F03OTLimitRule>().Query()
                 .AsNoTracking()
                 .Where(r => r.IsActive == true
-                    && (positionCodes.Contains(r.PositionCode) || r.DeptCode == deptCode
+                    && (positionCodes.Contains(r.PositionCode??string.Empty) || r.DeptCode == deptCode
                         || (r.PositionCode == null && r.DeptCode == null)))
                 .ToListAsync(ct);
 

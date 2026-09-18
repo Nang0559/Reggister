@@ -170,7 +170,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Departments
                  .Select(l => l.EmployeeCode).ToListAsync(ct)).ToHashSet();
 
             var deptMap = (await _uow.Repository<F03Department>().Query()
-                .AsNoTracking().Where(d => d.IsActive)
+                .AsNoTracking().Where(d => d.IsActive == true)
                 .Select(d => new { d.DeptCode, d.DeptName }).ToListAsync(ct))
                 .ToDictionary(d => d.DeptCode, d => d.DeptName);
 

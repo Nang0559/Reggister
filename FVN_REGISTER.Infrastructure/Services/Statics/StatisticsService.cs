@@ -87,7 +87,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Statics
 
             summary.EmployeeLeaves = await LoadEmployeeLeavesForDeptAsync(deptCode, ct);
             summary.Departments = await _uow.Repository<F03Department>().Query()
-                .Where(d => d.IsActive)
+                .Where(d => d.IsActive == true)
                 .Select(d => new DepartmentDto
                 {
                     Id = d.Id,
