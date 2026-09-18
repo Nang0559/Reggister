@@ -3,6 +3,7 @@ using FVN_REGISTER.Contract.Dtos.HrmSync;
 using FVN_REGISTER.Contract.Requests.HrmSync;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Entities.Security;
+using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
 
