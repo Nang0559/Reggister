@@ -1,16 +1,20 @@
 USE [FVN_REGISTER];
 GO
-IF OBJECT_ID(N'audit.ChangeLog','U') IS NULL
-CREATE TABLE audit.ChangeLog(
-    Id bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_ChangeLog PRIMARY KEY,
-    EntityName nvarchar(200) NOT NULL,
-    EntityId nvarchar(100) NOT NULL,
-    Action nvarchar(50) NOT NULL,
-    ChangedBy nvarchar(100) NULL,
-    ChangedAt datetime2(0) NOT NULL CONSTRAINT DF_ChangeLog_ChangedAt DEFAULT(SYSDATETIME()),
-    DataJson nvarchar(max) NULL,
-    CONSTRAINT CK_ChangeLog_Json CHECK(DataJson IS NULL OR ISJSON(DataJson)=1)
-);
-CREATE INDEX IX_ChangeLog_Entity ON audit.ChangeLog(EntityName,EntityId,ChangedAt DESC);
-CREATE INDEX IX_ChangeLog_ChangedAt ON audit.ChangeLog(ChangedAt DESC);
+CREATE OR ALTER PROCEDURE dbo.usp_WriteAuditLog
+ @UserId int=NULL,@UserName nvarchar(100)=NULL,@Action nvarchar(100),@Description nvarchar(2000)=NULL,@IpAddress nvarchar(50)=NULL,@UserAgent nvarchar(255)=NULL
+AS
+BEGIN
+ SET NOCOUNT ON;
+ INSERT dbo.F03AuditLogs(UserId,UserName,Action,Description,IpAddress,UserAgent,CreatedBy)
+ VALUES(@UserId,@UserName,@Action,@Description,@IpAddress,@UserAgent,COALESCE(@UserId,0));
+END;
+GO
+CREATE OR ALTER PROCEDURE dbo.usp_WriteUserLog
+ @UserId int,@LastSeen nvarchar(255),@LastSeenUrl nvarchar(500),@ApplicationName nvarchar(100),@ApplicationVersion nvarchar(20),@WorkstationName nvarchar(100),@WorkstationUser nvarchar(100)
+AS
+BEGIN
+ SET NOCOUNT ON;
+ INSERT dbo.F03UserLogs(UserId,LastSeen,LastSeenUrl,ApplicationName,ApplicationVersion,WorkstationName,WorkstationUser)
+ VALUES(@UserId,@LastSeen,@LastSeenUrl,@ApplicationName,@ApplicationVersion,@WorkstationName,@WorkstationUser);
+END;
 GO
