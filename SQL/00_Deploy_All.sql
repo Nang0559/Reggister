@@ -1,39 +1,44 @@
 /*
 ===============================================================================
-FVN_REGISTER - MASTER SQL DEPLOYMENT
+FVN_REGISTER - MASTER SQL DEPLOYMENT 01..12
 ===============================================================================
-Run in SSMS with "SQLCMD Mode" enabled.
+Run in SSMS with SQLCMD Mode enabled.
 
-Actual SQL directory in the repository currently contains:
-  01_Database.sql
-  03_Tables.sql
-  05_Indexes.sql
-  06_Seed.sql
-  07_Views.sql
-  08_Functions.sql
-  09_StoredProcedures.sql
-  99_Verify.sql
+Order:
+  01 Database
+  02 Preflight
+  03 Tables / schema
+  04 Constraints / business keys
+  05 Performance indexes
+  06 Seed / TEST data
+  07 Views
+  08 Functions
+  09 Stored procedures
+  10 Trigger policy (intentionally no HRM cross-db trigger)
+  11 Automation contract (application worker)
+  12 Final verification
 
-There are currently no separate 02/04/10/11/12 SQL files in the repository.
-This runner therefore executes every existing numbered deployment file in the
-correct dependency order.
-
-WARNING:
-  06_Seed.sql inserts TEST/DEMO data and resets the password hash of E0001..E0005.
-  Do not run 06_Seed.sql in production unless that is explicitly intended.
+IMPORTANT:
+  06_Seed.sql is TEST/DEMO data. Do NOT run it on production unless intended.
+  Automatic HRM synchronization is performed by HrmSyncBackgroundWorker in the
+  application, not by a cross-database trigger or SQL Agent job.
 ===============================================================================
 */
 
 :r 01_Database.sql
+:r 02_Preflight.sql
 :r 03_Tables.sql
+:r 04_Constraints.sql
 :r 05_Indexes.sql
 :r 06_Seed.sql
 :r 07_Views.sql
 :r 08_Functions.sql
 :r 09_StoredProcedures.sql
-:r 99_Verify.sql
+:r 10_Triggers.sql
+:r 11_Automation.sql
+:r 12_Verify.sql
 
 PRINT N'============================================================';
-PRINT N'FVN_REGISTER SQL deployment completed.';
+PRINT N'FVN_REGISTER SQL deployment 01..12 completed.';
 PRINT N'============================================================';
 GO
