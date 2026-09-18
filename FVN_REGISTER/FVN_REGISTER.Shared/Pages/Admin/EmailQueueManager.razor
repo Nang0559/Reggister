@@ -1,6 +1,7 @@
 @page "/admin/email-queue"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.EmailTemplates
+@using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.Emails
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
@@ -20,7 +21,7 @@
 <MudPaper Class="pa-3 mb-3">
     <MudStack Row="true" Spacing="2" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap">
         <MudSelect T="string" @bind-Value="_status" Label="Trạng thái" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
-            <MudSelectItem Value="Pending">Chờ gửi</MudSelectItem><MudSelectItem Value="Retry">Retry</MudSelectItem><MudSelectItem Value="Failed">Thất bại</MudSelectItem><MudSelectItem Value="Sent">Đã gửi</MudSelectItem><MudSelectItem Value="Cancelled">Đã hủy</MudSelectItem>
+            <MudSelectItem Value="@("Pending")">Chờ gửi</MudSelectItem><MudSelectItem Value="@("Retry")">Retry</MudSelectItem><MudSelectItem Value="@("Failed")">Thất bại</MudSelectItem><MudSelectItem Value="@("Sent")">Đã gửi</MudSelectItem><MudSelectItem Value="@("Cancelled")">Đã hủy</MudSelectItem>
         </MudSelect>
         <MudTextField @bind-Value="_search" Placeholder="Tìm email/template..." Variant="Variant.Outlined" Margin="Margin.Dense" Immediate="true" />
         @if (_selected.Any()) { <MudButton Color="Color.Success" OnClick="RetrySelected">Retry (@_selected.Count)</MudButton><MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="CancelSelected">Hủy (@_selected.Count)</MudButton> }
@@ -44,7 +45,7 @@
 
 @if (_view != null)
 {
-    <MudDialog @bind-Visible="_showDialog" Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })">
+    <MudDialog Options="@(new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true })">
         <TitleContent><MudText>Chi tiết Email #@_view.Id — @_view.TemplateCode</MudText></TitleContent>
         <DialogContent><MudText>Người nhận: @_view.ToEmail</MudText><MudText>Trạng thái: @StatusText(_view.Status)</MudText><MudText Typo="Typo.caption" Class="mt-3">@_view.ErrorMessage</MudText><MudPaper Class="pa-3 mt-2" Elevation="0"><pre style="white-space:pre-wrap">@_view.Payload</pre></MudPaper></DialogContent>
         <DialogActions><MudButton OnClick="CloseDialog">Đóng</MudButton></DialogActions>
