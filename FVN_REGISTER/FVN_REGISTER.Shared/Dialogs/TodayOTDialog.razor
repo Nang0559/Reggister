@@ -11,7 +11,7 @@
             {
                 <MudCard Elevation="1" Class="mb-2">
                     <MudCardContent>
-                        <MudGrid AlignItems="AlignItems.Center">
+                        <MudGrid>
                             <MudItem xs="12" sm="6">
                                 <MudText Typo="Typo.body2"><strong>@ot.RequestCode</strong> — @(ot.EmployeeName ?? "—")</MudText>
                                 <MudText Typo="Typo.caption" Color="Color.Secondary">@ot.TotalHours.ToString("N1")h · @ot.EmployeeCount người</MudText>
