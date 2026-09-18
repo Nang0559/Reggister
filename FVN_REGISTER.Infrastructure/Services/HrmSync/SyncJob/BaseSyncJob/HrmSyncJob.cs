@@ -113,9 +113,18 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
                     switch (staging.Action)
                     {
                         case HrmChangeAction.Delete:
-                            if (entity != null &&
-                                string.Equals(EF.Property<string>(entity, "LastModifiedSource"), SyncSourceTags.Hrm, StringComparison.OrdinalIgnoreCase) &&
-                                ApplyDelete(entity))
+                            if (entity == null)
+                                break;
+
+                            var source = EF.Property<string>(entity, "LastModifiedSource");
+                            if (!string.Equals(source, SyncSourceTags.Hrm, StringComparison.OrdinalIgnoreCase))
+                            {
+                                staging.ErrorMessage = "Delete skipped: target record is not owned by HRM sync.";
+                                result.Errors.Add($"{staging.EntityKey}: Delete skipped vì LastModifiedSource != HRM.");
+                                break;
+                            }
+
+                            if (ApplyDelete(entity))
                             {
                                 result.Deactivated++;
                                 batchContext.Deleted.Add(entity);
