@@ -42,3 +42,13 @@ IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_F03AttendanceStaging_Work
     CREATE INDEX IX_F03AttendanceStaging_WorkDate_EmployeeCode
     ON dbo.F03AttendanceStaging(WorkDate,EmployeeCode);
 GO
+
+IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_F03StagingLeaveType_Pending_Key' AND object_id=OBJECT_ID('dbo.F03StagingLeaveType'))
+    CREATE INDEX IX_F03StagingLeaveType_Pending_Key ON dbo.F03StagingLeaveType(IsProcessed,EntityKey,CreatedAt,Id);
+IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_F03StagingDepartment_Pending_Key' AND object_id=OBJECT_ID('dbo.F03StagingDepartment'))
+    CREATE INDEX IX_F03StagingDepartment_Pending_Key ON dbo.F03StagingDepartment(IsProcessed,EntityKey,CreatedAt,Id);
+IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_F03StagingPosition_Pending_Key' AND object_id=OBJECT_ID('dbo.F03StagingPosition'))
+    CREATE INDEX IX_F03StagingPosition_Pending_Key ON dbo.F03StagingPosition(IsProcessed,EntityKey,CreatedAt,Id);
+IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_F03StagingEmployee_Pending_Key' AND object_id=OBJECT_ID('dbo.F03StagingEmployee'))
+    CREATE INDEX IX_F03StagingEmployee_Pending_Key ON dbo.F03StagingEmployee(IsProcessed,EntityKey,CreatedAt,Id);
+GO
