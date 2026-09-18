@@ -112,7 +112,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
         try
         {
             var depts = await _uow.Repository<F03Department>().Query().AsNoTracking()
-                .Where(x => x.IsActive).OrderBy(x => x.DeptCode)
+                .Where(x => x.IsActive == true).OrderBy(x => x.DeptCode)
                 .Select(x => new DepartmentDto { DeptCode = x.DeptCode, DeptName = x.DeptName })
                 .ToListAsync(ct);
 

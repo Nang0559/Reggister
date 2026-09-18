@@ -36,7 +36,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Companies
 
         // ===== Field access cho base dùng =====
         protected override string GetCode(F03Department e) => e.DeptCode;
-        protected override bool GetIsActive(F03Department e) => e.IsActive;
+        protected override bool GetIsActive(F03Department e) => e.IsActive == true;
         protected override void SetIsActive(F03Department e, bool value) => e.IsActive = value;
 
         protected override void TouchModified(F03Department entity, int currentUserId)

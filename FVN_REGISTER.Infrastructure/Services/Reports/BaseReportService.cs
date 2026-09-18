@@ -1,6 +1,7 @@
 ﻿using FVN_REGISTER.Application.Interfaces.Reports;
 using FVN_REGISTER.Application.Maps;
 using FVN_REGISTER.Application.Services.Common;
+using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Reports;

@@ -47,7 +47,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Employees
                 var today = DateTime.Today;
                 var shiftRaw = await _db.VwShiftCheckInOuts.AsNoTracking().Where(x => empCodes.Contains(x.EmployeeId) && x.Date >= DateOnly.FromDateTime(startOfYear) && x.Date <= DateOnly.FromDateTime(today)).ToListAsync(ct);
                 var otDict = shiftRaw.GroupBy(x => x.EmployeeId).ToDictionary(g => g.Key, g => (TotalDays: g.Count(), TotalMinutes: g.Sum(x => x.CheckOutTime.HasValue && x.CheckInTime.HasValue ? (double)(x.CheckOutTime.Value - x.CheckInTime.Value).TotalMinutes - 480 : 0)));
-                var depts = await _db.Departments.AsNoTracking().Where(x => x.IsActive).OrderBy(x => x.DeptName).ToListAsync(ct);
+                var depts = await _db.Departments.AsNoTracking().Where(x => x.IsActive == true).OrderBy(x => x.DeptName).ToListAsync(ct);
 
                 var tree = depts.Select(dept =>
                 {

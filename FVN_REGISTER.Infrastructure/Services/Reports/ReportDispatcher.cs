@@ -159,7 +159,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             {
                 var list = await _uow.Repository<F03Department>().Query()
                     .AsNoTracking()
-                    .Where(x => x.IsActive)
+                    .Where(x => x.IsActive == true)
                     .OrderBy(x => x.DeptName)
                     .Select(x => new KeyValuePair<string, string>(x.DeptCode, x.DeptName))
                     .ToListAsync(ct);

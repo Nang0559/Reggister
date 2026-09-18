@@ -7,7 +7,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Companies
     {
         public static IQueryable<F03Department> WhereActiveDept(
             this IQueryable<F03Department> query)
-            => query.Where(x => x.IsActive);
+            => query.Where(x => x.IsActive==true);
 
         public static IQueryable<F03Department> WhereDeptCode(
             this IQueryable<F03Department> query, string? deptCode)
