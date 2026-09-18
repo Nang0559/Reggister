@@ -101,7 +101,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 var refreshTokenRaw = GenerateRefreshTokenRaw();
 
                 var kickedConnections = await _sessionService.RegisterSessionAsync(
-                    user.IdUser, deviceType, deviceId, deviceName, refreshTokenRaw, rememberMe, ct);
+                    user.Id, deviceType, deviceId, deviceName, refreshTokenRaw, rememberMe, ct);
 
                 if (kickedConnections.Count > 0)
                 {
@@ -112,7 +112,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                     }
                 }
 
-                await _audit.LogLoginSuccess(user.IdUser, ipAddress, userAgent);
+                await _audit.LogLoginSuccess(user.Id, ipAddress, userAgent);
                 Logger.LogInfoIf(Debug, "[LOGIN] Success: {Emp}", employeeCode);
 
                 return ServiceResult<AuthResultDto>.Ok(new AuthResultDto
@@ -120,7 +120,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                     IsSuccess = true,
                     Token = accessToken,
                     RefreshToken = refreshTokenRaw,
-                    UserId = user.IdUser,
+                    UserId = user.Id,
                     FullName = user.FullName,
                     Avatar = user.Avatar,
                     IsAdmin = user.PermissionCode == UserPermissionCodes.SuperAdmin ||
@@ -141,13 +141,13 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 Logger.LogDebugIf(Debug, "[PROFILE] Get profile: {UserId}", userId);
 
                 var user = await _uow.Repository<F03User>().Query()
-                    .FirstOrDefaultAsync(x => x.IdUser == userId, ct);
+                    .FirstOrDefaultAsync(x => x.Id == userId, ct);
 
                 if (user == null)
                     return ServiceResult<UserIdentityDto>.Fail("Không tìm thấy thông tin tài khoản.");
 
                 var functionIds = await _uow.Repository<F03UserFunction>().Query()
-                    .Where(x => x.IdUser == userId)
+                    .Where(x => x.Id == userId)
                     .Select(x => x.IdFunction)
                     .ToListAsync(ct);
 
@@ -158,7 +158,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
 
                 return ServiceResult<UserIdentityDto>.Ok(new UserIdentityDto
                 {
-                    UserId = user.IdUser,
+                    UserId = user.Id,
                     Permission = user.PermissionCode,
                     UserName = user.EmployeeCode,
                     FullName = user.FullName,
@@ -183,7 +183,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             try
             {
                 var user = await _uow.Repository<F03User>().Query()
-                    .FirstOrDefaultAsync(x => x.IdUser == userId, ct);
+                    .FirstOrDefaultAsync(x => x.Id == userId, ct);
                 if (user == null)
                     return ServiceResult.Fail("Không tìm thấy người dùng.");
 
@@ -226,8 +226,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
 
                 user.Password = EncryptUtils.MD5(newPassword);
                 await _uow.SaveChangesAsync(ct);
-                await _sessionService.RevokeAllAsync(user.IdUser, ct);
-                await _audit.LogAction("CHANGE_PASSWORD", user.IdUser, "Đổi mật khẩu thành công");
+                await _sessionService.RevokeAllAsync(user.Id, ct);
+                await _audit.LogAction("CHANGE_PASSWORD", user.Id, "Đổi mật khẩu thành công");
                 Logger.LogInfoIf(Debug, "[PASSWORD] Changed success: {Emp}", employeeCode);
                 return ServiceResult.Ok();
             }
@@ -271,7 +271,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 }
 
                 var user = await _uow.Repository<F03User>().Query()
-                    .FirstOrDefaultAsync(x => x.IdUser == session.UserId, ct);
+                    .FirstOrDefaultAsync(x => x.Id == session.UserId, ct);
 
                 if (user == null || user.IsActive == false)
                     return ServiceResult<string>.Fail("Tài khoản không tồn tại hoặc đã bị khóa.");
@@ -323,9 +323,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             var key = Encoding.UTF8.GetBytes(secretKey);
             var claims = new List<Claim>
             {
-                new(ClaimTypes.NameIdentifier, user.IdUser.ToString()),
+                new(ClaimTypes.NameIdentifier, user.Id.ToString()),
                 new(ClaimTypes.Name, user.EmployeeCode),
-                new("UserId", user.IdUser.ToString()),
+                new("UserId", user.Id.ToString()),
                 new("FullName", user.FullName ?? ""),
                 new("EmployeeCode", user.EmployeeCode),
                 new("Email", emp?.EmailAddress ?? ""),
