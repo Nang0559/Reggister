@@ -49,7 +49,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 if (count == 0)
                 {
                     Logger.LogWarning(
-                        "[OT_STAGING] Staging trả về 0 rows ngày {Date} — kiểm tra fn_OTActualCheckInOut hoặc dữ liệu HRM",
+                        "[OT_STAGING] Staging trả về 0 rows ngày {Date} — kiểm tra dữ liệu chấm công HRM hoặc dữ liệu đơn OT đã duyệt",
                         workDate.Date);
                 }
 
