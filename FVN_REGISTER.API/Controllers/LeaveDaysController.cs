@@ -101,8 +101,11 @@ namespace FVN_REGISTER.API.Controllers
         [HttpGet("balance/{year:int}")]
         public async Task<IActionResult> GetBalance(int year, CancellationToken ct)
         {
-            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
-            return Ok(ApiResponse<LeaveBalanceDto>.Ok(await _queryService.GetSimpleBalanceAsync(UserInfo.EmployeeCode ?? "", year, ct)));
+            if (UserInfo?.EmployeeCode == null)
+                return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+
+            return Ok(ApiResponse<LeaveBalanceDto>.Ok(
+                await _queryService.GetSimpleBalanceAsync(UserInfo.EmployeeCode, year, ct)));
         }
 
         [HttpGet("details/{id:int}")]
@@ -112,7 +115,12 @@ namespace FVN_REGISTER.API.Controllers
         [HttpGet("history")]
         public async Task<IActionResult> GetHistory([FromQuery] int? year, [FromQuery] string? status, [FromQuery] int page = 1, [FromQuery] int pageSize = 20, CancellationToken ct = default)
         {
-            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
+            if (UserInfo == null)
+                return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+
+            if (string.IsNullOrWhiteSpace(UserInfo.DeptCode))
+                return BadRequest(ApiResponse<object>.Fail("Tài khoản chưa được gán phòng ban."));
+
             ApprovalStatus? parsedStatus = null;
             if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<ApprovalStatus>(status, true, out var statusValue)) parsedStatus = statusValue;
             var selectedYear = year ?? DateTime.Now.Year;
@@ -123,7 +131,8 @@ namespace FVN_REGISTER.API.Controllers
         [HttpGet("recent")]
         public async Task<IActionResult> GetRecent([FromQuery] int limit = 5, CancellationToken ct = default)
         {
-            if (UserInfo?.EmployeeCode == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
+            if (UserInfo?.EmployeeCode == null)
+                return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             return Ok(ApiResponse<List<LeaveSummaryDto>>.Ok(await _queryService.GetRecentSummaryAsync(UserInfo.EmployeeCode, limit, ct)));
         }
     }
