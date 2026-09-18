@@ -288,3 +288,7 @@ Leave, OT and Trip share one Work Calendar. It aggregates company holidays plus 
 - SQL: `SQL/19_WorkCalendar.sql`
 
 Company holidays are informational calendar data; final Leave/OT/Trip authorization and validation remain in each module.
+
+## Reports & Statistics
+
+Trung tâm `/reports` cung cấp báo cáo Leave, OT, Trip, Equipment và Attendance theo capability + data scope. View và Export là hai quyền độc lập. SQL reporting read models nằm tại `SQL/20_Reports.sql`; kiểm tra bằng `SQL/21_Verify_Reports.sql`. Chi tiết: `MÔ HÌNH/19_REPORTS_STATISTICS.md`.
