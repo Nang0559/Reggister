@@ -1,12 +1,15 @@
 ﻿
 
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Requests.OT;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -17,15 +20,21 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
           IOTService
     {
         private readonly IOTValidator _validator;
+        private readonly IAuthorizationService _authorization;
         protected override RequestModule ModuleKind => RequestModule.Overtime;
 
         public OTService(
             IUnitOfWork uow,
             IApprovalWorkflowOrchestrator<OTRequestSubject> workflow,
             IOTValidator validator,
+            IAuthorizationService authorization,
             ILogger<BaseRequestCommandService<OTRequestUpsertDto, F03OTRequest, OTRequestSubject>> logger,
             IOptionsMonitor<AuthDebugOptions> options)
-            : base(uow, workflow, logger, options) => _validator = validator;
+            : base(uow, workflow, logger, options)
+        {
+            _validator = validator;
+            _authorization = authorization;
+        }
 
         public override async Task<ServiceResult<int>> CreateAsync(OTRequestUpsertDto model, UserIdentityDto user, CancellationToken ct = default)
         {
@@ -184,6 +193,38 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                 return ServiceResult.Ok("Đã hủy đơn tăng ca.");
             }
             catch (Exception ex) { return InternalError(ex, "Lỗi hệ thống khi hủy đơn tăng ca."); }
+        }
+
+        protected override async Task<string?> ValidateApprovalScopeAsync(
+            List<int> ids, UserIdentityDto user, CancellationToken ct)
+        {
+            if (user.UserId <= 0)
+                return "Phiên đăng nhập không hợp lệ.";
+
+            var distinctIds = ids.Distinct().ToList();
+            var entities = await Uow.Repository<F03OTRequest>().Query()
+                .AsNoTracking()
+                .Where(x => distinctIds.Contains(x.Id) && x.IsActive == true)
+                .Select(x => new { x.Id, x.EmployeeCode, x.DeptCode })
+                .ToListAsync(ct);
+
+            if (entities.Count != distinctIds.Count)
+                return "Một hoặc nhiều đơn OT không tồn tại hoặc đã ngừng hoạt động.";
+
+            foreach (var entity in entities)
+            {
+                if (!await _authorization.CanAccessAsync(
+                    user,
+                    SecurityFunctionCodes.OTApprove,
+                    entity.EmployeeCode,
+                    entity.DeptCode,
+                    ct))
+                {
+                    return $"Không có quyền duyệt đơn OT [{entity.Id}] theo phạm vi dữ liệu được cấp.";
+                }
+            }
+
+            return null;
         }
 
         protected override void ApplyCancel(F03OTRequest entity, string reason, UserIdentityDto user)
