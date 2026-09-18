@@ -132,6 +132,7 @@ builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Trips.ITripServic
 
 // Equipment
 builder.Services.AddScoped<IEquipmentService, EquipmentService>();
+builder.Services.AddScoped<IEquipmentImportService, EquipmentImportService>();
 builder.Services.AddScoped<IEquipmentQrCodeService, QrCodeService>();
 
 // Auth / users
