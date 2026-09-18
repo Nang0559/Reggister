@@ -79,7 +79,7 @@ public class OTApprovalProvider
     }
 
     public override async Task ApplyOverallStatusAsync(
-        int requestId, IReadOnlyList<ApprovalStepCalculatedDto> allSteps, CancellationToken ct)
+        int requestId, IReadOnlyList<ApprovalStepDto> allSteps, CancellationToken ct)
     {
         var entity = await _uow.Repository<F03OTRequest>().Query()
             .FirstOrDefaultAsync(x => x.Id == requestId, ct);
@@ -90,19 +90,19 @@ public class OTApprovalProvider
         await _uow.SaveChangesAsync(ct);
     }
 
-    private static ApprovalStatus ComputeOverallStatus(IReadOnlyList<ApprovalStepCalculatedDto> allSteps)
+    private static ApprovalStatus ComputeOverallStatus(IReadOnlyList<ApprovalStepDto> allSteps)
     {
         var required = allSteps.Where(s => s.IsRequired).OrderBy(s => s.Level).ToList();
-        if (required.Any(s => s.Status == DecisionType.Rejected)) return ApprovalStatus.Rejected;
-        if (required.Count > 0 && required.All(s => s.Status == DecisionType.Approved)) return ApprovalStatus.Approved;
-        return required.Any(s => s.Status == DecisionType.Approved)
+        if (required.Any(s => s.Decision == DecisionType.Rejected)) return ApprovalStatus.Rejected;
+        if (required.Count > 0 && required.All(s => s.Decision == DecisionType.Approved)) return ApprovalStatus.Approved;
+        return required.Any(s => s.Decision == DecisionType.Approved)
             ? ApprovalStatus.InProgress
             : ApprovalStatus.Pending;
     }
 
     public override async Task NotifyStepCompletedAsync(
         OTRequestSubject subject,
-        ApprovalStepCalculatedDto completedStep,
+        ApprovalStepDto completedStep,
         bool isFullyApproved,
         CancellationToken ct)
     {
@@ -115,7 +115,7 @@ public class OTApprovalProvider
                 return;
             }
 
-            if (completedStep.Status == DecisionType.Rejected)
+            if (completedStep.Decision == DecisionType.Rejected)
             {
                 await NotifyEmployeeAsync(subject, ApprovalStatus.Rejected, ct);
                 await NotifyEmployeeInAppAsync(subject, ApprovalStatus.Rejected, ct);
@@ -145,7 +145,7 @@ public class OTApprovalProvider
 
     public override async Task<PendingApprovalItemDto> ToPendingItemAsync(
         OTRequestSubject subject,
-        List<ApprovalStepCalculatedDto> steps,
+        List<ApprovalStepDto> steps,
         bool canApprove,
         CancellationToken ct)
     {
