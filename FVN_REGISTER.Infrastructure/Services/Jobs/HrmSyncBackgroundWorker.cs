@@ -24,7 +24,15 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
 
                 try
                 {
-                    await RunOnceAsync(DateTime.Today, stoppingToken);
+                    using var scope = _scopeFactory.CreateScope();
+                    var sync = scope.ServiceProvider.GetRequiredService<IHrmSyncService>();
+                    var result = await sync.RunAllAsync("SYSTEM", manual: false, stoppingToken);
+
+                    if (!result.IsSuccess || result.Data is not { } run || !run.Success)
+                        _logger.LogError("[HRM-SYNC] Daily synchronization failed: {Message}", result.Message ?? run?.Summary);
+
+                    else
+                        _logger.LogInformation("[HRM-SYNC] Daily synchronization completed: {Summary}", run.Summary);
                 }
                 catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
                 {
@@ -34,32 +42,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                 {
                     _logger.LogError(ex, "[HRM-SYNC] Daily synchronization failed.");
                 }
-            }
-        }
-
-        private async Task RunOnceAsync(DateTime asOfDate, CancellationToken ct)
-        {
-            using var scope = _scopeFactory.CreateScope();
-            var importers = scope.ServiceProvider.GetRequiredService<IHrmStagingImporterResolver>().GetAll();
-            var jobs = scope.ServiceProvider.GetRequiredService<IHrmSyncJobResolver>().GetAll()
-                .OrderBy(x => x.SyncOrder)
-                .ToList();
-
-            foreach (var importer in importers)
-            {
-                ct.ThrowIfCancellationRequested();
-                var count = await importer.ImportAsync(asOfDate, ct);
-                _logger.LogInformation("[HRM-SYNC] Imported {Count} rows for {EntityType}.", count, importer.EntityType);
-            }
-
-            foreach (var job in jobs)
-            {
-                ct.ThrowIfCancellationRequested();
-                var result = await job.RunAsync(ct);
-                _logger.LogInformation("[HRM-SYNC] {EntityType}: Success={Success} Summary={Summary}", job.EntityType, result.Success, result.Summary);
-
-                if (!result.Success && job.IsBlockingDependency)
-                    throw new InvalidOperationException($"HRM sync job '{job.EntityType}' failed and is a blocking dependency: {result.Summary}");
             }
         }
 
