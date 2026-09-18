@@ -19,3 +19,42 @@ ORDER BY t.name,c.column_id;
 IF COL_LENGTH('dbo.F03Users','Id') IS NOT NULL OR COL_LENGTH('dbo.F03Permissions','Id') IS NOT NULL OR COL_LENGTH('dbo.F03Functions','Id') IS NOT NULL
     THROW 50010,'Duplicate canonical Id column remains in a security table.',1;
 GO
+
+/* OT/HRM canonical verification. */
+IF OBJECT_ID(N'dbo.F03Department',N'U') IS NOT NULL
+    THROW 50020,'Legacy singular table F03Department must not be used; use F03Departments.',1;
+IF OBJECT_ID(N'dbo.F03Employee',N'U') IS NOT NULL
+    THROW 50021,'Legacy singular table F03Employee must not be used; use F03Employees.',1;
+IF OBJECT_ID(N'dbo.F03OTRequest',N'U') IS NOT NULL
+    THROW 50022,'Legacy singular table F03OTRequest must not be used; use F03OTRequests.',1;
+IF OBJECT_ID(N'dbo.F03OTEmployee',N'U') IS NOT NULL
+    THROW 50023,'Legacy singular table F03OTEmployee must not be used; use F03OTEmployees.',1;
+IF OBJECT_ID(N'dbo.F03CV',N'U') IS NOT NULL
+    THROW 50024,'Legacy F03CV table must not exist in the canonical model.',1;
+IF OBJECT_ID(N'dbo.F03OTApprover',N'U') IS NOT NULL
+    THROW 50025,'Legacy F03OTApprover table must not exist; use F03Approvers + approval workflow.',1;
+
+IF OBJECT_ID(N'dbo.F03AttendanceStaging',N'U') IS NULL
+    THROW 50026,'F03AttendanceStaging is required by the OT attendance pipeline.',1;
+
+IF COL_LENGTH(N'dbo.F03AttendanceStaging',N'ShiftCategory') IS NULL
+    THROW 50027,'F03AttendanceStaging must expose ShiftCategory.',1;
+IF COL_LENGTH(N'dbo.F03AttendanceStaging',N'OtHours') IS NULL
+    THROW 50028,'F03AttendanceStaging must expose OtHours.',1;
+
+IF OBJECT_ID(N'dbo.usp_SyncAttendanceStaging',N'P') IS NULL
+    THROW 50029,'usp_SyncAttendanceStaging is missing.',1;
+IF OBJECT_ID(N'dbo.usp_SyncOTActualHours',N'P') IS NULL
+    THROW 50030,'usp_SyncOTActualHours is missing.',1;
+
+/* Raw result contract checks used by C# SqlQueryRaw<T>. */
+SELECT
+    p.name AS ProcedureName,
+    prm.name AS ParameterName,
+    TYPE_NAME(prm.user_type_id) AS ParameterType,
+    prm.max_length AS MaxLength
+FROM sys.parameters prm
+JOIN sys.procedures p ON p.object_id=prm.object_id
+WHERE p.name IN(N'usp_SyncAttendanceStaging',N'usp_SyncOTActualHours')
+ORDER BY p.name,prm.parameter_id;
+GO
