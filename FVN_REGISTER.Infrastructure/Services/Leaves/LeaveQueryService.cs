@@ -123,7 +123,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                         : (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
                             ? x.EmployeeCode == user.EmployeeCode
                             : false)
-                && x.DeptCode == deptCode && x.StartDate <= date.Date && x.EndDate >= date.Date && x.RequestStatus != ApprovalStatus.Cancelled && x.RequestStatus != ApprovalStatus.Rejected).OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
+                && x.DeptCode == deptCode && x.StartDate <= date.Date && x.EndDate >= date.Date && x.RequestStatus != ApprovalStatus.Cancelled && x.RequestStatus != ApprovalStatus.Rejected);
+            var data = await query.OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
             return data.Select(LeaveMapper.ToDtoFromView).ToList();
         }
 
