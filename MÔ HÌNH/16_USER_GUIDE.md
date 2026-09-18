@@ -90,3 +90,26 @@ Workspace hiển thị:
 - Ngày nghỉ đã duyệt sắp tới và tổng số ngày của các đợt nghỉ sắp tới.
 
 Request Pending không được coi là lịch nghỉ chắc chắn; chỉ ngày nghỉ Approved mới xuất hiện trong “sắp nghỉ”.
+
+## Lịch làm việc chung
+
+Tại màn hình Nghỉ phép, OT và Công tác, người dùng dùng chung một lịch làm việc.
+
+Lịch hiển thị:
+- Ngày nghỉ/lễ của công ty.
+- Các đơn Nghỉ phép.
+- Các đơn OT.
+- Các chuyến Công tác.
+
+Bộ lọc gồm Tất cả, Công ty, Nghỉ phép, OT và Công tác.
+
+Click vào một ngày sẽ chuyển ngày đó về nghiệp vụ đang mở:
+- Nghỉ phép: ngày mặc định của đơn nghỉ.
+- OT: ngày OT.
+- Công tác: ngày bắt đầu công tác.
+
+Click vào event đã có sẽ mở chi tiết nếu module hỗ trợ.
+
+Lưu ý: lịch chỉ là màn hình tra cứu và cảnh báo. Việc có được phép đăng ký hay không vẫn do server kiểm tra quyền, phạm vi dữ liệu và validator của từng nghiệp vụ. Ngày nghỉ công ty không mặc nhiên khóa OT hoặc Công tác.
+
+Chi tiết kiến trúc xem MÔ HÌNH/18_WORK_CALENDAR.md.
