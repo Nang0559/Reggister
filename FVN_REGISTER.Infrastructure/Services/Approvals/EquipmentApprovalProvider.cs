@@ -48,11 +48,11 @@ public sealed class EquipmentApprovalProvider : BaseApprovalProvider<EquipmentRe
         var employees = await _uow.Repository<F03Employee>().Query().AsNoTracking().Where(x => codes.Contains(x.EmployeeCode)).Select(x => new { x.EmployeeCode, x.EmployeeName, x.PositionCode }).ToDictionaryAsync(x => x.EmployeeCode, x => x, ct);
         return rows.Select(x => { employees.TryGetValue(x.EmployeeCode, out var e); return EquipmentRequestSubject.From(x, e?.EmployeeName, e?.PositionCode); }).ToList();
     }
-    public override async Task ApplyOverallStatusAsync(int requestId, IReadOnlyList<ApprovalStepCalculatedDto> allSteps, CancellationToken ct)
+    public override async Task ApplyOverallStatusAsync(int requestId, IReadOnlyList<ApprovalStepDto> allSteps, CancellationToken ct)
     {
         var entity = await _uow.Repository<F03EquipmentRequest>().Query().FirstOrDefaultAsync(x => x.Id == requestId, ct); if (entity == null) return;
         var required = allSteps.Where(x => x.IsRequired).ToList();
-        entity.RequestStatus = required.Any(x => x.Status == DecisionType.Rejected) ? ApprovalStatus.Rejected : required.Count > 0 && required.All(x => x.Status == DecisionType.Approved) ? ApprovalStatus.Approved : required.Any(x => x.Status == DecisionType.Approved) ? ApprovalStatus.InProgress : ApprovalStatus.Pending;
+        entity.RequestStatus = required.Any(x => x.Decision == DecisionType.Rejected) ? ApprovalStatus.Rejected : required.Count > 0 && required.All(x => x.Decision == DecisionType.Approved) ? ApprovalStatus.Approved : required.Any(x => x.Decision == DecisionType.Approved) ? ApprovalStatus.InProgress : ApprovalStatus.Pending;
         if (entity.RequestStatus == ApprovalStatus.Approved)
         {
             if (entity.RequestKind == EquipmentRequestKind.Registration && entity.AssetId == null)
@@ -68,14 +68,14 @@ public sealed class EquipmentApprovalProvider : BaseApprovalProvider<EquipmentRe
         }
         await _uow.SaveChangesAsync(ct);
     }
-    public override async Task NotifyStepCompletedAsync(EquipmentRequestSubject subject, ApprovalStepCalculatedDto completedStep, bool isFullyApproved, CancellationToken ct)
+    public override async Task NotifyStepCompletedAsync(EquipmentRequestSubject subject, ApprovalStepDto completedStep, bool isFullyApproved, CancellationToken ct)
     {
-        if (!isFullyApproved && completedStep.Status != DecisionType.Rejected) return;
+        if (!isFullyApproved && completedStep.Decision != DecisionType.Rejected) return;
         var email = await _uow.Repository<F03Employee>().Query().AsNoTracking().Where(x => x.EmployeeCode == subject.EmployeeCode).Select(x => x.EmailAddress).FirstOrDefaultAsync(ct);
         if (!string.IsNullOrWhiteSpace(email)) await _email.QueueEmail(email, isFullyApproved ? "EQUIPMENT_APPROVED" : "EQUIPMENT_REJECTED", new { subject.RequestId, subject.RequestKind, subject.EquipmentName, subject.AssetCode, subject.RepairDate, Status = isFullyApproved ? "Approved" : "Rejected" }, ct);
         await NotifyEmployeeInAppAsync(subject, isFullyApproved ? ApprovalStatus.Approved : ApprovalStatus.Rejected, ct);
     }
-    public override async Task<PendingApprovalItemDto> ToPendingItemAsync(EquipmentRequestSubject subject, List<ApprovalStepCalculatedDto> steps, bool canApprove, CancellationToken ct)
+    public override async Task<PendingApprovalItemDto> ToPendingItemAsync(EquipmentRequestSubject subject, List<ApprovalStepDto> steps, bool canApprove, CancellationToken ct)
     {
         var deptName = await _uow.Repository<F03Department>().Query().AsNoTracking().Where(x => x.DeptCode == subject.DeptCode).Select(x => x.DeptName).FirstOrDefaultAsync(ct);
         return new PendingApprovalItemDto { RequestId = subject.RequestId, Kind = subject.Module, EmployeeCode = subject.EmployeeCode, EmployeeName = subject.EmployeeName ?? string.Empty, DeptCode = subject.DeptCode ?? string.Empty, DeptName = deptName ?? string.Empty, FromDate = subject.RepairDate ?? DateTime.Now, ToDate = subject.RepairDate ?? DateTime.Now, TotalUnits = 1, ApprovalSteps = steps, CanApprove = canApprove };
