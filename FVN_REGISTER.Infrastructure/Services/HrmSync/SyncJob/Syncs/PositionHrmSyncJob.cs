@@ -52,7 +52,10 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                 entity.PositionName = staging.PositionName;
                 changed = true;
             }
-            if (entity.DefaultApproveLevel != staging.DefaultApproveLevel)
+            // HRM reader currently does not provide an approval-level source.
+            // A NULL staging value must never erase the local FVN approval hierarchy.
+            if (staging.DefaultApproveLevel.HasValue &&
+                entity.DefaultApproveLevel != staging.DefaultApproveLevel)
             {
                 entity.DefaultApproveLevel = staging.DefaultApproveLevel;
                 changed = true;
