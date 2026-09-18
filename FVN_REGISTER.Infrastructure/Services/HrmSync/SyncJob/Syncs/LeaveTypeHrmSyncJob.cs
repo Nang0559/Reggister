@@ -27,7 +27,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             LeaveTypeCode = s.EntityKey,
             LeaveTypeName = s.LeaveTypeName,
             LeaveTypeName2 = s.LeaveTypeName2,
-            IsCountedAsLeave = false,
+            IsCountedAsLeave = s.TinhPhep,
             HRMCode = s.HRMCode
         };
 
@@ -38,6 +38,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             if (e.LeaveTypeName2 != s.LeaveTypeName2) { e.LeaveTypeName2 = s.LeaveTypeName2; changed = true; }
         
             if (e.HRMCode != s.HRMCode) { e.HRMCode = s.HRMCode; changed = true; }
+            if (e.IsCountedAsLeave != s.TinhPhep) { e.IsCountedAsLeave = s.TinhPhep; changed = true; }
             if (e.IsActive != true) { e.IsActive = true; changed = true; }   // hồi phục nếu trước đó bị vô hiệu hóa
             return changed;
         }
