@@ -37,3 +37,8 @@ CREATE INDEX IX_StagingTrip_IsProcessed ON dbo.F03StagingTrips(IsProcessed);
 CREATE INDEX IX_StagingReviewFlag_Entity ON dbo.F03SyncReviewFlag(EntityType,EntityKey,IsResolved);
 CREATE INDEX IX_HrmLeaveTypeChangeLog_Pending ON dbo.HrmLeaveTypeChangeLogs(IsProcessed,ChangedAt);
 GO
+
+IF NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name='IX_F03AttendanceStaging_WorkDate_EmployeeCode' AND object_id=OBJECT_ID('dbo.F03AttendanceStaging'))
+    CREATE INDEX IX_F03AttendanceStaging_WorkDate_EmployeeCode
+    ON dbo.F03AttendanceStaging(WorkDate,EmployeeCode);
+GO
