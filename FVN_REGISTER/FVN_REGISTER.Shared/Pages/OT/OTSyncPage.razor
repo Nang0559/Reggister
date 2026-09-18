@@ -34,7 +34,7 @@
 
 <MudCard Elevation="2" Class="mb-4">
     <MudCardContent>
-        <MudGrid AlignItems="AlignItems.Center">
+        <MudGrid>
             <MudItem xs="12" sm="3"><MudDatePicker Label="Ngày cần đồng bộ / đối chiếu" @bind-Date="_selectedDate" Variant="Variant.Outlined" Margin="Margin.Dense" DateFormat="dd/MM/yyyy" /></MudItem>
             <MudItem xs="12" sm="4"><MudSelect T="string" @bind-Value="_selectedDept" Label="Phòng ban" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">@foreach (var dept in _departments) { <MudSelectItem Value="@dept.DeptCode">@dept.DeptName</MudSelectItem> }</MudSelect></MudItem>
             <MudItem xs="12" sm="5"><MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">

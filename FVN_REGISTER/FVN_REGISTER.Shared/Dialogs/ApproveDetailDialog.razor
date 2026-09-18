@@ -7,11 +7,11 @@
         <MudSimpleTable Dense="true">
             <tbody>
                 <tr><td><b>Mã NV</b></td><td>@Item.EmployeeCode</td></tr>
-                <tr><td><b>Loại đơn</b></td><td>@Item.KindDisplay</td></tr>
+                <tr><td><b>Loại đơn</b></td><td>@GetKindLabel(Item.Kind)</td></tr>
                 <tr><td><b>Thời gian</b></td><td>@(Item.FromDate?.ToString("dd/MM/yyyy") ?? "—") → @(Item.ToDate?.ToString("dd/MM/yyyy") ?? "—")</td></tr>
-                <tr><td><b>Số lượng</b></td><td>@Item.Summary</td></tr>
+                <tr><td><b>Số lượng</b></td><td>@FormatUnits(Item)</td></tr>
                 <tr><td><b>Phòng ban</b></td><td>@Item.DeptName</td></tr>
-                <tr><td><b>Cấp duyệt</b></td><td>@Item.CurrentApprovalLevel</td></tr>
+                <tr><td><b>Cấp duyệt</b></td><td>@GetCurrentApprovalLevel(Item)</td></tr>
             </tbody>
         </MudSimpleTable>
         <MudTextField @bind-Value="_comment" Label="Ý kiến / Lý do từ chối" Lines="2" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
@@ -32,10 +32,31 @@
     private string _comment = string.Empty;
     private bool _busy;
 
+
+    private static int GetCurrentApprovalLevel(PendingApprovalItemDto item) =>
+        item.ApprovalSteps
+            .OrderBy(s => s.Level)
+            .FirstOrDefault(s => s.IsRequired && s.IsApproved == null)?.Level ?? 0;
+
+    private static string GetKindLabel(FVN_REGISTER.Core.Enums.RequestModule kind) => kind switch
+    {
+        FVN_REGISTER.Core.Enums.RequestModule.Leave => "Nghỉ phép",
+        FVN_REGISTER.Core.Enums.RequestModule.Overtime => "Tăng ca",
+        FVN_REGISTER.Core.Enums.RequestModule.Trip => "Công tác",
+        FVN_REGISTER.Core.Enums.RequestModule.Equipment => "Thiết bị",
+        _ => kind.ToString()
+    };
+
+    private static string FormatUnits(PendingApprovalItemDto item)
+    {
+        var unit = item.Kind == FVN_REGISTER.Core.Enums.RequestModule.Overtime ? "giờ" : "ngày";
+        return $"{item.TotalUnits:N1} {unit}";
+    }
+
     private async Task Approve()
     {
         _busy = true;
-        try { var result = await ApprovalService.ApproveAsync(new List<int> { Item.RequestId }, Item.Kind, Level > 0 ? Level : Item.CurrentApprovalLevel, _comment); Snackbar.Add(result.IsSuccess ? "Đã phê duyệt!" : result.Message ?? "Lỗi", result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) MudDialog.Close(DialogResult.Ok(true)); }
+        try { var result = await ApprovalService.ApproveAsync(new List<int> { Item.RequestId }, Item.Kind, Level > 0 ? Level : GetCurrentApprovalLevel(Item), _comment); Snackbar.Add(result.IsSuccess ? "Đã phê duyệt!" : result.Message ?? "Lỗi", result.IsSuccess ? Severity.Success : Severity.Error); if (result.IsSuccess) MudDialog.Close(DialogResult.Ok(true)); }
         finally { _busy = false; }
     }
 

@@ -130,7 +130,7 @@
                                         <MudText Typo="Typo.body2"><strong>Cấp @step.Level — @step.RoleName</strong>@if (!string.IsNullOrEmpty(step.ApproverCode)) { <span> — @step.ApproverCode</span> }</MudText>
                                         <MudText Typo="Typo.caption" Color="Color.Secondary">
                                             @step.StatusText
-                                            @if (step.ApproveTime.HasValue) { <span> — @step.ActionAt.Value.ToString("dd/MM/yyyy HH:mm")</span> }
+                                            @if (step.ApproveTime.HasValue) { <span> — @step.ApproveTime.Value.ToString("dd/MM/yyyy HH:mm")</span> }
                                             @if (!string.IsNullOrEmpty(step.Comment)) { <em class="ml-1">— @step.Comment</em> }
                                         </MudText>
                                     </ItemContent>

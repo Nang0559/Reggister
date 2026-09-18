@@ -12,7 +12,7 @@
 }
 else
 {
-    <MudList T="LeaveCalendarEventDto" Dense="true" DisablePadding="true">
+    <MudList T="LeaveCalendarEventDto" Dense="true">
         @foreach (var item in Items)
         {
             var status = ParseStatus(item.Status);
