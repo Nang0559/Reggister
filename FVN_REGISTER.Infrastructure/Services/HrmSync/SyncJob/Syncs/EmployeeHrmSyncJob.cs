@@ -183,7 +183,27 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                         user.LastModifiedSource = SyncSourceTags.Hrm;
 
                         if (wasActive && employee.IsActive == false)
+                        {
                             user.LockoutEndDate = DateTime.Now;
+
+                            var sessions = await Uow.Repository<F03UserSession>().Query()
+                                .Where(x => x.UserId == user.Id && x.IsActive)
+                                .ToListAsync(ct);
+
+                            foreach (var session in sessions)
+                            {
+                                session.IsActive = false;
+                                session.RevokedAt = DateTime.Now;
+
+                                if (!string.IsNullOrWhiteSpace(session.SignalRConnectionId))
+                                {
+                                    await _sessionNotifier.NotifyRevokedAsync(
+                                        session.SignalRConnectionId,
+                                        "Tài khoản đã bị khóa do nhân viên nghỉ việc.",
+                                        ct);
+                                }
+                            }
+                        }
                     }
                 }
                 catch (Exception ex)
