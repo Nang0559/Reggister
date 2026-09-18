@@ -63,12 +63,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Users
                 }
                 else
                 {
-                    // Fallback: dựng lại từ role claims nếu vì lý do gì đó PermissionCode vắng mặt
-                    foreach (var roleClaim in user.FindAll(ClaimTypes.Role))
-                    {
-                        if (Enum.TryParse<UserRole>(roleClaim.Value, out var role))
-                            permission |= role;
-                    }
+                    // Fallback only: role is a single ordinal role, never a Flags value.
+                    var roleClaim = user.FindFirst(ClaimTypes.Role)?.Value
+                                 ?? user.FindFirst("role")?.Value;
+
+                    if (Enum.TryParse<UserRole>(roleClaim, out var role))
+                        permission = role;
                 }
 
                 var functions = user.FindAll("Function")
