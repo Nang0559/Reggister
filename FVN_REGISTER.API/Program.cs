@@ -1,34 +1,44 @@
+using DocumentFormat.OpenXml.Office2016.Drawing.ChartDrawing;
+using FVN_REGISTER.API.Services.Histories;
+using FVN_REGISTER.API.Services.OT;
+using FVN_REGISTER.Application.Configuration;
+using FVN_REGISTER.Application.Factories;
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Companies;
-using FVN_REGISTER.Application.Interfaces.EmailTemplates;
 using FVN_REGISTER.Application.Interfaces.Emails;
+using FVN_REGISTER.Application.Interfaces.EmailTemplates;
 using FVN_REGISTER.Application.Interfaces.Employees;
 using FVN_REGISTER.Application.Interfaces.Equipment;
 using FVN_REGISTER.Application.Interfaces.Histories;
 using FVN_REGISTER.Application.Interfaces.HrmSync;
+using FVN_REGISTER.Application.Interfaces.Jobs;
 using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.Notifications;
+using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.OTTypes;
-using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Reports;
 using FVN_REGISTER.Application.Interfaces.Statics;
 using FVN_REGISTER.Application.Interfaces.UserManagers;
 using FVN_REGISTER.Application.Interfaces.Users;
-using FVN_REGISTER.Application.Interfaces.Jobs;
 using FVN_REGISTER.Application.Models.Subjects;
+using FVN_REGISTER.Application.Policies;
+using FVN_REGISTER.Application.Services.Statics;
 using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Core.Config;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Infrastructure;
 using FVN_REGISTER.Infrastructure.Hubs;
 using FVN_REGISTER.Infrastructure.Repositories;
+using FVN_REGISTER.Infrastructure.Services;
 using FVN_REGISTER.Infrastructure.Services.Approvals;
 using FVN_REGISTER.Infrastructure.Services.Auths;
-using FVN_REGISTER.Infrastructure.Services.Companies;
 using FVN_REGISTER.Infrastructure.Services.Common;
+using FVN_REGISTER.Infrastructure.Services.Companies;
+using FVN_REGISTER.Infrastructure.Services.Departments;
 using FVN_REGISTER.Infrastructure.Services.Emails;
 using FVN_REGISTER.Infrastructure.Services.Employees;
 using FVN_REGISTER.Infrastructure.Services.Equipment;
@@ -46,20 +56,12 @@ using FVN_REGISTER.Infrastructure.Services.OTs;
 using FVN_REGISTER.Infrastructure.Services.Reports;
 using FVN_REGISTER.Infrastructure.Services.Statics;
 using FVN_REGISTER.Infrastructure.Services.Users;
+using FVN_REGISTER.Infrastructure.Utils;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
-using FVN_REGISTER.Application.Configuration;
-using FVN_REGISTER.Infrastructure;
-using FVN_REGISTER.Infrastructure.Utils;
-using FVN_REGISTER.Infrastructure.Services;
-using FVN_REGISTER.API.Services.OT;
-using FVN_REGISTER.Application.Services.Statics;
-using FVN_REGISTER.Infrastructure.Services.Departments;
-using FVN_REGISTER.API.Services.Histories;
-using FVN_REGISTER.Application.Policies;
 
 JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 var builder = WebApplication.CreateBuilder(args);
@@ -138,14 +140,17 @@ builder.Services.AddScoped<IEmployeeManagementService, EmployeeManagementService
 builder.Services.AddScoped<ILeaveTypeManagementService, LeaveTypeManagementService>();
 
 // History / email / notifications
+builder.Services.AddScoped<IApprovalHistoryService, ApprovalHistoryService>();
 builder.Services.AddScoped<IHistoryHandler, LeaveHistoryHandler>();
 builder.Services.AddScoped<IHistoryHandler, OTHistoryHandler>();
 builder.Services.AddScoped<IHistoryDispatcher, HistoryDispatcher>();
 builder.Services.AddScoped<IEmailTemplateManagementService, EmailTemplateManagementService>();
+builder.Services.AddScoped<INotificationFactory, NotificationFactory>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 builder.Services.AddScoped<IApprovalNotificationService, ApprovalNotificationService>();
 
 // Approval: provider -> engine -> workflow -> cross-module inbox/resolver
+
 builder.Services.AddScoped<LeaveApprovalProvider>();
 builder.Services.AddScoped<OTApprovalProvider>();
 builder.Services.AddScoped<TripApprovalProvider>();
