@@ -1,5 +1,4 @@
 using FVN_REGISTER.Application.Interfaces.Calendar;
-using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Contract.Dtos.Calendar;
 using FVN_REGISTER.Core.Entities.Common;
 using FVN_REGISTER.Core.Entities.Leaves;
@@ -15,12 +14,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Calendar;
 public sealed class WorkCalendarService : IWorkCalendarService
 {
     private readonly IUnitOfWork _uow;
-    private readonly IWorkingDayService _workingDayService;
-
-    public WorkCalendarService(IUnitOfWork uow, IWorkingDayService workingDayService)
+    public WorkCalendarService(IUnitOfWork uow)
     {
         _uow = uow;
-        _workingDayService = workingDayService;
     }
 
     public async Task<WorkCalendarDto> GetAsync(
