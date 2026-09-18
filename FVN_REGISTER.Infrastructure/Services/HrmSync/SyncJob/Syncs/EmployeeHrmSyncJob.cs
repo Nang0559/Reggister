@@ -1,5 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Entities.Approvers;
 using FVN_REGISTER.Core.Entities.Common;
 using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Entities.HRM;
