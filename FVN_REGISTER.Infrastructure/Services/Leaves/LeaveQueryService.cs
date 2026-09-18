@@ -86,7 +86,36 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             var approvedDetails = await Uow.Repository<F03LeaveDayDetail>().Query().AsNoTracking().Where(d => d.LeaveDay.EmployeeCode == employeeCode && d.LeaveDay.WorkYear == year && d.LeaveDay.IsActive == true && d.LeaveDay.RequestStatus == ApprovalStatus.Approved).Select(d => new { d.LeaveTypeCode, d.IsCountedAsLeave, d.DayValue }).ToListAsync(ct);
             var sick = approvedDetails.Where(d => sickCodes.Contains(d.LeaveTypeCode)).Sum(d => d.DayValue);
             var unpaid = approvedDetails.Where(d => !d.IsCountedAsLeave && !sickCodes.Contains(d.LeaveTypeCode)).Sum(d => d.DayValue);
-            return new LeaveBalanceDto { EmployeeCode = employeeCode, EmployeeName = phep?.EmployeeName ?? string.Empty, WorkYear = year, Year = year, TotalEntitled = phep?.TotalEntitledLeave ?? 0, Used = phep?.LeaveDaysUsed ?? 0, Remaining = phep?.RemainingLeave ?? 0, Unpaid = unpaid, Sick = sick };
+
+            var today = DateTime.Today;
+            var upcoming = await Uow.Repository<VF03LeaveRequest>().Query()
+                .AsNoTracking()
+                .Where(x => x.EmployeeCode == employeeCode
+                    && x.IsActive == true
+                    && x.RequestStatus == ApprovalStatus.Approved
+                    && x.EndDate >= today
+                    && x.WorkYear == year)
+                .OrderBy(x => x.StartDate)
+                .ToListAsync(ct);
+
+            var upcomingDays = upcoming.Sum(x => x.TotalLeaveDay ?? x.TotalDay);
+            var nextLeave = upcoming.FirstOrDefault();
+
+            return new LeaveBalanceDto
+            {
+                EmployeeCode = employeeCode,
+                EmployeeName = phep?.EmployeeName ?? string.Empty,
+                WorkYear = year,
+                Year = year,
+                TotalEntitled = phep?.TotalEntitledLeave ?? 0,
+                Used = phep?.LeaveDaysUsed ?? 0,
+                Remaining = phep?.RemainingLeave ?? 0,
+                Unpaid = unpaid,
+                Sick = sick,
+                UpcomingDays = upcomingDays,
+                NextLeaveDate = nextLeave?.StartDate,
+                NextLeaveTypeName = nextLeave?.LeaveTypeName
+            };
         }
 
         public override async Task<PaginationResult<LeaveSummaryDto>> GetPagedAsync(string? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize, CancellationToken ct = default)
