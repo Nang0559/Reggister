@@ -48,7 +48,7 @@
 
     // Approval level is workflow data, not a hard-coded list of role/permission IDs.
     private IEnumerable<int> ApprovalLevels => _allPending
-        .Where(x => x.CurrentApprovalLevel > 0)
+        .Where(x => GetCurrentApprovalLevel(x) > 0)
         .Select(x => x.CurrentApprovalLevel)
         .Distinct()
         .OrderBy(x => x);
@@ -85,6 +85,11 @@
 
     private List<PendingApprovalItemDto> PendingAtLevel(int level) =>
         _allPending.Where(x => x.CurrentApprovalLevel == level && x.CanApprove).ToList();
+
+    private static int GetCurrentApprovalLevel(PendingApprovalItemDto item) =>
+        item.ApprovalSteps
+            .OrderBy(x => x.Level)
+            .FirstOrDefault(x => x.IsRequired && x.IsApproved == null)?.Level ?? 0;
 
     private void ViewDetail(int id) => Nav.NavigateTo($"/ot/detail/{id}");
 
