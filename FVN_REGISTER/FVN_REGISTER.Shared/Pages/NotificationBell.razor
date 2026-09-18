@@ -168,6 +168,22 @@
         _ => Icons.Material.Filled.Notifications
     };
 
+    private static string GetIconBg(NotificationAction action) => action switch
+    {
+        NotificationAction.Approved => "rgba(76,175,80,.12)",
+        NotificationAction.Rejected => "rgba(244,67,54,.12)",
+        NotificationAction.Escalated or NotificationAction.Reminder => "rgba(255,152,0,.12)",
+        _ => "rgba(33,150,243,.12)"
+    };
+
+    private static string GetIconColor(NotificationAction action) => action switch
+    {
+        NotificationAction.Approved => "#4caf50",
+        NotificationAction.Rejected => "#f44336",
+        NotificationAction.Escalated or NotificationAction.Reminder => "#ff9800",
+        _ => "#2196f3"
+    };
+
     private static string GetNotificationColor(NotificationAction action) => action switch
     {
         NotificationAction.Approved => "success",
