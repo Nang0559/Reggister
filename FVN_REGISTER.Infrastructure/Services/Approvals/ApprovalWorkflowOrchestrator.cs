@@ -88,7 +88,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             CancellationToken ct)
             => _engine.GetPendingForApproverAsync(approverEmail, ct);
 
-        public Task<List<ApprovalStepCalculatedDto>> GetStepsAsync(
+        public Task<List<ApprovalStepDto>> GetStepsAsync(
             int requestId,
             CancellationToken ct)
             => _engine.GetStepsAsync(requestId, ct);
