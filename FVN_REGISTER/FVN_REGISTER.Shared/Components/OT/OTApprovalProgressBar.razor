@@ -1,10 +1,8 @@
 @using FVN_REGISTER.Contract.Dtos.Approvals
-@using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto
-@using FVN_REGISTER.Core.Enums
 
 <MudTooltip Text="@TooltipText" Placement="Placement.Top">
     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
-        @foreach (var step in DisplaySteps)
+        @foreach (var step in Steps.OrderBy(x => x.Level).Where(x => x.IsRequired || x.IsApproved != null))
         {
             <div style="
                     width: 10px; height: 10px;
@@ -12,65 +10,33 @@
                     background: @GetDotColor(step);
                     border: 1.5px solid @GetBorderColor(step);
                     flex-shrink: 0;"
-                 title="@step.Label: @step.StatusText">
+                 title="@step.LevelLabel: @step.StatusText">
             </div>
         }
     </MudStack>
 </MudTooltip>
 
 @code {
-    // HistoryItemDto dùng ApprovalStepDto, còn PendingApprovalItemDto/OTRequestDto
-    // dùng ApprovalStepCalculatedDto. Chuẩn hóa cả hai về một model hiển thị UI.
-    [Parameter] public IEnumerable<object> Steps { get; set; } = Array.Empty<object>();
+    [Parameter] public IEnumerable<ApprovalStepDto> Steps { get; set; } = Array.Empty<ApprovalStepDto>();
 
-    private IEnumerable<ProgressStep> DisplaySteps => Steps
-        .Select(ToProgressStep)
-        .Where(s => s.IsRequired || s.IsApproved != null);
+    private IEnumerable<ApprovalStepDto> DisplaySteps =>
+        Steps.OrderBy(x => x.Level)
+             .Where(x => x.IsRequired || x.IsApproved != null);
 
-    private string TooltipText => string.Join(" → ", DisplaySteps.Select(s => $"{s.Label}: {s.StatusText}"));
+    private string TooltipText =>
+        string.Join(" → ", DisplaySteps.Select(x => $"{x.LevelLabel}: {x.StatusText}"));
 
-    private static ProgressStep ToProgressStep(object step) => step switch
+    private static string GetDotColor(ApprovalStepDto step) => step.IsApproved switch
     {
-        ApprovalStepDto s => new ProgressStep(
-            s.Level,
-            s.RoleName ?? $"Cấp {s.Level}",
-            s.IsRequired,
-            s.IsApproved,
-            s.StatusText),
-
-        ApprovalStepCalculatedDto s => new ProgressStep(
-            s.Level,
-            s.RoleName,
-            s.IsRequired,
-            s.Status switch
-            {
-                DecisionType.Approved => true,
-                DecisionType.Rejected => false,
-                _ => null
-            },
-            s.Status.ToString()),
-
-        _ => new ProgressStep(0, "Không xác định", false, null, "Không xác định")
+        true => "#4CAF50",
+        false => "#F44336",
+        _ => step.IsRequired ? "#FF9800" : "transparent"
     };
 
-    private static string GetDotColor(ProgressStep step)
+    private static string GetBorderColor(ApprovalStepDto step) => step.IsApproved switch
     {
-        if (step.IsApproved == true) return "#4CAF50";
-        if (step.IsApproved == false) return "#F44336";
-        return step.IsRequired ? "#FF9800" : "transparent";
-    }
-
-    private static string GetBorderColor(ProgressStep step)
-    {
-        if (step.IsApproved == true) return "#388E3C";
-        if (step.IsApproved == false) return "#C62828";
-        return step.IsRequired ? "#F57C00" : "#BDBDBD";
-    }
-
-    private sealed record ProgressStep(
-        int Level,
-        string Label,
-        bool IsRequired,
-        bool? IsApproved,
-        string StatusText);
+        true => "#388E3C",
+        false => "#C62828",
+        _ => step.IsRequired ? "#F57C00" : "#BDBDBD"
+    };
 }
