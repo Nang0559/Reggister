@@ -159,7 +159,7 @@ UPDATE f
 SET ModuleCode=LEFT(f.FunctionName,CHARINDEX(N'.',f.FunctionName+N'.')-1),
     ActionCode=SUBSTRING(f.FunctionName,CHARINDEX(N'.',f.FunctionName+N'.')+1,50),
     ScopeCode=CASE
-        WHEN f.FunctionCode IN (2005,2006,2105,2107,2205,2304,2305) THEN N'Department'
+        WHEN f.FunctionCode IN (2005,2006,2105,2107,2205,2301,2304,2305) THEN N'Department'
         WHEN f.FunctionCode IN (2106,2401,2402,2403,2404,2405,2406,2501,2502,2503,2504,2601,2602,2603,2604) THEN N'All'
         WHEN f.FunctionCode BETWEEN 2001 AND 2999 THEN N'Own'
         ELSE f.ScopeCode
