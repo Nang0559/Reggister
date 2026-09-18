@@ -23,7 +23,7 @@ public sealed class SecurityController : BaseApiController
         ICurrentUserService currentUser,
         IUserLogService userLog,
         ILogger<SecurityController> logger,
-        IOptionsMonitor<Application.Configuration.AuthDebugOptions> options)
+        IOptionsMonitor<FVN_REGISTER.Application.Configuration.AuthDebugOptions> options)
         : base(currentUser, userLog, logger, options)
     {
         _authorization = authorization;
