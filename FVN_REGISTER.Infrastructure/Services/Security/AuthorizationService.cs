@@ -38,6 +38,77 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         return snapshot.Has(functionCode);
     }
 
+    public async Task<string> GetScopeAsync(int userId, int functionCode, CancellationToken ct = default)
+    {
+        if (userId <= 0)
+            return AuthorizationScopeCodes.None;
+
+        var scope = await (
+            from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
+            join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking()
+                on ur.IdRole equals rf.IdRole
+            join r in _uow.Repository<F03Role>().Query().AsNoTracking()
+                on ur.IdRole equals r.IdRole
+            join f in _uow.Repository<F03Function>().Query().AsNoTracking()
+                on rf.IdFunction equals f.IdFunction
+            where ur.IdUser == userId
+                && r.IsActive
+                && (f.IsActive ?? true)
+                && f.FunctionCode == functionCode
+            select f.ScopeCode
+        ).FirstOrDefaultAsync(ct);
+
+        // Legacy direct grants have no reliable scope metadata in old databases.
+        // During migration, treat an unscoped legacy grant as Own rather than
+        // silently expanding it to Department/All.
+        if (scope == null)
+        {
+            scope = await (
+                from uf in _uow.Repository<F03UserFunction>().Query().AsNoTracking()
+                join f in _uow.Repository<F03Function>().Query().AsNoTracking()
+                    on uf.IdFunction equals f.IdFunction
+                where uf.IdUser == userId
+                    && (f.IsActive ?? true)
+                    && f.FunctionCode == functionCode
+                select f.ScopeCode
+            ).FirstOrDefaultAsync(ct);
+        }
+
+        return string.IsNullOrWhiteSpace(scope)
+            ? AuthorizationScopeCodes.None
+            : scope;
+    }
+
+    public async Task<bool> CanAccessAsync(
+        UserIdentityDto user,
+        int functionCode,
+        string? employeeCode,
+        string? deptCode,
+        CancellationToken ct = default)
+    {
+        if (user.UserId <= 0)
+            return false;
+
+        var scope = await GetScopeAsync(user.UserId, functionCode, ct);
+
+        return scope switch
+        {
+            AuthorizationScopeCodes.All => true,
+            AuthorizationScopeCodes.Department =>
+                !string.IsNullOrWhiteSpace(user.DeptCode)
+                && !string.IsNullOrWhiteSpace(deptCode)
+                && string.Equals(user.DeptCode, deptCode, StringComparison.OrdinalIgnoreCase),
+            AuthorizationScopeCodes.Own =>
+                !string.IsNullOrWhiteSpace(user.EmployeeCode)
+                && !string.IsNullOrWhiteSpace(employeeCode)
+                && string.Equals(user.EmployeeCode, employeeCode, StringComparison.OrdinalIgnoreCase),
+            AuthorizationScopeCodes.Employee =>
+                !string.IsNullOrWhiteSpace(employeeCode)
+                && string.Equals(user.EmployeeCode, employeeCode, StringComparison.OrdinalIgnoreCase),
+            _ => false
+        };
+    }
+
     public async Task<PermissionSnapshotDto> GetSnapshotAsync(
         int userId,
         CancellationToken ct = default)
