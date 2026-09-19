@@ -30,7 +30,7 @@
         <MudAlert Severity="Severity.Error">@_error</MudAlert>
     }
 
-    <MudTabs Elevation="0" Rounded="true" PanelClass="pa-2">
+    <MudTabs Elevation="0" Rounded="true" Class="pa-2">
         <MudTabPanel Text="Users & Effective Permission" Icon="@Icons.Material.Filled.People">
             <MudGrid>
                 <MudItem xs="12" md="7">
@@ -43,8 +43,8 @@
                                           Variant="Variant.Outlined" Margin="Margin.Dense" />
                         </MudStack>
 
-                        <MudTable Items="FilteredUsers" Hover="true" Dense="true" Loading="_loading"
-                                  OnRowClick="SelectUser">
+                        <MudTable T="UserAccountDto" Items="FilteredUsers" Hover="true" Dense="true" Loading="_loading"
+                                  OnRowClick="@(args => SelectUser(args))">
                             <HeaderContent>
                                 <MudTh>Nhân viên</MudTh>
                                 <MudTh>Phòng ban</MudTh>
@@ -293,7 +293,7 @@
     }
 
     private async Task SelectUser(TableRowClickEventArgs<UserAccountDto> args)
-        => await SelectUserAsync(args.Item);
+        => args.Item is null ? Task.CompletedTask : SelectUserAsync(args.Item);
 
     private async Task SelectUserAsync(UserAccountDto user)
     {
