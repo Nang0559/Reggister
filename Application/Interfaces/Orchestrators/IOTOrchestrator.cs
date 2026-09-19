@@ -13,8 +13,8 @@ namespace FVN_REGISTER.Application.Interfaces.Orchestrators
 {
     /// <summary>
     /// Điều phối toàn bộ vòng đời của 1 đơn tăng ca (OT):
-    /// Validate -> Ghi dữ liệu (IOTService) -> Khởi tạo/hủy luồng duyệt (IApprovalWorkflowOrchestrator)
-    /// -> Đồng bộ HRM khi cần (IOTSyncService). Controller chỉ nên gọi vào đây.
+    /// Validate -> Ghi dữ liệu (IOTService) -> Khởi tạo/hủy luồng duyệt (IApprovalWorkflowOrchestrator).
+    /// Dữ liệu chấm công/OT thực tế do HRM attendance calculation pipeline xử lý tập trung.
     /// </summary>
     public interface IOTOrchestrator
     {
