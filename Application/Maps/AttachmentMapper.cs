@@ -16,7 +16,7 @@ namespace FVN_REGISTER.Application.Maps
             FilePath = a.FilePath ?? string.Empty,
             FileExtension = Path.GetExtension(a.FileName),
             FileSize = a.FileSize,
-            UploadedAt = a.CreatedAt ?? DateTime.MinValue
+            UploadedAt = a.CreatedAt 
         };
 
         public static List<AttachmentDto> ToDtoList(IEnumerable<F03Attachment>? attachments)
