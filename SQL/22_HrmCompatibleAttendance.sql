@@ -674,15 +674,77 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 		DROP TABLE #tblDangkynghiTam
 --------------------------------------------------------------------------------------------------------------------------------------------
 
-		-- Lay ma the
-		SELECT @MaThe= CTMaThe FROM HRM.dbo.tblCapThe WHERE (CTMaNV=@StaffID) AND (@D  BETWEEN CTNgayApDung AND CTNgayKetThuc) ORDER BY CTNgayKetThuc DESC
+		-- Lay ma the.
+		-- RecordDataNew la nguon cham cong goc, vi vay khong duoc bo qua
+		-- toan bo ngay chi vi metadata the hoac ca chua du.
+		SELECT TOP 1 @MaThe=CTMaThe
+		FROM HRM.dbo.tblCapThe
+		WHERE CTMaNV=@StaffID
+		  AND (@D BETWEEN CTNgayApDung AND CTNgayKetThuc)
+		ORDER BY CTNgayKetThuc DESC, CTMaThe;
+
+		-- Fallback: tim the co RecordDataNew thuc te trong cua so ngay.
 		IF @MaThe IS NULL
+		BEGIN
+			SELECT TOP 1 @MaThe=R.IDCard
+			FROM HRM.dbo.RecordDataNew R
+			INNER JOIN HRM.dbo.tblCapThe C ON C.CTMaNV=@StaffID AND C.CTMaThe=R.IDCard
+			WHERE R.ThoiGian >= DATEADD(HOUR,-6,CONVERT(datetime,CONVERT(date,@D)))
+			  AND R.ThoiGian <  DATEADD(HOUR,30,CONVERT(datetime,CONVERT(date,@D)))
+			ORDER BY R.ThoiGian DESC, R.IDCard;
+		END
+
+		-- Acquisition dau tien: doc IN/OUT truc tiep tu RecordDataNew.
+		-- IN  = dau doc DDChinhVao=1, lan som nhat.
+		-- OUT = dau doc DDChinhVao=0, lan muon nhat.
+		CREATE TABLE #tblRecordDataRaw
+		(
+			IDM tinyint NULL,
+			IDCard nvarchar(20) NOT NULL,
+			ThoiGian datetime NOT NULL,
+			Status bit NULL,
+			HandData bit NULL,
+			Pass bit NULL,
+			DDChinhVao bit NULL
+		);
+
+		INSERT INTO #tblRecordDataRaw(IDM,IDCard,ThoiGian,Status,HandData,Pass,DDChinhVao)
+		SELECT DISTINCT
+			R.IDM,R.IDCard,R.ThoiGian,R.Status,R.HandData,R.Pass,D.DDChinhVao
+		FROM HRM.dbo.RecordDataNew R
+		INNER JOIN HRM.dbo.tblCapThe C
+			ON C.CTMaNV=@StaffID
+		   AND C.CTMaThe=R.IDCard
+		LEFT JOIN HRM.dbo.tblDauDoc D
+			ON D.DDMa=R.IDM
+		WHERE R.ThoiGian >= DATEADD(HOUR,-6,CONVERT(datetime,CONVERT(date,@D)))
+		  AND R.ThoiGian <  DATEADD(HOUR,30,CONVERT(datetime,CONVERT(date,@D)))
+		  AND ISNULL(D.DDloaiChamCong,N'')=N'';
+
+		IF EXISTS (SELECT 1 FROM #tblRecordDataRaw)
+		BEGIN
+			SELECT TOP 1 @TGDen=ThoiGian,@Cuaden=ISNULL(IDM,0)
+			FROM #tblRecordDataRaw
+			WHERE DDChinhVao=1
+			ORDER BY ThoiGian ASC, IDM ASC;
+
+			SELECT TOP 1 @TGVe=ThoiGian,@CuaVe=ISNULL(IDM,0)
+			FROM #tblRecordDataRaw
+			WHERE DDChinhVao=0
+			ORDER BY ThoiGian DESC, IDM DESC;
+		END
+
+		-- Neu chua co ca, chi ket thuc phan tinh Work/OT; IN/OUT raw van duoc
+		-- ghi ra #tblBaoCao de co the kiem tra truc tiep RecordDataNew.
+		IF @Maca = 0
 			BEGIN
+				DROP TABLE #tblRecordDataRaw;
     			GOTO EndThisSub
 			END
 
-		IF @Maca = 0
+		IF @MaThe IS NULL
 			BEGIN
+				DROP TABLE #tblRecordDataRaw;
     			GOTO EndThisSub
 			END
 			
