@@ -57,11 +57,20 @@ public sealed class HrmSyncService : IHrmSyncService
                 """
                 SELECT COUNT(*) AS Value
                 FROM dbo.F03Employees e
-                INNER JOIN dbo.F03Positions p
-                    ON p.PositionCode=e.PositionCode
-                   AND p.IsActive=1 AND p.IsApprove=1 AND p.IsAllowApprove=1
+                INNER JOIN dbo.F03ApprovalPolicies ap
+                    ON ap.PositionCode=e.PositionCode
+                   AND ap.IsActive=1
                 LEFT JOIN dbo.F03Approvers a
-                    ON a.ApproverCode=e.EmployeeCode AND a.IsActive=1
+                    ON a.ApproverCode=e.EmployeeCode
+                   AND a.IsActive=1
+                   AND a.RequestType = CASE ap.RequestType
+                       WHEN 0 THEN N'Leave'
+                       WHEN 1 THEN N'Overtime'
+                       WHEN 2 THEN N'Trip'
+                       WHEN 3 THEN N'Equipment'
+                   END
+                   AND a.Level=ap.Level
+                   AND a.ApproveForDeptCode=e.DeptCode
                 WHERE e.IsActive=1 AND a.Id IS NULL;
                 """, ct);
 
@@ -86,11 +95,20 @@ public sealed class HrmSyncService : IHrmSyncService
                 """
                 SELECT COUNT(*) AS Value
                 FROM dbo.F03Employees e
-                INNER JOIN dbo.F03Positions p
-                    ON p.PositionCode=e.PositionCode
-                   AND p.IsActive=1 AND p.IsApprove=1 AND p.IsAllowApprove=1
+                INNER JOIN dbo.F03ApprovalPolicies ap
+                    ON ap.PositionCode=e.PositionCode
+                   AND ap.IsActive=1
                 LEFT JOIN dbo.F03Approvers a
-                    ON a.ApproverCode=e.EmployeeCode AND a.IsActive=1
+                    ON a.ApproverCode=e.EmployeeCode
+                   AND a.IsActive=1
+                   AND a.RequestType = CASE ap.RequestType
+                       WHEN 0 THEN N'Leave'
+                       WHEN 1 THEN N'Overtime'
+                       WHEN 2 THEN N'Trip'
+                       WHEN 3 THEN N'Equipment'
+                   END
+                   AND a.Level=ap.Level
+                   AND a.ApproveForDeptCode=e.DeptCode
                 WHERE e.IsActive=1 AND a.Id IS NULL;
                 """, ct);
 
@@ -112,7 +130,7 @@ public sealed class HrmSyncService : IHrmSyncService
             run.Success = true;
             run.Running = false;
             run.FinishedAt = DateTime.Now;
-            run.Summary = "Đã reconcile F03Users và F03Approvers từ dữ liệu Employee/Position hiện tại.";
+            run.Summary = "Đã reconcile F03Users và F03Approvers theo F03ApprovalPolicies + PositionCode HRM.";
             SetFinished(run);
             return ServiceResult<HrmSyncRunResultDto>.Ok(run);
         }
