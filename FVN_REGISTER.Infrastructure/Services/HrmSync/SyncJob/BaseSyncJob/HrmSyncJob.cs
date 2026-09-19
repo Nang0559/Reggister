@@ -124,8 +124,11 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
                                 var source = entity.GetType().GetProperty("LastModifiedSource")?.GetValue(entity) as string;
                                 if (!string.Equals(source, SyncSourceTags.Hrm, StringComparison.OrdinalIgnoreCase))
                                 {
+                                    // Đây là một skip có chủ đích để bảo vệ dữ liệu FVN
+                                    // do Admin/manual tạo hoặc chỉnh sửa. Không phải lỗi của
+                                    // pipeline HRM và không được làm job Success=false.
                                     staging.ErrorMessage = "Delete skipped: target record is not owned by HRM sync.";
-                                    result.Errors.Add($"{staging.EntityKey}: Delete skipped vì LastModifiedSource != HRM.");
+                                    result.Unchanged++;
                                     break;
                                 }
 
