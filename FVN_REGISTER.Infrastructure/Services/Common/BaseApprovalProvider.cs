@@ -45,24 +45,41 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
     public abstract RequestModule RequestType { get; }
 
     public virtual async Task<List<ApprovalStepSnapshotDto>> BuildHierarchyAsync(
-        ApprovalBuildContext ctx,
-        CancellationToken ct)
+     ApprovalBuildContext ctx,
+     CancellationToken ct)
     {
-        var route = await _routeService.GetPreviewAsync(
+        var routeResult = await _routeService.GetPreviewAsync(
             RequestType,
             ctx.EmployeeCode,
             ctx.DeptCode,
             ctx.PositionCode,
             ct);
 
-        var selections = await _selectionService.GetAsync(RequestType, ctx.RequestId, ct);
+        if (!routeResult.Success || routeResult.Data == null)
+        {
+            throw new InvalidOperationException(
+                routeResult.Message ??
+                $"Không xác định được luồng phê duyệt cho {RequestType}.");
+        }
+
+        var route = routeResult.Data;
+
+        var selections = await _selectionService.GetAsync(
+            RequestType,
+            ctx.RequestId,
+            ct);
+
         var selectedByLevel = selections
             .GroupBy(x => x.Level)
-            .ToDictionary(x => x.Key, x => x.Last().ApproverCode);
+            .ToDictionary(
+                x => x.Key,
+                x => x.Last().ApproverCode);
 
         var result = new List<ApprovalStepSnapshotDto>();
 
-        foreach (var level in route.Levels.OrderBy(x => x.Sequence).ThenBy(x => x.Level))
+        foreach (var level in route.Levels
+            .OrderBy(x => x.Sequence)
+            .ThenBy(x => x.Level))
         {
             if (!level.Required)
                 continue;
@@ -70,23 +87,32 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
             if (level.Candidates.Count == 0)
             {
                 throw new InvalidOperationException(
-                    $"Không tìm thấy người phê duyệt cho {RequestType}, {level.LevelName} (Level {level.Level}).");
+                    $"Không tìm thấy người phê duyệt cho " +
+                    $"{RequestType}, {level.LevelName} (Level {level.Level}).");
             }
 
-            if (!selectedByLevel.TryGetValue(level.Level, out var selectedCode) ||
+            if (!selectedByLevel.TryGetValue(
+                    level.Level,
+                    out var selectedCode) ||
                 string.IsNullOrWhiteSpace(selectedCode))
             {
                 throw new InvalidOperationException(
-                    $"Chưa chọn người phê duyệt cho {RequestType}, {level.LevelName} (Level {level.Level}).");
+                    $"Chưa chọn người phê duyệt cho " +
+                    $"{RequestType}, {level.LevelName} (Level {level.Level}).");
             }
 
             var selected = level.Candidates.FirstOrDefault(
-                x => string.Equals(x.ApproverCode, selectedCode, StringComparison.OrdinalIgnoreCase));
+                x => string.Equals(
+                    x.ApproverCode,
+                    selectedCode,
+                    StringComparison.OrdinalIgnoreCase));
 
             if (selected == null)
             {
                 throw new InvalidOperationException(
-                    $"Người phê duyệt [{selectedCode}] không thuộc danh sách hợp lệ của {RequestType}, Level {level.Level}.");
+                    $"Người phê duyệt [{selectedCode}] " +
+                    $"không thuộc danh sách hợp lệ của " +
+                    $"{RequestType}, Level {level.Level}.");
             }
 
             result.Add(new ApprovalStepSnapshotDto(
@@ -100,8 +126,11 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
         }
 
         if (result.Count == 0)
+        {
             throw new InvalidOperationException(
-                $"Không xác định được cấp phê duyệt cho {RequestType} / chức vụ {ctx.PositionCode}.");
+                $"Không xác định được cấp phê duyệt cho " +
+                $"{RequestType} / chức vụ {ctx.PositionCode}.");
+        }
 
         return result;
     }
