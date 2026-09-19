@@ -1,9 +1,6 @@
-using FVN_REGISTER.Application.Interfaces.Approvals;
+
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Core.Constants;
-using FVN_REGISTER.Core.Entities.Approvers;
-using FVN_REGISTER.Core.Entities.HR;
-using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
 
