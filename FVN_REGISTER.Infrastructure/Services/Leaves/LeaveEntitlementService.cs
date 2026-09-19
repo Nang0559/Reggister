@@ -141,6 +141,99 @@ public sealed class LeaveEntitlementService : ILeaveEntitlementService
         };
     }
 
+    public async Task EnsureWorkYearCalculatedAsync(
+        int workYear,
+        CancellationToken ct = default)
+    {
+        var workYearEntity = await _uow.Repository<F03WorkYear>().Query()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(
+                x => x.WorkYear == workYear && x.IsActive == true,
+                ct);
+
+        if (workYearEntity == null)
+            throw new InvalidOperationException($"Chưa cấu hình F03WorkYear cho năm {workYear}.");
+
+        var employees = await _uow.Repository<F03Employee>().Query()
+            .Where(x => x.IsActive == true && x.FirstWorkingDate.HasValue)
+            .ToListAsync(ct);
+
+        if (employees.Count == 0)
+            return;
+
+        var codes = employees.Select(x => x.EmployeeCode).ToList();
+        var balances = await _uow.Repository<F03LeaveBalance>().Query()
+            .Where(x => x.WorkYear == workYear && codes.Contains(x.EmployeeCode))
+            .ToDictionaryAsync(x => x.EmployeeCode, ct);
+
+        var today = DateTime.Today;
+        var now = DateTime.Now;
+        var currentUser = _currentUser.GetCurrentUser();
+        var actorId = currentUser?.UserId ?? 0;
+
+        foreach (var employee in employees)
+        {
+            if (!employee.FirstWorkingDate.HasValue)
+                continue;
+
+            var firstWorkingDate = employee.FirstWorkingDate.Value.Date;
+            var employedInYear = firstWorkingDate <= workYearEntity.EndDate.Date
+                && (!employee.EndWorkingDate.HasValue
+                    || employee.EndWorkingDate.Value.Date >= workYearEntity.StartDate.Date);
+
+            var calculationDate = employee.EndWorkingDate.HasValue
+                && employee.EndWorkingDate.Value.Date < workYearEntity.EndDate.Date
+                    ? employee.EndWorkingDate.Value.Date
+                    : workYearEntity.EndDate.Date;
+
+            var yearsOfService = employedInYear
+                ? CalculateCompletedYears(firstWorkingDate, calculationDate)
+                : 0;
+            var seniorityLeaveDays = employedInYear
+                ? Math.Floor((decimal)yearsOfService / SeniorityStepYears)
+                : 0m;
+            var totalLeaveDays = employedInYear
+                ? BaseAnnualLeaveDays + seniorityLeaveDays
+                : 0m;
+
+            if (!balances.TryGetValue(employee.EmployeeCode, out var balance))
+            {
+                balance = new F03LeaveBalance
+                {
+                    EmployeeCode = employee.EmployeeCode,
+                    WorkYear = workYear,
+                    CreatedBy = actorId,
+                    CreatedAt = now
+                };
+                await _uow.Repository<F03LeaveBalance>().AddAsync(balance, ct);
+                balances[employee.EmployeeCode] = balance;
+            }
+
+            // Không ghi lại balance đã tính trong cùng một ngày nếu entitlement vẫn giống nhau.
+            if (balance.CalculatedAt.Date != today
+                || balance.TotalDays != totalLeaveDays
+                || balance.YearsOfService != yearsOfService)
+            {
+                balance.BaseLeaveDays = employedInYear ? BaseAnnualLeaveDays : 0m;
+                balance.SeniorityLeaveDays = seniorityLeaveDays;
+                balance.TotalDays = totalLeaveDays;
+                balance.YearsOfService = yearsOfService;
+                balance.CalculatedAt = now;
+                balance.ModifiedBy = actorId;
+                balance.ModifiedAt = now;
+            }
+
+            if (workYear == today.Year)
+            {
+                employee.TotalLeaveDays = totalLeaveDays;
+                employee.ModifiedBy = actorId;
+                employee.ModifiedAt = now;
+            }
+        }
+
+        await _uow.SaveChangesAsync(ct);
+    }
+
     private static int CalculateCompletedYears(DateTime firstWorkingDate, DateTime calculationDate)
     {
         if (calculationDate.Date < firstWorkingDate.Date)
