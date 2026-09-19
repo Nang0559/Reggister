@@ -237,7 +237,12 @@ else
                 return;
             }
 
-            if (!sync.Data.Success)
+            // HRM sync có thể có job lỗi/blocked nhưng dữ liệu F03* đã
+            // được ghi nhận một phần. Security provisioning là bước reconcile
+            // độc lập và phải vẫn chạy để tự-heal User/Approver từ dữ liệu
+            // Employee/Position hiện có.
+            var security = await SyncService.ReconcileSecurityAsync();
+            if (!security.IsSuccess || security.Data == null)
             {
                 _status = new HrmSyncRuntimeStatusDto
                 {
@@ -250,34 +255,45 @@ else
                     .FirstOrDefault();
 
                 Snackbar.Add(
-                    firstError ?? sync.Data.Summary ?? "Đồng bộ HRM có lỗi; chưa provision User + Approver.",
+                    security.Message
+                        ?? firstError
+                        ?? "HRM đã chạy nhưng không thể provision User + Approver.",
                     Severity.Error);
                 return;
             }
 
-            // RunAll đã cập nhật dữ liệu HRM. Reconcile lần nữa để tự-heal
-            // toàn bộ User/Approver còn thiếu, kể cả các bản ghi không có
-            // staging change trong lần chạy hiện tại.
-            var security = await SyncService.ReconcileSecurityAsync();
-            if (!security.IsSuccess || security.Data == null)
-            {
-                Snackbar.Add(
-                    security.Message ?? "Đã lấy dữ liệu HRM nhưng không thể provision User + Approver.",
-                    Severity.Error);
-                return;
-            }
+            // Hiển thị cả kết quả HRM và Security trong cùng một phiên,
+            // không làm mất trạng thái/job của pipeline HRM.
+            var combined = security.Data;
+            combined.Jobs.InsertRange(0, sync.Data.Jobs);
+            combined.Success = sync.Data.Success && security.Data.Success;
+            combined.StartedAt = sync.Data.StartedAt;
+            combined.TriggeredBy = sync.Data.TriggeredBy;
+            combined.Summary = sync.Data.Success
+                ? security.Data.Summary
+                : $"HRM có lỗi nhưng Security provisioning vẫn đã chạy. {sync.Data.Summary} | {security.Data.Summary}";
 
             _status = new HrmSyncRuntimeStatusDto
             {
                 IsRunning = false,
-                LastRun = security.Data
+                LastRun = combined
             };
 
+            var firstError = sync.Data.Jobs
+                .SelectMany(x => x.Errors)
+                .FirstOrDefault();
+
             Snackbar.Add(
-                security.Data.Success
+                security.Data.Success && sync.Data.Success
                     ? security.Data.Summary
-                    : security.Data.Summary ?? "Provision User + Approver có lỗi.",
-                security.Data.Success ? Severity.Success : Severity.Error);
+                    : security.Data.Success
+                        ? firstError ?? "HRM có lỗi nhưng User + Approver đã được reconcile."
+                        : security.Data.Summary ?? "Provision User + Approver có lỗi.",
+                security.Data.Success && sync.Data.Success
+                    ? Severity.Success
+                    : security.Data.Success
+                        ? Severity.Warning
+                        : Severity.Error);
 
             await RefreshConflictCountAsync();
         }
