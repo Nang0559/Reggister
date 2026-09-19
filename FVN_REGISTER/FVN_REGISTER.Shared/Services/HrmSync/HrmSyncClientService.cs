@@ -19,4 +19,7 @@ public sealed class HrmSyncClientService : IHrmSyncClientService
 
     public Task<ApiResponse<HrmSyncRunResultDto>> RunEntityAsync(string entityType, CancellationToken ct = default)
         => _http.PostAsync<HrmSyncRunResultDto>($"{Base}/run/{Uri.EscapeDataString(entityType)}", new { }, ct);
+
+    public Task<ApiResponse<HrmSyncRunResultDto>> ReconcileSecurityAsync(CancellationToken ct = default)
+        => _http.PostAsync<HrmSyncRunResultDto>($"{Base}/security/reconcile", new { }, ct);
 }
