@@ -13,7 +13,7 @@ INSERT @RequiredTables VALUES
 (N'F03EmailQueues'),(N'F03SyncReviewFlag'),(N'F03StagingEmployee'),
 (N'F03StagingDepartment'),(N'F03StagingPosition'),(N'F03StagingLeaveType'),
 (N'F03Shifts'),(N'F03ShiftSchedules'),(N'F03ShiftScheduleDays'),
-(N'F03EmployeeShiftSchedules'),(N'F03HrmShiftReference');
+(N'F03EmployeeShiftSchedules'),(N'F03HrmShiftReference'),(N'F03ApprovalGroups'),(N'F03ApprovalPositionGroups'),(N'F03ApprovalPolicies');
 
 IF EXISTS (
     SELECT 1 FROM @RequiredTables r
@@ -83,3 +83,30 @@ IF OBJECT_ID(N'dbo.F03ApprovalPolicies',N'U') IS NULL
 IF OBJECT_ID(N'dbo.F03ApprovalSelections',N'U') IS NULL
     THROW 51231, 'Missing F03ApprovalSelections. Run SQL/17_ApprovalRouteSelection.sql.', 1;
 GO
+
+
+/* HRM security / approval provisioning contract. */
+IF OBJECT_ID(N'dbo.usp_ReconcileEmployeeUsers',N'P') IS NULL
+    THROW 51230,'Missing employee -> user reconciliation procedure.',1;
+IF OBJECT_ID(N'dbo.usp_ReconcileEmployeeApprovers',N'P') IS NULL
+    THROW 51231,'Missing employee -> approver reconciliation procedure.',1;
+IF OBJECT_ID(N'dbo.usp_ReconcileHrmSecurity',N'P') IS NULL
+    THROW 51232,'Missing combined HRM security reconciliation procedure.',1;
+
+IF COL_LENGTH(N'dbo.F03ApprovalGroups',N'GroupCode') IS NULL
+    OR COL_LENGTH(N'dbo.F03ApprovalPositionGroups',N'PositionCode') IS NULL
+    OR COL_LENGTH(N'dbo.F03ApprovalPositionGroups',N'GroupCode') IS NULL
+    OR COL_LENGTH(N'dbo.F03ApprovalPolicies',N'RequestType') IS NULL
+    OR COL_LENGTH(N'dbo.F03ApprovalPolicies',N'GroupCode') IS NULL
+    OR COL_LENGTH(N'dbo.F03ApprovalPolicies',N'Level') IS NULL
+    THROW 51233,'Canonical PositionCode -> ApprovalGroup -> ApprovalLevel schema is incomplete.',1;
+
+SELECT
+    MissingActiveUsers = (
+        SELECT COUNT(*) FROM dbo.F03Employees e
+        LEFT JOIN dbo.F03Users u ON u.EmployeeCode=e.EmployeeCode AND u.IsActive=1
+        WHERE e.IsActive=1 AND u.Id IS NULL
+    ),
+    ActiveApprovalGroups = (SELECT COUNT(*) FROM dbo.F03ApprovalGroups WHERE IsActive=1),
+    ActiveApprovalPolicies = (SELECT COUNT(*) FROM dbo.F03ApprovalPolicies WHERE IsActive=1),
+    ActiveApprovers = (SELECT COUNT(*) FROM dbo.F03Approvers WHERE IsActive=1);
