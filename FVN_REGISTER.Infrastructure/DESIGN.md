@@ -182,3 +182,36 @@ Infrastructure được coi là hoàn thiện khi:
 [ ] Không API/UI dependency
 [ ] Infrastructure build OK
 ```
+
+
+## 13. HRM attendance calculation adapter
+
+Attendance calculation is a dedicated Infrastructure integration, separate from generic HRM master-data synchronization.
+
+```text
+API
+ ↓
+Application.Interfaces.HrmSync.IHrmAttendanceCalculationService
+ ↓
+Infrastructure.Services.HrmSync.HrmAttendanceCalculationService
+ ↓
+dbo.usp_CalculateHrmAttendance
+ ↓
+HRM.dbo.*  (READ ONLY)
+ ↓
+FVN_REGISTER.dbo.F03HrmAttendanceCalculated
+FVN_REGISTER.dbo.F03HrmOTActual
+```
+
+Rules:
+
+- HRM and FVN_REGISTER may reside on the same SQL Server; three-part names are used for direct cross-database reads.
+- FVN does not execute the HRM UI.
+- FVN does not write to `HRM.dbo.tblBaoCao`, `HRM.dbo.tblBaoCaoK` or other HRM result tables.
+- The calculation procedure uses an FVN-local temporary calculation context and returns the calculated HRM-compatible result.
+- HRM attendance rules/configuration remain in HRM source tables/procedure logic; FVN owns only the persisted calculation result.
+- The calculation request is scoped by department and date range and receives a `CalculationBatchId` for traceability.
+- A long SQL command timeout is intentional for batch calculation; the UnitOfWork timeout is restored after execution.
+- Export services read FVN calculation results, never HRM report tables.
+
+This adapter is the canonical runtime path for the **Tính giờ** use case.
