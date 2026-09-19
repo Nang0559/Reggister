@@ -56,7 +56,7 @@ public sealed class TripController : ControllerBase
     }
 
     [HttpPost("{id:int}/submit")]
-    public async Task<ActionResult<TripRequestDto>> Submit(int id, CancellationToken ct)
+    public async Task<ActionResult<TripRequestDto>> Submit(int id, [FromBody] List<ApprovalSelectionDto>? approvalSelections, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.TripEdit, ct)) return Forbid();
         return Ok(await _service.SubmitAsync(id, approvalSelections, ct));
