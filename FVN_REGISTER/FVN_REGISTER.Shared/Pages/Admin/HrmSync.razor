@@ -35,6 +35,11 @@
                OnClick="RunAllAsync" Disabled="@(_loading || _status?.IsRunning == true)">
         Đồng bộ tất cả
     </MudButton>
+    <MudButton Variant="Variant.Filled" Color="Color.Secondary"
+               StartIcon="@Icons.Material.Filled.Security"
+               OnClick="ReconcileSecurityAsync" Disabled="@(_loading || _status?.IsRunning == true)">
+        Đồng bộ User + Approver
+    </MudButton>
 </MudStack>
 
 @if (_status?.IsRunning == true)
@@ -208,6 +213,33 @@ else
 
             _status = new HrmSyncRuntimeStatusDto { IsRunning = false, LastRun = result.Data };
             Snackbar.Add(result.Data.Success ? "Đồng bộ HRM hoàn tất." : "Đồng bộ HRM hoàn tất nhưng có lỗi.", result.Data.Success ? Severity.Success : Severity.Warning);
+            await RefreshConflictCountAsync();
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task ReconcileSecurityAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = await SyncService.ReconcileSecurityAsync();
+            if (!result.IsSuccess || result.Data == null)
+            {
+                Snackbar.Add(result.Message ?? "Không thể provision User + Approver từ HRM.", Severity.Error);
+                return;
+            }
+
+            _status = new HrmSyncRuntimeStatusDto { IsRunning = false, LastRun = result.Data };
+            Snackbar.Add(
+                result.Data.Success
+                    ? result.Data.Summary
+                    : result.Data.Summary ?? "Provision User + Approver có lỗi.",
+                result.Data.Success ? Severity.Success : Severity.Error);
+
             await RefreshConflictCountAsync();
         }
         finally
