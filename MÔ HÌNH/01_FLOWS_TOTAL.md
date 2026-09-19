@@ -11,15 +11,15 @@ flowchart TB
     HRM[(HRM Master Data / Attendance)]
     D1[D1 HRM Master Data Sync]
     D2[D2 Leave / OT Request + Approval]
-    D3[D3 OT Attendance Reconciliation]
+    D3[D3 HRM Attendance Calculation]
     D4[D4 Notification Pipeline]
     D5[D5 Dashboard Aggregation]
     UI[Blazor UI]
 
     HRM --> D1
     D1 --> D2
-    D2 --> D3
     D2 --> D4
+    D3 --> D5
     D2 --> D5
     D3 --> D5
     D4 --> UI
@@ -146,12 +146,12 @@ flowchart LR
 
 Một endpoint chung xử lý nhiều module; dispatcher/handler route tới workflow tương ứng.
 
-## 6. D3 — OT Attendance Reconciliation
+## 6. D3 — HRM Attendance Calculation
 
-D3 gồm hai lớp dữ liệu phụ thuộc lẫn nhau nhưng khác trách nhiệm:
+D3 là pipeline tính chấm công/OT tập trung. `HrmAttendanceCalculationController` và `IHrmAttendanceCalculationService` là entry point duy nhất cho tính giờ HRM-compatible. OT/Leave/Trip không sở hữu controller đồng bộ riêng.
 
-1. **HRM Shift Master Sync:** HRM cung cấp cấu hình ca/lịch; `usp_SyncHrmShiftMaster` đồng bộ vào `F03Shifts`, `F03ShiftSchedules`, `F03ShiftScheduleDays`, `F03EmployeeShiftSchedules`.
-2. **Attendance Staging / Reconciliation:** `usp_SyncAttendanceStaging(@WorkDate)` đọc dữ liệu chấm công HRM và tự gọi `usp_SyncHrmShiftMaster` trước khi resolve ca. Sau đó ghi `F03AttendanceStaging`; `usp_SyncOTActualHours` dùng staging này để cập nhật actual OT vào `F03OTEmployees`.
+1. **HRM Shift Master Sync:** HRM cung cấp cấu hình ca/lịch; dữ liệu được đồng bộ vào các bảng F03 shift master trước khi tính giờ.
+2. **Attendance Calculation:** `usp_CalculateHrmAttendance` đọc HRM và dữ liệu F03 cần thiết, tạo CalculationBatch và cập nhật các read-model tính giờ/OT. Khi có đơn OT Approved, actual hours được cập nhật ngay trong cùng calculation transaction.
 
 ```mermaid
 flowchart LR
@@ -166,14 +166,14 @@ flowchart LR
     P1 --> SD[(F03ShiftScheduleDays)]
     P1 --> ES[(F03EmployeeShiftSchedules)]
 
-    HA -->|READ ONLY| P2[usp_SyncAttendanceStaging]
-    SM --> P2
-    SS --> P2
-    SD --> P2
-    ES --> P2
-    P2 --> AST[(F03AttendanceStaging)]
-    AST --> P3[usp_SyncOTActualHours]
-    P3 --> OT[(F03OTEmployees)]
+    HA -->|READ ONLY| CALC[usp_CalculateHrmAttendance]
+    SM --> CALC
+    SS --> CALC
+    SD --> CALC
+    ES --> CALC
+    CALC --> ATT[(F03HrmAttendanceCalculated)]
+    CALC --> ACT[(F03HrmOTActual)]
+    CALC --> OT[(F03OTEmployees.ActualHours)]
 ```
 
 **Invariant:** FVN_REGISTER chỉ đọc HRM; không ghi ngược vào các bảng HRM. `tblBaoCao` được dùng làm dữ liệu tham chiếu/snapshot chấm công HRM, không phải bảng do FVN_REGISTER sở hữu.
