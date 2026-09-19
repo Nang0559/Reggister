@@ -133,7 +133,41 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    ;WITH CandidateEmployees AS
+    /*
+      Materialize the candidate pool because it is used by both MERGE and
+      stale-row cleanup. F03ApprovalPolicies is intentionally NOT joined here:
+      its PositionCode belongs to the requester.
+    */
+    SELECT DISTINCT
+        c.EmployeeCode,
+        c.PositionCode,
+        c.EmployeeName,
+        c.EmailAddress,
+        c.DeptCode,
+        c.DeptName,
+        CONVERT(nvarchar(20),v.RequestType) AS RequestType,
+        v.Level,
+        CASE
+            WHEN c.PositionApproveRank=4 THEN N'ALL'
+            ELSE c.DeptCode
+        END AS ApproveForDeptCode,
+        CASE c.PositionApproveRank
+            WHEN 1 THEN
+                CASE v.RequestType
+                    WHEN 3 THEN N'EquipmentApprover'
+                    ELSE N'SubLeader'
+                END
+            WHEN 2 THEN
+                CASE v.RequestType
+                    WHEN 1 THEN N'Chief'
+                    WHEN 3 THEN N'EquipmentManager'
+                    ELSE N'Manager'
+                END
+            WHEN 3 THEN N'Manager'
+            WHEN 4 THEN N'GM'
+        END AS RoleName
+    INTO #HrmApproverSource
+    FROM
     (
         SELECT
             e.EmployeeCode,
@@ -153,94 +187,43 @@ BEGIN
             ON d.DeptCode=e.DeptCode
         WHERE e.IsActive=1
           AND (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode)
-    ),
-    CandidateLevels AS
+    ) c
+    CROSS APPLY
     (
-        SELECT
-            c.EmployeeCode,
-            c.PositionCode,
-            c.EmployeeName,
-            c.EmailAddress,
-            c.DeptCode,
-            c.DeptName,
-            v.RequestType,
-            v.Level
-        FROM CandidateEmployees c
-        CROSS APPLY
-        (
-            VALUES
-            (0, CASE c.PositionApproveRank
-                    WHEN 1 THEN 1
-                    WHEN 2 THEN 2
-                    WHEN 3 THEN 3
-                    WHEN 4 THEN 3
-                    ELSE NULL
-                END),
-            (1, CASE c.PositionApproveRank
-                    WHEN 1 THEN 3
-                    WHEN 2 THEN 5
-                    WHEN 3 THEN 6
-                    WHEN 4 THEN 7
-                    ELSE NULL
-                END),
-            (2, CASE c.PositionApproveRank
-                    WHEN 1 THEN 1
-                    WHEN 2 THEN 2
-                    WHEN 3 THEN 3
-                    WHEN 4 THEN 3
-                    ELSE NULL
-                END),
-            (3, CASE c.PositionApproveRank
-                    WHEN 1 THEN 1
-                    WHEN 2 THEN 2
-                    WHEN 3 THEN 3
-                    WHEN 4 THEN 3
-                    ELSE NULL
-                END)
-        ) v(RequestType,Level)
-        WHERE v.Level IS NOT NULL
-    ),
-    SourceRows AS
-    (
-        SELECT DISTINCT
-            EmployeeCode,
-            PositionCode,
-            EmployeeName,
-            EmailAddress,
-            DeptCode,
-            DeptName,
-            CONVERT(nvarchar(20),RequestType) AS RequestType,
-            Level,
-            CASE
-                WHEN PositionApproveRank=4 THEN N'ALL'
-                ELSE DeptCode
-            END AS ApproveForDeptCode,
-            CASE PositionApproveRank
-                WHEN 1 THEN
-                    CASE RequestType
-                        WHEN 1 THEN N'SubLeader'
-                        WHEN 3 THEN N'EquipmentApprover'
-                        ELSE N'SubLeader'
-                    END
-                WHEN 2 THEN
-                    CASE RequestType
-                        WHEN 1 THEN N'Chief'
-                        WHEN 3 THEN N'EquipmentManager'
-                        ELSE N'Manager'
-                    END
-                WHEN 3 THEN
-                    CASE RequestType
-                        WHEN 1 THEN N'Manager'
-                        ELSE N'Manager'
-                    END
-                WHEN 4 THEN N'GM'
-            END AS RoleName
-        FROM CandidateLevels
-        INNER JOIN CandidateEmployees ce
-            ON ce.EmployeeCode=CandidateLevels.EmployeeCode
-    )
+        VALUES
+        (0, CASE c.PositionApproveRank
+                WHEN 1 THEN 1
+                WHEN 2 THEN 2
+                WHEN 3 THEN 3
+                WHEN 4 THEN 3
+                ELSE NULL
+            END),
+        (1, CASE c.PositionApproveRank
+                WHEN 1 THEN 3
+                WHEN 2 THEN 5
+                WHEN 3 THEN 6
+                WHEN 4 THEN 7
+                ELSE NULL
+            END),
+        (2, CASE c.PositionApproveRank
+                WHEN 1 THEN 1
+                WHEN 2 THEN 2
+                WHEN 3 THEN 3
+                WHEN 4 THEN 3
+                ELSE NULL
+            END),
+        (3, CASE c.PositionApproveRank
+                WHEN 1 THEN 1
+                WHEN 2 THEN 2
+                WHEN 3 THEN 3
+                WHEN 4 THEN 3
+                ELSE NULL
+            END)
+    ) v(RequestType,Level)
+    WHERE v.Level IS NOT NULL;
+
     MERGE dbo.F03Approvers AS target
-    USING SourceRows AS src
+    USING #HrmApproverSource AS src
       ON target.ApproverCode=src.EmployeeCode
      AND target.RequestType=src.RequestType
      AND target.Level=src.Level
@@ -288,7 +271,7 @@ BEGIN
 
     /*
       Deactivate only HRM-owned stale rows for the affected employee.
-      Manual approver configuration is intentionally preserved for Admin review.
+      Manual approver configuration is intentionally preserved.
     */
     UPDATE a
        SET a.IsActive=0,
@@ -306,24 +289,11 @@ BEGIN
           OR NOT EXISTS
           (
               SELECT 1
-              FROM CandidateLevels src
+              FROM #HrmApproverSource src
               WHERE src.EmployeeCode=e.EmployeeCode
-                AND CONVERT(nvarchar(20),src.RequestType)=a.RequestType
+                AND src.RequestType=a.RequestType
                 AND src.Level=a.Level
-                AND
-                (
-                    CASE
-                        WHEN EXISTS
-                        (
-                            SELECT 1
-                            FROM dbo.F03Positions p
-                            WHERE p.PositionCode=e.PositionCode
-                              AND p.DefaultApproveLevel=4
-                        )
-                        THEN N'ALL'
-                        ELSE e.DeptCode
-                    END
-                )=a.ApproveForDeptCode
+                AND src.ApproveForDeptCode=a.ApproveForDeptCode
           )
       );
 
