@@ -5,11 +5,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace FVN_REGISTER.Core.Entities.Common;
 
 [Table("F03UserLogs")]
-public partial class F03UserLog
+public partial class F03UserLog : BaseAuditEntity
 {
-    [Key]
-    public int Id { get; set; } // Thay cho LogId
-
     public int UserId { get; set; }
 
     [Required, StringLength(255)]
