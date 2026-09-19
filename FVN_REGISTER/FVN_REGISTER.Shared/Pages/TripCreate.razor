@@ -2,12 +2,16 @@
 @attribute [Authorize]
 @namespace FVN_REGISTER.Shared.Pages
 @using FVN_REGISTER.Contract.Dtos.Trips
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Contract.Requests.Approvals
+@using FVN_REGISTER.Shared.Services.Approvals
 @using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.Trips
 @using FVN_REGISTER.Shared.Components.Calendar
 @using FVN_REGISTER.Contract.Dtos.Calendar
 @using Microsoft.AspNetCore.Authorization
 @inject ITripClientService TripService
+@inject IApprovalRouteClientService ApprovalRouteService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 @inherits AppComponentBase
@@ -121,6 +125,11 @@
                 </MudItem>
             </MudGrid>
 
+            @if (_approvalRoute != null)
+            {
+                <ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" />
+            }
+
             @if (!string.IsNullOrWhiteSpace(_validationMessage))
             {
                 <MudAlert Severity="Severity.Warning" Dense="true" Class="mt-3">
@@ -163,6 +172,8 @@
     private string? _note;
     private string? _validationMessage;
     private bool _saving;
+    private ApprovalRoutePreviewDto? _approvalRoute;
+    private ApprovalRouteSelector? _approvalSelector;
 
     private CreateTripRequestDto BuildRequest() => new()
     {
@@ -175,7 +186,8 @@
         CompanionEmployeeCodes = Clean(_companionEmployeeCodes),
         EstimatedCost = _estimatedCost,
         Accommodation = Clean(_accommodation),
-        Note = Clean(_note)
+        Note = Clean(_note),
+        ApprovalSelections = _approvalSelector?.GetSelections() ?? new()
     };
 
     private static string? Clean(string? value)
@@ -236,7 +248,7 @@
                 return;
             }
 
-            var submitted = await TripService.SubmitAsync(draft.Data!.Id);
+            var submitted = await TripService.SubmitAsync(draft.Data!.Id, draft.Data.ApprovalSelections);
             if (!submitted.IsSuccess)
             {
                 Snackbar.Add(submitted.Message ?? "Không thể gửi đăng ký công tác.", Severity.Error);
