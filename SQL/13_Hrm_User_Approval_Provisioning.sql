@@ -95,35 +95,21 @@ END;
 GO
 
 /*
-  APPROVER provisioning
+  APPROVER provisioning - POLICY DRIVEN
 
-  IMPORTANT:
-  F03ApprovalPolicies.PositionCode belongs to the REQUESTER, not the approver.
-  F03Approvers is the candidate pool for a RequestType + Level.
+  F03ApprovalPolicies is the source of truth:
+      Policy.PositionCode -> F03Employee.PositionCode
+      Policy.RequestType   -> F03Approvers.RequestType
+      Policy.Level         -> F03Approvers.Level
 
-  HRM position capability:
-      F03Positions.IsApprove = 1
-      F03Positions.IsAllowApprove = 1
-      F03Positions.DefaultApproveLevel = canonical approval rank
+  Therefore Admin configures approval policy once. HRM security reconcile then:
+      1. marks every PositionCode referenced by an active policy as approval-capable;
+      2. derives DefaultApproveLevel from the lowest configured policy level;
+      3. creates/synchronizes F03Approvers for active employees whose PositionCode
+         exists in an active policy;
+      4. deactivates stale HRM-owned approver rows when policy/employee no longer qualifies.
 
-  Canonical level mapping:
-      Leave / Trip / Equipment:
-          position rank 1 -> level 1
-          position rank 2 -> level 2
-          position rank 3 -> level 3
-          position rank 4 (GM) -> level 3
-
-      OT:
-          position rank 1 -> level 3
-          position rank 2 -> level 5
-          position rank 3 -> level 6
-          position rank 4 (GM) -> level 7
-
-  This keeps business OT levels (3,5,6,7) distinct from Sequence.
-
-  HRM may CREATE missing candidate rows and synchronize rows that it owns
-  (LastModifiedSource = HRM). Existing manually configured approvers are
-  never overwritten by HRM.
+  No ApprovalGroup / PositionGroup layer is used.
 */
 CREATE OR ALTER PROCEDURE dbo.usp_ReconcileEmployeeApprovers
     @EmployeeCode nvarchar(50)=NULL,
@@ -134,103 +120,90 @@ BEGIN
     SET XACT_ABORT ON;
 
     /*
-      Materialize the candidate pool because it is used by both MERGE and
-      stale-row cleanup. F03ApprovalPolicies is intentionally NOT joined here:
-      its PositionCode belongs to the requester.
+      Policy -> Position metadata.
+      IsApprove/IsAllowApprove are derived metadata, not a prerequisite
+      maintained manually by Admin.
+    */
+    UPDATE p
+       SET p.IsApprove=1,
+           p.IsAllowApprove=1,
+           p.DefaultApproveLevel=(
+               SELECT MIN(ap.Level)
+               FROM dbo.F03ApprovalPolicies ap
+               WHERE ap.IsActive=1
+                 AND ap.PositionCode=p.PositionCode
+           ),
+           p.ModifiedBy=@CreatedBy,
+           p.ModifiedAt=GETDATE(),
+           p.LastModifiedSource=N'HRM'
+    FROM dbo.F03Positions p
+    WHERE p.IsActive=1
+      AND EXISTS
+      (
+          SELECT 1
+          FROM dbo.F03ApprovalPolicies ap
+          WHERE ap.IsActive=1
+            AND ap.PositionCode=p.PositionCode
+      );
+
+    /*
+      Positions that are no longer referenced by any active policy are no
+      longer approval-capable. Do not touch positions owned by another source.
+    */
+    UPDATE p
+       SET p.IsApprove=0,
+           p.IsAllowApprove=0,
+           p.DefaultApproveLevel=NULL,
+           p.ModifiedBy=@CreatedBy,
+           p.ModifiedAt=GETDATE(),
+           p.LastModifiedSource=N'HRM'
+    FROM dbo.F03Positions p
+    WHERE p.LastModifiedSource=N'HRM'
+      AND NOT EXISTS
+      (
+          SELECT 1
+          FROM dbo.F03ApprovalPolicies ap
+          WHERE ap.IsActive=1
+            AND ap.PositionCode=p.PositionCode
+      );
+
+    /*
+      Candidate pool is now driven directly by active ApprovalPolicies.
+      A position can have different levels for different RequestTypes.
     */
     SELECT DISTINCT
-        c.EmployeeCode,
-        c.PositionCode,
-        c.EmployeeName,
-        c.EmailAddress,
-        c.DeptCode,
-        c.DeptName,
-        CASE v.RequestType
-            WHEN 0 THEN N'Leave'
-            WHEN 1 THEN N'Overtime'
-            WHEN 2 THEN N'Trip'
-            WHEN 3 THEN N'Equipment'
-        END AS RequestType,
-        v.Level,
-        CASE
-            WHEN c.PositionApproveRank=4 THEN N'ALL'
-            ELSE c.DeptCode
-        END AS ApproveForDeptCode,
-        CASE c.PositionApproveRank
-            WHEN 1 THEN
-                CASE v.RequestType
-                    WHEN 3 THEN N'EquipmentApprover'
-                    ELSE N'SubLeader'
-                END
-            WHEN 2 THEN
-                CASE v.RequestType
-                    WHEN 1 THEN N'Chief'
-                    WHEN 3 THEN N'EquipmentManager'
-                    ELSE N'Manager'
-                END
-            WHEN 3 THEN N'Manager'
-            WHEN 4 THEN N'GM'
-        END AS RoleName
+        e.EmployeeCode,
+        e.PositionCode,
+        e.EmployeeName,
+        e.EmailAddress,
+        e.DeptCode,
+        d.DeptName,
+        ap.RequestType,
+        ap.Level,
+        ap.LevelName,
+        ap.RoleName,
+        e.DeptCode AS ApproveForDeptCode,
+        ISNULL(d.DeptName,e.DeptCode) AS ApproveForDeptName
     INTO #HrmApproverSource
-    FROM
-    (
-        SELECT
-            e.EmployeeCode,
-            e.PositionCode,
-            e.EmployeeName,
-            e.EmailAddress,
-            e.DeptCode,
-            d.DeptName,
-            pos.DefaultApproveLevel AS PositionApproveRank
-        FROM dbo.F03Employees e
-        INNER JOIN dbo.F03Positions pos
-            ON pos.PositionCode=e.PositionCode
-           AND pos.IsActive=1
-           AND pos.IsApprove=1
-           AND pos.IsAllowApprove=1
-        LEFT JOIN dbo.F03Departments d
-            ON d.DeptCode=e.DeptCode
-        WHERE e.IsActive=1
-          AND (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode)
-    ) c
-    CROSS APPLY
-    (
-        VALUES
-        (0, CASE c.PositionApproveRank
-                WHEN 1 THEN 1
-                WHEN 2 THEN 2
-                WHEN 3 THEN 3
-                WHEN 4 THEN 3
-                ELSE NULL
-            END),
-        (1, CASE c.PositionApproveRank
-                WHEN 1 THEN 3
-                WHEN 2 THEN 5
-                WHEN 3 THEN 6
-                WHEN 4 THEN 7
-                ELSE NULL
-            END),
-        (2, CASE c.PositionApproveRank
-                WHEN 1 THEN 1
-                WHEN 2 THEN 2
-                WHEN 3 THEN 3
-                WHEN 4 THEN 3
-                ELSE NULL
-            END),
-        (3, CASE c.PositionApproveRank
-                WHEN 1 THEN 1
-                WHEN 2 THEN 2
-                WHEN 3 THEN 3
-                WHEN 4 THEN 3
-                ELSE NULL
-            END)
-    ) v(RequestType,Level)
-    WHERE v.Level IS NOT NULL;
+    FROM dbo.F03Employees e
+    INNER JOIN dbo.F03ApprovalPolicies ap
+        ON ap.PositionCode=e.PositionCode
+       AND ap.IsActive=1
+    LEFT JOIN dbo.F03Departments d
+        ON d.DeptCode=e.DeptCode
+    WHERE e.IsActive=1
+      AND (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode);
 
     MERGE dbo.F03Approvers AS target
     USING #HrmApproverSource AS src
       ON target.ApproverCode=src.EmployeeCode
-     AND target.RequestType=src.RequestType
+     AND target.RequestType=
+         CASE src.RequestType
+             WHEN 0 THEN N'Leave'
+             WHEN 1 THEN N'Overtime'
+             WHEN 2 THEN N'Trip'
+             WHEN 3 THEN N'Equipment'
+         END
      AND target.Level=src.Level
      AND target.ApproveForDeptCode=src.ApproveForDeptCode
     WHEN MATCHED
@@ -244,11 +217,8 @@ BEGIN
             target.ApproverEmail=ISNULL(src.EmailAddress,N''),
             target.ApproverDeptCode=ISNULL(src.DeptCode,N''),
             target.ApproverDeptName=ISNULL(src.DeptName,src.DeptCode),
-            target.ApproveForDeptName=
-                CASE WHEN src.ApproveForDeptCode=N'ALL'
-                     THEN N'Toàn công ty'
-                     ELSE ISNULL(src.DeptName,src.DeptCode) END,
-            target.RoleName=src.RoleName,
+            target.ApproveForDeptName=src.ApproveForDeptName,
+            target.RoleName=ISNULL(src.RoleName,src.LevelName),
             target.ModifiedBy=@CreatedBy,
             target.ModifiedAt=GETDATE(),
             target.LastModifiedSource=N'HRM'
@@ -266,18 +236,21 @@ BEGIN
             (SELECT TOP(1) u.Id
              FROM dbo.F03Users u
              WHERE u.EmployeeCode=src.EmployeeCode),
-            src.RequestType,src.EmployeeCode,src.PositionCode,src.EmployeeName,
+            CASE src.RequestType
+                WHEN 0 THEN N'Leave'
+                WHEN 1 THEN N'Overtime'
+                WHEN 2 THEN N'Trip'
+                WHEN 3 THEN N'Equipment'
+            END,
+            src.EmployeeCode,src.PositionCode,src.EmployeeName,
             ISNULL(src.EmailAddress,N''),ISNULL(src.DeptCode,N''),
             ISNULL(src.DeptName,src.DeptCode),src.ApproveForDeptCode,
-            CASE WHEN src.ApproveForDeptCode=N'ALL'
-                 THEN N'Toàn công ty'
-                 ELSE ISNULL(src.DeptName,src.DeptCode) END,
-            src.Level,src.RoleName
+            src.ApproveForDeptName,src.Level,ISNULL(src.RoleName,src.LevelName)
         );
 
     /*
-      Deactivate only HRM-owned stale rows for the affected employee.
-      Manual approver configuration is intentionally preserved.
+      Deactivate only HRM-owned rows that are no longer represented by
+      active employee + active ApprovalPolicy configuration.
     */
     UPDATE a
        SET a.IsActive=0,
@@ -295,17 +268,29 @@ BEGIN
           OR NOT EXISTS
           (
               SELECT 1
-              FROM #HrmApproverSource src
-              WHERE src.EmployeeCode=e.EmployeeCode
-                AND src.RequestType=a.RequestType
-                AND src.Level=a.Level
-                AND src.ApproveForDeptCode=a.ApproveForDeptCode
+              FROM dbo.F03ApprovalPolicies ap
+              WHERE ap.IsActive=1
+                AND ap.PositionCode=e.PositionCode
+                AND a.RequestType=
+                    CASE ap.RequestType
+                        WHEN 0 THEN N'Leave'
+                        WHEN 1 THEN N'Overtime'
+                        WHEN 2 THEN N'Trip'
+                        WHEN 3 THEN N'Equipment'
+                    END
+                AND a.Level=ap.Level
+                AND a.ApproveForDeptCode=e.DeptCode
           )
       );
 
     SELECT
         AffectedEmployee=@EmployeeCode,
-        ActiveApprovers=(SELECT COUNT(*) FROM dbo.F03Approvers WHERE IsActive=1);
+        ActiveApprovers=(SELECT COUNT(*) FROM dbo.F03Approvers WHERE IsActive=1),
+        PolicyPositions=(
+            SELECT COUNT(DISTINCT ap.PositionCode)
+            FROM dbo.F03ApprovalPolicies ap
+            WHERE ap.IsActive=1
+        );
 END;
 GO
 
