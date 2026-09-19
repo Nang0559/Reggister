@@ -15,9 +15,9 @@ SELECT Id AS LeaveTypeId,LeaveTypeCode,LeaveTypeName,LeaveTypeName2,IsCountedAsL
 CASE WHEN IsCountedAsLeave=1 THEN N'Có tính phép' ELSE N'Không tính phép' END AS CountedAsLeaveName,HRMCode AS Hrmcode,IsActive,CreatedBy,CreatedAt,ModifiedBy,ModifiedAt FROM dbo.F03LeaveType;
 GO
 CREATE OR ALTER VIEW dbo.vF03LeaveRequest AS
-SELECT l.Id,l.Id AS LeaveCode,l.WorkYear,l.EmployeeCode,e.EmployeeName,g.GenderName,l.DeptCode,d.DeptName,e.EmailAddress,l.CreatedAt RegisterDate,l.StartTime StartDate,l.EndTime EndDate,
+SELECT l.Id,CONVERT(nvarchar(50), l.Id) AS LeaveCodee,l.WorkYear,l.EmployeeCode,e.EmployeeName,g.GenderName,l.DeptCode,d.DeptName,e.EmailAddress,l.CreatedAt RegisterDate,l.StartTime StartDate,l.EndTime EndDate,
 l.TotalDay,l.TotalLeaveDay,l.LeaveTypeCode,lt.LeaveTypeName,l.LeaveReason,
-CASE l.RequestStatus WHEN 0 THEN N'Draft' WHEN 1 THEN N'Pending' WHEN 2 THEN N'InProgress' WHEN 3 THEN N'Approved' WHEN 4 THEN N'Rejected' WHEN 5 THEN N'Cancelled' WHEN 6 THEN N'Escalated' WHEN 7 THEN N'NeedsRevision' END RequestStatus,
+ l.RequestStatus AS RequestStatus,
 p.PositionCode,p.PositionName,l.IsActive,l.CreatedAt,l.ModifiedAt,
 (SELECT STUFF((SELECT N', ' + a2.FileName FROM dbo.F03Attachment a2 WHERE a2.Module=0 AND a2.RequestId=l.Id AND a2.IsActive=1 FOR XML PATH(N''), TYPE).value(N'.',N'nvarchar(max)'),1,2,N'')) AttachedDocuments
 FROM dbo.F03LeaveDays l LEFT JOIN dbo.F03Employees e ON e.EmployeeCode=l.EmployeeCode LEFT JOIN dbo.F03Departments d ON d.DeptCode=l.DeptCode LEFT JOIN dbo.F03Genders g ON g.Id=e.GenderCode LEFT JOIN dbo.F03Positions p ON p.PositionCode=e.PositionCode LEFT JOIN dbo.F03LeaveType lt ON lt.LeaveTypeCode=l.LeaveTypeCode;
