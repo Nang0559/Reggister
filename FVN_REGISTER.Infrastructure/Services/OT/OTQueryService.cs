@@ -224,6 +224,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .FirstOrDefaultAsync(ct) ?? string.Empty;
 
             var approvalContext = ApprovalBuildContext.ForOT(
+                requestId: 0,
                 employeeCode: employeeCode,
                 deptCode: deptCode,
                 positionCode: positionCode,
