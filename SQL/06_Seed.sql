@@ -166,14 +166,14 @@ SELECT
     CAST(CASE
         WHEN e.FirstWorkingDate IS NULL OR e.FirstWorkingDate > @SeedLeaveEnd THEN 0
         ELSE
-            (DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd)
-             - CASE WHEN DATEADD(year,DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd),e.FirstWorkingDate) > @SeedLeaveEnd THEN 1 ELSE 0 END) / 5.0
+            FLOOR((DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd)
+             - CASE WHEN DATEADD(year,DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd),e.FirstWorkingDate) > @SeedLeaveEnd THEN 1 ELSE 0 END) / 5.0)
         END AS decimal(5,2)),
     CAST(12 + CASE
         WHEN e.FirstWorkingDate IS NULL OR e.FirstWorkingDate > @SeedLeaveEnd THEN 0
         ELSE
-            (DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd)
-             - CASE WHEN DATEADD(year,DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd),e.FirstWorkingDate) > @SeedLeaveEnd THEN 1 ELSE 0 END) / 5
+            FLOOR((DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd)
+             - CASE WHEN DATEADD(year,DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd),e.FirstWorkingDate) > @SeedLeaveEnd THEN 1 ELSE 0 END) / 5.0)
         END AS decimal(5,2)),
     CASE
         WHEN e.FirstWorkingDate IS NULL OR e.FirstWorkingDate > @SeedLeaveEnd THEN 0
