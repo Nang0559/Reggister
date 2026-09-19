@@ -119,7 +119,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
                 HolidayName = holiday?.Description,
                 HolidayCode = holiday == null ? null : $"HOL-{holiday.HolidayDate:yyyyMMdd}",
                 CanRegisterLeave = working,
-                CanRegisterOT = workYear != null && !weekend && holiday == null,
+                CanRegisterOT = workYear != null && (!weekend || holiday != null),
                 CanRegisterTrip = true,
                 AvailabilityNote = holiday != null
                     ? $"Nghỉ công ty: {holiday.Description}"
