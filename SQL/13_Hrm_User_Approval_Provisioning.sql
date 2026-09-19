@@ -323,14 +323,20 @@ WHERE e.IsActive=1 AND u.Id IS NULL;
 
 SELECT MissingApprovers=COUNT(*)
 FROM dbo.F03Employees e
-INNER JOIN dbo.F03Positions pos
-    ON pos.PositionCode=e.PositionCode
-   AND pos.IsActive=1
-   AND pos.IsApprove=1
-   AND pos.IsAllowApprove=1
+INNER JOIN dbo.F03ApprovalPolicies ap
+    ON ap.PositionCode=e.PositionCode
+   AND ap.IsActive=1
 LEFT JOIN dbo.F03Approvers a
     ON a.ApproverCode=e.EmployeeCode
    AND a.IsActive=1
+   AND a.RequestType=CASE ap.RequestType
+       WHEN 0 THEN N'Leave'
+       WHEN 1 THEN N'Overtime'
+       WHEN 2 THEN N'Trip'
+       WHEN 3 THEN N'Equipment'
+   END
+   AND a.Level=ap.Level
+   AND a.ApproveForDeptCode=e.DeptCode
 WHERE e.IsActive=1
   AND a.Id IS NULL;
 GO
