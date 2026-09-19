@@ -284,11 +284,12 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             }
 
             var context = ApprovalBuildContext.ForOT(
-                employeeCode,
-                deptCode ?? string.Empty,
-                positionCode ?? string.Empty,
-                totalOTHours,
-                string.IsNullOrWhiteSpace(model.OTTypeCode) ? "WEEKDAY" : model.OTTypeCode);
+                requestId: 0,
+                employeeCode: employeeCode,
+                deptCode: deptCode ?? string.Empty,
+                positionCode: positionCode ?? string.Empty,
+                totalOTHours: totalOTHours,
+                otTypeCode: string.IsNullOrWhiteSpace(model.OTTypeCode) ? "WEEKDAY" : model.OTTypeCode);
 
             return await _approvalProvider.BuildHierarchyAsync(context, ct);
         }
