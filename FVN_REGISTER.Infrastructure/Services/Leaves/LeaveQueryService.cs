@@ -25,6 +25,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
         private readonly IApprovalProvider<LeaveRequestSubject> _approvalProvider;
         private readonly ICurrentUserService _currentUser;
         private readonly IAuthorizationService _authorization;
+        private readonly ILeaveEntitlementService _leaveEntitlement;
         protected override RequestModule Module => RequestModule.Leave;
 
         public LeaveQueryService(
@@ -33,12 +34,14 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             IAttachmentService attachmentService,
             ICurrentUserService currentUserService,
             IApprovalProvider<LeaveRequestSubject> approvalProvider,
-            IAuthorizationService authorization)
+            IAuthorizationService authorization,
+            ILeaveEntitlementService leaveEntitlement)
             : base(uow, historyService, attachmentService, currentUserService)
         {
             _approvalProvider = approvalProvider;
             _currentUser = currentUserService;
             _authorization = authorization;
+            _leaveEntitlement = leaveEntitlement;
         }
 
         protected override async Task<LeaveRequestDto?> GetHeaderByIdAsync(int requestId, CancellationToken ct)
@@ -80,6 +83,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
 
         public override async Task<LeaveBalanceDto> GetSimpleBalanceAsync(string employeeCode, int year, CancellationToken ct = default)
         {
+            // Entitlement là dữ liệu được tính từ FirstWorkingDate + F03WorkYear.
+            // Recalculate trước khi đọc view balance để tránh dùng snapshot cũ.
+            await _leaveEntitlement.EnsureCalculatedAsync(employeeCode, year, ct);
+
             var phep = await Uow.Repository<VF03LeaveBalance>().Query().AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeCode == employeeCode && x.WorkYear == year, ct);
             var pendingDays = await Uow.Repository<F03LeaveDay>().Query().AsNoTracking().Where(x => x.EmployeeCode == employeeCode && x.WorkYear == year && x.IsActive == true && (x.RequestStatus == ApprovalStatus.Pending || x.RequestStatus == ApprovalStatus.InProgress)).SumAsync(x => (decimal?)x.TotalDay, ct) ?? 0;
             var sickCodes = new[] { "0013", "0014", "0033" };
