@@ -39,11 +39,8 @@ IF COL_LENGTH(N'dbo.F03OTEmployees',N'OTRateMultiplier') IS NOT NULL
 IF COL_LENGTH(N'dbo.F03StagingOTType',N'RateMultiplier') IS NOT NULL
     ALTER TABLE dbo.F03StagingOTType ALTER COLUMN RateMultiplier decimal(5,2) NULL;
 
-/* Remove accidental duplicate canonical Id columns from the legacy security tables. */
-IF COL_LENGTH('dbo.F03Permissions','Id') IS NOT NULL ALTER TABLE dbo.F03Permissions DROP COLUMN Id;
-IF COL_LENGTH('dbo.F03Functions','Id') IS NOT NULL ALTER TABLE dbo.F03Functions DROP COLUMN Id;
-IF COL_LENGTH('dbo.F03Users','Id') IS NOT NULL ALTER TABLE dbo.F03Users DROP COLUMN Id;
-
+/* Canonical BaseAuditEntity PK: Id is the single inherited identity key.
+   Never drop Id from BaseAuditEntity-backed security tables. */
 IF OBJECT_ID('dbo.F03HrmUserRoleRules','U') IS NULL CREATE TABLE dbo.F03HrmUserRoleRules(
     Id int IDENTITY PRIMARY KEY,
     IsActive bit NOT NULL DEFAULT 1,
@@ -59,8 +56,8 @@ IF OBJECT_ID('dbo.F03HrmUserRoleRules','U') IS NULL CREATE TABLE dbo.F03HrmUserR
     Note nvarchar(500) NULL
 );
 
-IF OBJECT_ID('dbo.F03UserFunctions','U') IS NULL CREATE TABLE dbo.F03UserFunctions(Id int IDENTITY PRIMARY KEY,IdUser int NOT NULL,IdPermission int NOT NULL,IdFunction int NOT NULL);
-IF OBJECT_ID('dbo.F03UserSessions','U') IS NULL CREATE TABLE dbo.F03UserSessions(Id int IDENTITY PRIMARY KEY,UserId int NOT NULL,DeviceType nvarchar(10) NOT NULL,DeviceId nvarchar(100) NOT NULL,DeviceName nvarchar(100) NULL,JwtToken nvarchar(max) NULL,ExpiresAt datetime2(0) NULL,SignalRConnectionId nvarchar(100) NULL,IsActive bit NOT NULL DEFAULT 1,CreatedAt datetime2(0) NOT NULL DEFAULT GETUTCDATE(),LastSeenAt datetime2(0) NULL,RevokedAt datetime2(0) NULL,RememberMe bit NOT NULL DEFAULT 0);
+IF OBJECT_ID('dbo.F03UserFunctions','U') IS NULL CREATE TABLE dbo.F03UserFunctions(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50) NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,IdUser int NOT NULL,IdPermission int NOT NULL,IdFunction int NOT NULL);
+IF OBJECT_ID('dbo.F03UserSessions','U') IS NULL CREATE TABLE dbo.F03UserSessions(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50) NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETUTCDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,UserId int NOT NULL,DeviceType nvarchar(10) NOT NULL,DeviceId nvarchar(100) NOT NULL,DeviceName nvarchar(100) NULL,JwtToken nvarchar(max) NULL,ExpiresAt datetime2(0) NULL,SignalRConnectionId nvarchar(100) NULL,IsActive bit NOT NULL DEFAULT 1,CreatedAt datetime2(0) NOT NULL DEFAULT GETUTCDATE(),LastSeenAt datetime2(0) NULL,RevokedAt datetime2(0) NULL,RememberMe bit NOT NULL DEFAULT 0);
 
 IF OBJECT_ID('dbo.F03Departments','U') IS NULL CREATE TABLE dbo.F03Departments(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,DeptCode nvarchar(20) NOT NULL,DeptName nvarchar(100) NOT NULL,ParentDeptCode nvarchar(50) NULL,DisplayPriority int NULL,ShowInReport bit NOT NULL DEFAULT 1);
 IF OBJECT_ID('dbo.F03Positions','U') IS NULL CREATE TABLE dbo.F03Positions(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,PositionCode nvarchar(20) NOT NULL,PositionName nvarchar(100) NOT NULL,IsApprove bit NOT NULL DEFAULT 0,IsAllowApprove bit NOT NULL DEFAULT 0,DefaultApproveLevel int NULL);
