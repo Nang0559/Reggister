@@ -56,7 +56,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 .Where(x => x.IsActive == true &&
                             x.RequestType == requestType &&
                             x.Level == policy.Level &&
-                            !string.Equals(x.ApproverCode, employeeCode, StringComparison.OrdinalIgnoreCase) &&
+                            x.ApproverCode != employeeCode &&
                             (x.ApproveForDeptCode == deptCode ||
                              x.ApproveForDeptCode == ApproveForDept.All));
 
