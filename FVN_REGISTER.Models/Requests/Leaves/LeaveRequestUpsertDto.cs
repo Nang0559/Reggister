@@ -1,13 +1,10 @@
 using FVN_REGISTER.Contract.Requests.Approvals;
-﻿
 using System.ComponentModel.DataAnnotations;
-
 
 namespace FVN_REGISTER.Contract.Requests.Leaves
 {
     public class LeaveRequestUpsertDto
     {
-        // Id dùng để phân biệt Create (0) hoặc Update (Id > 0)
         public int Id { get; set; }
 
         [Required]
@@ -21,12 +18,8 @@ namespace FVN_REGISTER.Contract.Requests.Leaves
 
         public string? Reason { get; set; }
 
-        // Sử dụng lại OTEmployeeDto hoặc LeaveRequestDetailDto (tùy vào dự án)
-        // Quan trọng: Phải dùng DTO không chứa logic UI
-    
-        public List<undefined> undefined { get; set; } = new();
-    public List<LeaveRequestDetailUpsertDto> Details { get; set; } = new();
+        public List<LeaveRequestDetailUpsertDto> Details { get; set; } = new();
 
-      
+        public List<ApprovalSelectionDto> ApprovalSelections { get; set; } = new();
     }
 }
