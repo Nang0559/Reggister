@@ -275,10 +275,10 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 
 		-- Khai bao ten cac bang
 		DECLARE @RecordData nvarchar(30) 	
-		DECLARE @tblBaocao nvarchar(20) 	
-		DECLARE @tblDangkynghi nvarchar(20) 	
-		DECLARE @tblDangkyuudai nvarchar(20) 
-		DECLARE @tblDangkynghitheogio nvarchar(20) 	
+		DECLARE @tblBaocao nvarchar(128) 	
+		DECLARE @tblDangkynghi nvarchar(128) 	
+		DECLARE @tblDangkyuudai nvarchar(128) 
+		DECLARE @tblDangkynghitheogio nvarchar(128) 	
 	
 		-- Khai bao bien trong bang Recorddata
 		DECLARE @IDM SMALLINT		
