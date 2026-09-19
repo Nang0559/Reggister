@@ -24,21 +24,43 @@ public sealed class ApprovalRouteService : IApprovalRouteService
         string positionCode,
         CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(positionCode))
+        if (string.IsNullOrWhiteSpace(employeeCode))
         {
             return ServiceResult<ApprovalRoutePreviewDto>.Fail(
-                "Chưa xác định PositionCode HRM của người đăng ký.");
+                "Chưa xác định EmployeeCode của người đăng ký.");
         }
 
-        // Canonical route resolution:
-        // F03Employee.PositionCode -> F03Positions.PositionCode
-        // -> F03ApprovalPolicies.PositionCode.
-        // No local approval-group translation is used.
+        // Employee master is the source of truth. Do not trust PositionCode/DeptCode
+        // supplied by the client when resolving the approval route.
+        var employee = await _uow.Repository<F03Employee>()
+            .Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true && x.EmployeeCode == employeeCode)
+            .Select(x => new
+            {
+                x.EmployeeCode,
+                x.DeptCode,
+                x.PositionCode
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (employee == null)
+        {
+            return ServiceResult<ApprovalRoutePreviewDto>.Fail(
+                $"Không tìm thấy nhân viên HRM {employeeCode}.");
+        }
+
+        if (string.IsNullOrWhiteSpace(employee.PositionCode))
+        {
+            return ServiceResult<ApprovalRoutePreviewDto>.Fail(
+                $"Nhân viên {employeeCode} chưa có PositionCode HRM.");
+        }
+
         var position = await _uow.Repository<F03Position>()
             .Query()
             .AsNoTracking()
             .Where(x => x.IsActive == true &&
-                        x.PositionCode == positionCode)
+                        x.PositionCode == employee.PositionCode)
             .Select(x => new
             {
                 x.PositionCode,
@@ -49,8 +71,10 @@ public sealed class ApprovalRouteService : IApprovalRouteService
         if (position == null)
         {
             return ServiceResult<ApprovalRoutePreviewDto>.Fail(
-                $"Không tìm thấy chức vụ HRM {positionCode} trong F03Positions.");
+                $"Không tìm thấy chức vụ HRM {employee.PositionCode} trong F03Positions.");
         }
+
+        var resolvedDeptCode = employee.DeptCode ?? string.Empty;
 
         var policies = await _uow.Repository<F03ApprovalPolicy>()
             .Query()
@@ -79,7 +103,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                             x.RequestType == requestType &&
                             x.Level == policy.Level &&
                             x.ApproverCode != employeeCode &&
-                            (x.ApproveForDeptCode == deptCode ||
+                            (x.ApproveForDeptCode == resolvedDeptCode ||
                              x.ApproveForDeptCode == ApproveForDept.All));
 
             var candidates = await query
@@ -119,7 +143,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 .Where(x =>
                     string.Equals(
                         x.ApproveForDeptCode,
-                        deptCode,
+                        resolvedDeptCode,
                         StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
@@ -139,7 +163,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 return ServiceResult<ApprovalRoutePreviewDto>.Fail(
                     $"Chưa cấu hình người phê duyệt cho cấp {policy.Level} " +
                     $"({policy.LevelName}) / chức vụ {position.PositionCode} " +
-                    $" / bộ phận {deptCode}.");
+                    $" / bộ phận {resolvedDeptCode}.");
             }
 
             levels.Add(new ApprovalRouteLevelDto
@@ -157,7 +181,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
         {
             RequestType = requestType,
             EmployeeCode = employeeCode,
-            DepartmentCode = deptCode,
+            DepartmentCode = resolvedDeptCode,
             PositionCode = position.PositionCode,
             Levels = levels
         };
