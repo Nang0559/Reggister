@@ -25,7 +25,7 @@ public sealed class VF03LeaveRequestConfiguration : IEntityTypeConfiguration<VF0
         entity.Property(e => e.LeaveTypeCode).HasMaxLength(10);
         entity.Property(e => e.LeaveTypeName).HasMaxLength(200);
         entity.Property(e => e.LeaveReason).HasMaxLength(500);
-        entity.Property(e => e.RequestStatus).HasConversion<string>().HasMaxLength(50);
+        // vF03LeaveRequest exposes RequestStatus as the canonical INT enum value.\n        // Do not convert to string here: SQL Server would compare the INT view column\n        // against nvarchar parameters such as 'InProgress', causing conversion error 245.\n        entity.Property(e => e.RequestStatus).HasColumnType("int");
         // vF03LeaveRequest exposes the canonical PositionCode/PositionName columns.
         // Do not map these properties to CVCode/CVName: those aliases belong to vF03Employee.
         entity.Property(e => e.PositionCode).HasMaxLength(30);
