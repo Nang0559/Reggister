@@ -128,7 +128,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 	@StaffID int,	
 	@D Datetime
  AS
-	BEGI
+	BEGIN
     CREATE TABLE #tblBaoCao ([BCNgay] [datetime] NOT NULL,
 	[BCDay] [int] NULL,
 	[BCMonth] [int] NULL,
