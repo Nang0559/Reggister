@@ -166,12 +166,37 @@ IF OBJECT_ID('dbo.F03Genders','U') IS NULL CREATE TABLE dbo.F03Genders(Id int ID
 IF OBJECT_ID('dbo.F03Employees','U') IS NULL CREATE TABLE dbo.F03Employees(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,EmployeeCode nvarchar(50) NOT NULL,EmployeeName nvarchar(100) NOT NULL,DeptCode nvarchar(20) NOT NULL,PositionCode nvarchar(20) NOT NULL,BirthDate datetime2(0) NULL,GenderCode int NULL,EmailAddress nvarchar(100) NOT NULL,PhoneNumber nvarchar(20) NULL,FirstWorkingDate datetime2(0) NULL,EndWorkingDate datetime2(0) NULL,TotalLeaveDays decimal(10,2) NOT NULL DEFAULT 0,EmployeeNo int NULL,LevelApprove int NULL);
 IF OBJECT_ID('dbo.F03WorkYear','U') IS NULL AND OBJECT_ID('dbo.F03WorkYears','U') IS NULL
     CREATE TABLE dbo.F03WorkYear(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,WorkYear int NOT NULL,StartDate date NOT NULL,EndDate date NOT NULL,Remark nvarchar(500) NULL);
-IF OBJECT_ID('dbo.F03CompanyHoliday','U') IS NULL AND OBJECT_ID('dbo.F03CompanyHolidays','U') IS NULL
-    CREATE TABLE dbo.F03CompanyHoliday(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,HolidayDate date NOT NULL,Description nvarchar(200) NOT NULL,Year int NOT NULL,TinhPhep bit NOT NULL DEFAULT 1);
-IF OBJECT_ID(N'dbo.F03WorkYears',N'U') IS NOT NULL AND OBJECT_ID(N'dbo.F03WorkYear',N'U') IS NULL
-    EXEC sys.sp_rename N'dbo.F03WorkYears', N'F03WorkYear';
-IF OBJECT_ID(N'dbo.F03CompanyHolidays',N'U') IS NOT NULL AND OBJECT_ID(N'dbo.F03CompanyHoliday',N'U') IS NULL
-    EXEC sys.sp_rename N'dbo.F03CompanyHolidays', N'F03CompanyHoliday';
+/* Canonical EF table name is dbo.F03CompanyHolidays.
+   Older databases may still contain dbo.F03CompanyHoliday. */
+IF OBJECT_ID(N'dbo.F03CompanyHolidays',N'U') IS NULL
+   AND OBJECT_ID(N'dbo.F03CompanyHoliday',N'U') IS NOT NULL
+BEGIN
+    EXEC sys.sp_rename N'dbo.F03CompanyHoliday', N'F03CompanyHolidays';
+END;
+IF OBJECT_ID(N'dbo.F03CompanyHolidays',N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.F03CompanyHolidays
+    (
+        Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03CompanyHolidays PRIMARY KEY,
+        IsActive bit NULL CONSTRAINT DF_F03CompanyHolidays_IsActive DEFAULT 1,
+        CreatedBy int NOT NULL CONSTRAINT DF_F03CompanyHolidays_CreatedBy DEFAULT 0,
+        LastModifiedSource nvarchar(50) NULL,
+        CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03CompanyHolidays_CreatedAt DEFAULT GETDATE(),
+        ModifiedBy int NULL,
+        ModifiedAt datetime2(0) NULL,
+        HolidayDate date NOT NULL,
+        Description nvarchar(200) NOT NULL,
+        Year int NOT NULL,
+        TinhPhep bit NOT NULL CONSTRAINT DF_F03CompanyHolidays_TinhPhep DEFAULT 1
+    );
+
+    CREATE UNIQUE INDEX IX_F03CompanyHolidays_HolidayDate
+        ON dbo.F03CompanyHolidays(HolidayDate);
+END;
+IF COL_LENGTH(N'dbo.F03CompanyHolidays',N'HolidayDate') IS NULL
+   OR COL_LENGTH(N'dbo.F03CompanyHolidays',N'Year') IS NULL
+   OR COL_LENGTH(N'dbo.F03CompanyHolidays',N'TinhPhep') IS NULL
+    THROW 51332, N'F03CompanyHolidays thiếu cột bắt buộc.', 1;
 
 IF OBJECT_ID('dbo.F03LeaveType','U') IS NULL CREATE TABLE dbo.F03LeaveType(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,LeaveTypeCode nvarchar(50) NOT NULL,LeaveTypeName nvarchar(200) NOT NULL,LeaveTypeName2 nvarchar(200) NULL,IsCountedAsLeave bit NOT NULL DEFAULT 0,HRMCode nvarchar(50) NULL);
 IF OBJECT_ID('dbo.F03LeaveBalances','U') IS NULL CREATE TABLE dbo.F03LeaveBalances(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,EmployeeCode nvarchar(50) NOT NULL,WorkYear int NOT NULL,BaseLeaveDays decimal(5,2) NOT NULL DEFAULT 12,SeniorityLeaveDays decimal(5,2) NOT NULL DEFAULT 0,TotalDays decimal(5,2) NOT NULL DEFAULT 12,YearsOfService int NOT NULL DEFAULT 0,CalculatedAt datetime2(0) NOT NULL DEFAULT GETDATE());
