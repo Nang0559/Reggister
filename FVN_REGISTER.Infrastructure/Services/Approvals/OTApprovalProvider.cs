@@ -19,36 +19,16 @@ public class OTApprovalProvider
       IApprovalProvider<OTRequestSubject>
 {
     public override RequestModule RequestType => RequestModule.Overtime;
-    private const int SubLeaderStep = 3;
-    private const int ChiefStep = 5;
-    private const int ManagerStep = 6;
-    private const int GmStep = 7;
-
-    protected override IReadOnlyList<(int Level, string LevelName, string RoleName)> LevelDefs { get; } = new[]
-    {
-        (SubLeaderStep, "Sub-leader/Leader", "SubLeader"),
-        (ChiefStep, "Ast. Chief/Chief", "Chief"),
-        (ManagerStep, "A.MG/MG", "Manager"),
-        (GmStep, "GM", "GM")
-    };
-
     public OTApprovalProvider(
         IUnitOfWork uow,
         IEmailService email,
         IApprovalNotificationService notification,
         IEmployeeUserResolver userResolver,
+        IApprovalRouteService routeService,
+        IApprovalSelectionService selectionService,
         ILogger<OTApprovalProvider> logger,
         IOptionsMonitor<AuthDebugOptions> options)
-        : base(uow, email, notification, userResolver, logger, options) { }
-
-    protected override bool? ResolveRequired(int level, ApprovalBuildContext ctx) => level switch
-    {
-        SubLeaderStep => true,
-        ChiefStep => true,
-        ManagerStep => true,
-        GmStep => true,
-        _ => null
-    };
+        : base(uow, email, notification, userResolver, routeService, selectionService, logger, options) { }
 
     public override async Task<OTRequestSubject?> GetSubjectAsync(int requestId, CancellationToken ct)
     {
