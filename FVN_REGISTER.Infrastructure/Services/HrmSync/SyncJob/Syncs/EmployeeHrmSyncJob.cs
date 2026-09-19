@@ -79,7 +79,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             if (e.GenderCode != s.GenderCode) { e.GenderCode = s.GenderCode; changed = true; }
             if (e.FirstWorkingDate != s.FirstWorkingDate) { e.FirstWorkingDate = s.FirstWorkingDate; changed = true; }
             if (e.EmployeeNo != s.EmployeeNo) { e.EmployeeNo = s.EmployeeNo; changed = true; }
-            if (e.EmailAddress != (s.EmailAddress ?? "")) { e.EmailAddress = s.EmailAddress; changed = true; }
+            if (e.EmailAddress != (s.EmailAddress ?? "")) { e.EmailAddress = s.EmailAddress??""; changed = true; }
             if (e.PhoneNumber != s.PhoneNumber) { e.PhoneNumber = s.PhoneNumber; changed = true; }
             if (e.EndWorkingDate != s.EndWorkingDate) { e.EndWorkingDate = s.EndWorkingDate; changed = true; }
             if (e.TotalLeaveDays != (s.TotalLeaveDays ?? 0)) { e.TotalLeaveDays = s.TotalLeaveDays ?? 0; changed = true; }

@@ -35,8 +35,8 @@ public class FVNWEBAPPContext : DbContext
         modelBuilder.Entity<VwShiftCheckInOut>(entity => { entity.HasNoKey(); entity.ToView("VwShiftCheckInOut"); });
         modelBuilder.Entity<F03RoleFunction>(entity =>
         {
-            entity.HasKey(x => new { x.IdRole, x.IdFunction });
-            entity.HasOne(x => x.Role).WithMany(x => x.RoleFunctions).HasForeignKey(x => x.IdRole);
+            entity.HasKey(x => new { x.Id, x.IdFunction });
+            entity.HasOne(x => x.Role).WithMany(x => x.RoleFunctions).HasForeignKey(x => x.Id);
             entity.HasOne(x => x.Function).WithMany(x => x.RoleFunctions).HasForeignKey(x => x.IdFunction);
         });
         modelBuilder.Entity<F03UserRole>(entity =>

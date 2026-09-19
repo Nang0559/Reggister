@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using FVN_REGISTER.Core.Constants;
+using IAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 
 namespace FVN_REGISTER.API.Controllers;
 
