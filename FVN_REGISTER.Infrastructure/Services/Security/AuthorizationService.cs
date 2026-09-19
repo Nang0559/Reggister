@@ -68,7 +68,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         scopes.AddRange(await (
             from uf in _uow.Repository<F03UserFunction>().Query().AsNoTracking()
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on uf.Id equals f.Id
+                on uf.IdFunction equals f.Id
             where uf.IdUser == userId
                 && (f.IsActive ?? true)
                 && f.FunctionCode == functionCode
