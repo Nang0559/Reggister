@@ -31,14 +31,18 @@ public class FVNWEBAPPContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        base.OnModelCreating(modelBuilder); modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
         modelBuilder.Entity<VwShiftCheckInOut>(entity => { entity.HasNoKey(); entity.ToView("VwShiftCheckInOut"); });
+
         modelBuilder.Entity<F03RoleFunction>(entity =>
         {
-            entity.HasKey(x => new { x.Id, x.IdFunction });
-            entity.HasOne(x => x.Role).WithMany(x => x.RoleFunctions).HasForeignKey(x => x.Id);
-            entity.HasOne(x => x.Function).WithMany(x => x.RoleFunctions).HasForeignKey(x => x.IdFunction);
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.IdRole, x.IdFunction }).IsUnique();
+            entity.HasOne(x => x.Role).WithMany(x => x.RoleFunctions).HasForeignKey(x => x.IdRole).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Function).WithMany(x => x.RoleFunctions).HasForeignKey(x => x.IdFunction).OnDelete(DeleteBehavior.Cascade);
         });
+
         modelBuilder.Entity<F03UserRole>(entity =>
         {
             entity.HasKey(x => new { x.IdUser, x.IdRole });
@@ -47,7 +51,15 @@ public class FVNWEBAPPContext : DbContext
         });
         modelBuilder.Entity<F03Role>(entity => entity.HasIndex(x => x.RoleCode).IsUnique());
     }
+
     public override int SaveChanges() { ApplyAuditInfo(); return base.SaveChanges(); }
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) { ApplyAuditInfo(); return base.SaveChangesAsync(cancellationToken); }
-    private void ApplyAuditInfo() { foreach (var entry in ChangeTracker.Entries<BaseAuditEntity>()) { if (entry.State == EntityState.Added) entry.Entity.CreatedAt = DateTime.Now; else if (entry.State == EntityState.Modified) entry.Entity.ModifiedAt = DateTime.Now; } }
+    private void ApplyAuditInfo()
+    {
+        foreach (var entry in ChangeTracker.Entries<BaseAuditEntity>())
+        {
+            if (entry.State == EntityState.Added) entry.Entity.CreatedAt = DateTime.Now;
+            else if (entry.State == EntityState.Modified) entry.Entity.ModifiedAt = DateTime.Now;
+        }
+    }
 }
