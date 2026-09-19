@@ -32,7 +32,7 @@ END
 
 IF OBJECT_ID('dbo.F03AuditLogs','U') IS NOT NULL
 BEGIN
-    SELECT TOP (50) Action, UserId, CreatedAt, Details
+    SELECT TOP (50) Action, UserId, CreatedAt, Description
     FROM dbo.F03AuditLogs
     WHERE Action IN ('SECURITY_USER_ROLES_CHANGED','SECURITY_ROLE_FUNCTIONS_CHANGED',
                      'APPROVAL_APPROVED','APPROVAL_REJECTED',
