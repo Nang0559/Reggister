@@ -24,6 +24,10 @@ Order:
   17 Documentation consistency verification
   18 OT / Leave limits
   19 Shared Work Calendar indexes / policy
+  20 Reporting read models
+  21 Reporting verification
+  22 HRM-compatible attendance pipeline
+  99 Final cross-layer/schema verification
 
 IMPORTANT:
   06_Seed.sql is TEST/DEMO data.
@@ -52,11 +56,14 @@ IMPORTANT:
 :r 18_OT_Leave_Limits.sql
 :r 19_WorkCalendar.sql
 :r 20_Reports.sql
+:r 20_Reports.sql
+:r 21_Verify_Reports.sql
 :r 22_HrmCompatibleAttendance.sql
+:r 99_Verify.sql
 
 PRINT N'============================================================';
-PRINT N'FVN_REGISTER SQL deployment 01..22 completed.';
+PRINT N'FVN_REGISTER SQL deployment 01..22 + 99 verification completed.';
 PRINT N'============================================================';
 GO
 
-/* Verification (read-only): :r 21_Verify_Reports.sql */
+/* 99_Verify.sql is intentionally the final gate and must pass on the target database. */
