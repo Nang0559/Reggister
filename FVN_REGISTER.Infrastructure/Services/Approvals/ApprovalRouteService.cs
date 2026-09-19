@@ -20,8 +20,6 @@ public sealed class ApprovalRouteService : IApprovalRouteService
     public async Task<ServiceResult<ApprovalRoutePreviewDto>> GetPreviewAsync(
         RequestModule requestType,
         string employeeCode,
-        string deptCode,
-        string positionCode,
         CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(employeeCode))
@@ -30,8 +28,8 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 "Chưa xác định EmployeeCode của người đăng ký.");
         }
 
-        // Employee master is the source of truth. Do not trust PositionCode/DeptCode
-        // supplied by the client when resolving the approval route.
+        // F03Employee is the only source of requester organization identity.
+        // PositionCode/DeptCode must never come from the caller.
         var employee = await _uow.Repository<F03Employee>()
             .Query()
             .AsNoTracking()
