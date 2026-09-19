@@ -1,6 +1,10 @@
-
+using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Contract.Dtos.Approvals;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Entities.Approvers;
+using FVN_REGISTER.Core.Entities.HR;
+using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
 
@@ -20,42 +24,50 @@ public sealed class ApprovalRouteService : IApprovalRouteService
         string positionCode,
         CancellationToken ct = default)
     {
-        var exact = await _uow.Repository<F03ApprovalPolicy>().Query()
+        // Canonical route resolution:
+        // HRM PositionCode -> local ApprovalGroup -> ApprovalLevel policy.
+        var positionGroup = await _uow.Repository<F03ApprovalPositionGroup>()
+            .Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true &&
+                        x.PositionCode == positionCode)
+            .Select(x => new
+            {
+                x.PositionCode,
+                x.ApprovalGroupCode,
+                x.ApprovalGroupName
+            })
+            .FirstOrDefaultAsync(ct);
+
+        if (positionGroup == null ||
+            string.IsNullOrWhiteSpace(positionGroup.ApprovalGroupCode))
+        {
+            return ServiceResult<ApprovalRoutePreviewDto>.Fail(
+                $"Chưa cấu hình nhóm phê duyệt cho chức vụ HRM " +
+                $"{positionCode}.");
+        }
+
+        var policies = await _uow.Repository<F03ApprovalPolicy>()
+            .Query()
             .AsNoTracking()
             .Where(x => x.IsActive == true &&
                         x.RequestType == requestType &&
-                        x.RequesterPositionCode == positionCode)
+                        x.ApprovalGroupCode == positionGroup.ApprovalGroupCode)
             .OrderBy(x => x.Sequence)
             .ThenBy(x => x.Level)
             .ToListAsync(ct);
 
-        var policies = exact.Count > 0
-            ? exact
-            : await _uow.Repository<F03ApprovalPolicy>().Query()
-                .AsNoTracking()
-                .Where(x => x.IsActive == true &&
-                            x.RequestType == requestType &&
-                            (x.RequesterPositionCode == null ||
-                             x.RequesterPositionCode == "*"))
-                .OrderBy(x => x.Sequence)
-                .ThenBy(x => x.Level)
-                .ToListAsync(ct);
-
-        // Business error:
-        // Chưa cấu hình luồng phê duyệt.
         if (policies.Count == 0)
         {
             return ServiceResult<ApprovalRoutePreviewDto>.Fail(
-                $"Chưa cấu hình luồng phê duyệt cho " +
-                $"{requestType} / chức vụ {positionCode}.");
+                $"Chưa cấu hình luồng phê duyệt cho {requestType} / " +
+                $"nhóm {positionGroup.ApprovalGroupCode} " +
+                $"(chức vụ HRM {positionCode}).");
         }
 
         var levels = new List<ApprovalRouteLevelDto>();
 
-        foreach (var policy in policies
-            .Where(x => x.Required)
-            .OrderBy(x => x.Sequence)
-            .ThenBy(x => x.Level))
+        foreach (var policy in policies.Where(x => x.Required))
         {
             var query = _uow.Repository<F03Approver>().Query()
                 .AsNoTracking()
@@ -96,8 +108,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 })
                 .ToListAsync(ct);
 
-            // Nếu cấp có cấu hình riêng cho bộ phận
-            // thì không lấy thêm ALL.
+            // Nếu cấp có cấu hình riêng cho bộ phận thì không lấy thêm ALL.
             var departmentCandidates = candidates
                 .Where(x =>
                     string.Equals(
@@ -117,14 +128,12 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 .OrderBy(x => x.ApproverName)
                 .ToList();
 
-            // Business error:
-            // Có policy nhưng chưa có người phê duyệt.
             if (candidates.Count == 0)
             {
                 return ServiceResult<ApprovalRoutePreviewDto>.Fail(
-                    $"Chưa cấu hình người phê duyệt cho cấp " +
-                    $"{policy.Level} ({policy.LevelName}) " +
-                    $"của {requestType} / bộ phận {deptCode}.");
+                    $"Chưa cấu hình người phê duyệt cho cấp {policy.Level} " +
+                    $"({policy.LevelName}) / nhóm {positionGroup.ApprovalGroupCode} " +
+                    $" / bộ phận {deptCode}.");
             }
 
             levels.Add(new ApprovalRouteLevelDto
@@ -133,7 +142,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 Sequence = policy.Sequence,
                 LevelName = policy.LevelName,
                 RoleName = policy.RoleName,
-                Required = true,
+                Required = policy.Required,
                 Candidates = candidates
             });
         }
