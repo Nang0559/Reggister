@@ -3,13 +3,16 @@ FVN_REGISTER - HRM User / Approval Provisioning
 Canonical model:
 
 F03Employee -> F03User
-F03Employee.PositionCode -> F03ApprovalPolicies.PositionCode -> F03Approvers
+F03Employee.PositionCode -> F03ApprovalPolicies.PositionCode (requester policy)
+F03Employee.PositionCode -> F03Positions approval capability -> F03Approvers (candidate pool)
 
 There is NO ApprovalGroup / PositionGroup layer.
-PositionCode is the HRM source-of-truth for approval routing.
+PositionCode is the HRM source-of-truth for employee identity and approval capability.
 
-This script contains reconciliation procedures only. The approval policy
-schema and seed are owned by SQL/17_ApprovalRouteSelection.sql.
+F03ApprovalPolicies defines required levels for the REQUESTER position.
+F03Approvers is the candidate pool. Therefore approver provisioning must NOT
+join an approver employee directly to the requester's policy PositionCode.
+Candidate Level is derived from the approver employee's HRM approval position.
 */
 USE [FVN_REGISTER];
 GO
@@ -49,7 +52,8 @@ BEGIN
             (
                 SELECT TOP (1) r.PermissionCode
                 FROM dbo.F03HrmUserRoleRules r
-                WHERE (r.DeptCode=e.DeptCode OR r.DeptCode IS NULL)
+                WHERE r.IsActive=1
+                  AND (r.DeptCode=e.DeptCode OR r.DeptCode IS NULL)
                   AND (r.PositionCode=e.PositionCode OR r.PositionCode IS NULL)
                 ORDER BY
                     CASE
@@ -65,7 +69,9 @@ BEGIN
     WHERE (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode)
       AND NOT EXISTS
       (
-          SELECT 1 FROM dbo.F03Users u WHERE u.EmployeeCode=e.EmployeeCode
+          SELECT 1
+          FROM dbo.F03Users u
+          WHERE u.EmployeeCode=e.EmployeeCode
       );
 
     UPDATE u
@@ -78,7 +84,8 @@ BEGIN
            u.ModifiedAt=GETDATE(),
            u.LastModifiedSource=N'HRM'
     FROM dbo.F03Users u
-    INNER JOIN dbo.F03Employees e ON e.EmployeeCode=u.EmployeeCode
+    INNER JOIN dbo.F03Employees e
+        ON e.EmployeeCode=u.EmployeeCode
     WHERE (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode);
 
     SELECT
@@ -89,14 +96,34 @@ GO
 
 /*
   APPROVER provisioning
-  Canonical lookup:
-      Employee.PositionCode
-          -> ApprovalPolicies.PositionCode
-          -> candidate Employee
 
-  F03ApprovalPolicies.RequestType is INT in the canonical route model.
-  F03Approvers.RequestType remains NVARCHAR for compatibility with the
-  existing approval runtime, so RequestType is converted to text here.
+  IMPORTANT:
+  F03ApprovalPolicies.PositionCode belongs to the REQUESTER, not the approver.
+  F03Approvers is the candidate pool for a RequestType + Level.
+
+  HRM position capability:
+      F03Positions.IsApprove = 1
+      F03Positions.IsAllowApprove = 1
+      F03Positions.DefaultApproveLevel = canonical approval rank
+
+  Canonical level mapping:
+      Leave / Trip / Equipment:
+          position rank 1 -> level 1
+          position rank 2 -> level 2
+          position rank 3 -> level 3
+          position rank 4 (GM) -> level 3
+
+      OT:
+          position rank 1 -> level 3
+          position rank 2 -> level 5
+          position rank 3 -> level 6
+          position rank 4 (GM) -> level 7
+
+  This keeps business OT levels (3,5,6,7) distinct from Sequence.
+
+  HRM may CREATE missing candidate rows and synchronize rows that it owns
+  (LastModifiedSource = HRM). Existing manually configured approvers are
+  never overwritten by HRM.
 */
 CREATE OR ALTER PROCEDURE dbo.usp_ReconcileEmployeeApprovers
     @EmployeeCode nvarchar(50)=NULL,
@@ -106,7 +133,7 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    ;WITH SourceRows AS
+    ;WITH CandidateEmployees AS
     (
         SELECT
             e.EmployeeCode,
@@ -115,42 +142,112 @@ BEGIN
             e.EmailAddress,
             e.DeptCode,
             d.DeptName,
-            p.RequestType,
-            p.Level,
-            p.LevelName,
-            p.RoleName
+            pos.DefaultApproveLevel AS PositionApproveRank
         FROM dbo.F03Employees e
-        INNER JOIN dbo.F03ApprovalPolicies p
-            ON p.PositionCode=e.PositionCode
-           AND p.IsActive=1
-           AND p.Required=1
         INNER JOIN dbo.F03Positions pos
             ON pos.PositionCode=e.PositionCode
+           AND pos.IsActive=1
            AND pos.IsApprove=1
            AND pos.IsAllowApprove=1
         LEFT JOIN dbo.F03Departments d
             ON d.DeptCode=e.DeptCode
         WHERE e.IsActive=1
           AND (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode)
-    )
-    MERGE dbo.F03Approvers AS target
-    USING
+    ),
+    CandidateLevels AS
     (
         SELECT
-            EmployeeCode,PositionCode,EmployeeName,EmailAddress,DeptCode,DeptName,
+            c.EmployeeCode,
+            c.PositionCode,
+            c.EmployeeName,
+            c.EmailAddress,
+            c.DeptCode,
+            c.DeptName,
+            v.RequestType,
+            v.Level
+        FROM CandidateEmployees c
+        CROSS APPLY
+        (
+            VALUES
+            (0, CASE c.PositionApproveRank
+                    WHEN 1 THEN 1
+                    WHEN 2 THEN 2
+                    WHEN 3 THEN 3
+                    WHEN 4 THEN 3
+                    ELSE NULL
+                END),
+            (1, CASE c.PositionApproveRank
+                    WHEN 1 THEN 3
+                    WHEN 2 THEN 5
+                    WHEN 3 THEN 6
+                    WHEN 4 THEN 7
+                    ELSE NULL
+                END),
+            (2, CASE c.PositionApproveRank
+                    WHEN 1 THEN 1
+                    WHEN 2 THEN 2
+                    WHEN 3 THEN 3
+                    WHEN 4 THEN 3
+                    ELSE NULL
+                END),
+            (3, CASE c.PositionApproveRank
+                    WHEN 1 THEN 1
+                    WHEN 2 THEN 2
+                    WHEN 3 THEN 3
+                    WHEN 4 THEN 3
+                    ELSE NULL
+                END)
+        ) v(RequestType,Level)
+        WHERE v.Level IS NOT NULL
+    ),
+    SourceRows AS
+    (
+        SELECT DISTINCT
+            EmployeeCode,
+            PositionCode,
+            EmployeeName,
+            EmailAddress,
+            DeptCode,
+            DeptName,
             CONVERT(nvarchar(20),RequestType) AS RequestType,
-            Level,LevelName,RoleName,
+            Level,
             CASE
-                WHEN PositionCode=N'0001' THEN N'ALL'
+                WHEN PositionApproveRank=4 THEN N'ALL'
                 ELSE DeptCode
-            END AS ApproveForDeptCode
-        FROM SourceRows
-    ) AS src
+            END AS ApproveForDeptCode,
+            CASE PositionApproveRank
+                WHEN 1 THEN
+                    CASE RequestType
+                        WHEN 1 THEN N'SubLeader'
+                        WHEN 3 THEN N'EquipmentApprover'
+                        ELSE N'SubLeader'
+                    END
+                WHEN 2 THEN
+                    CASE RequestType
+                        WHEN 1 THEN N'Chief'
+                        WHEN 3 THEN N'EquipmentManager'
+                        ELSE N'Manager'
+                    END
+                WHEN 3 THEN
+                    CASE RequestType
+                        WHEN 1 THEN N'Manager'
+                        ELSE N'Manager'
+                    END
+                WHEN 4 THEN N'GM'
+            END AS RoleName
+        FROM CandidateLevels
+        INNER JOIN CandidateEmployees ce
+            ON ce.EmployeeCode=CandidateLevels.EmployeeCode
+    )
+    MERGE dbo.F03Approvers AS target
+    USING SourceRows AS src
       ON target.ApproverCode=src.EmployeeCode
      AND target.RequestType=src.RequestType
      AND target.Level=src.Level
      AND target.ApproveForDeptCode=src.ApproveForDeptCode
-    WHEN MATCHED THEN
+    WHEN MATCHED
+         AND ISNULL(target.LastModifiedSource,N'')=N'HRM'
+    THEN
         UPDATE SET
             target.IsActive=1,
             target.PositionCode=src.PositionCode,
@@ -177,7 +274,8 @@ BEGIN
         VALUES
         (
             1,@CreatedBy,N'HRM',
-            (SELECT TOP(1) u.Id FROM dbo.F03Users u
+            (SELECT TOP(1) u.Id
+             FROM dbo.F03Users u
              WHERE u.EmployeeCode=src.EmployeeCode),
             src.RequestType,src.EmployeeCode,src.PositionCode,src.EmployeeName,
             ISNULL(src.EmailAddress,N''),ISNULL(src.DeptCode,N''),
@@ -189,8 +287,8 @@ BEGIN
         );
 
     /*
-      Deactivate stale rows for the affected employee.
-      We deliberately do not delete approval history.
+      Deactivate only HRM-owned stale rows for the affected employee.
+      Manual approver configuration is intentionally preserved for Admin review.
     */
     UPDATE a
        SET a.IsActive=0,
@@ -200,23 +298,32 @@ BEGIN
     FROM dbo.F03Approvers a
     INNER JOIN dbo.F03Employees e
         ON e.EmployeeCode=a.ApproverCode
-    WHERE (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode)
+    WHERE a.LastModifiedSource=N'HRM'
+      AND (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode)
       AND
       (
           e.IsActive=0
           OR NOT EXISTS
           (
               SELECT 1
-              FROM dbo.F03ApprovalPolicies p
-              INNER JOIN dbo.F03Positions pos
-                  ON pos.PositionCode=e.PositionCode
-                 AND pos.IsApprove=1
-                 AND pos.IsAllowApprove=1
-              WHERE p.PositionCode=e.PositionCode
-                AND p.IsActive=1
-                AND p.Required=1
-                AND CONVERT(nvarchar(20),p.RequestType)=a.RequestType
-                AND p.Level=a.Level
+              FROM CandidateLevels src
+              WHERE src.EmployeeCode=e.EmployeeCode
+                AND CONVERT(nvarchar(20),src.RequestType)=a.RequestType
+                AND src.Level=a.Level
+                AND
+                (
+                    CASE
+                        WHEN EXISTS
+                        (
+                            SELECT 1
+                            FROM dbo.F03Positions p
+                            WHERE p.PositionCode=e.PositionCode
+                              AND p.DefaultApproveLevel=4
+                        )
+                        THEN N'ALL'
+                        ELSE e.DeptCode
+                    END
+                )=a.ApproveForDeptCode
           )
       );
 
@@ -255,18 +362,14 @@ WHERE e.IsActive=1 AND u.Id IS NULL;
 
 SELECT MissingApprovers=COUNT(*)
 FROM dbo.F03Employees e
-INNER JOIN dbo.F03ApprovalPolicies p
-    ON p.PositionCode=e.PositionCode
-   AND p.IsActive=1
-   AND p.Required=1
 INNER JOIN dbo.F03Positions pos
     ON pos.PositionCode=e.PositionCode
+   AND pos.IsActive=1
    AND pos.IsApprove=1
    AND pos.IsAllowApprove=1
 LEFT JOIN dbo.F03Approvers a
     ON a.ApproverCode=e.EmployeeCode
-   AND a.RequestType=CONVERT(nvarchar(20),p.RequestType)
-   AND a.Level=p.Level
+   AND a.IsActive=1
 WHERE e.IsActive=1
   AND a.Id IS NULL;
 GO
