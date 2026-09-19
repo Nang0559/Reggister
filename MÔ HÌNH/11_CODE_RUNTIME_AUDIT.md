@@ -8,30 +8,25 @@
 ```text
 HRM
  │ READ ONLY
- ├── master/config
- │      └── usp_SyncHrmShiftMaster
- │              ↓
- │          F03 shift master
+ ├── master/config + attendance sources
  │
- └── attendance sources
-        ↓
+ └── HRM calculation rules
+        │
+        ▼
 FVN_REGISTER.Infrastructure
  ├── HrmSyncService
- │    ├── shift-master refresh
- │    ├── staging importers
- │    └── sync jobs
+ │    └── master/staging synchronization
  │
- └── OTAttendanceStagingService
-      └── usp_SyncAttendanceStaging
-             ↓
-        F03AttendanceStaging
-             ↓
-      OTAttendanceReconciliationService
-             ↓
-        usp_SyncOTActualHours
-             ↓
-          F03OTEmployees
-             ↓
+ └── HrmAttendanceCalculationService
+      └── dbo.usp_CalculateHrmAttendance
+             │
+             ├── HRM.dbo.* READ ONLY
+             │
+             └── FVN local result tables
+                  ├── F03HrmAttendanceCalculated
+                  └── F03HrmOTActual
+             │
+             ▼
 FVN_REGISTER.API
              ↓
 FVN_REGISTER.Shared client services
@@ -56,6 +51,32 @@ FVN_REGISTER.Web / Blazor Server
 - `IOTAttendanceStagingService` và `IOTAttendanceReconciliationService` phân biệt rõ staging command và reconciliation command.
 - Đã hiệu chỉnh comment của staging interface để phản ánh đúng runtime dependency: attendance staging tách khỏi generic HrmSyncJob nhưng `usp_SyncAttendanceStaging` vẫn phụ thuộc `usp_SyncHrmShiftMaster`.
 
+## 4A. HRM attendance calculation — current canonical runtime
+
+The attendance calculation path is now separate from generic HRM synchronization:
+
+```text
+Web/UI
+  ↓ POST /api/hrm-attendance-calculation/calculate
+HrmAttendanceCalculationController
+  ↓
+IHrmAttendanceCalculationService
+  ↓
+HrmAttendanceCalculationService
+  ↓
+EXEC dbo.usp_CalculateHrmAttendance
+  ↓
+HRM source tables + HRM-compatible calculation rules
+  ↓
+F03HrmAttendanceCalculated / F03HrmOTActual
+```
+
+`DeptCode`, `FromDate`, and `ToDate` are the calculation scope. The SQL procedure creates a `CalculationBatchId` and returns a calculation summary. The service uses an extended SQL timeout for this batch operation and restores the normal timeout afterward.
+
+The calculation engine does not depend on the HRM UI and does not persist to HRM report/result tables. HRM is read-only from FVN's perspective. The temporary calculation context is FVN-local, while the source rules/data remain in HRM.
+
+For OT, `ActualHours` is derived from the HRM-compatible calculated result; there is no separate OT reconciliation pipeline for this purpose.
+
 ## 4. Infrastructure
 
 **Đã xử lý.**
@@ -69,6 +90,10 @@ FVN_REGISTER.Web / Blazor Server
 3. Sync jobs theo `SyncOrder`.
 
 ### Attendance / OT
+
+`HrmAttendanceCalculationService` gọi `dbo.usp_CalculateHrmAttendance` for the explicit Tính giờ use case.
+
+Generic HRM master synchronization remains separate.
 
 `OTAttendanceStagingService` gọi:
 
@@ -184,4 +209,4 @@ Một thiếu sót runtime được phát hiện và đã sửa trực tiếp tr
 - API trước đó thiếu endpoint tương ứng.
 - Đã bổ sung `POST /api/auth/change-password` và contract `ChangePasswordRequestDto`.
 
-SQL không thay đổi trong đợt audit này.
+SQL calculation/runtime đã được cập nhật cùng với code để phản ánh boundary mới: `22_00` → `22_01` → `22_02` → `22_03` → `22_04`. Các bảng kết quả attendance/OT thuộc FVN; HRM result tables nằm ngoài boundary và không bị ghi.
