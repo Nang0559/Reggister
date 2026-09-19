@@ -293,7 +293,7 @@
         }
     }
 
-    private async Task SelectUser(TableRowClickEventArgs<UserAccountDto> args)
+    private Task SelectUser(TableRowClickEventArgs<UserAccountDto> args)
         => args.Item is null ? Task.CompletedTask : SelectUserAsync(args.Item);
 
     private async Task SelectUserAsync(UserAccountDto user)
