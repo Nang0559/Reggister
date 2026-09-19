@@ -113,6 +113,7 @@ builder.Services.AddScoped<IEscalationRuleService, EscalationRuleService>();
 builder.Services.AddScoped<ILeaveValidator, LeaveValidator>();
 builder.Services.AddScoped<ILeaveEscalationService, LeaveEscalationService>();
 builder.Services.AddScoped<ILeaveService, LeaveService>();
+builder.Services.AddScoped<ILeaveEntitlementService, LeaveEntitlementService>();
 
 // Reports
 builder.Services.AddScoped<IReportService, LeaveReportService>();
