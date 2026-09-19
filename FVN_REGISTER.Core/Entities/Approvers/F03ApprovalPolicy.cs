@@ -11,16 +11,19 @@ public sealed class F03ApprovalPolicy : BaseAuditEntity
     public RequestModule RequestType { get; set; }
 
     /// <summary>
-    /// Approval group resolved from the HRM PositionCode.
-    /// Null or "*" is the optional default policy.
+    /// Canonical approval classification resolved from the requester's HRM PositionCode.
+    /// Runtime routing must resolve:
+    /// F03Employee.PositionCode -> F03ApprovalPositionGroup.ApprovalGroupCode
+    /// before reading this policy.
     /// </summary>
-    [StringLength(30)]
-    public string? ApprovalGroupCode { get; set; }
+    [Required, StringLength(30)]
+    public string ApprovalGroupCode { get; set; } = string.Empty;
 
     /// <summary>
-    /// Kept for backward compatibility during migration. Runtime routing must
-    /// resolve PositionCode -> ApprovalGroupCode before reading policies.
+    /// Legacy migration column only. Runtime approval routing must not use it.
+    /// It can be removed after all deployed databases have migrated to ApprovalGroupCode.
     /// </summary>
+    [Obsolete("Use ApprovalGroupCode. Runtime routing must resolve PositionCode through F03ApprovalPositionGroup.")]
     [StringLength(20)]
     public string? RequesterPositionCode { get; set; }
 
