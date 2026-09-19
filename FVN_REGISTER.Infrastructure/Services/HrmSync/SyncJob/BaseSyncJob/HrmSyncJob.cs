@@ -6,7 +6,6 @@ using FVN_REGISTER.Core.Interfaces;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
 
-
 namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
 {
     /// <summary>Gom các entity vừa xử lý trong 1 lần RunAsync — dùng cho AfterBatchAsync hook.</summary>
@@ -16,11 +15,12 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
         public List<TEntity> Updated { get; } = new();
         public List<TEntity> Deleted { get; } = new();
     }
+
     /// <summary>
     /// Khung xử lý đồng bộ 1 bảng HRM: đọc Staging chưa xử lý → dedupe theo EntityKey (lấy dòng mới
     /// nhất, các dòng cũ hơn bị "supersede") → Insert/Update/Delete vào bảng đích qua IUnitOfWork.
-    /// Xử lý TỪNG DÒNG độc lập (không rollback cả batch nếu 1 dòng lỗi) — vì đây là dữ liệu incremental,
-    /// 1 nhân viên lỗi không nên chặn 50 nhân viên khác cùng batch.
+    /// Sau khi batch chính được persist, AfterBatchAsync chạy trong cùng transaction để các hook
+    /// có thể đọc được dữ liệu HRM vừa ghi. Hook có thể tạo dữ liệu phụ trợ và SaveChanges thêm.
     /// </summary>
     public abstract class HrmSyncJob<TStaging, TEntity> : IHrmSyncJob
        where TStaging : class, IHrmStagingEntity
@@ -33,19 +33,17 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
         public abstract string EntityType { get; }
         public virtual int SyncOrder => 0;
         public virtual bool IsBlockingDependency => false;
+
         protected abstract Task<Dictionary<string, TEntity>> LoadExistingEntitiesAsync(
             List<string> keys, CancellationToken ct);
 
         protected abstract TEntity MapToNewEntity(TStaging staging);
-
         protected abstract bool ApplyUpdate(TEntity entity, TStaging staging);
-
         protected abstract bool ApplyDelete(TEntity entity);
 
         /// <summary>
-        /// Chạy SAU khi toàn bộ batch đã qua Map/ApplyUpdate/ApplyDelete, TRƯỚC SaveChangesAsync —
-        /// domain dùng để ghi entity phụ trợ (VD F03SyncReviewFlag) dựa trên những gì vừa
-        /// đổi trong batch này, nằm CHUNG transaction với batch chính. Mặc định no-op.
+        /// Chạy SAU SaveChanges của batch chính, nhưng VẪN trong transaction của RunAsync.
+        /// Domain có thể đọc dữ liệu vừa persist và ghi entity phụ trợ.
         /// </summary>
         protected virtual Task AfterBatchAsync(HrmSyncBatchContext<TEntity> batchContext, CancellationToken ct)
             => Task.CompletedTask;
@@ -67,14 +65,14 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
 
             var latest = groups
                 .Select(g => g.OrderByDescending(x => x.CreatedAt)
-                .ThenByDescending(x=>x.Id)
-                .First())
+                    .ThenByDescending(x => x.Id)
+                    .First())
                 .ToList();
 
             var superseded = groups
                 .SelectMany(g => g.OrderByDescending(x => x.CreatedAt)
-                .ThenByDescending(x=>x.Id)
-                .Skip(1))
+                    .ThenByDescending(x => x.Id)
+                    .Skip(1))
                 .ToList();
 
             var keys = latest.Select(x => x.EntityKey).ToList();
@@ -103,78 +101,95 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
 
             var batchContext = new HrmSyncBatchContext<TEntity>();
 
-            foreach (var staging in latest)
+            await using var transaction = await Uow.BeginTransactionAsync(ct);
+
+            try
             {
-                ct.ThrowIfCancellationRequested();
-                try
+                foreach (var staging in latest)
                 {
-                    existingByKey.TryGetValue(staging.EntityKey, out var entity);
+                    ct.ThrowIfCancellationRequested();
 
-                    switch (staging.Action)
+                    try
                     {
-                        case HrmChangeAction.Delete:
-                            if (entity == null)
-                                break;
+                        existingByKey.TryGetValue(staging.EntityKey, out var entity);
 
-                            var source = entity.GetType().GetProperty("LastModifiedSource")?.GetValue(entity) as string;
-                            if (!string.Equals(source, SyncSourceTags.Hrm, StringComparison.OrdinalIgnoreCase))
-                            {
-                                staging.ErrorMessage = "Delete skipped: target record is not owned by HRM sync.";
-                                result.Errors.Add($"{staging.EntityKey}: Delete skipped vì LastModifiedSource != HRM.");
-                                break;
-                            }
+                        switch (staging.Action)
+                        {
+                            case HrmChangeAction.Delete:
+                                if (entity == null)
+                                    break;
 
-                            if (ApplyDelete(entity))
-                            {
-                                result.Deactivated++;
-                                batchContext.Deleted.Add(entity);
-                            }
-                            break;
-
-                        case HrmChangeAction.Insert:
-                        case HrmChangeAction.Update:
-                            if (entity == null)
-                            {
-                                var newEntity = MapToNewEntity(staging);
-                                await Uow.Repository<TEntity>().AddAsync(newEntity, ct);
-                                result.Added++;
-                                batchContext.Added.Add(newEntity);
-                            }
-                            else
-                            {
-                                if (ApplyUpdate(entity, staging))
+                                var source = entity.GetType().GetProperty("LastModifiedSource")?.GetValue(entity) as string;
+                                if (!string.Equals(source, SyncSourceTags.Hrm, StringComparison.OrdinalIgnoreCase))
                                 {
-                                    result.Updated++;
-                                    batchContext.Updated.Add(entity);
+                                    staging.ErrorMessage = "Delete skipped: target record is not owned by HRM sync.";
+                                    result.Errors.Add($"{staging.EntityKey}: Delete skipped vì LastModifiedSource != HRM.");
+                                    break;
+                                }
+
+                                if (ApplyDelete(entity))
+                                {
+                                    result.Deactivated++;
+                                    batchContext.Deleted.Add(entity);
+                                }
+                                break;
+
+                            case HrmChangeAction.Insert:
+                            case HrmChangeAction.Update:
+                                if (entity == null)
+                                {
+                                    var newEntity = MapToNewEntity(staging);
+                                    await Uow.Repository<TEntity>().AddAsync(newEntity, ct);
+                                    result.Added++;
+                                    batchContext.Added.Add(newEntity);
                                 }
                                 else
                                 {
-                                    result.Unchanged++;
+                                    if (ApplyUpdate(entity, staging))
+                                    {
+                                        result.Updated++;
+                                        batchContext.Updated.Add(entity);
+                                    }
+                                    else
+                                    {
+                                        result.Unchanged++;
+                                    }
                                 }
-                            }
-                            break;
+                                break;
+                        }
+
+                        staging.IsProcessed = true;
                     }
-
-                    staging.IsProcessed = true;
-                    // Keep a non-empty ErrorMessage for review/audit cases such as delete guard.
+                    catch (Exception ex)
+                    {
+                        staging.ErrorMessage = ex.Message;
+                        result.Errors.Add($"{staging.EntityKey}: {ex.Message}");
+                    }
                 }
-                catch (Exception ex)
+
+                foreach (var raw in superseded)
                 {
-                    staging.ErrorMessage = ex.Message;
-                    result.Errors.Add($"{staging.EntityKey}: {ex.Message}");
+                    raw.IsProcessed = true;
+                    raw.ErrorMessage = "Superseded by newer change";
                 }
-            }
 
-            foreach (var raw in superseded)
+                // IMPORTANT: persist Employee/Position/Department/etc. FIRST.
+                // AfterBatchAsync is therefore allowed to query the just-written rows.
+                await Uow.SaveChangesAsync(ct);
+
+                await AfterBatchAsync(batchContext, ct);
+
+                // Persist security/review entities created by the post-save hook.
+                await Uow.SaveChangesAsync(ct);
+
+                await transaction.CommitAsync(ct);
+                return result;
+            }
+            catch
             {
-                raw.IsProcessed = true;
-                raw.ErrorMessage = "Superseded by newer change";
+                await transaction.RollbackAsync(ct);
+                throw;
             }
-
-            await AfterBatchAsync(batchContext, ct);
-
-            await Uow.SaveChangesAsync(ct);
-            return result;
         }
     }
 }
