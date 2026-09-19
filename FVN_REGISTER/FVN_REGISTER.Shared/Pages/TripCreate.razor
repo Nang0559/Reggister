@@ -208,6 +208,8 @@
             _validationMessage = "Mục đích công tác là bắt buộc.";
         else if (_estimatedCost < 0)
             _validationMessage = "Chi phí dự kiến không được âm.";
+        else if ((_approvalSelector?.GetSelections() ?? new()).Any(x => string.IsNullOrWhiteSpace(x.ApproverCode)))
+            _validationMessage = "Vui lòng chọn người phê duyệt cho từng cấp.";
 
         return _validationMessage == null;
     }
