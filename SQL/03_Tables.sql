@@ -24,8 +24,8 @@ IF OBJECT_ID(N'dbo.F03Users',N'U') IS NOT NULL
     EXEC sp_rename N'dbo.F03Users.IdUser', N'Id', N'COLUMN';
 
 /* Canonical Work Calendar / annual leave upgrades. */
-IF OBJECT_ID(N'dbo.F03CompanyHoliday',N'U') IS NOT NULL AND COL_LENGTH(N'dbo.F03CompanyHoliday',N'TinhPhep') IS NULL AND COL_LENGTH(N'dbo.F03CompanyHoliday',N'IsPaidLeave') IS NOT NULL
-    EXEC sys.sp_rename N'dbo.F03CompanyHoliday.IsPaidLeave', N'TinhPhep', N'COLUMN';
+IF OBJECT_ID(N'dbo.F03CompanyHolidays',N'U') IS NOT NULL AND COL_LENGTH(N'dbo.F03CompanyHolidays',N'TinhPhep') IS NULL AND COL_LENGTH(N'dbo.F03CompanyHolidays',N'IsPaidLeave') IS NOT NULL
+    EXEC sys.sp_rename N'dbo.F03CompanyHolidays.IsPaidLeave', N'TinhPhep', N'COLUMN';
 IF OBJECT_ID(N'dbo.F03LeaveBalances',N'U') IS NOT NULL
 BEGIN
     IF COL_LENGTH(N'dbo.F03LeaveBalances',N'BaseLeaveDays') IS NULL ALTER TABLE dbo.F03LeaveBalances ADD BaseLeaveDays decimal(5,2) NOT NULL CONSTRAINT DF_F03LeaveBalances_BaseLeaveDays DEFAULT 12;
@@ -171,7 +171,7 @@ IF OBJECT_ID('dbo.F03WorkYear','U') IS NULL AND OBJECT_ID('dbo.F03WorkYears','U'
 IF OBJECT_ID(N'dbo.F03CompanyHolidays',N'U') IS NULL
    AND OBJECT_ID(N'dbo.F03CompanyHoliday',N'U') IS NOT NULL
 BEGIN
-    EXEC sys.sp_rename N'dbo.F03CompanyHoliday', N'F03CompanyHolidays';
+    EXEC sys.sp_rename N'dbo.F03CompanyHolidays', N'F03CompanyHolidays';
 END;
 IF OBJECT_ID(N'dbo.F03CompanyHolidays',N'U') IS NULL
 BEGIN
