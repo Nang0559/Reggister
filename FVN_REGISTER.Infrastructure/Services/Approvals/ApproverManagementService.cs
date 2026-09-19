@@ -328,6 +328,47 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
         }
     }
 
+    public async Task<ServiceResult<List<ApproverSyncProposalDto>>> GetSyncProposalsAsync(CancellationToken ct)
+    {
+        try
+        {
+            var rows=await _uow.Repository<F03SyncReviewFlag>().Query().AsNoTracking()
+                .Where(x=>!x.IsResolved&&x.FlagType=="ApproverConfigurationChanged")
+                .OrderByDescending(x=>x.DetectedAt)
+                .Select(x=>new ApproverSyncProposalDto {
+                    Id=x.Id, EmployeeCode=x.EntityKey, Message=x.Message,
+                    ChangeType=x.OldDeptCode!=x.NewDeptCode&&x.OldPositionCode!=x.NewPositionCode?"Phòng ban + Chức vụ":x.OldDeptCode!=x.NewDeptCode?"Phòng ban":"Chức vụ",
+                    OldDeptCode=x.OldDeptCode??"",OldPositionCode=x.OldPositionCode??"",NewDeptCode=x.NewDeptCode??"",NewPositionCode=x.NewPositionCode??"",
+                    CurrentApproverId=x.CurrentApproverId,CurrentApproverCode=x.CurrentApproverCode??"",CurrentLevel=x.CurrentLevel,CurrentRoleName=x.CurrentRoleName??"",CurrentApproveForDeptCode=x.CurrentApproveForDeptCode??"",
+                    SuggestedApproverCode=x.SuggestedApproverCode,SuggestedLevel=x.SuggestedLevel,SuggestedRoleName=x.SuggestedRoleName,SuggestedApproveForDeptCode=x.SuggestedApproveForDeptCode,DetectedAt=x.DetectedAt
+                }).ToListAsync(ct);
+            return ServiceResult<List<ApproverSyncProposalDto>>.Ok(rows);
+        } catch(Exception ex) { Logger.LogError(ex,"[APPROVER-MGT] GetSyncProposals ERROR"); return ServiceResult<List<ApproverSyncProposalDto>>.Fail("Lỗi tải đề xuất đồng bộ Approver."); }
+    }
+
+    public async Task<ServiceResult> AcceptSyncProposalAsync(int flagId,int currentUserId,CancellationToken ct)
+    {
+        var flag=await _uow.Repository<F03SyncReviewFlag>().Query().FirstOrDefaultAsync(x=>x.Id==flagId&&!x.IsResolved&&x.FlagType=="ApproverConfigurationChanged",ct);
+        if(flag==null) return ServiceResult.Fail("Không tìm thấy đề xuất hoặc đề xuất đã được xử lý.");
+        if(!flag.CurrentApproverId.HasValue||!flag.SuggestedLevel.HasValue||string.IsNullOrWhiteSpace(flag.SuggestedApproverCode)) return ServiceResult.Fail("HRM chưa xác định được người duyệt mới duy nhất. Hãy chỉnh thủ công.");
+        var a=await _uow.Repository<F03Approver>().Query().FirstOrDefaultAsync(x=>x.Id==flag.CurrentApproverId.Value,ct);
+        if(a==null) return ServiceResult.Fail("Cấu hình Approver hiện tại không còn tồn tại.");
+        var e=await GetEmployeeWithPositionAsync(flag.SuggestedApproverCode,ct);
+        if(e==null) return ServiceResult.Fail("Người duyệt đề xuất không còn hoạt động.");
+        a.ApproverCode=flag.SuggestedApproverCode;a.ApproverName=e.EmployeeName;a.ApproverEmail=e.EmailAddress;a.PositionCode=e.PositionCode;a.ApproverDeptCode=e.DeptCode;a.ApproverDeptName=e.DeptName;a.Level=flag.SuggestedLevel.Value;a.RoleName=flag.SuggestedRoleName??RoleNameFromLevel(a.Level,a.RequestType);
+        if(a.ApproveForDeptCode!=ApproveForDept.All&&!string.IsNullOrWhiteSpace(flag.SuggestedApproveForDeptCode)){a.ApproveForDeptCode=flag.SuggestedApproveForDeptCode;a.ApproveForDeptName=await GetDeptNameAsync(a.ApproveForDeptCode,ct);}
+        a.ModifiedBy=currentUserId;a.ModifiedAt=DateTime.Now;flag.IsResolved=true;flag.ResolvedAt=DateTime.Now;flag.ResolvedBy=currentUserId.ToString();flag.Decision="AcceptedHrmProposal";
+        await _uow.SaveChangesAsync(ct);return ServiceResult.Ok("Đã áp dụng đề xuất HRM vào cấu hình Approver.");
+    }
+
+    public async Task<ServiceResult> KeepSyncProposalAsync(int flagId,int currentUserId,CancellationToken ct)
+    {
+        var flag=await _uow.Repository<F03SyncReviewFlag>().Query().FirstOrDefaultAsync(x=>x.Id==flagId&&!x.IsResolved&&x.FlagType=="ApproverConfigurationChanged",ct);
+        if(flag==null) return ServiceResult.Fail("Không tìm thấy đề xuất hoặc đề xuất đã được xử lý.");
+        flag.IsResolved=true;flag.ResolvedAt=DateTime.Now;flag.ResolvedBy=currentUserId.ToString();flag.Decision="KeepCurrentConfiguration";await _uow.SaveChangesAsync(ct);
+        return ServiceResult.Ok("Đã giữ nguyên cấu hình Approver hiện tại.");
+    }
+
     public async Task<int> GetRequesterLevelAsync(string employeeCode, RequestModule requestType, CancellationToken ct)
     {
         var emp = await _uow.Repository<F03Employee>().Query().AsNoTracking()

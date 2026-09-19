@@ -21,6 +21,28 @@
     <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.PersonAdd" OnClick="OpenCreateDialog">Thêm Approver</MudButton>
 </MudStack>
 
+@if (_proposals.Count > 0)
+{
+    <MudAlert Severity="Severity.Warning" Class="mb-3" Icon="@Icons.Material.Filled.SyncProblem">
+        Có @_proposals.Count thay đổi HRM đang chờ kiểm duyệt cấu hình Approver.
+    </MudAlert>
+    <MudPaper Elevation="1" Class="pa-3 mb-4">
+        <MudText Typo="Typo.h6" Class="mb-2">Đề xuất thay đổi từ HRM</MudText>
+        <MudTable Items="_proposals" Dense="true" Hover="true" Striped="true">
+            <HeaderContent><MudTh>Nhân viên</MudTh><MudTh>HRM cũ → mới</MudTh><MudTh>Cấu hình hiện tại</MudTh><MudTh>HRM đề xuất</MudTh><MudTh></MudTh></HeaderContent>
+            <RowTemplate>
+                <MudTd><b>@context.EmployeeCode</b><br/>@context.ChangeType</MudTd>
+                <MudTd>@context.OldDeptCode / @context.OldPositionCode<br/>→ @context.NewDeptCode / @context.NewPositionCode</MudTd>
+                <MudTd>@context.CurrentApproverCode / L@context.CurrentLevel<br/>@context.CurrentApproveForDeptCode</MudTd>
+                <MudTd>@(context.SuggestedApproverCode ?? "Chưa xác định duy nhất") / L@(context.SuggestedLevel?.ToString() ?? "-")<br/>@context.SuggestedApproveForDeptCode</MudTd>
+                <MudTd>
+                    <MudButton Size="Size.Small" Color="Color.Success" Variant="Variant.Filled" Disabled="@string.IsNullOrWhiteSpace(context.SuggestedApproverCode)" OnClick="@(()=>AcceptProposal(context))">Áp dụng HRM</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(()=>KeepProposal(context))">Giữ hiện tại</MudButton>
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    </MudPaper>
+}
 <MudPaper Elevation="1" Class="pa-3 mb-4">
     <MudGrid>
         <MudItem xs="12" sm="4"><MudSelect T="string" Label="Bộ phận" @bind-Value="_filterDept" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
@@ -67,6 +89,7 @@ else
     private string? _filterDept;
     private int? _filterLevel;
     private RequestModule? _filterType;
+    private List<ApproverSyncProposalDto> _proposals = new();
 
     private IEnumerable<ApproverDto> FilteredItems => _items;
 
@@ -74,6 +97,27 @@ else
     {
         await LoadDepartments();
         await LoadAsync();
+        await LoadProposalsAsync();
+    }
+
+    private async Task LoadProposalsAsync()
+    {
+        var result=await ApproverService.GetSyncProposalsAsync();
+        if(result.IsSuccess&&result.Data!=null) _proposals=result.Data;
+    }
+
+    private async Task AcceptProposal(ApproverSyncProposalDto item)
+    {
+        var result=await ApproverService.AcceptSyncProposalAsync(item.Id);
+        Snackbar.Add(result.IsSuccess?result.Message??"Đã áp dụng.":result.Message??"Không thể áp dụng.",result.IsSuccess?Severity.Success:Severity.Error);
+        if(result.IsSuccess){await LoadProposalsAsync();await LoadAsync();}
+    }
+
+    private async Task KeepProposal(ApproverSyncProposalDto item)
+    {
+        var result=await ApproverService.KeepSyncProposalAsync(item.Id);
+        Snackbar.Add(result.IsSuccess?result.Message??"Đã giữ cấu hình.":result.Message??"Lỗi.",result.IsSuccess?Severity.Success:Severity.Error);
+        if(result.IsSuccess) await LoadProposalsAsync();
     }
 
     private async Task LoadDepartments()

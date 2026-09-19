@@ -73,6 +73,13 @@ namespace FVN_REGISTER.Shared.Services.Approvals
             CancellationToken ct = default)
             => _http.PatchAsync<object>($"api/Approver/{id}/toggle", new { }, ct);
 
+        public Task<ApiResponse<List<ApproverSyncProposalDto>>> GetSyncProposalsAsync(CancellationToken ct = default)
+            => _http.GetAsync<List<ApproverSyncProposalDto>>("api/Approver/sync-proposals", ct);
+        public Task<ApiResponse<object>> AcceptSyncProposalAsync(int flagId, CancellationToken ct = default)
+            => _http.PostAsync<object>($"api/Approver/sync-proposals/{flagId}/accept", new { }, ct);
+        public Task<ApiResponse<object>> KeepSyncProposalAsync(int flagId, CancellationToken ct = default)
+            => _http.PostAsync<object>($"api/Approver/sync-proposals/{flagId}/keep", new { }, ct);
+
         private static string BuildQuery(Dictionary<string, string?> parameters)
         {
             var parts = parameters

@@ -18,5 +18,19 @@ namespace FVN_REGISTER.Core.Entities.HRM
         public bool IsResolved { get; set; } = false;
         public DateTime? ResolvedAt { get; set; }
         public string? ResolvedBy { get; set; }
+        public int? CurrentApproverId { get; set; }
+        public string? OldDeptCode { get; set; }
+        public string? OldPositionCode { get; set; }
+        public string? NewDeptCode { get; set; }
+        public string? NewPositionCode { get; set; }
+        public string? CurrentApproverCode { get; set; }
+        public int? CurrentLevel { get; set; }
+        public string? CurrentRoleName { get; set; }
+        public string? CurrentApproveForDeptCode { get; set; }
+        public string? SuggestedApproverCode { get; set; }
+        public int? SuggestedLevel { get; set; }
+        public string? SuggestedRoleName { get; set; }
+        public string? SuggestedApproveForDeptCode { get; set; }
+        public string? Decision { get; set; }
     }
 }

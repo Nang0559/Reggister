@@ -43,6 +43,9 @@ namespace FVN_REGISTER.Application.Interfaces.Approvals
         Task<ServiceResult> UpdateAsync(ApproverDto model, int currentUserId, CancellationToken ct);
         Task<ServiceResult> DeleteAsync(int id, int currentUserId, CancellationToken ct);
         Task<ServiceResult> ToggleActiveAsync(int id, int currentUserId, CancellationToken ct);
+        Task<ServiceResult<List<ApproverSyncProposalDto>>> GetSyncProposalsAsync(CancellationToken ct);
+        Task<ServiceResult> AcceptSyncProposalAsync(int flagId, int currentUserId, CancellationToken ct);
+        Task<ServiceResult> KeepSyncProposalAsync(int flagId, int currentUserId, CancellationToken ct);
 
         // ══════════════════════════════════════════════════════════════════
         // HELPERS DÙNG CHO PROVIDER (BuildHierarchy)

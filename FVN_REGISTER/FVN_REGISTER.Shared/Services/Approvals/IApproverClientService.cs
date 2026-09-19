@@ -21,5 +21,8 @@ namespace FVN_REGISTER.Shared.Services.Approvals
         Task<ApiResponse<object>> UpdateAsync(int id, ApproverDto model, CancellationToken ct = default);
         Task<ApiResponse<object>> DeleteAsync(int id, CancellationToken ct = default);
         Task<ApiResponse<object>> ToggleAsync(int id, CancellationToken ct = default);
+        Task<ApiResponse<List<ApproverSyncProposalDto>>> GetSyncProposalsAsync(CancellationToken ct = default);
+        Task<ApiResponse<object>> AcceptSyncProposalAsync(int flagId, CancellationToken ct = default);
+        Task<ApiResponse<object>> KeepSyncProposalAsync(int flagId, CancellationToken ct = default);
     }
 }

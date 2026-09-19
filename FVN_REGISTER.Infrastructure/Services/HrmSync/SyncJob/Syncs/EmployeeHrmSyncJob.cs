@@ -17,6 +17,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
     {
         private readonly List<string> _changedApproverRelevantCodes = new();
         private readonly Dictionary<string, int?> _positionLevelCache = new();
+        private readonly Dictionary<string, (string Dept, string Position)> _approverChangeSnapshot = new();
         private readonly ISessionTerminationNotifier _sessionNotifier;
 
         public EmployeeHrmSyncJob(IUnitOfWork uow, ISessionTerminationNotifier sessionNotifier) : base(uow)
@@ -68,6 +69,8 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
         protected override bool ApplyUpdate(F03Employee e, F03StagingEmployee s)
         {
             bool changed = false;
+            var oldDeptCode = e.DeptCode;
+            var oldPositionCode = e.PositionCode;
 
             bool deptChanged = e.DeptCode != (s.DeptCode ?? string.Empty);
             bool positionChanged = e.PositionCode != (s.PositionCode ?? string.Empty);
@@ -95,6 +98,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
 
             if (positionChanged || deptChanged)
                 _changedApproverRelevantCodes.Add(e.EmployeeCode);
+                _approverChangeSnapshot[e.EmployeeCode] = (oldDeptCode, oldPositionCode);
 
             if (changed)
                 e.LastModifiedSource = SyncSourceTags.Hrm;
@@ -290,28 +294,39 @@ ORDER BY
         private async Task RefreshApproverReviewFlagsAsync(CancellationToken ct)
         {
             if (_changedApproverRelevantCodes.Count == 0) return;
-
-            var affectedApprovers = await Uow.Repository<F03Approver>().Query()
-                .Where(a => a.IsActive == true && _changedApproverRelevantCodes.Contains(a.ApproverCode))
-                .ToListAsync(ct);
-
-            if (affectedApprovers.Count == 0) return;
-
-            var flagRepo = Uow.Repository<F03SyncReviewFlag>();
-            foreach (var approver in affectedApprovers)
+            var approvers=await Uow.Repository<F03Approver>().Query().Where(x=>x.IsActive==true&&_changedApproverRelevantCodes.Contains(x.ApproverCode)).ToListAsync(ct);
+            var flags=Uow.Repository<F03SyncReviewFlag>();
+            foreach(var a in approvers)
             {
-                await flagRepo.AddAsync(new F03SyncReviewFlag
+                if(!_approverChangeSnapshot.TryGetValue(a.ApproverCode,out var old)) continue;
+                var employee=await Uow.Repository<F03Employee>().Query().AsNoTracking().FirstOrDefaultAsync(x=>x.EmployeeCode==a.ApproverCode,ct);
+                if(employee==null) continue;
+                var level=employee.LevelApprove??GetSuggestedLevel(employee.PositionCode);
+                string? suggestedCode=null;
+                if(level.HasValue&&level.Value>0)
                 {
-                    EntityType = "Employee",
-                    EntityKey = approver.ApproverCode,
-                    FlagType = "PositionOrDeptChanged_ApproverMayBeStale",
-                    Message = $"Nhân viên {approver.ApproverCode} ({approver.ApproverName}) đang cấu hình là approver " +
-                              $"Level {approver.Level} cho {approver.RequestType} - phòng {approver.ApproveForDeptCode}, " +
-                              $"nhưng vừa có thay đổi Phòng ban/Chức vụ từ HRM. Các đơn ĐANG chờ duyệt không bị ảnh hưởng " +
-                              $"(đã snapshot approver tại thời điểm tạo đơn) — cần review F03Approver TRƯỚC KHI có đơn MỚI dùng đến."
-                }, ct);
+                    suggestedCode=await Uow.Repository<F03Employee>().Query().AsNoTracking()
+                        .Join(Uow.Repository<F03Position>().Query().AsNoTracking().Where(p=>p.IsActive==true),x=>x.PositionCode,p=>p.PositionCode,(x,p)=>new{x,p})
+                        .Where(x=>x.x.IsActive==true&&x.x.DeptCode==employee.DeptCode&&x.x.PositionCode==employee.PositionCode&&x.p.DefaultApproveLevel==level.Value&&(x.p.IsApprove||x.p.IsAllowApprove))
+                        .Select(x=>x.x.EmployeeCode).FirstOrDefaultAsync(ct);
+                }
+                var scope=a.ApproveForDeptCode==ApproveForDept.All?a.ApproveForDeptCode:employee.DeptCode;
+                var msg=$"HRM thay đổi {a.ApproverCode}: {old.Dept}/{old.Position} → {employee.DeptCode}/{employee.PositionCode}. Cấu hình hiện tại: {a.ApproverCode}/L{a.Level}/{a.ApproveForDeptCode}. "+(suggestedCode!=null?$"Đề xuất: {suggestedCode}/L{level}/{scope}.":"Chưa xác định được duy nhất người duyệt mới; cần Admin quyết định thủ công.");
+                await flags.AddAsync(new F03SyncReviewFlag{EntityType="Employee",EntityKey=a.ApproverCode,FlagType="ApproverConfigurationChanged",Message=msg,CurrentApproverId=a.Id,OldDeptCode=old.Dept,OldPositionCode=old.Position,NewDeptCode=employee.DeptCode,NewPositionCode=employee.PositionCode,CurrentApproverCode=a.ApproverCode,CurrentLevel=a.Level,CurrentRoleName=a.RoleName,CurrentApproveForDeptCode=a.ApproveForDeptCode,SuggestedApproverCode=suggestedCode,SuggestedLevel=level,SuggestedRoleName=level.HasValue?ResolveRoleName(level.Value,a.RequestType):null,SuggestedApproveForDeptCode=scope},ct);
             }
         }
+
+        private static string ResolveRoleName(int level, RequestModule requestType) => requestType switch
+        {
+            RequestModule.Overtime when level==3=>ApproverRole.SubLeader,
+            RequestModule.Overtime when level==5=>ApproverRole.Chief,
+            RequestModule.Overtime when level==6=>ApproverRole.Manager,
+            RequestModule.Overtime when level==7=>ApproverRole.GM,
+            _ when level==1=>ApproverRole.SubLeader,
+            _ when level==2=>ApproverRole.Manager,
+            _ when level==3=>ApproverRole.GM,
+            _=>$"Level{level}"
+        };
 
         private int? GetSuggestedLevel(string? positionCode)
             => positionCode != null && _positionLevelCache.TryGetValue(positionCode, out var level) ? level : null;

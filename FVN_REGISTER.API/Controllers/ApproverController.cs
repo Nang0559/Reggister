@@ -69,6 +69,24 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(result);
         }
 
+        [HttpGet("sync-proposals")]
+        public async Task<IActionResult> GetSyncProposals(CancellationToken ct)
+            => HandleResult(await _approverService.GetSyncProposalsAsync(ct));
+
+        [HttpPost("sync-proposals/{flagId:int}/accept")]
+        public async Task<IActionResult> AcceptSyncProposal(int flagId, CancellationToken ct)
+        {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            return HandleResult(await _approverService.AcceptSyncProposalAsync(flagId, UserInfo.UserId, ct));
+        }
+
+        [HttpPost("sync-proposals/{flagId:int}/keep")]
+        public async Task<IActionResult> KeepSyncProposal(int flagId, CancellationToken ct)
+        {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            return HandleResult(await _approverService.KeepSyncProposalAsync(flagId, UserInfo.UserId, ct));
+        }
+
         [HttpDelete("{id}")]
         public async Task<IActionResult> Delete(int id, CancellationToken ct)
         {
