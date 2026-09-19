@@ -15,5 +15,9 @@ public interface IHrmSyncService
         string? triggeredBy = null,
         CancellationToken ct = default);
 
+    Task<ServiceResult<HrmSyncRunResultDto>> ReconcileSecurityAsync(
+        string? triggeredBy = null,
+        CancellationToken ct = default);
+
     HrmSyncRuntimeStatusDto GetRuntimeStatus();
 }
