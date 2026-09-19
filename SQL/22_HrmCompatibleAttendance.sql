@@ -733,71 +733,130 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 			WHERE DDChinhVao=0
 			ORDER BY ThoiGian DESC, IDM DESC;
 
+
 			/*
-			  HRM normally supplies BCMaCa from the daily report.  Some employees,
-			  however, have no shift persisted there (BCMaCa/NVMaCa = 0) while
-			  RecordDataNew contains valid punches.  Do not lose the punches and
-			  do not leave the calculation permanently at ShiftId=0.  Resolve the
-			  shift from tblCa using the actual first IN punch as the primary key.
-			  The candidate window honours the shift's pre/post scan tolerance and
-			  also handles overnight shifts.
+			  Exact shift resolution ported from HRM.dbo.sphrmvn_FindShift_New.
+			  HRM does not choose the nearest shift globally. It first uses
+			  NVLichTrinhCa/CC_LichTrinhCa for the weekday, then matches the
+			  punches against only those scheduled shifts.
 			*/
 			IF @Maca=0 AND @TGDen > '19000101'
 			BEGIN
-				DECLARE @FallbackShiftId int;
+				DECLARE @HrmScheduleCode varchar(50) = '';
+				DECLARE @HrmFindShiftType nvarchar(20) = N'TTDD';
+				DECLARE @HrmDaySchedule nvarchar(400) = N'';
+				DECLARE @ScheduleColumn sysname;
+				DECLARE @ShiftID1 int = 0;
+				DECLARE @ShiftID2 int = 0;
 
-				/* First choice: the same scan window HRM uses around the shift. */
-				SELECT TOP 1 @FallbackShiftId=ca.CMa
-				FROM HRM.dbo.tblCa ca
-				CROSS APPLY
-				(
-					SELECT
-						DATEADD(day,DATEDIFF(day,0,CONVERT(date,@D)),CONVERT(datetime,CONVERT(time,ca.CTGBatDau))) AS ShiftStart,
-						DATEADD(day,DATEDIFF(day,0,CONVERT(date,@D)),CONVERT(datetime,CONVERT(time,ca.CTGKetThuc))) AS RawShiftEnd
-				) s
-				CROSS APPLY
-				(
-					SELECT CASE WHEN s.RawShiftEnd<=s.ShiftStart THEN DATEADD(day,1,s.RawShiftEnd) ELSE s.RawShiftEnd END AS ShiftEnd
-				) e
-				WHERE ISNULL(ca.CMa,0)<>0
-				  AND @TGDen >= DATEADD(minute,-ISNULL(ca.CQuetTruocCa,0),s.ShiftStart)
-				  AND @TGDen <= DATEADD(minute,ISNULL(ca.CQuetSauCa,0),e.ShiftEnd)
-				ORDER BY ABS(DATEDIFF(minute,@TGDen,s.ShiftStart)),ca.CMa;
+				SELECT @HrmScheduleCode=ISNULL(BCLichTrinhCa,'')
+				FROM #tblBaoCao
+				WHERE BCNgay=@D AND BCMaNV=@StaffID;
 
-				/*
-				  Some HRM installations have CQuetTruocCa/CQuetSauCa unset.
-				  In that case the strict window above rejects an otherwise valid
-				  normal shift (for example IN 07:50 for an 08:00 shift).  Only
-				  then use a bounded fallback: IN must be within 12h of shift start,
-				  and when OUT exists it must be near the same shift end.  This keeps
-				  the fallback deterministic without simply choosing an arbitrary ca.
-				*/
-				IF @FallbackShiftId IS NULL
+				IF @HrmScheduleCode=''
 				BEGIN
-					SELECT TOP 1 @FallbackShiftId=ca.CMa
-					FROM HRM.dbo.tblCa ca
-					CROSS APPLY
-					(
-						SELECT
-							DATEADD(day,DATEDIFF(day,0,CONVERT(date,@D)),CONVERT(datetime,CONVERT(time,ca.CTGBatDau))) AS ShiftStart,
-							DATEADD(day,DATEDIFF(day,0,CONVERT(date,@D)),CONVERT(datetime,CONVERT(time,ca.CTGKetThuc))) AS RawShiftEnd
-					) s
-					CROSS APPLY
-					(
-						SELECT CASE WHEN s.RawShiftEnd<=s.ShiftStart THEN DATEADD(day,1,s.RawShiftEnd) ELSE s.RawShiftEnd END AS ShiftEnd
-					) e
-					WHERE ISNULL(ca.CMa,0)<>0
-					  AND @TGDen BETWEEN DATEADD(hour,-12,s.ShiftStart) AND DATEADD(hour,12,e.ShiftEnd)
-					ORDER BY
-						CASE WHEN @TGVe>'19000101' AND @TGVe BETWEEN DATEADD(hour,-4,e.ShiftEnd) AND DATEADD(hour,4,e.ShiftEnd) THEN 0 ELSE 1 END,
-						ABS(DATEDIFF(minute,@TGDen,s.ShiftStart)),
-						ca.CMa;
-				END
+					SELECT @HrmScheduleCode=ISNULL(NV.NVLichTrinhCa,''),
+					       @HrmFindShiftType=ISNULL(VR.Loai,N'TTDD')
+					FROM HRM.dbo.tblNhanVien NV
+					LEFT JOIN HRM.dbo.CC_LichTrinhVaoRa VR
+						ON NV.NVLichTrinhVaoRa=VR.Ma
+					WHERE NV.NVMa=@StaffID;
+				END;
 
-				IF @FallbackShiftId IS NOT NULL
-					SET @Maca=@FallbackShiftId;
+				IF ISNULL(@HrmFindShiftType,N'')=N''
+					SET @HrmFindShiftType=N'TTDD';
+
+				SET @ScheduleColumn=N'Ngay'+RIGHT(N'00'+CONVERT(varchar(2),DATEPART(weekday,@D)),2);
+				SET @SQL=N'SELECT @OutSchedule=ISNULL('+QUOTENAME(@ScheduleColumn)+N',N'''')
+					FROM HRM.dbo.CC_LichTrinhCa WHERE Ma=@ScheduleCode;';
+
+				EXEC sys.sp_executesql
+					@SQL,
+					N'@ScheduleCode varchar(50), @OutSchedule nvarchar(400) OUTPUT',
+					@ScheduleCode=@HrmScheduleCode,
+					@OutSchedule=@HrmDaySchedule OUTPUT;
+
+				IF ISNULL(@HrmDaySchedule,N'')<>''
+				BEGIN
+					CREATE TABLE #HrmShiftCandidates
+					(
+						CMa int NOT NULL,
+						CVietTat nvarchar(10) NOT NULL,
+						CTGBatDau datetime NOT NULL,
+						CTGKetThuc datetime NOT NULL,
+						CQuetTruocCa int NULL,
+						CQuetSauCa int NULL
+					);
+
+					INSERT INTO #HrmShiftCandidates
+						(CMa,CVietTat,CTGBatDau,CTGKetThuc,CQuetTruocCa,CQuetSauCa)
+					SELECT CMa,CVietTat,CTGBatDau,CTGKetThuc,CQuetTruocCa,CQuetSauCa
+					FROM HRM.dbo.tblCa
+					WHERE ISNULL(CMa,0)<>0
+					  AND CHARINDEX(N','+CONVERT(nvarchar(20),CVietTat)+N',',
+					                N','+@HrmDaySchedule+N')>0;
+
+					/*
+					  For TTDD this is the exact HRM rule:
+					  ShiftID2 = IN and OUT both fit.
+					  ShiftID1 = either IN or OUT fits.
+					*/
+					IF @HrmFindShiftType=N'TTDD'
+					BEGIN
+						SELECT TOP (1) @ShiftID2=CMa
+						FROM #HrmShiftCandidates
+						CROSS APPLY (SELECT @D+CTGBatDau AS ShiftStart) s
+						CROSS APPLY (SELECT s.ShiftStart+CTGKetThuc AS ShiftEnd) e
+						WHERE @TGDen BETWEEN DATEADD(minute,-ISNULL(CQuetTruocCa,0),s.ShiftStart)
+						                  AND DATEADD(minute,60,s.ShiftStart)
+						  AND @TGVe BETWEEN DATEADD(minute,-60,e.ShiftEnd)
+						                 AND DATEADD(minute,ISNULL(CQuetSauCa,0),e.ShiftEnd)
+						ORDER BY CTGBatDau DESC, CMa DESC;
+
+						SELECT TOP (1) @ShiftID1=CMa
+						FROM #HrmShiftCandidates
+						CROSS APPLY (SELECT @D+CTGBatDau AS ShiftStart) s
+						CROSS APPLY (SELECT s.ShiftStart+CTGKetThuc AS ShiftEnd) e
+						WHERE @TGDen BETWEEN DATEADD(minute,-ISNULL(CQuetTruocCa,0),s.ShiftStart)
+						                  AND DATEADD(minute,60,s.ShiftStart)
+						   OR @TGVe BETWEEN DATEADD(minute,-60,e.ShiftEnd)
+						                 AND DATEADD(minute,ISNULL(CQuetSauCa,0),e.ShiftEnd)
+						ORDER BY CTGBatDau DESC, CMa DESC;
+					END
+					ELSE
+					BEGIN
+						/* TTXK: same candidate rules as HRM. */
+						IF (SELECT COUNT(*) FROM #tblRecordDataRaw)>1
+						BEGIN
+							SELECT TOP (1) @ShiftID2=CMa
+							FROM #HrmShiftCandidates
+							CROSS APPLY (SELECT @D+CTGBatDau AS ShiftStart) s
+							CROSS APPLY (SELECT s.ShiftStart+CTGKetThuc AS ShiftEnd) e
+							WHERE @TGDen BETWEEN DATEADD(minute,-ISNULL(CQuetTruocCa,0),s.ShiftStart)
+							                  AND DATEADD(minute,60,s.ShiftStart)
+							  AND @TGVe BETWEEN DATEADD(minute,-60,e.ShiftEnd)
+							                 AND DATEADD(minute,ISNULL(CQuetSauCa,0),e.ShiftEnd)
+							ORDER BY CTGBatDau DESC, CMa DESC;
+						END
+						ELSE IF (SELECT COUNT(*) FROM #tblRecordDataRaw)=1
+						BEGIN
+							SELECT TOP (1) @ShiftID1=CMa
+							FROM #HrmShiftCandidates
+							CROSS APPLY (SELECT @D+CTGBatDau AS ShiftStart) s
+							WHERE @TGDen BETWEEN DATEADD(minute,-ISNULL(CQuetTruocCa,0),s.ShiftStart)
+							                  AND DATEADD(minute,60,s.ShiftStart)
+							  AND CONVERT(date,@TGDen)=CONVERT(date,@D)
+							ORDER BY CTGBatDau DESC, CMa DESC;
+						END
+					END;
+
+					IF @ShiftID1>0 AND @ShiftID2>0 SET @Maca=@ShiftID2;
+					ELSE IF @ShiftID1>0 SET @Maca=@ShiftID1;
+					ELSE IF @ShiftID2>0 SET @Maca=@ShiftID2;
+
+					DROP TABLE #HrmShiftCandidates;
+				END
 			END
-		END
 
 		-- Neu chua co ca, chi ket thuc phan tinh Work/OT; IN/OUT raw van duoc
 		-- ghi ra #tblBaoCao de co the kiem tra truc tiep RecordDataNew.
