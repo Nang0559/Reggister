@@ -22,6 +22,11 @@
         </MudText>
     </div>
     <MudSpacer />
+    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Rule"
+               OnClick="@(() => Navigation.NavigateTo("/admin/approval-policies"))">
+        Approval Policy
+    </MudButton>
+
     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.WarningAmber"
                Color="Color.Warning" OnClick="@(() => Navigation.NavigateTo("/admin/hrm-sync-review"))">
         Conflict <MudBadge Content="@_conflictCount" Color="Color.Error" Class="ml-2" />
