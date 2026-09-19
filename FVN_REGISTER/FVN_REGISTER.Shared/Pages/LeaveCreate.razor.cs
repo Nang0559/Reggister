@@ -1,3 +1,4 @@
+using FVN_REGISTER.Application.Logging;
 using FVN_REGISTER.Contract.Dtos.Calendar;
 using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Shared.Dialogs;
@@ -43,7 +44,7 @@ public partial class LeaveCreate : IAsyncDisposable
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "[LeaveCreate] Init error");
+            Logger.LogErrorIf(Debug, ex, "[LeaveCreate] Init error");
             Snackbar.Add("Không thể tải dữ liệu lịch nghỉ", Severity.Error);
         }
         finally
