@@ -54,7 +54,7 @@ SUM(CASE WHEN r.RequestStatus=3 THEN o.OTHours ELSE 0 END) TotalApprovedHours,SU
 FROM dbo.F03OTEmployees o JOIN dbo.F03OTRequests r ON r.Id=o.OTRequestId GROUP BY o.EmployeeCode,YEAR(r.OTDate);
 GO
 CREATE OR ALTER VIEW dbo.vF03Users AS
-SELECT u.IdUser,COALESCE(u.EmployeeCode,CONVERT(nvarchar(50),u.IdUser)) UserName,u.Password,u.Avatar,u.EmployeeCode,e.EmployeeName,u.DeptCode,d.DeptName,e.GenderCode,g.GenderName,e.BirthDate,e.EmailAddress,e.PhoneNumber,
+SELECT u.Id,COALESCE(u.EmployeeCode,CONVERT(nvarchar(50),u.Id)) UserName,u.Password,u.Avatar,u.EmployeeCode,e.EmployeeName,u.DeptCode,d.DeptName,e.GenderCode,g.GenderName,e.BirthDate,e.EmailAddress,e.PhoneNumber,
 u.PermissionCode,p.PermissionName,u.LastLogin,u.LockoutEnable,u.LockoutEndDate,u.NumLoginFailed,u.IsActive,u.CreatedBy,u.CreatedAt,u.ModifiedBy,u.ModifiedAt,u.Cvcode,u.LevelApprove
 FROM dbo.F03Users u LEFT JOIN dbo.F03Employees e ON e.EmployeeCode=u.EmployeeCode LEFT JOIN dbo.F03Departments d ON d.DeptCode=u.DeptCode LEFT JOIN dbo.F03Genders g ON g.Id=e.GenderCode LEFT JOIN dbo.F03Permissions p ON p.PermissionCode=u.PermissionCode;
 GO
