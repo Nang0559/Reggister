@@ -167,7 +167,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                         await Uow.Repository<F03User>().AddAsync(user, ct);
                         usersByCode[employee.EmployeeCode] = user;
 
-                        if (employee.IsActive && !string.IsNullOrWhiteSpace(employee.EmailAddress))
+                        if (employee.IsActive == true && !string.IsNullOrWhiteSpace(employee.EmailAddress))
                             await QueueRegistrationEmailAsync(employee, ct);
                     }
                     else

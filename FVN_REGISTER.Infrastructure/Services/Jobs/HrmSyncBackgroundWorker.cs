@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.HrmSync;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 

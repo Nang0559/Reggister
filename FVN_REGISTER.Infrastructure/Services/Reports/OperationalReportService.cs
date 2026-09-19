@@ -54,7 +54,7 @@ public sealed class OperationalReportService : BaseReportService<OperationalRepo
     {
         var (from,to)=Range(q);
         var x=_uow.Repository<F03TripRequest>().Query().AsNoTracking()
-            .Where(x=>x.IsActive && x.StartDate<=to && x.EndDate>=from);
+            .Where(x=>x.IsActive == true && x.StartDate<=to && x.EndDate>=from);
         if (u.Permission.IsAdmin())
         {
             if (!string.IsNullOrWhiteSpace(q.DeptCode)) x=x.Where(a=>a.DeptCode==q.DeptCode);
@@ -99,7 +99,7 @@ public sealed class OperationalReportService : BaseReportService<OperationalRepo
 
     private IQueryable<F03EquipmentAsset> Equipment(ReportQueryDto q, UserIdentityDto u)
     {
-        var x=_uow.Repository<F03EquipmentAsset>().Query().AsNoTracking().Where(x=>x.IsActive);
+        var x=_uow.Repository<F03EquipmentAsset>().Query().AsNoTracking().Where(x=>x.IsActive == true);
         if(u.Permission.IsAdmin()){if(!string.IsNullOrWhiteSpace(q.DeptCode))x=x.Where(a=>a.DeptCode==q.DeptCode);}
         else x=x.Where(a=>a.DeptCode==u.DeptCode);
         return x;

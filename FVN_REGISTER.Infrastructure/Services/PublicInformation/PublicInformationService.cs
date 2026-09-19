@@ -1,8 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Interfaces.PublicInformation;
 using FVN_REGISTER.Contract.Dtos.PublicInformation;
-using FVN_REGISTER.Contract.Utils;
-using FVN_REGISTER.Core.Entities.Common;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
 

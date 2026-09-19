@@ -54,7 +54,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
                 on ur.IdRole equals r.IdRole
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on rf.IdFunction equals f.IdFunction
+                on rf.IdFunction equals f.Id
             where ur.IdUser == userId
                 && r.IsActive
                 && (f.IsActive ?? true)
@@ -68,7 +68,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         scopes.AddRange(await (
             from uf in _uow.Repository<F03UserFunction>().Query().AsNoTracking()
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on uf.IdFunction equals f.IdFunction
+                on uf.IdFunction equals f.Id
             where uf.IdUser == userId
                 && (f.IsActive ?? true)
                 && f.FunctionCode == functionCode
@@ -150,7 +150,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking()
                 on ur.IdRole equals rf.IdRole
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on rf.IdFunction equals f.IdFunction
+                on rf.IdFunction equals f.Id
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
                 on ur.IdRole equals r.IdRole
             where ur.IdUser == userId && r.IsActive && (f.IsActive ?? true)
@@ -161,7 +161,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         var legacyFunctions = await (
             from uf in _uow.Repository<F03UserFunction>().Query().AsNoTracking()
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on uf.IdFunction equals f.IdFunction
+                on uf.IdFunction equals f.Id
             where uf.IdUser == userId && (f.IsActive ?? true)
             select f
         ).ToListAsync(ct);
@@ -174,7 +174,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .ThenBy(x => x.FunctionCode)
             .Select(x => new SecurityFunctionDto
             {
-                IdFunction = x.IdFunction,
+                IdFunction = x.Id,
                 FunctionCode = x.FunctionCode,
                 FunctionName = x.FunctionName,
                 Detail = x.Detail,
@@ -206,7 +206,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         var map = await (
             from rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking()
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on rf.IdFunction equals f.IdFunction
+                on rf.IdFunction equals f.Id
             where roleIds.Contains(rf.IdRole)
             select new { rf.IdRole, f.FunctionCode }
         ).ToListAsync(ct);
@@ -233,7 +233,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .ThenBy(x => x.FunctionCode)
             .Select(x => new SecurityFunctionDto
             {
-                IdFunction = x.IdFunction,
+                IdFunction = x.Id,
                 FunctionCode = x.FunctionCode,
                 FunctionName = x.FunctionName,
                 Detail = x.Detail,
@@ -335,7 +335,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             await repo.AddAsync(new F03RoleFunction
             {
                 IdRole = role.IdRole,
-                IdFunction = function.IdFunction,
+                IdFunction = function.Id,
                 CreatedBy = actorUserId,
                 CreatedAt = DateTime.Now
             }, ct);
