@@ -44,9 +44,16 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
 
     public abstract RequestModule RequestType { get; }
 
+    /// <summary>
+    /// Builds the approval hierarchy for a request.
+    /// Strict mode is used by command/submit flows; non-strict mode is used by
+    /// read-only screens such as calendars so missing approval configuration
+    /// does not turn an otherwise valid query into HTTP 500.
+    /// </summary>
     public virtual async Task<List<ApprovalStepSnapshotDto>> BuildHierarchyAsync(
-     ApprovalBuildContext ctx,
-     CancellationToken ct)
+        ApprovalBuildContext ctx,
+        CancellationToken ct,
+        bool strict = true)
     {
         var routeResult = await _routeService.GetPreviewAsync(
             RequestType,
@@ -57,6 +64,18 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
 
         if (!routeResult.Success || routeResult.Data == null)
         {
+            if (!strict)
+            {
+                Logger.LogWarning(
+                    "Approval route unavailable for {RequestType}, EmployeeCode={EmployeeCode}, DeptCode={DeptCode}, PositionCode={PositionCode}: {Message}",
+                    RequestType,
+                    ctx.EmployeeCode,
+                    ctx.DeptCode,
+                    ctx.PositionCode,
+                    routeResult.Message);
+                return new List<ApprovalStepSnapshotDto>();
+            }
+
             throw new InvalidOperationException(
                 routeResult.Message ??
                 $"Không xác định được luồng phê duyệt cho {RequestType}.");
@@ -86,6 +105,19 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
 
             if (level.Candidates.Count == 0)
             {
+                if (!strict)
+                {
+                    Logger.LogWarning(
+                        "No approval candidates for {RequestType}, Level={Level}, LevelName={LevelName}, EmployeeCode={EmployeeCode}, DeptCode={DeptCode}, PositionCode={PositionCode}.",
+                        RequestType,
+                        level.Level,
+                        level.LevelName,
+                        ctx.EmployeeCode,
+                        ctx.DeptCode,
+                        ctx.PositionCode);
+                    continue;
+                }
+
                 throw new InvalidOperationException(
                     $"Không tìm thấy người phê duyệt cho " +
                     $"{RequestType}, {level.LevelName} (Level {level.Level}).");
@@ -96,6 +128,16 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
                     out var selectedCode) ||
                 string.IsNullOrWhiteSpace(selectedCode))
             {
+                if (!strict)
+                {
+                    Logger.LogDebug(
+                        "No selected approver for {RequestType}, Level={Level}, RequestId={RequestId}; skipping in non-strict mode.",
+                        RequestType,
+                        level.Level,
+                        ctx.RequestId);
+                    continue;
+                }
+
                 throw new InvalidOperationException(
                     $"Chưa chọn người phê duyệt cho " +
                     $"{RequestType}, {level.LevelName} (Level {level.Level}).");
@@ -109,6 +151,17 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
 
             if (selected == null)
             {
+                if (!strict)
+                {
+                    Logger.LogWarning(
+                        "Selected approver {ApproverCode} is not valid for {RequestType}, Level={Level}, RequestId={RequestId}; skipping in non-strict mode.",
+                        selectedCode,
+                        RequestType,
+                        level.Level,
+                        ctx.RequestId);
+                    continue;
+                }
+
                 throw new InvalidOperationException(
                     $"Người phê duyệt [{selectedCode}] " +
                     $"không thuộc danh sách hợp lệ của " +
@@ -127,6 +180,17 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
 
         if (result.Count == 0)
         {
+            if (!strict)
+            {
+                Logger.LogWarning(
+                    "Approval hierarchy is empty for {RequestType}, EmployeeCode={EmployeeCode}, DeptCode={DeptCode}, PositionCode={PositionCode}.",
+                    RequestType,
+                    ctx.EmployeeCode,
+                    ctx.DeptCode,
+                    ctx.PositionCode);
+                return result;
+            }
+
             throw new InvalidOperationException(
                 $"Không xác định được cấp phê duyệt cho " +
                 $"{RequestType} / chức vụ {ctx.PositionCode}.");
