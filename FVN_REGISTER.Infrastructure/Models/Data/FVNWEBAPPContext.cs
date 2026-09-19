@@ -45,9 +45,10 @@ public class FVNWEBAPPContext : DbContext
 
         modelBuilder.Entity<F03UserRole>(entity =>
         {
-            entity.HasKey(x => new { x.IdUser, x.IdRole });
-            entity.HasOne(x => x.User).WithMany(x => x.UserRoles).HasForeignKey(x => x.IdUser);
-            entity.HasOne(x => x.Role).WithMany(x => x.UserRoles).HasForeignKey(x => x.IdRole);
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.IdUser, x.IdRole }).IsUnique();
+            entity.HasOne(x => x.User).WithMany(x => x.UserRoles).HasForeignKey(x => x.IdUser).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Role).WithMany(x => x.UserRoles).HasForeignKey(x => x.IdRole).OnDelete(DeleteBehavior.Cascade);
         });
         modelBuilder.Entity<F03Role>(entity => entity.HasIndex(x => x.RoleCode).IsUnique());
     }
