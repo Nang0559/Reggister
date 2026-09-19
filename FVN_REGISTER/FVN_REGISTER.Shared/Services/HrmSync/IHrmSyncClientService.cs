@@ -8,4 +8,5 @@ public interface IHrmSyncClientService
     Task<ApiResponse<HrmSyncRuntimeStatusDto>> GetStatusAsync(CancellationToken ct = default);
     Task<ApiResponse<HrmSyncRunResultDto>> RunAllAsync(CancellationToken ct = default);
     Task<ApiResponse<HrmSyncRunResultDto>> RunEntityAsync(string entityType, CancellationToken ct = default);
+    Task<ApiResponse<HrmSyncRunResultDto>> ReconcileSecurityAsync(CancellationToken ct = default);
 }
