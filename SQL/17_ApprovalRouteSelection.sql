@@ -446,9 +446,26 @@ END;
 GO
 
 /*
-    No F03ApprovalPositionGroups table is created or referenced.
-    PositionCode is always the HRM master code from F03Positions.
+    Remove the previously introduced non-canonical mapping table.
+    PositionCode is now the only requester-position key.
 */
+IF OBJECT_ID(N'dbo.F03ApprovalPositionGroups', N'U') IS NOT NULL
+BEGIN
+    IF EXISTS
+    (
+        SELECT 1
+        FROM sys.foreign_keys
+        WHERE name = N'FK_F03ApprovalPositionGroups_F03Positions'
+          AND parent_object_id = OBJECT_ID(N'dbo.F03ApprovalPositionGroups')
+    )
+    BEGIN
+        ALTER TABLE dbo.F03ApprovalPositionGroups
+            DROP CONSTRAINT FK_F03ApprovalPositionGroups_F03Positions;
+    END;
+
+    DROP TABLE dbo.F03ApprovalPositionGroups;
+END;
+GO
 SELECT
     RequestType,
     PositionCode,
