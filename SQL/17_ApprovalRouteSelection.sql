@@ -255,7 +255,7 @@ INSERT dbo.F03ApprovalPolicies
     IsActive, CreatedBy, RequestType, RequesterPositionCode,
     Level, Sequence, LevelName, RoleName, Required
 )
-SELECT
+SELECT DISTINCT
     1, 0,
     p.RequestType,
     CASE p.RequesterPositionCode
