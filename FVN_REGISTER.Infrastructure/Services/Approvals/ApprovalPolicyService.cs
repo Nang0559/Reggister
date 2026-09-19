@@ -152,7 +152,8 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
             .AnyAsync(x => x.IsActive == true &&
                            x.Id != excludeId &&
                            x.RequestType == (RequestModule)request.RequestType &&
-                           x.PositionCode == request.PositionCode.Trim(), ct);
+                           x.PositionCode == request.PositionCode.Trim() &&
+                           x.Level == request.Level, ct);
 
         return duplicate
             ? "Policy đang active đã tồn tại cho RequestType + PositionCode này."
