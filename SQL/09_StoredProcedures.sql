@@ -224,7 +224,7 @@ END;
 GO
 
 /*
-  Pipeline B — HRM attendance -> local staging -> OT reconciliation.
+  Pipeline B — HRM attendance -> local staging read model. OT actual synchronization is owned by usp_CalculateHrmAttendance.
 
   ARCHITECTURE RULE:
   HRM is a SOURCE ONLY. FVN_REGISTER owns attendance pairing,
@@ -239,7 +239,7 @@ GO
 */
 
 /*
-  Pipeline B — local shift master + HRM attendance -> F03AttendanceStaging.
+  Pipeline B — local shift master + HRM attendance -> F03AttendanceStaging (attendance read model).
   HRM is READ ONLY. Shift configuration is first synchronized by
   usp_SyncHrmShiftMaster; attendance uses only the local F03* shift tables.
 */
