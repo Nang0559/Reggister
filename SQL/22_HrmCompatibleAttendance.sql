@@ -850,6 +850,14 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 						END
 					END;
 					DROP TABLE #HrmShiftCandidates;
+
+					-- HRM sphrmvn_FindShift_New resolves the selected shift after
+					-- scanning all scheduled candidates: ShiftID2 (both IN/OUT)
+					-- takes precedence over ShiftID1 (either IN or OUT).
+					IF @ShiftID2 > 0
+						SET @Maca = @ShiftID2;
+					ELSE IF @ShiftID1 > 0
+						SET @Maca = @ShiftID1;
 				END
 			END
 
