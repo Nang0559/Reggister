@@ -46,6 +46,14 @@ public sealed class WorkCalendarService : IWorkCalendarService
         var canOt = await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct);
         var canTrip = await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct);
 
+        var workYears = await _uow.Repository<F03WorkYear>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true
+                && x.StartDate <= end
+                && x.EndDate >= start)
+            .OrderBy(x => x.WorkYear)
+            .ToListAsync(ct);
+
         var holidays = await _uow.Repository<F03CompanyHoliday>().Query()
             .AsNoTracking()
             .Where(x => x.HolidayDate >= start && x.HolidayDate <= end)
@@ -83,27 +91,41 @@ public sealed class WorkCalendarService : IWorkCalendarService
             .GroupBy(x => x.HolidayDate.Date)
             .ToDictionary(x => x.Key, x => x.First());
 
+        var workYearByDate = new Dictionary<DateTime, F03WorkYear>();
+        foreach (var workYear in workYears)
+        {
+            var yearStart = workYear.StartDate.Date < start ? start : workYear.StartDate.Date;
+            var yearEnd = workYear.EndDate.Date > end ? end : workYear.EndDate.Date;
+
+            for (var date = yearStart; date <= yearEnd; date = date.AddDays(1))
+                workYearByDate[date] = workYear;
+        }
+
         var result = new WorkCalendarDto { From = start, To = end };
 
         for (var date = start; date <= end; date = date.AddDays(1))
         {
             var holiday = holidayByDate.GetValueOrDefault(date.Date);
+            var workYear = workYearByDate.GetValueOrDefault(date.Date);
             var weekend = date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
-            var working = !weekend && holiday == null;
+            var working = workYear != null && !weekend && holiday == null;
 
             var day = new WorkCalendarDayDto
             {
                 Date = date,
+                WorkYear = workYear?.WorkYear,
                 IsWeekend = weekend,
                 IsWorkingDay = working,
                 HolidayName = holiday?.Description,
                 HolidayCode = holiday == null ? null : $"HOL-{holiday.HolidayDate:yyyyMMdd}",
                 CanRegisterLeave = working,
-                CanRegisterOT = !weekend || holiday != null,
+                CanRegisterOT = workYear != null && !weekend && holiday == null,
                 CanRegisterTrip = true,
                 AvailabilityNote = holiday != null
                     ? $"Nghỉ công ty: {holiday.Description}"
-                    : weekend ? "Cuối tuần" : null
+                    : workYear == null
+                        ? "Chưa cấu hình năm làm việc."
+                        : weekend ? "Cuối tuần" : null
             };
 
             result.Days.Add(day);
