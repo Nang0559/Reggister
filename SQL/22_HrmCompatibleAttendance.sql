@@ -3642,7 +3642,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 			,BCTGUuDaiD=@TGUuDaiD
 			--,BCDaXacNhanLamThem=1
 		WHERE (BCMaNV=@StaffID  AND (BCNgay= @D))
-        SELECT [BCNgay],[BCMaNV],[BCMaBP],[BCMaCV],[BCMaCa],[BCCuaDen],[BCTGDen],[BCCuaVe],[BCTGVe],[BCCuaRa],[BCTGRa],[BCCuaVao],[BCTGVao],[BCTGLamNgay],[BCTGLamToi],[BCTGQuaGioNgay],[BCTGQuaGioToi],[BCTGQuaGioNgayTC],[BCTGQuaGioToiTC],[BCTGThemNgay],[BCTGThemToi],[BCTGRaNgoaiNgay],[BCTGRaNgoaiToi],[BCTGDiMuonNgay],[BCTGDiMuonToi],[BCTGVeSomNgay],[BCTGVeSomToi],[BCTGQuyDinh],[BCGhiChu],[BCLoai],[BCLoaiLamThem],[BCTinhLamThem],[BCNghiBuChoNgay],[BCNghiPhep],[BCNghiH100],[BCNghiH70],[BCNghiKL],[BCNghiBH100],[BCNghiBH70],[BCNghiCongTac],[BCNghiBu],[BCNghiKhac],[BCLoaiNgayNghi],[BCLydonghi],[BCTGNghi],[BCTGDKNTheogio],[BCLoaiDKN],[BCDangKyLTN],[BCDangKyLTD],[BCTGUuDaiN],[BCTGUuDaiD],[BCNgayLe],[BCNgayLeNV],[DLocked]
+        SELECT [BCNgay],[BCMaNV],[BCMaBP],[BCMaCV],[BCMaCa],[BCCuaDen],[BCTGDen],[BCCuaVe],[BCTGVe],[BCCuaRa],[BCTGRa],[BCCuaVao],[BCTGVao],[BCTGLamNgay],[BCTGLamToi],[BCTGQuaGioNgay],[BCTGQuaGioToi],[BCTGQuaGioNgayTC],[BCTGQuaGioToiTC],[BCTGThemNgay],[BCTGThemToi],[BCTGRaNgoaiNgay],[BCTGRaNgoaiToi],[BCTGDiMuonNgay],[BCTGDiMuonToi],[BCTGVeSomNgay],[BCTGVeSomToi],[BCTGQuyDinh],[BCGhiChu],[BCLoai],[BCLoaiLamThem],[BCTinhLamThem],[BCNghiBuChoNgay],[BCNghiPhep],[BCNghiH100],[BCNghiH70],[BCNghiKL],[BCNghiBH100],[BCNghiBH70],[BCNghiCongTac],[BCNghiBu],[BCNghiKhac],[BCLoaiNgayNghi],[BCLydonghi],[BCTGNghi],[BCTGDKNTheogio],[BCLoaiDKN],[BCDangKyLTN],[BCDangKyLTD],[BCTGUuDaiN],[BCTGUuDaiD],[BCNgayLe],[BCNgayLeNV],[BCDaXacNhanLamThem],[DLocked]
         FROM #tblBaoCao WHERE BCMaNV=@StaffID AND BCNgay=@D;
 
 END
