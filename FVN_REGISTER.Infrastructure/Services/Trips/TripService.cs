@@ -19,15 +19,18 @@ public sealed class TripService : ITripService
     private readonly ICurrentUserService _currentUser;
     private readonly IApprovalWorkflowOrchestrator<TripRequestSubject> _workflow;
     private readonly IAuthorizationService _authorization;
+    private readonly IApprovalSelectionService _approvalSelections;
 
     public TripService(IUnitOfWork uow, ICurrentUserService currentUser,
         IApprovalWorkflowOrchestrator<TripRequestSubject> workflow,
-        IAuthorizationService authorization)
+        IAuthorizationService authorization,
+        IApprovalSelectionService approvalSelections)
     {
         _uow = uow;
         _currentUser = currentUser;
         _workflow = workflow;
         _authorization = authorization;
+        _approvalSelections = approvalSelections;
     }
 
     public async Task<TripRequestDto> CreateDraftAsync(CreateTripRequestDto request, CancellationToken ct = default)
@@ -66,7 +69,7 @@ public sealed class TripService : ITripService
         return await MapAsync(entity, ct);
     }
 
-    public async Task<TripRequestDto> SubmitAsync(int requestId, CancellationToken ct = default)
+    public async Task<TripRequestDto> SubmitAsync(int requestId, List<ApprovalSelectionDto>? approvalSelections = null, CancellationToken ct = default)
     {
         var user = _currentUser.GetCurrentUser()
             ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
@@ -85,6 +88,9 @@ public sealed class TripService : ITripService
         if (string.IsNullOrWhiteSpace(entity.Destination) || string.IsNullOrWhiteSpace(entity.Purpose))
             throw new InvalidOperationException("Địa điểm và mục đích công tác là bắt buộc.");
 
+        if (approvalSelections != null && approvalSelections.Count > 0)
+            await _approvalSelections.ReplaceAsync(RequestModule.Trip, entity.Id, approvalSelections, user.UserId, ct);
+
         entity.RequestStatus = ApprovalStatus.Pending;
         await _uow.SaveChangesAsync(ct);
 
@@ -95,6 +101,7 @@ public sealed class TripService : ITripService
             .FirstOrDefaultAsync(ct);
 
         var context = ApprovalBuildContext.ForTrip(
+            entity.Id,
             entity.EmployeeCode,
             entity.DeptCode ?? employee?.DeptCode ?? string.Empty,
             employee?.PositionCode ?? string.Empty);
