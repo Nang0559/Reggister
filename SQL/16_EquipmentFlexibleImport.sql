@@ -101,11 +101,11 @@ GO
 /* Admin/SuperAdmin and Equipment approvers receive the import capability.
    Existing security data is not overwritten except this additive capability. */
 INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
-SELECT r.IdRole,f.IdFunction
+SELECT r.Id,f.Id
 FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
 WHERE r.RoleCode IN(1,2,4)
   AND f.FunctionCode=2306
   AND NOT EXISTS(
-      SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.IdRole AND rf.IdFunction=f.IdFunction
+      SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id
   );
 GO
