@@ -111,13 +111,13 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
     {
         var rules = await _uow.Repository<F03HrmUserRoleRule>().Query()
             .AsNoTracking()
-            .Where(x => x.IsActive)
+             .Where(x => x.IsActive == true)
             .OrderBy(x => x.Priority)
             .ThenBy(x => x.Id)
             .ToListAsync(ct);
 
         var users = await _uow.Repository<F03User>().Query()
-            .Where(x => x.IsActive==true && x.LastModifiedSource == SyncSourceTags.Hrm)
+            .Where(x => x.IsActive == true && x.LastModifiedSource == SyncSourceTags.Hrm)
             .ToListAsync(ct);
 
         foreach (var user in users)
@@ -154,7 +154,7 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
         var position = Normalize(request.PositionCode);
 
         var duplicate = await _uow.Repository<F03HrmUserRoleRule>().Query()
-            .AnyAsync(x => x.IsActive &&
+            .AnyAsync(x => x.IsActive == true &&
                            x.Id != excludeId &&
                            x.DeptCode == dept &&
                            x.PositionCode == position &&

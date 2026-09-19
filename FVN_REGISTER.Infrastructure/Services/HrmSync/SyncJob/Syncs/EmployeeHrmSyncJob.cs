@@ -185,12 +185,12 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                         user.IsActive = employee.IsActive;
                         user.LastModifiedSource = SyncSourceTags.Hrm;
 
-                        if (wasActive && employee.IsActive == false)
+                        if (wasActive && employee.IsActive != true)
                         {
                             user.LockoutEndDate = DateTime.Now;
 
                             var sessions = await Uow.Repository<F03UserSession>().Query()
-                                .Where(x => x.UserId == user.Id && x.IsActive)
+                                .Where(x => x.UserId == user.Id && x.IsActive == true)
                                 .ToListAsync(ct);
 
                             foreach (var session in sessions)

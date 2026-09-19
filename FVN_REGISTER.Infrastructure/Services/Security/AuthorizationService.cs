@@ -54,7 +54,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
                 on ur.IdRole equals r.IdRole
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on rf.IdFunction equals f.Id
+                on rf.Id equals f.Id
             where ur.IdUser == userId
                 && r.IsActive
                 && (f.IsActive ?? true)
@@ -68,7 +68,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         scopes.AddRange(await (
             from uf in _uow.Repository<F03UserFunction>().Query().AsNoTracking()
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on uf.IdFunction equals f.Id
+                on uf.Id equals f.Id
             where uf.IdUser == userId
                 && (f.IsActive ?? true)
                 && f.FunctionCode == functionCode
@@ -150,7 +150,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking()
                 on ur.IdRole equals rf.IdRole
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on rf.IdFunction equals f.Id
+                on rf.Id equals f.Id
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
                 on ur.IdRole equals r.IdRole
             where ur.IdUser == userId && r.IsActive && (f.IsActive ?? true)
@@ -161,7 +161,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         var legacyFunctions = await (
             from uf in _uow.Repository<F03UserFunction>().Query().AsNoTracking()
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on uf.IdFunction equals f.Id
+                on uf.Id equals f.Id
             where uf.IdUser == userId && (f.IsActive ?? true)
             select f
         ).ToListAsync(ct);
@@ -198,7 +198,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
     {
         var roles = await _uow.Repository<F03Role>().Query()
             .AsNoTracking()
-            .Where(x => x.IsActive)
+            .Where(x => x.IsActive == true)
             .OrderBy(x => x.RoleCode)
             .ToListAsync(ct);
 
@@ -206,7 +206,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         var map = await (
             from rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking()
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on rf.IdFunction equals f.Id
+                on rf.Id equals f.Id
             where roleIds.Contains(rf.IdRole)
             select new { rf.IdRole, f.FunctionCode }
         ).ToListAsync(ct);
@@ -257,7 +257,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             throw new InvalidOperationException("Tài khoản phải có ít nhất một role.");
 
         var roles = await _uow.Repository<F03Role>().Query()
-            .Where(x => x.IsActive && roleCodes.Contains(x.RoleCode))
+            .Where(x => x.IsActive == true && roleCodes.Contains(x.RoleCode))
             .ToListAsync(ct);
 
         if (roles.Count != roleCodes.Distinct().Count())
@@ -312,7 +312,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             throw new InvalidOperationException("FunctionCodes không hợp lệ.");
 
         var role = await _uow.Repository<F03Role>().Query()
-            .FirstOrDefaultAsync(x => x.RoleCode == roleCode && x.IsActive, ct);
+            .FirstOrDefaultAsync(x => x.RoleCode == roleCode && x.IsActive == true, ct);
 
         if (role == null)
             throw new InvalidOperationException("Role không tồn tại hoặc đã ngừng hoạt động.");

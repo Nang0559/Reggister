@@ -125,7 +125,7 @@ public sealed class OperationalReportService : BaseReportService<OperationalRepo
         var x=_uow.Repository<F03EquipmentRepairHistory>().Query().AsNoTracking().Where(x=>x.RepairDate>=from&&x.RepairDate<to.AddDays(1));
         if(!u.Permission.IsAdmin()) x=x.Where(r=>r.Asset.DeptCode==u.DeptCode);
         else if(!string.IsNullOrWhiteSpace(q.DeptCode)) x=x.Where(r=>r.Asset.DeptCode==q.DeptCode);
-        var data=await x.GroupBy(r=>r.Asset.DeptCode).Select(g=>new{DeptCode=g.Key,Repairs=g.Count(),Cost=g.Sum(r=>r.RepairCost??0),Approved=g.Count(r=>r.IsApproved)}).OrderBy(x=>x.DeptCode).ToListAsync(ct);
+        var data=await x.GroupBy(r=>r.Asset.DeptCode).Select(g=>new{DeptCode=g.Key,Repairs=g.Count(),Cost=g.Sum(r=>r.RepairCost??0),Approved=g.Count(r=>r.IsApproved == true)}).OrderBy(x=>x.DeptCode).ToListAsync(ct);
         return Table(ReportType.EquipmentRepairSummary,"Tổng hợp sửa chữa thiết bị",data.Select(x=>new Dictionary<string,object?>{{"DeptCode",x.DeptCode},{"Repairs",x.Repairs},{"Approved",x.Approved},{"RepairCost",x.Cost}}).ToList(),
             new[]{("DeptCode","Mã phòng","text"),("Repairs","Số lần sửa","number"),("Approved","Đã duyệt","number"),("RepairCost","Chi phí sửa chữa","decimal")});
     }
@@ -154,7 +154,7 @@ public sealed class OperationalReportService : BaseReportService<OperationalRepo
             new[]{("WorkDate","Ngày","date"),("EmployeeCode","Mã NV","text"),("FullName","Họ tên","text"),("DeptCode","Phòng","text"),("ShiftName","Ca","text"),("CheckIn","Vào","date"),("CheckOut","Ra","date"),("TotalHours","Tổng giờ","decimal"),("OTHours","Giờ OT","decimal"),("IsHoliday","Ngày lễ","text")});
     }
 
-    private static ServiceResult<ReportResultDto> Table<T>(ReportType type,string title,IReadOnlyList<Dictionary<string,object?>> rows,IReadOnlyList<(string field,string header,string dataType)> cols)
+    private static ServiceResult<ReportResultDto> Table(ReportType type,string title,IReadOnlyList<Dictionary<string,object?>> rows,IReadOnlyList<(string field,string header,string dataType)> cols)
     {
         return ServiceResult<ReportResultDto>.Ok(new ReportResultDto{
             Type=type,Title=title,TotalRows=rows.Count,Rows=rows.ToList(),

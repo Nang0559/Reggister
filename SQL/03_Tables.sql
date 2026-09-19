@@ -4,11 +4,25 @@ SET ANSI_NULLS ON; SET QUOTED_IDENTIFIER ON;
 GO
 /* Current EF Core model - dbo/F03* tables. */
 IF OBJECT_ID('dbo.F03Permissions','U') IS NULL CREATE TABLE dbo.F03Permissions(
- IdPermission int IDENTITY PRIMARY KEY, IsActive bit NULL DEFAULT 1, CreatedBy int NOT NULL DEFAULT 0, LastModifiedSource nvarchar(50), CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(), ModifiedBy int NULL, ModifiedAt datetime2(0) NULL, PermissionCode int NOT NULL, PermissionName nvarchar(100) NOT NULL, Detail nvarchar(500) NOT NULL);
+ Id int IDENTITY PRIMARY KEY, IsActive bit NULL DEFAULT 1, CreatedBy int NOT NULL DEFAULT 0, LastModifiedSource nvarchar(50), CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(), ModifiedBy int NULL, ModifiedAt datetime2(0) NULL, PermissionCode int NOT NULL, PermissionName nvarchar(100) NOT NULL, Detail nvarchar(500) NOT NULL);
 IF OBJECT_ID('dbo.F03Functions','U') IS NULL CREATE TABLE dbo.F03Functions(
- IdFunction int IDENTITY PRIMARY KEY, IsActive bit NULL DEFAULT 1, CreatedBy int NOT NULL DEFAULT 0, LastModifiedSource nvarchar(50), CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(), ModifiedBy int NULL, ModifiedAt datetime2(0) NULL, FunctionCode int NOT NULL, FunctionName nvarchar(100) NOT NULL, Detail nvarchar(500) NOT NULL);
+ Id int IDENTITY PRIMARY KEY, IsActive bit NULL DEFAULT 1, CreatedBy int NOT NULL DEFAULT 0, LastModifiedSource nvarchar(50), CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(), ModifiedBy int NULL, ModifiedAt datetime2(0) NULL, FunctionCode int NOT NULL, FunctionName nvarchar(100) NOT NULL, Detail nvarchar(500) NOT NULL);
 IF OBJECT_ID('dbo.F03Users','U') IS NULL CREATE TABLE dbo.F03Users(
- IdUser int IDENTITY PRIMARY KEY, IsActive bit NULL DEFAULT 1, CreatedBy int NOT NULL DEFAULT 0, LastModifiedSource nvarchar(50), CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(), ModifiedBy int NULL, ModifiedAt datetime2(0) NULL, Password nvarchar(255) NOT NULL, Avatar nvarchar(255) NULL, EmployeeCode nvarchar(50) NOT NULL, FullName nvarchar(100) NULL, PermissionCode int NOT NULL, LastLogin datetime2(0) NULL, LockoutEnable bit NOT NULL DEFAULT 1, LockoutEndDate datetime2(0) NULL, NumLoginFailed int NOT NULL DEFAULT 0, LevelApprove int NOT NULL DEFAULT 0, DeptCode nvarchar(20) NULL, Cvcode nvarchar(20) NULL);
+ Id int IDENTITY PRIMARY KEY, IsActive bit NULL DEFAULT 1, CreatedBy int NOT NULL DEFAULT 0, LastModifiedSource nvarchar(50), CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(), ModifiedBy int NULL, ModifiedAt datetime2(0) NULL, Password nvarchar(255) NOT NULL, Avatar nvarchar(255) NULL, EmployeeCode nvarchar(50) NOT NULL, FullName nvarchar(100) NULL, PermissionCode int NOT NULL, LastLogin datetime2(0) NULL, LockoutEnable bit NOT NULL DEFAULT 1, LockoutEndDate datetime2(0) NULL, NumLoginFailed int NOT NULL DEFAULT 0, LevelApprove int NOT NULL DEFAULT 0, DeptCode nvarchar(20) NULL, Cvcode nvarchar(20) NULL);
+/* Standardize BaseAuditEntity PK columns for security entities. */
+IF OBJECT_ID(N'dbo.F03Permissions',N'U') IS NOT NULL
+   AND COL_LENGTH(N'dbo.F03Permissions',N'Id') IS NULL
+   AND COL_LENGTH(N'dbo.F03Permissions',N'IdPermission') IS NOT NULL
+    EXEC sp_rename N'dbo.F03Permissions.IdPermission', N'Id', N'COLUMN';
+IF OBJECT_ID(N'dbo.F03Functions',N'U') IS NOT NULL
+   AND COL_LENGTH(N'dbo.F03Functions',N'Id') IS NULL
+   AND COL_LENGTH(N'dbo.F03Functions',N'IdFunction') IS NOT NULL
+    EXEC sp_rename N'dbo.F03Functions.IdFunction', N'Id', N'COLUMN';
+IF OBJECT_ID(N'dbo.F03Users',N'U') IS NOT NULL
+   AND COL_LENGTH(N'dbo.F03Users',N'Id') IS NULL
+   AND COL_LENGTH(N'dbo.F03Users',N'IdUser') IS NOT NULL
+    EXEC sp_rename N'dbo.F03Users.IdUser', N'Id', N'COLUMN';
+
 /* Safe upgrades for existing databases. New installs already receive these widths above. */
 IF COL_LENGTH(N'dbo.F03Employees',N'TotalLeaveDays') IS NOT NULL
     ALTER TABLE dbo.F03Employees ALTER COLUMN TotalLeaveDays decimal(10,2) NOT NULL;
