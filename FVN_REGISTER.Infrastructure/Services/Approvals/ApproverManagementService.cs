@@ -54,7 +54,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                         .Select(levelGroup => new ApproverTreeLevelGroupDto
                         {
                             Level = levelGroup.Key,
-                            RoleName = RoleNameFromLevel(levelGroup.Key),
+                            RoleName = RoleNameFromLevel(levelGroup.Key, levelGroup.First().RequestType),
                             LevelDisplayName = LevelDisplayName(levelGroup.Key),
                             Types = levelGroup.GroupBy(x => x.RequestType)
                                 .Select(rtGroup => new ApproverTreeTypeGroupDto
@@ -211,7 +211,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                 return ServiceResult.Fail("Không xác định được cấp duyệt. Vui lòng chọn thủ công.");
 
             model.Level = resolvedLevel;
-            model.RoleName = RoleNameFromLevel(resolvedLevel);
+            model.RoleName = RoleNameFromLevel(resolvedLevel, model.RequestType);
             model.ApproveForDeptName = await GetDeptNameAsync(model.ApproveForDeptCode ?? "", ct);
             model.DeptCode = empInfo?.DeptCode ?? "";
             model.DeptName = empInfo?.DeptName ?? "";
@@ -257,7 +257,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
             var empInfo = await GetEmployeeWithPositionAsync(model.ApproverCode, ct);
             int resolvedLevel = model.Level > 0 ? model.Level : CvCodeRules.ResolveLevel(null, empInfo?.PositionCode);
             model.Level = resolvedLevel;
-            model.RoleName = RoleNameFromLevel(resolvedLevel);
+            model.RoleName = RoleNameFromLevel(resolvedLevel, model.RequestType);
             model.ApproveForDeptName = await GetDeptNameAsync(model.ApproveForDeptCode ?? "", ct);
             model.DeptCode = empInfo?.DeptCode ?? entity.ApproverDeptCode;
             model.DeptName = empInfo?.DeptName ?? entity.ApproverDeptName;
@@ -330,11 +330,6 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
 
     public async Task<int> GetRequesterLevelAsync(string employeeCode, RequestModule requestType, CancellationToken ct)
     {
-        var levelFromTable = await _uow.Repository<F03Approver>().Query()
-            .Where(x => x.ApproverCode == employeeCode && x.RequestType == requestType && x.IsActive == true)
-            .Select(x => x.Level).FirstOrDefaultAsync(ct);
-        if (levelFromTable > 0) return levelFromTable;
-
         var emp = await _uow.Repository<F03Employee>().Query().AsNoTracking()
             .Where(x => x.EmployeeCode == employeeCode)
             .Select(x => new { x.LevelApprove, x.PositionCode })
@@ -379,25 +374,43 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
     private static ServiceResult ValidateModel(ApproverDto model)
     {
         if (string.IsNullOrWhiteSpace(model.ApproverCode)) return ServiceResult.Fail("Chưa chọn nhân viên.");
-        if (model.RequestType != RequestModule.Leave && model.RequestType != RequestModule.Overtime)
-            return ServiceResult.Fail("Loại yêu cầu không hợp lệ (LEAVE hoặc OT).");
-        if (model.Level < 0 || model.Level > ApprovalLevel.Union)
-            return ServiceResult.Fail($"Cấp duyệt không hợp lệ (1–{ApprovalLevel.Union}).");
-        if (string.IsNullOrWhiteSpace(model.ApproveForDeptCode)) return ServiceResult.Fail("Chưa chọn phòng ban được duyệt.");
+        if (model.RequestType is not RequestModule.Leave
+            and not RequestModule.Overtime
+            and not RequestModule.Trip
+            and not RequestModule.Equipment)
+            return ServiceResult.Fail("Loại yêu cầu không hợp lệ.");
+
+        var validLevel = model.RequestType switch
+        {
+            RequestModule.Leave => model.Level is 1 or 2 or 3,
+            RequestModule.Overtime => model.Level is 3 or 5 or 6 or 7,
+            RequestModule.Trip => model.Level is 1 or 2 or 3,
+            RequestModule.Equipment => model.Level is 1 or 2 or 3,
+            _ => false
+        };
+
+        if (!validLevel)
+            return ServiceResult.Fail($"Cấp duyệt {model.Level} không hợp lệ cho {model.RequestType}.");
+
+        if (string.IsNullOrWhiteSpace(model.ApproveForDeptCode))
+            return ServiceResult.Fail("Chưa chọn phòng ban được duyệt.");
+
         if (string.IsNullOrWhiteSpace(model.ApproverEmail) || !model.ApproverEmail.Contains('@'))
             return ServiceResult.Fail("Email approver không hợp lệ.");
-        if (model.Level == ApprovalLevel.Union && model.RequestType != RequestModule.Overtime)
-            return ServiceResult.Fail("Cấp Công đoàn (Level 5) chỉ áp dụng cho OT.");
+
         return ServiceResult.Ok();
     }
 
-    private static string RoleNameFromLevel(int level) => level switch
+    private static string RoleNameFromLevel(int level, RequestModule requestType) =>
     {
-        ApprovalLevel.SubLeader => ApproverRole.SubLeader,
-        ApprovalLevel.Chief => ApproverRole.Chief,
-        ApprovalLevel.Manager => ApproverRole.Manager,
-        ApprovalLevel.GM => ApproverRole.GM,
-        ApprovalLevel.Union => ApproverRole.Union,
+        RequestModule.Overtime when level == 3 => ApproverRole.SubLeader,
+        RequestModule.Overtime when level == 5 => ApproverRole.Chief,
+        RequestModule.Overtime when level == 6 => ApproverRole.Manager,
+        RequestModule.Overtime when level == 7 => ApproverRole.GM,
+        _ when level == 1 => ApproverRole.SubLeader,
+        _ when level == 2 => ApproverRole.Manager,
+        _ when level == 3 => ApproverRole.GM,
+        _ when level == 4 => ApproverRole.GM,
         _ => $"Level{level}"
     };
 
