@@ -123,19 +123,6 @@ BEGIN
 END;
 GO
 
-IF NOT EXISTS
-(
-    SELECT 1 FROM sys.indexes
-    WHERE name = N'UX_F03ApprovalPolicies_Request_Group_Level'
-      AND object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
-)
-BEGIN
-    CREATE UNIQUE INDEX UX_F03ApprovalPolicies_Request_Group_Level
-        ON dbo.F03ApprovalPolicies(RequestType, ApprovalGroupCode, Level)
-        WHERE ApprovalGroupCode IS NOT NULL;
-END;
-GO
-
 /* Canonical HRM PositionCode -> ApprovalGroup mapping. */
 MERGE dbo.F03ApprovalPositionGroups AS target
 USING
@@ -209,6 +196,37 @@ IF NOT EXISTS
 BEGIN
     CREATE UNIQUE INDEX UX_F03ApprovalSelections_Request_Level
         ON dbo.F03ApprovalSelections(RequestType, RequestId, Level);
+END;
+GO
+
+/* Collapse duplicate position-specific policies after mapping them to the same group. */
+;WITH DuplicatePolicies AS
+(
+    SELECT Id,
+           ROW_NUMBER() OVER
+           (
+               PARTITION BY RequestType, ApprovalGroupCode, Level
+               ORDER BY Id
+           ) AS rn
+    FROM dbo.F03ApprovalPolicies
+    WHERE ApprovalGroupCode IS NOT NULL
+)
+DELETE p
+FROM dbo.F03ApprovalPolicies p
+INNER JOIN DuplicatePolicies d ON d.Id = p.Id
+WHERE d.rn > 1;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE name = N'UX_F03ApprovalPolicies_Request_Group_Level'
+      AND object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
+)
+BEGIN
+    CREATE UNIQUE INDEX UX_F03ApprovalPolicies_Request_Group_Level
+        ON dbo.F03ApprovalPolicies(RequestType, ApprovalGroupCode, Level)
+        WHERE ApprovalGroupCode IS NOT NULL;
 END;
 GO
 
