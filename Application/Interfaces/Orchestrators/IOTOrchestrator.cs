@@ -39,14 +39,5 @@ namespace FVN_REGISTER.Application.Interfaces.Orchestrators
         Task<ServiceResult<PaginationResult<OTSummaryDto>>> GetPagedHistoryAsync(
             string? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate,
             int page, int pageSize, CancellationToken ct = default);
-
-        // ================= ATTENDANCE RECONCILIATION =================
-        // SỬA: thay SyncApprovedAsync (IOTSyncService, đã bỏ) bằng ReconcileActualHoursAsync.
-        // ⚠️ CHỈ được gọi khi Admin chủ động bấm nút "Đối chiếu ngay" trên
-        // OTAttendanceReconcilePage.razor — TUYỆT ĐỐI KHÔNG gọi trong
-        // OnInitializedAsync hay bất kỳ auto-refresh/timer nào vì mỗi lần gọi
-        // đều GHI dữ liệu (UPDATE F03OTEmployee.ActualHours).
-        Task<ServiceResult<OTReconciliationResultDto>> ReconcileActualHoursAsync(
-            DateTime date, string? deptCode, CancellationToken ct = default);
     }
 }
