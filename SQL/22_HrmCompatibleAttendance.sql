@@ -745,21 +745,54 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 			IF @Maca=0 AND @TGDen > '19000101'
 			BEGIN
 				DECLARE @FallbackShiftId int;
+
+				/* First choice: the same scan window HRM uses around the shift. */
 				SELECT TOP 1 @FallbackShiftId=ca.CMa
 				FROM HRM.dbo.tblCa ca
 				CROSS APPLY
 				(
 					SELECT
 						DATEADD(day,DATEDIFF(day,0,CONVERT(date,@D)),CONVERT(datetime,CONVERT(time,ca.CTGBatDau))) AS ShiftStart,
-						DATEADD(day,DATEDIFF(day,0,CONVERT(date,@D)),CONVERT(datetime,CONVERT(time,ca.CTGKetThuc))) AS ShiftEnd
+						DATEADD(day,DATEDIFF(day,0,CONVERT(date,@D)),CONVERT(datetime,CONVERT(time,ca.CTGKetThuc))) AS RawShiftEnd
 				) s
+				CROSS APPLY
+				(
+					SELECT CASE WHEN s.RawShiftEnd<=s.ShiftStart THEN DATEADD(day,1,s.RawShiftEnd) ELSE s.RawShiftEnd END AS ShiftEnd
+				) e
 				WHERE ISNULL(ca.CMa,0)<>0
 				  AND @TGDen >= DATEADD(minute,-ISNULL(ca.CQuetTruocCa,0),s.ShiftStart)
-				  AND @TGDen <= DATEADD(minute,ISNULL(ca.CQuetSauCa,0),
-				      CASE WHEN s.ShiftEnd<=s.ShiftStart THEN DATEADD(day,1,s.ShiftEnd) ELSE s.ShiftEnd END)
-				ORDER BY
-					ABS(DATEDIFF(minute,@TGDen,s.ShiftStart)),
-					ca.CMa;
+				  AND @TGDen <= DATEADD(minute,ISNULL(ca.CQuetSauCa,0),e.ShiftEnd)
+				ORDER BY ABS(DATEDIFF(minute,@TGDen,s.ShiftStart)),ca.CMa;
+
+				/*
+				  Some HRM installations have CQuetTruocCa/CQuetSauCa unset.
+				  In that case the strict window above rejects an otherwise valid
+				  normal shift (for example IN 07:50 for an 08:00 shift).  Only
+				  then use a bounded fallback: IN must be within 12h of shift start,
+				  and when OUT exists it must be near the same shift end.  This keeps
+				  the fallback deterministic without simply choosing an arbitrary ca.
+				*/
+				IF @FallbackShiftId IS NULL
+				BEGIN
+					SELECT TOP 1 @FallbackShiftId=ca.CMa
+					FROM HRM.dbo.tblCa ca
+					CROSS APPLY
+					(
+						SELECT
+							DATEADD(day,DATEDIFF(day,0,CONVERT(date,@D)),CONVERT(datetime,CONVERT(time,ca.CTGBatDau))) AS ShiftStart,
+							DATEADD(day,DATEDIFF(day,0,CONVERT(date,@D)),CONVERT(datetime,CONVERT(time,ca.CTGKetThuc))) AS RawShiftEnd
+					) s
+					CROSS APPLY
+					(
+						SELECT CASE WHEN s.RawShiftEnd<=s.ShiftStart THEN DATEADD(day,1,s.RawShiftEnd) ELSE s.RawShiftEnd END AS ShiftEnd
+					) e
+					WHERE ISNULL(ca.CMa,0)<>0
+					  AND @TGDen BETWEEN DATEADD(hour,-12,s.ShiftStart) AND DATEADD(hour,12,e.ShiftEnd)
+					ORDER BY
+						CASE WHEN @TGVe>'19000101' AND @TGVe BETWEEN DATEADD(hour,-4,e.ShiftEnd) AND DATEADD(hour,4,e.ShiftEnd) THEN 0 ELSE 1 END,
+						ABS(DATEDIFF(minute,@TGDen,s.ShiftStart)),
+						ca.CMa;
+				END
 
 				IF @FallbackShiftId IS NOT NULL
 					SET @Maca=@FallbackShiftId;
