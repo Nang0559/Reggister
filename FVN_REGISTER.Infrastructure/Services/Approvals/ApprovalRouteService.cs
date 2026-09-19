@@ -22,11 +22,25 @@ public sealed class ApprovalRouteService : IApprovalRouteService
         string positionCode,
         CancellationToken ct = default)
     {
+        // HRM PositionCode is the source of truth (for example "0003").
+        // Resolve it to the local approval group before selecting policy.
+        var positionGroup = await _uow.Repository<F03ApprovalPositionGroup>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true && x.PositionCode == positionCode)
+            .Select(x => new { x.PositionCode, x.ApprovalGroupCode })
+            .SingleOrDefaultAsync(ct);
+
+        var approvalGroupCode = positionGroup?.ApprovalGroupCode;
+
+        if (string.IsNullOrWhiteSpace(approvalGroupCode))
+            throw new InvalidOperationException(
+                $"Chưa cấu hình nhóm phê duyệt cho chức vụ HRM {positionCode}.");
+
         var exact = await _uow.Repository<F03ApprovalPolicy>().Query()
             .AsNoTracking()
             .Where(x => x.IsActive == true &&
                         x.RequestType == requestType &&
-                        x.RequesterPositionCode == positionCode)
+                        x.ApprovalGroupCode == approvalGroupCode)
             .OrderBy(x => x.Sequence)
             .ThenBy(x => x.Level)
             .ToListAsync(ct);
@@ -37,14 +51,14 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 .AsNoTracking()
                 .Where(x => x.IsActive == true &&
                             x.RequestType == requestType &&
-                            (x.RequesterPositionCode == null || x.RequesterPositionCode == "*"))
+                            (x.ApprovalGroupCode == null || x.ApprovalGroupCode == "*"))
                 .OrderBy(x => x.Sequence)
                 .ThenBy(x => x.Level)
                 .ToListAsync(ct);
 
         if (policies.Count == 0)
             throw new InvalidOperationException(
-                $"Chưa cấu hình luồng phê duyệt cho {requestType} / chức vụ {positionCode}.");
+                $"Chưa cấu hình luồng phê duyệt cho {requestType} / nhóm {approvalGroupCode} / chức vụ HRM {positionCode}.");
 
         var levels = new List<ApprovalRouteLevelDto>();
 
@@ -83,7 +97,6 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 })
                 .ToListAsync(ct);
 
-            // Nếu cấp có cấu hình riêng cho bộ phận thì không lấy thêm ALL.
             var departmentCandidates = candidates
                 .Where(x => string.Equals(x.ApproveForDeptCode, deptCode, StringComparison.OrdinalIgnoreCase))
                 .ToList();
