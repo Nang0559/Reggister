@@ -65,7 +65,7 @@ public sealed class HrmSyncService : IHrmSyncService
                 WHERE e.IsActive=1 AND a.Id IS NULL;
                 """, ct);
 
-            await _uow.SqlQueryRawAsync<SecurityReconcileRow>(
+            await _uow.ExecuteSqlRawAsync(
                 """
                 EXEC dbo.usp_ReconcileHrmSecurity
                     @EmployeeCode=NULL,
@@ -230,8 +230,6 @@ public sealed class HrmSyncService : IHrmSyncService
     }
 
     private sealed class MissingCount { public int Value { get; set; } }
-    private sealed class SecurityReconcileRow { public string? AffectedEmployee { get; set; } public int ActiveUsers { get; set; } public int ActiveApprovers { get; set; } }
-
     private sealed class ShiftSyncSummary
     {
         public int ShiftCount { get; set; }
