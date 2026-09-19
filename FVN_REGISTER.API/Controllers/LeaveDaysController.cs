@@ -21,7 +21,7 @@ namespace FVN_REGISTER.API.Controllers
     [Route("api/[controller]")]
     public class LeaveDaysController : BaseApiController
     {
-        private readonly IAuthorizationService _authorization;
+        private readonly FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService _authorization;
         private readonly ILeaveService _leaveService;
         private readonly ILeaveQueryService _queryService;
         private readonly IApprovalWorkflowOrchestrator<LeaveRequestSubject> _workflow;
