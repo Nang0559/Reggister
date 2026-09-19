@@ -13,7 +13,7 @@ namespace FVN_REGISTER.Application.Interfaces.Dashboards
         /// Quyền chức năng tối thiểu để provider được đưa vào Dashboard.
         /// Provider có thể override bằng capability của module (LeaveView, OTView, ...).
         /// </summary>
-        string RequiredFunctionCode => SecurityFunctionCodes.DashboardView;
+        int RequiredFunctionCode => SecurityFunctionCodes.DashboardView;
 
         Task<ModuleDashboardContribution> GetContributionAsync(
             UserIdentityDto user,
