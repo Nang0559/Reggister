@@ -108,6 +108,28 @@ BEGIN
 END;
 GO
 
+/* Upgrade legacy RoleFunction composite-key table to BaseAuditEntity.Id. */
+IF OBJECT_ID(N'dbo.F03RoleFunctions',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03RoleFunctions',N'Id') IS NULL
+    BEGIN
+        ALTER TABLE dbo.F03RoleFunctions ADD Id int IDENTITY(1,1) NOT NULL;
+        DECLARE @pk sysname;
+        SELECT @pk = kc.name
+        FROM sys.key_constraints kc
+        WHERE kc.parent_object_id = OBJECT_ID(N'dbo.F03RoleFunctions') AND kc.type = 'PK';
+        IF @pk IS NOT NULL EXEC(N'ALTER TABLE dbo.F03RoleFunctions DROP CONSTRAINT [' + @pk + N']');
+        ALTER TABLE dbo.F03RoleFunctions ADD CONSTRAINT PK_F03RoleFunctions PRIMARY KEY(Id);
+    END;
+    IF COL_LENGTH(N'dbo.F03RoleFunctions',N'IsActive') IS NULL ALTER TABLE dbo.F03RoleFunctions ADD IsActive bit NULL CONSTRAINT DF_F03RoleFunctions_IsActive DEFAULT 1;
+    IF COL_LENGTH(N'dbo.F03RoleFunctions',N'CreatedBy') IS NULL ALTER TABLE dbo.F03RoleFunctions ADD CreatedBy int NOT NULL CONSTRAINT DF_F03RoleFunctions_CreatedBy DEFAULT 0;
+    IF COL_LENGTH(N'dbo.F03RoleFunctions',N'LastModifiedSource') IS NULL ALTER TABLE dbo.F03RoleFunctions ADD LastModifiedSource nvarchar(50) NULL;
+    IF COL_LENGTH(N'dbo.F03RoleFunctions',N'ModifiedBy') IS NULL ALTER TABLE dbo.F03RoleFunctions ADD ModifiedBy int NULL;
+    IF COL_LENGTH(N'dbo.F03RoleFunctions',N'ModifiedAt') IS NULL ALTER TABLE dbo.F03RoleFunctions ADD ModifiedAt datetime2(0) NULL;
+END;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03RoleFunctions_Role_Function' AND object_id=OBJECT_ID(N'dbo.F03RoleFunctions'))
+    CREATE UNIQUE INDEX UX_F03RoleFunctions_Role_Function ON dbo.F03RoleFunctions(IdRole,IdFunction);
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03UserRoles_UserPrimary' AND object_id=OBJECT_ID(N'dbo.F03UserRoles'))
     CREATE INDEX IX_F03UserRoles_UserPrimary ON dbo.F03UserRoles(IdUser,IsPrimary);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03RoleFunctions_Function' AND object_id=OBJECT_ID(N'dbo.F03RoleFunctions'))
