@@ -1,4 +1,3 @@
-﻿
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -13,7 +12,15 @@ public partial class F03LeaveBalance : BaseAuditEntity
     public int WorkYear { get; set; }
 
     [Column(TypeName = "decimal(5,2)")]
+    public decimal BaseLeaveDays { get; set; }
+
+    [Column(TypeName = "decimal(5,2)")]
+    public decimal SeniorityLeaveDays { get; set; }
+
+    [Column(TypeName = "decimal(5,2)")]
     public decimal TotalDays { get; set; }
 
-    
+    public int YearsOfService { get; set; }
+
+    public DateTime CalculatedAt { get; set; }
 }
