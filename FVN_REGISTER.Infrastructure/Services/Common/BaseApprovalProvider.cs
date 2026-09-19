@@ -46,7 +46,7 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
 
     public virtual async Task<List<ApprovalStepSnapshotDto>> BuildHierarchyAsync(
      ApprovalBuildContext ctx,
-     CancellationToken ct)
+     CancellationToken ct, bool strict = true)
     {
         var routeResult = await _routeService.GetPreviewAsync(
             RequestType,
