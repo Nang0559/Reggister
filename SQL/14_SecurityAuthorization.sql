@@ -27,16 +27,17 @@ IF OBJECT_ID(N'dbo.F03Roles', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.F03Roles
     (
-        IdRole int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03Roles PRIMARY KEY,
+        Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03Roles PRIMARY KEY,
+        IsActive bit NULL CONSTRAINT DF_F03Roles_IsActive DEFAULT(1),
+        CreatedBy int NOT NULL CONSTRAINT DF_F03Roles_CreatedBy DEFAULT(0),
+        LastModifiedSource nvarchar(50) NULL,
+        CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03Roles_CreatedAt DEFAULT(GETDATE()),
+        ModifiedBy int NULL,
+        ModifiedAt datetime2(0) NULL,
         RoleCode int NOT NULL,
         RoleName nvarchar(100) NOT NULL,
         Detail nvarchar(500) NULL,
-        IsSystem bit NOT NULL CONSTRAINT DF_F03Roles_IsSystem DEFAULT(0),
-        IsActive bit NOT NULL CONSTRAINT DF_F03Roles_IsActive DEFAULT(1),
-        CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03Roles_CreatedAt DEFAULT(GETDATE()),
-        CreatedBy int NOT NULL CONSTRAINT DF_F03Roles_CreatedBy DEFAULT(0),
-        ModifiedAt datetime2(0) NULL,
-        ModifiedBy int NULL
+        IsSystem bit NOT NULL CONSTRAINT DF_F03Roles_IsSystem DEFAULT(0)
     );
 END;
 GO
@@ -59,12 +60,16 @@ IF OBJECT_ID(N'dbo.F03RoleFunctions', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.F03RoleFunctions
     (
+        Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03RoleFunctions PRIMARY KEY,
+        IsActive bit NULL CONSTRAINT DF_F03RoleFunctions_IsActive DEFAULT(1),
+        CreatedBy int NOT NULL CONSTRAINT DF_F03RoleFunctions_CreatedBy DEFAULT(0),
+        LastModifiedSource nvarchar(50) NULL,
+        CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03RoleFunctions_CreatedAt DEFAULT(GETDATE()),
+        ModifiedBy int NULL,
+        ModifiedAt datetime2(0) NULL,
         IdRole int NOT NULL,
         IdFunction int NOT NULL,
-        CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03RoleFunctions_CreatedAt DEFAULT(GETDATE()),
-        CreatedBy int NOT NULL CONSTRAINT DF_F03RoleFunctions_CreatedBy DEFAULT(0),
-        CONSTRAINT PK_F03RoleFunctions PRIMARY KEY(IdRole,IdFunction),
-        CONSTRAINT FK_F03RoleFunctions_Role FOREIGN KEY(IdRole) REFERENCES dbo.F03Roles(IdRole),
+        CONSTRAINT FK_F03RoleFunctions_Role FOREIGN KEY(IdRole) REFERENCES dbo.F03Roles(Id),
         CONSTRAINT FK_F03RoleFunctions_Function FOREIGN KEY(IdFunction) REFERENCES dbo.F03Functions(Id)
     );
 END;
@@ -151,7 +156,7 @@ FROM (VALUES
 (2603,N'Security.ManageFunctions',N'Quản lý function/action',N'Security',N'ManageFunctions',N'All',630),
 (2604,N'Security.Audit',N'Xem audit security',N'Security',N'Audit',N'All',640),
 (2701,N'Dashboard.View',N'Xem dashboard',N'Dashboard',N'View',N'Own',710),
-(2307,N'Equipment.Export',N'Xuất báo cáo thiết bị',N'Equipment',N'Export',360),
+(2307,N'Equipment.Export',N'Xuất báo cáo thiết bị',N'Equipment',N'Export',N'Department',360),
 (2901,N'Attendance.View',N'Xem báo cáo chấm công',N'Attendance',N'View',810),
 (2902,N'Attendance.Export',N'Xuất báo cáo chấm công',N'Attendance',N'Export',820)
 ) AS v(FunctionCode,Name,Detail,ModuleCode,ActionCode,ScopeCode,SortNo)
@@ -212,19 +217,19 @@ GO
 
 /* Every authenticated role gets the dashboard shell; module providers still require their own capability. */
 INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
-SELECT r.IdRole,f.IdFunction
+SELECT r.Id,f.Id
 FROM dbo.F03Roles r
 JOIN dbo.F03Functions f ON f.FunctionCode=2701
 WHERE r.IsActive=1
   AND NOT EXISTS(
       SELECT 1 FROM dbo.F03RoleFunctions rf
-      WHERE rf.IdRole=r.IdRole AND rf.IdFunction=f.IdFunction
+      WHERE rf.IdRole=r.IdRole AND rf.IdFunction=f.Id
   );
 GO
 
 /* Migrate the legacy primary role into the normalized multi-role table. */
 INSERT dbo.F03UserRoles(IdUser,IdRole,IsPrimary,CreatedBy)
-SELECT u.Id,r.IdRole,1,0
+SELECT u.Id,r.Id,1,0
 FROM dbo.F03Users u
 JOIN dbo.F03Roles r ON r.RoleCode=u.PermissionCode
 WHERE NOT EXISTS
