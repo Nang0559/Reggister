@@ -231,9 +231,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 	[BCNhietDoDen] [float] NULL,
 	[BCNhietDoVe] [float] NULL,
 	[BCNgayNghiBu] [datetime] NULL);
-N
-	
-		IF EXISTS (SELECT #tblBaoCao.DLocked FROM #tblBaoCao WHERE BCNgay=@D AND BCMaNV=@StaffID AND DLocked=1)
+		IF EXISTS (SELECT DLocked FROM #tblBaoCao WHERE BCNgay=@D AND BCMaNV=@StaffID AND DLocked=1)
 		RETURN
 
 		DECLARE @TGBDCa Datetime 	-- thoi gian bat dau vao ca
