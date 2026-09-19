@@ -277,7 +277,7 @@ N
 
 		-- Khai bao ten cac bang
 		DECLARE @RecordData nvarchar(30) 	
-		DECLARE @#tblBaoCao nvarchar(20) 	
+		DECLARE @tblBaocao nvarchar(20) 	
 		DECLARE @tblDangkynghi nvarchar(20) 	
 		DECLARE @tblDangkyuudai nvarchar(20) 
 		DECLARE @tblDangkynghitheogio nvarchar(20) 	
@@ -507,7 +507,7 @@ N
 		SET @RecordData = 'HRM.dbo.RecordDataNew'
 	
 		-- Thiet lap ten bao cao
-		SET @#tblBaoCao ='#tblBaoCao'
+		SET @tblBaocao = '#tblBaoCao'
 		SET @tblDangkynghi = 'HRM.dbo.tblDangKyNghi' 
 		SET @tblDangkyuudai = 'HRM.dbo.tblDangKyUuDai'
 		SET @tblDangkynghitheogio = 'HRM.dbo.tblDangKyNghiTheoGio'
@@ -531,20 +531,20 @@ N
 		SET @Maca=0
 
 		Create TABLE #tblBaocaotam ([BCManv] [int],[BCmaca][int],[BCLoai] [bit] )
-		EXEC ('Insert INTO #tblBaocaotam(BCManv,bcmaca,BCLoai) Select BCManv,bcmaca,BCloai  From  ' + @#tblBaoCao + ' WHERE (BCMaNV=' + @StaffID +') AND (BCNgay=' + '''' + @D + '''' + ')')
+		EXEC ('Insert INTO #tblBaocaotam(BCManv,bcmaca,BCLoai) Select BCManv,bcmaca,BCloai  From  ' + @tblBaocao + ' WHERE (BCMaNV=' + @StaffID +') AND (BCNgay=' + '''' + @D + '''' + ')')
 	
 		select @MaNV = BCManv, @Maca = ISNULL(BCmaca,0) from #tblBaocaotam
 
-		SELECT @BCNgayLe=COUNT(*) FROM dbo.HRM.dbo.tblNgayNghiLe WHERE CONVERT(VARCHAR,HRM.dbo.tblNgayNghiLe.NNLNgay,23)=CONVERT(VARCHAR,@D,23)
-		SELECT @BCNgayLeNV=COUNT(*) FROM dbo.HRM.dbo.tblNgayNghiLeNhanVien WHERE HRM.dbo.tblNgayNghiLeNhanVien.NLNVNgay=@D AND HRM.dbo.tblNgayNghiLeNhanVien.NLNVMaNV=@StaffID
+		SELECT @BCNgayLe=COUNT(*) FROM HRM.dbo.tblNgayNghiLe WHERE CONVERT(VARCHAR,HRM.dbo.tblNgayNghiLe.NNLNgay,23)=CONVERT(VARCHAR,@D,23)
+		SELECT @BCNgayLeNV=COUNT(*) FROM HRM.dbo.tblNgayNghiLeNhanVien WHERE HRM.dbo.tblNgayNghiLeNhanVien.NLNVNgay=@D AND HRM.dbo.tblNgayNghiLeNhanVien.NLNVMaNV=@StaffID
 	
 		-- Neu khong ton tai nhan vien trong bang bao cao thi khoi tao lai
 		IF (@MaNV IS NULL)
 			BEGIN
-				SELECT @DepartmentID=NVMaBP, @PositionID= NVMaCV,@AllowOT=NVTinhLamThem,@Maca=ISNULL(NVMaCa,0) FROM dbo.HRM.dbo.tblNhanVien WHERE NVMa=@StaffID
+				SELECT @DepartmentID=NVMaBP, @PositionID= NVMaCV,@AllowOT=NVTinhLamThem,@Maca=ISNULL(NVMaCa,0) FROM HRM.dbo.tblNhanVien WHERE NVMa=@StaffID
 				IF @DepartmentID IS NOT NULL 
 					BEGIN 
-						SET @SQL='INSERT INTO ' + @#tblBaoCao + ' (BCNgay,BCDay,BCMonth,BCYear,BCMaNV,BCMaBP,BCMaCV,BCMaCa,BCCuaDen,BCTGDen,BCCuaVe,BCTGVe,BCCuaRa,BCTGRa,BCCuaVao,BCTGVao,BCTGLamNgay,BCTGLamToi,BCTGQuaGioNgay,BCTGQuaGioToi,BCTGThemNgay,BCTGThemToi,BCTGRaNgoaiNgay,BCTGRaNgoaiToi,BCTGDiMuonNgay,BCTGDiMuonToi,BCTGVeSomNgay,BCTGVeSomToi,BCTGQuyDinh,BCGhiChu,BCLoai,BCLoaiLamThem,BCTinhLamThem,BCNgayLe,BCNgayLeNV) 
+						SET @SQL='INSERT INTO ' + @tblBaocao + ' (BCNgay,BCDay,BCMonth,BCYear,BCMaNV,BCMaBP,BCMaCV,BCMaCa,BCCuaDen,BCTGDen,BCCuaVe,BCTGVe,BCCuaRa,BCTGRa,BCCuaVao,BCTGVao,BCTGLamNgay,BCTGLamToi,BCTGQuaGioNgay,BCTGQuaGioToi,BCTGThemNgay,BCTGThemToi,BCTGRaNgoaiNgay,BCTGRaNgoaiToi,BCTGDiMuonNgay,BCTGDiMuonToi,BCTGVeSomNgay,BCTGVeSomToi,BCTGQuyDinh,BCGhiChu,BCLoai,BCLoaiLamThem,BCTinhLamThem,BCNgayLe,BCNgayLeNV) 
 											Values (' + '''' + CONVERT(nvarchar(20),@D) + '''' + ',' + CONVERT(nvarchar(2),DAY(@D)) + ','+ CONVERT(nvarchar(2),MONTH(@D)) + ','+ CONVERT(nvarchar(4),YEAR(@D)) + ',' + CONVERT(nvarchar(20),@StaffID) + ',' + CONVERT(nvarchar(20),@DepartmentID) + ',' + CONVERT(nvarchar(20),@PositionID) + ',' + CONVERT(nvarchar(20),@Maca) + ',0,NULL,0,NULL,0,NULL,0,NULL,0,0,0,0,0,0,0,0,0,0,0,0,480,NULL,0,0,' + CONVERT(nvarchar(20),@AllowOT) + ',' + CONVERT(nvarchar(20),@BCNgayLe) + ',' + CONVERT(nvarchar(20),@BCNgayLeNV) + ')'
 						EXEC(@SQL)
 					END
@@ -554,10 +554,10 @@ N
 			BEGIN
 				IF(@Maca=0)
 					BEGIN
-						SELECT @ShiftCode=ISNULL(NVMaCa,0) FROM dbo.HRM.dbo.tblNhanVien WHERE NVMa=@StaffID
+						SELECT @ShiftCode=ISNULL(NVMaCa,0) FROM HRM.dbo.tblNhanVien WHERE NVMa=@StaffID
 						IF(@ShiftCode<>0)
 							BEGIN
-								SET @SQL='UPDATE ' + @#tblBaoCao + ' SET BCMaca=' + CONVERT(nvarchar(20),@ShiftCode) + ' WHERE (BCMaNV=' +  CONVERT(nvarchar(20),@StaffID) +') AND (BCNgay=' + '''' + CONVERT(nvarchar(20),@D) + '''' + ')'
+								SET @SQL='UPDATE ' + @tblBaocao + ' SET BCMaca=' + CONVERT(nvarchar(20),@ShiftCode) + ' WHERE (BCMaNV=' +  CONVERT(nvarchar(20),@StaffID) +') AND (BCNgay=' + '''' + CONVERT(nvarchar(20),@D) + '''' + ')'
 								EXEC(@SQL)
 							END
 					END
@@ -606,7 +606,7 @@ N
 
 		--create clustered index idx_tmp on #tblDangkynghiTam(RowID) WITH FILLFACTOR = 100
 
-		SET @SQL = 'UPDATE ' + @#tblBaoCao + ' SET BCNghiPhep=0, BCNghiH100=0, BCNghiH70=0, BCNghiKL=0, BCNghiBH100=0, BCNghiBH70=0, BCNghiCongTac=0, BCNghiBu=0, BCNghiKhac=0, BCLydonghi='', BCGhiChu='', BCTGNghi=0 ' 
+		SET @SQL = 'UPDATE ' + @tblBaocao + ' SET BCNghiPhep=0, BCNghiH100=0, BCNghiH70=0, BCNghiKL=0, BCNghiBH100=0, BCNghiBH70=0, BCNghiCongTac=0, BCNghiBu=0, BCNghiKhac=0, BCLydonghi='', BCGhiChu='', BCTGNghi=0 ' 
 					+ ' WHERE (BCMaNV=' + CONVERT(VARCHAR, @StaffID) + ') AND  (BCNgay=' + '''' + CONVERT(VARCHAR, @D, 121) + '''' + ')'
 		EXEC (@SQL)
 		
@@ -639,7 +639,7 @@ N
 						SET @Ghichu=CASE WHEN @LoaiNghi<>1 THEN CONVERT(nvarchar(30),@LydonghiViettat)+'/2' ELSE CONVERT(nvarchar(30),@LydonghiViettat) end
 					END
 
-				SET @SQL = 'UPDATE ' + @#tblBaoCao + ' SET ' + @SQL + '=' + CONVERT(VARCHAR, @TGNghi)
+				SET @SQL = 'UPDATE ' + @tblBaocao + ' SET ' + @SQL + '=' + CONVERT(VARCHAR, @TGNghi)
 						 + ',BCLydonghi=' + '''' + @LydonghiViettat + '''' + ',BCGhiChu=' + '''' + @Ghichu + '''' 
 						 + ',BCTGNghi=' + CONVERT(VARCHAR, @TGNghi)
 						 + ' WHERE (BCMaNV=' + CONVERT(VARCHAR, @StaffID) + ') AND  (BCNgay=' + '''' + CONVERT(VARCHAR, @D, 121) + '''' + ')'
@@ -821,7 +821,7 @@ N
 				FROM #tblLocdulieutam
 				WHERE RowID = @RowCount
 
-				SET @SQL='UPDATE '+@#tblBaoCao+' SET TG'+CONVERT(varchar(10),@RowCount)+'='+ '''' + CONVERT(nvarchar(30),@ThoiGian) + ''''+' WHERE (BCMaNV=' +  CONVERT(nvarchar(30),@StaffID) + ') AND (BCNgay='+ '''' + CONVERT(nvarchar(30),@D) + '''' + ')'
+				SET @SQL='UPDATE '+@tblBaocao+' SET TG'+CONVERT(varchar(10),@RowCount)+'='+ '''' + CONVERT(nvarchar(30),@ThoiGian) + ''''+' WHERE (BCMaNV=' +  CONVERT(nvarchar(30),@StaffID) + ') AND (BCNgay='+ '''' + CONVERT(nvarchar(30),@D) + '''' + ')'
 				EXEC(@SQL)
 				SET @RowCount = @RowCount + 1
 			END
@@ -3632,6 +3632,13 @@ SET QUOTED_IDENTIFIER ON
 GO
 
 GO
+/****** Object:  StoredProcedure [dbo].[sphrmvn_TimeKeepingForStaff_K]    Script Date: 9/19/2026 11:05:53 AM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+GO
 CREATE OR ALTER PROCEDURE dbo.usp_CalculateHrmAttendance
  @DeptCode nvarchar(20)=NULL,@FromDate date,@ToDate date,@TriggeredBy nvarchar(100)=NULL,@CalculationVersion nvarchar(50)=N'HRM-PORT-1.0'
 AS
@@ -3672,7 +3679,7 @@ BEGIN
     ISNULL(r.BCTGDiMuonNgay,0),ISNULL(r.BCTGDiMuonToi,0),ISNULL(r.BCTGVeSomNgay,0),ISNULL(r.BCTGVeSomToi,0),ISNULL(r.BCTGQuyDinh,0),
     r.BCNghiPhep+r.BCNghiH100+r.BCNghiH70+r.BCNghiKL+r.BCNghiBH100+r.BCNghiBH70+r.BCNghiCongTac+r.BCNghiBu+r.BCNghiKhac,
     r.BCNghiPhep,r.BCNghiH100,r.BCNghiH70,r.BCNghiKL,r.BCNghiBH100,r.BCNghiBH70,r.BCNghiCongTac,r.BCNghiBu,r.BCNghiKhac,
-    r.BCLydonghi,r.BCLydonghi,r.BCGhiChu,r.BCLoai,r.BCNgayLe,r.BCNgayLeNV,r.DLocked,GETDATE(),@TriggeredBy
+    r.BCLydonghi,r.BCLydonghi,r.BCGhiChu,r.BCLoai,CASE WHEN ISNULL(r.BCNgayLe,0)<>0 THEN 1 ELSE 0 END,CASE WHEN ISNULL(r.BCNgayLeNV,0)<>0 THEN 1 ELSE 0 END,r.DLocked,GETDATE(),@TriggeredBy
    FROM #Result r INNER JOIN HRM.dbo.tblNhanVien nv ON nv.NVMa=r.BCMaNV
    LEFT JOIN HRM.dbo.tblCa ca ON CONVERT(nvarchar(20),ca.CMa)=CONVERT(nvarchar(20),r.BCMaCa)
    WHERE r.BCMaNV=@StaffID AND CAST(r.BCNgay AS date)=@D;
@@ -3681,7 +3688,7 @@ BEGIN
   CLOSE staff_cur; DEALLOCATE staff_cur; SET @D=DATEADD(day,1,@D);
  END
  INSERT dbo.F03HrmOTActual(CalculationBatchId,WorkDate,HrmEmployeeId,EmployeeCode,DeptCode,ActualStartTime,ActualEndTime,ActualMinutes,ActualOTDayMinutes,ActualOTNightMinutes,RecognizedOTMinutes,SourceAttendanceId)
- SELECT CalculationBatchId,WorkDate,HrmEmployeeId,EmployeeCode,DeptCode,CheckInTime,CheckOutTime,DATEDIFF(minute,CheckInTime,CheckOutTime),OTMinutesDay+OTMinutesDayTC,OTMinutesNight+OTMinutesNightTC,OTRecognizedMinutesDay+OTRecognizedMinutesNight,Id
+ SELECT CalculationBatchId,WorkDate,HrmEmployeeId,EmployeeCode,DeptCode,CheckInTime,CheckOutTime,CASE WHEN CheckInTime IS NOT NULL AND CheckOutTime IS NOT NULL THEN DATEDIFF(minute,CheckInTime,CheckOutTime) ELSE 0 END,OTMinutesDay+OTMinutesDayTC,OTMinutesNight+OTMinutesNightTC,OTRecognizedMinutesDay+OTRecognizedMinutesNight,Id
  FROM dbo.F03HrmAttendanceCalculated WHERE CalculationBatchId=@BatchId AND (CheckInTime IS NOT NULL OR CheckOutTime IS NOT NULL);
  SELECT @BatchId AS CalculationBatchId,@DeptCode AS DeptCode,@FromDate AS FromDate,@ToDate AS ToDate,COUNT(DISTINCT HrmEmployeeId) AS EmployeeCount,COUNT(*) AS CalculatedRows,MIN(CalculatedAt) AS StartedAt,MAX(CalculatedAt) AS FinishedAt,@CalculationVersion AS CalculationVersion
  FROM dbo.F03HrmAttendanceCalculated WHERE CalculationBatchId=@BatchId;
@@ -3689,8 +3696,12 @@ END;
 GO
 CREATE OR ALTER VIEW dbo.VF03HrmAttendanceDaily AS
 SELECT a.* FROM dbo.F03HrmAttendanceCalculated a
-INNER JOIN (SELECT WorkDate,EmployeeCode,MAX(CalculatedAt) MaxCalculatedAt FROM dbo.F03HrmAttendanceCalculated GROUP BY WorkDate,EmployeeCode) x
- ON x.WorkDate=a.WorkDate AND x.EmployeeCode=a.EmployeeCode AND x.MaxCalculatedAt=a.CalculatedAt;
+INNER JOIN (
+ SELECT WorkDate,EmployeeCode,MAX(Id) AS MaxId
+ FROM dbo.F03HrmAttendanceCalculated
+ GROUP BY WorkDate,EmployeeCode
+) x ON x.MaxId=a.Id;
+
 GO
 CREATE OR ALTER PROCEDURE dbo.usp_GetHrmAttendanceCalculation
  @FromDate date,@ToDate date,@DeptCode nvarchar(20)=NULL,@EmployeeCode nvarchar(50)=NULL

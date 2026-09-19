@@ -52,6 +52,10 @@
             <MudNavLink href="/admin/hrm-sync" Icon="@Icons.Material.Filled.Sync">Đồng bộ HRM</MudNavLink>
             <MudNavLink href="/admin/hrm-sync-review" Icon="@Icons.Material.Filled.WarningAmber">Conflict HRM</MudNavLink>
             <MudNavLink href="/admin/hrm-role-rules" Icon="@Icons.Material.Filled.Rule">Role HRM → User</MudNavLink>
+            @if (Can(SecurityFunctionCodes.AttendanceView))
+            {
+                <MudNavLink href="/hrm/attendance-calculation" Icon="@Icons.Material.Filled.AccessTime">Tính giờ theo HRM</MudNavLink>
+            }
         </MudNavGroup>
 
         <MudNavGroup Title="Quản lý OT" Icon="@Icons.Material.Filled.Timelapse" Expanded="false">
