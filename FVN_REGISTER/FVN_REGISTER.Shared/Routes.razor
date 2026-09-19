@@ -7,7 +7,7 @@
     <MudThemeProvider Theme="_currentTheme" />
     <MudPopoverProvider />
     <MudDialogProvider FullWidth="true" MaxWidth="MaxWidth.ExtraSmall" />
-    <MudSnackbarProvider />
+    <MudSnackbarProvider Position="SnackbarPosition.BottomRight" MaxDisplayedSnackbars="4" PreventDuplicates="true" />
 
     <Router AppAssembly="@typeof(Layout.MainLayout).Assembly">
         <Found Context="routeData">
@@ -21,7 +21,7 @@
                     }
                     else
                     {
-                        <MudAlert Severity="Severity.Error">Bạn không có quyền truy cập.</MudAlert>
+                        <RouteStatusPopup Message="Bạn không có quyền truy cập." Severity="Severity.Error" />
                     }
                 </NotAuthorized>
             </AuthorizeRouteView>
@@ -30,9 +30,7 @@
         <NotFound>
             <PageTitle>Not found</PageTitle>
             <LayoutView Layout="@typeof(Layout.MainLayout)">
-                <MudAlert Severity="Severity.Error" Variant="Variant.Filled" Class="mt-4">
-                    Không tìm thấy trang này (404 Not Found)!
-                </MudAlert>
+                <RouteStatusPopup Message="Không tìm thấy trang này (404 Not Found)." Severity="Severity.Warning" />
             </LayoutView>
         </NotFound>
     </Router>
