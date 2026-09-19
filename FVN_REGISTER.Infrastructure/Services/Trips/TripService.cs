@@ -1,3 +1,4 @@
+using FVN_REGISTER.Contract.Requests.Approvals;
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Trips;
