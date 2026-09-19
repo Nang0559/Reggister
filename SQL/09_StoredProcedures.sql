@@ -250,6 +250,8 @@ BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
+    DECLARE @Now datetime2(0)=GETDATE();
+
     DELETE FROM dbo.F03AttendanceStaging
     WHERE WorkDate >= CAST(@WorkDate AS datetime2(0))
       AND WorkDate < DATEADD(day,1,CAST(@WorkDate AS datetime2(0)));
