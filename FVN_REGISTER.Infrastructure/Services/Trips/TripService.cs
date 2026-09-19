@@ -110,7 +110,6 @@ public sealed class TripService : ITripService
             entity.DeptCode ?? employee?.DeptCode ?? string.Empty,
             employee?.PositionCode ?? string.Empty);
 
-        await _workflow.InitApprovalAsync(entity.Id, context, ct);
         var approvalResult = await _workflow.InitApprovalAsync(entity.Id, context, ct);
         if (!approvalResult.IsSuccess)
         {
