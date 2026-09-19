@@ -51,6 +51,40 @@
   var r=await Departments.GetListAsync(true);
   if(r.IsSuccess&&r.Data is not null) _departments=r.Data;
  }
+ private async Task ExportAttendanceAsync()
+ {
+  if (_result is null) return;
+  _exporting = true;
+  try
+  {
+   var r = await Calculation.ExportAttendanceAsync(_result.CalculationBatchId);
+   if (r.IsSuccess && r.Data is not null)
+   {
+    await JS.InvokeVoidAsync("hrmAttendanceExport.download", r.Data, $"BangChamCong_{_result.FromDate:yyyyMMdd}_{_result.ToDate:yyyyMMdd}.xls");
+    Snackbar.Add("Đã xuất bảng chấm công.", Severity.Success);
+   }
+   else Snackbar.Add(r.Message ?? "Xuất chấm công thất bại.", Severity.Error);
+  }
+  finally { _exporting = false; }
+ }
+
+ private async Task ExportOtAsync()
+ {
+  if (_result is null) return;
+  _exporting = true;
+  try
+  {
+   var r = await Calculation.ExportOtAsync(_result.CalculationBatchId);
+   if (r.IsSuccess && r.Data is not null)
+   {
+    await JS.InvokeVoidAsync("hrmAttendanceExport.download", r.Data, $"BangLamThem_{_result.FromDate:yyyyMMdd}_{_result.ToDate:yyyyMMdd}.xls");
+    Snackbar.Add("Đã xuất bảng tính OT.", Severity.Success);
+   }
+   else Snackbar.Add(r.Message ?? "Xuất OT thất bại.", Severity.Error);
+  }
+  finally { _exporting = false; }
+ }
+
  private async Task CalculateAsync()
  {
   if(_fromDate is null||_toDate is null||_fromDate>_toDate){Snackbar.Add("Khoảng ngày không hợp lệ.",Severity.Warning);return;}
