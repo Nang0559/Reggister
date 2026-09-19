@@ -45,7 +45,7 @@ public sealed class TripService : ITripService
             throw new UnauthorizedAccessException("Bạn không có quyền tạo đăng ký công tác theo phạm vi dữ liệu được cấp.");
 
         var employeeCode = user.EmployeeCode
-            ?? throw new InvalidOperationException("Tài khoản chưa có EmployeeCode.");
+            ?? throw new ArgumentException("Tài khoản chưa có EmployeeCode.");
 
         var entity = new F03TripRequest
         {
@@ -221,7 +221,7 @@ public sealed class TripService : ITripService
             throw new UnauthorizedAccessException("Bạn không có quyền sửa đăng ký này.");
 
         if (entity.RequestStatus != ApprovalStatus.Draft && entity.RequestStatus != ApprovalStatus.NeedsRevision)
-            throw new InvalidOperationException("Chỉ Draft/NeedsRevision mới được sửa.");
+            throw new ArgumentException("Chỉ Draft/NeedsRevision mới được sửa.");
 
         ValidateRequest(request);
         entity.StartDate = request.StartDate;
@@ -251,7 +251,7 @@ public sealed class TripService : ITripService
         if (!await _authorization.CanAccessAsync(user, SecurityFunctionCodes.TripEdit, entity.EmployeeCode, entity.DeptCode, ct))
             throw new UnauthorizedAccessException("Bạn không có quyền hủy đăng ký này.");
         if (entity.RequestStatus == ApprovalStatus.Approved || entity.RequestStatus == ApprovalStatus.Rejected || entity.RequestStatus == ApprovalStatus.Cancelled)
-            throw new InvalidOperationException("Đăng ký đã kết thúc, không thể hủy.");
+            throw new ArgumentException("Đăng ký đã kết thúc, không thể hủy.");
         if (string.IsNullOrWhiteSpace(reason))
             throw new ArgumentException("Lý do hủy không được để trống.");
 
