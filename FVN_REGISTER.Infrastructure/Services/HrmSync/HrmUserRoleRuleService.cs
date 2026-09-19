@@ -138,7 +138,9 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
                 user.PermissionCode = permission;
                 user.ModifiedBy = actorUserId;
                 user.ModifiedAt = DateTime.Now;
-                user.LastModifiedSource = "Manual";
+                // HRM vẫn là owner của tài khoản được provision tự động.
+                // Không chuyển ownership sang Manual khi chỉ thay đổi role rule.
+                user.LastModifiedSource = SyncSourceTags.Hrm;
             }
         }
 

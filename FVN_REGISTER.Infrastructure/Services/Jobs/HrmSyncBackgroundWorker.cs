@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.HrmSync;
+using FVN_REGISTER.Application.Interfaces.Leaves;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -42,6 +43,15 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                     var sync = scope.ServiceProvider.GetRequiredService<IHrmSyncService>();
                     var result = await sync.RunAllAsync("SYSTEM", manual: false, stoppingToken);
                     var run = result.Data;
+
+                    // HRM sync tạo/cập nhật Employee trước; entitlement chạy ngay sau đó
+                    // để nhân viên mới có balance của năm hiện tại mà không cần mở màn hình
+                    // "Phép năm". Phương thức này idempotent nên worker có thể chạy mỗi chu kỳ.
+                    if (result.IsSuccess)
+                    {
+                        var entitlement = scope.ServiceProvider.GetRequiredService<ILeaveEntitlementService>();
+                        await entitlement.EnsureWorkYearCalculatedAsync(DateTime.Today.Year, stoppingToken);
+                    }
 
                     if (!result.IsSuccess || run == null || !run.Success)
                     {
