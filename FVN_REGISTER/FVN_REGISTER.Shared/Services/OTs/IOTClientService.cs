@@ -29,6 +29,8 @@ public interface IOTClientService
     Task<ApiResponse<PaginationResult<OTSummaryDto>>> GetPagedOTRequestsAsync(string? deptCode, string? status, DateTime? fromDate, DateTime? toDate, int page = 1, int pageSize = 20, CancellationToken ct = default);
     Task<ApiResponse<object>> GetOTDashboardAsync(CancellationToken ct = default);
     Task<ApiResponse<OTValidationResultDto>> ValidateOTHoursAsync(string employeeCode, DateTime otDate, decimal hours, string otType, CancellationToken ct = default);
+    Task<ApiResponse<OTValidationResultDto>> ValidateOTRequestAsync(OTRequestUpsertDto request, CancellationToken ct = default);
+    Task<ApiResponse<OTLimitPreviewDto>> GetOTLimitPreviewAsync(OTRequestUpsertDto request, CancellationToken ct = default);
 
     Task<ApiResponse<object>> UpdateEmployeeOTInfoAsync(int otRequestId, List<OTEmployeeDto> employees, CancellationToken ct = default);
     Task<ApiResponse<OTRequestDto>> GetDetailAsync(int id, CancellationToken ct = default);

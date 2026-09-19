@@ -43,13 +43,13 @@ namespace FVN_REGISTER.Contract.Dtos.OT
       YearlyLimit == 0 ? 0 : (double)(UsedHoursThisYear / YearlyLimit * 100);
 
         // Cảnh báo
-        public bool IsNearDailyLimit => (DailyLimit - UsedHoursToday) <= 1;
+        public bool IsNearDailyLimit => DailyLimit > 0 && (DailyLimit - UsedHoursToday) <= 1;
         public bool IsNearWeeklyLimit => WeeklyLimit.HasValue && RemainingWeekly <= 4;
-        public bool IsNearMonthlyLimit => RemainingMonthly <= 8;
-        public bool IsNearYearlyLimit => RemainingYearly <= 20;
-        public bool ExceedsDailyLimit => UsedHoursToday >= DailyLimit;   // 👈 thêm để validate bước 3
-        public bool ExceedsMonthlyLimit => UsedHoursThisMonth > MonthlyLimit;
-        public bool ExceedsYearlyLimit => UsedHoursThisYear > YearlyLimit;
+        public bool IsNearMonthlyLimit => MonthlyLimit > 0 && RemainingMonthly <= 8;
+        public bool IsNearYearlyLimit => YearlyLimit > 0 && RemainingYearly <= 20;
+        public bool ExceedsDailyLimit => DailyLimit > 0 && UsedHoursToday >= DailyLimit;   // 👈 thêm để validate bước 3
+        public bool ExceedsMonthlyLimit => MonthlyLimit > 0 && UsedHoursThisMonth > MonthlyLimit;
+        public bool ExceedsYearlyLimit => YearlyLimit > 0 && UsedHoursThisYear > YearlyLimit;
 
      
        

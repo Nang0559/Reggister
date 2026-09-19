@@ -6,6 +6,7 @@ using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Application.Maps;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using FVN_REGISTER.Contract.Dtos;
@@ -297,67 +298,52 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         public async Task<OTValidationResultDto> ValidateHoursAsync(
             OTRequestUpsertDto model, CancellationToken ct = default)
         {
-            var result = new OTValidationResultDto();
-
-            foreach (var emp in model.Employees)
+            var preview = await GetLimitPreviewAsync(model, ct);
+            var result = new OTValidationResultDto
             {
-                var balance = await GetBalanceAsync(emp.EmployeeCode, model.OTDate.Year, model.OTDate.Month, ct);
+                IsValid = preview.IsValid,
+                Message = preview.IsValid ? "Hợp lệ." : "Có giới hạn OT bị vượt."
+            };
 
-                // Daily must be calculated against the requested OT date, not DateTime.Today.
-                var usedOnRequestedDate = await Uow.Repository<VF03OTRequest>().Query()
-                    .AsNoTracking()
-                    .Where(x => x.EmployeeCode == emp.EmployeeCode
-                        && x.IsActive == true
-                        && x.RequestStatus == ApprovalStatus.Approved
-                        && x.OTDate.Date == model.OTDate.Date)
-                    .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
+            result.Errors.AddRange(preview.Errors);
+            result.Warnings.AddRange(preview.Warnings);
 
-                CheckLimit(result, emp, OTLimitType.Daily, usedOnRequestedDate, balance.DailyLimit, emp.OTHours);
+            foreach (var employee in preview.Employees.Where(x => x.IsExceeded))
+            {
+                if (employee.ExceedsWeekly)
+                    result.EmployeeResults.Add(new OTEmployeeValidationDto
+                    {
+                        EmployeeCode = employee.EmployeeCode,
+                        EmployeeName = employee.EmployeeName,
+                        ViolationType = OTLimitType.Weekly,
+                        CurrentUsed = employee.UsedHoursThisWeek,
+                        Limit = employee.WeeklyLimit ?? 0m,
+                        Requested = employee.RequestedHours
+                    });
 
-                // Weekly window is always Monday 00:00 through the following Monday.
-                var weekOffset = (7 + (int)model.OTDate.DayOfWeek - (int)DayOfWeek.Monday) % 7;
-                var weekStart = model.OTDate.Date.AddDays(-weekOffset);
-                var weekEnd = weekStart.AddDays(7);
-                var usedThisWeek = await Uow.Repository<VF03OTRequest>().Query()
-                    .AsNoTracking()
-                    .Where(x => x.EmployeeCode == emp.EmployeeCode
-                        && x.IsActive == true
-                        && x.RequestStatus == ApprovalStatus.Approved
-                        && x.OTDate >= weekStart && x.OTDate < weekEnd)
-                    .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
+                if (employee.ExceedsMonthly)
+                    result.EmployeeResults.Add(new OTEmployeeValidationDto
+                    {
+                        EmployeeCode = employee.EmployeeCode,
+                        EmployeeName = employee.EmployeeName,
+                        ViolationType = OTLimitType.Monthly,
+                        CurrentUsed = employee.UsedHoursThisMonth,
+                        Limit = employee.MonthlyLimit ?? 0m,
+                        Requested = employee.RequestedHours
+                    });
 
-                var employeeContext = await Uow.Repository<F03Employee>().Query()
-                    .AsNoTracking()
-                    .Where(e => e.EmployeeCode == emp.EmployeeCode)
-                    .Select(e => new { e.DeptCode, e.PositionCode })
-                    .FirstOrDefaultAsync(ct);
-
-                var weeklyRule = employeeContext == null
-                    ? null
-                    : await Uow.Repository<F03OTLimitRule>().Query()
-                        .AsNoTracking()
-                        .Where(r => r.IsActive == true && r.LimitType == OTLimitType.Weekly
-                            && (r.PositionCode == null || r.PositionCode == employeeContext.PositionCode)
-                            && (r.DeptCode == null || r.DeptCode == employeeContext.DeptCode))
-                        .OrderByDescending(r => r.PositionCode != null && r.DeptCode != null)
-                        .ThenByDescending(r => r.DeptCode != null)
-                        .ThenByDescending(r => r.PositionCode != null)
-                        .FirstOrDefaultAsync(ct);
-
-                if (weeklyRule != null)
-                    CheckLimit(result, emp, OTLimitType.Weekly, usedThisWeek, weeklyRule.LimitHours, emp.OTHours);
-
-                CheckLimit(result, emp, OTLimitType.Monthly, balance.UsedHoursThisMonth, balance.MonthlyLimit, emp.OTHours);
-                CheckLimit(result, emp, OTLimitType.Yearly, balance.UsedHoursThisYear, balance.YearlyLimit, emp.OTHours);
-
-                if (balance.IsNearMonthlyLimit)
-                    result.Warnings.Add($"{emp.EmployeeCode}: gần đạt giới hạn giờ OT tháng này ({balance.RemainingMonthly}h còn lại).");
-                if (weeklyRule != null && usedThisWeek + emp.OTHours > weeklyRule.LimitHours * 0.9m)
-                    result.Warnings.Add($"{emp.EmployeeCode}: gần đạt giới hạn giờ OT tuần này ({weeklyRule.LimitHours - usedThisWeek - emp.OTHours}h còn lại sau đăng ký).");
+                if (employee.ExceedsYearly)
+                    result.EmployeeResults.Add(new OTEmployeeValidationDto
+                    {
+                        EmployeeCode = employee.EmployeeCode,
+                        EmployeeName = employee.EmployeeName,
+                        ViolationType = OTLimitType.Yearly,
+                        CurrentUsed = employee.UsedHoursThisYear,
+                        Limit = employee.YearlyLimit ?? 0m,
+                        Requested = employee.RequestedHours
+                    });
             }
 
-            result.IsValid = result.Errors.Count == 0;
-            result.Message = result.IsValid ? "Hợp lệ." : "Có nhân viên vượt giới hạn giờ OT.";
             return result;
         }
 
@@ -365,6 +351,9 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             OTValidationResultDto result, OTEmployeeDto emp,
             OTLimitType type, decimal currentUsed, decimal limit, decimal requested)
         {
+            if (limit <= 0)
+                return;
+
             var check = new OTEmployeeValidationDto
             {
                 EmployeeCode = emp.EmployeeCode,
@@ -388,72 +377,239 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             var today = DateTime.Today;
             var emp = await Uow.Repository<F03Employee>().Query()
                 .AsNoTracking()
-                .Where(e => e.EmployeeCode == employeeCode)
+                .Where(e => e.EmployeeCode == employeeCode && e.IsActive == true)
                 .Select(e => new { e.EmployeeName, e.DeptCode, e.PositionCode })
                 .FirstOrDefaultAsync(ct);
-
-            var usedToday = await Uow.Repository<VF03OTRequest>().Query()
-                .AsNoTracking()
-                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
-                    && x.RequestStatus == ApprovalStatus.Approved && x.OTDate.Date == today)
-                .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
-
-            var usedThisMonth = await Uow.Repository<VF03OTRequest>().Query()
-                .AsNoTracking()
-                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
-                    && x.RequestStatus == ApprovalStatus.Approved
-                    && x.OTDate.Year == year && x.OTDate.Month == month)
-                .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
-
-            var weekOffset = (7 + (int)today.DayOfWeek - (int)DayOfWeek.Monday) % 7;
-            var monday = today.Date.AddDays(-weekOffset);
-            var sunday = monday.AddDays(7);
-            var usedThisWeek = await Uow.Repository<VF03OTRequest>().Query()
-                .AsNoTracking()
-                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
-                    && x.RequestStatus == ApprovalStatus.Approved
-                    && x.OTDate >= monday && x.OTDate < sunday)
-                .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
-
-            var usedThisYear = await Uow.Repository<VF03OTRequest>().Query()
-                .AsNoTracking()
-                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
-                    && x.RequestStatus == ApprovalStatus.Approved && x.OTDate.Year == year)
-                .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
 
             var dto = new OTBalanceDto
             {
                 EmployeeCode = employeeCode,
                 EmployeeName = emp?.EmployeeName ?? string.Empty,
                 Year = year,
-                Month = month,
-                UsedHoursToday = usedToday,
-                UsedHoursThisWeek = usedThisWeek,
-                UsedHoursThisMonth = usedThisMonth,
-                UsedHoursThisYear = usedThisYear
+                Month = month
             };
 
             if (emp == null)
                 return dto;
 
-            var rules = await Uow.Repository<F03OTLimitRule>().Query()
+            var weekOffset = (7 + (int)today.DayOfWeek - (int)DayOfWeek.Monday) % 7;
+            var weekStart = today.Date.AddDays(-weekOffset);
+            var weekEnd = weekStart.AddDays(7);
+
+            var usedData = await Uow.Repository<F03OTEmployee>().Query()
                 .AsNoTracking()
-                .Where(r => r.IsActive == true
-                    && (r.PositionCode == emp.PositionCode || r.DeptCode == emp.DeptCode
-                        || (r.PositionCode == null && r.DeptCode == null)))
+                .Where(e => e.EmployeeCode == employeeCode
+                    && e.IsActive == true
+                    && e.OTRequest.IsActive == true
+                    && e.OTRequest.RequestStatus != ApprovalStatus.Rejected
+                    && e.OTRequest.RequestStatus != ApprovalStatus.Cancelled)
+                .Select(e => new
+                {
+                    EffectiveHours = e.ActualHours.HasValue && e.ActualHours.Value > 0
+                        ? e.ActualHours.Value
+                        : e.OTHours,
+                    e.OTRequest.OTDate
+                })
                 .ToListAsync(ct);
 
-            var dailyRule = ResolveRule(rules, emp.PositionCode, emp.DeptCode, OTLimitType.Daily);
-            var weeklyRule = ResolveRule(rules, emp.PositionCode, emp.DeptCode, OTLimitType.Weekly);
-            var monthlyRule = ResolveRule(rules, emp.PositionCode, emp.DeptCode, OTLimitType.Monthly);
-            var yearlyRule = ResolveRule(rules, emp.PositionCode, emp.DeptCode, OTLimitType.Yearly);
+            dto.UsedHoursToday = usedData
+                .Where(x => x.OTDate.Date == today)
+                .Sum(x => x.EffectiveHours);
+            dto.UsedHoursThisWeek = usedData
+                .Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd)
+                .Sum(x => x.EffectiveHours);
+            dto.UsedHoursThisMonth = usedData
+                .Where(x => x.OTDate.Year == year && x.OTDate.Month == month)
+                .Sum(x => x.EffectiveHours);
+            dto.UsedHoursThisYear = usedData
+                .Where(x => x.OTDate.Year == year)
+                .Sum(x => x.EffectiveHours);
 
-            if (dailyRule != null) dto.DailyLimit = dailyRule.LimitHours;
-            if (weeklyRule != null) dto.WeeklyLimit = weeklyRule.LimitHours;
-            if (monthlyRule != null) dto.MonthlyLimit = monthlyRule.LimitHours;
-            if (yearlyRule != null) dto.YearlyLimit = yearlyRule.LimitHours;
+            var rules = await Uow.Repository<F03OTLimitRule>().Query()
+                .AsNoTracking()
+                .Where(r => r.IsActive == true)
+                .ToListAsync(ct);
+
+            var dailyRule = ResolveEmployeeRule(rules, employeeCode, emp.PositionCode, emp.DeptCode, OTLimitType.Daily);
+            var weeklyRule = ResolveEmployeeRule(rules, employeeCode, emp.PositionCode, emp.DeptCode, OTLimitType.Weekly);
+            var monthlyRule = ResolveEmployeeRule(rules, employeeCode, emp.PositionCode, emp.DeptCode, OTLimitType.Monthly);
+            var yearlyRule = ResolveEmployeeRule(rules, employeeCode, emp.PositionCode, emp.DeptCode, OTLimitType.Yearly);
+
+            dto.DailyLimit = dailyRule?.LimitHours ?? 0m;
+            dto.WeeklyLimit = weeklyRule?.LimitHours;
+            dto.MonthlyLimit = monthlyRule?.LimitHours ?? 0m;
+            dto.YearlyLimit = yearlyRule?.LimitHours ?? 0m;
 
             return dto;
+        }
+
+        public async Task<OTLimitPreviewDto> GetLimitPreviewAsync(
+            OTRequestUpsertDto model, CancellationToken ct = default)
+        {
+            var preview = new OTLimitPreviewDto
+            {
+                OTDate = model.OTDate.Date,
+                RequestedHours = model.Employees?.Sum(x => x.OTHours) ?? 0m
+            };
+
+            if (model.Employees == null || model.Employees.Count == 0)
+                return preview;
+
+            var codes = model.Employees
+                .Select(x => x.EmployeeCode)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .ToList();
+
+            var employees = await Uow.Repository<F03Employee>().Query()
+                .AsNoTracking()
+                .Where(e => e.IsActive == true && codes.Contains(e.EmployeeCode))
+                .Select(e => new { e.EmployeeCode, e.EmployeeName, e.DeptCode, e.PositionCode })
+                .ToListAsync(ct);
+
+            if (employees.Count != codes.Count)
+            {
+                var missing = codes.Except(employees.Select(x => x.EmployeeCode)).ToList();
+                preview.Errors.Add($"Không tìm thấy nhân viên: {string.Join(", ", missing)}.");
+            }
+
+            var deptCodes = employees.Select(x => x.DeptCode).Distinct().ToList();
+            if (deptCodes.Count > 1)
+            {
+                preview.Errors.Add("Đăng ký OT theo phòng ban chỉ cho phép các nhân viên cùng một phòng ban.");
+                return preview;
+            }
+
+            var deptCode = deptCodes.FirstOrDefault() ?? model.DeptCode ?? string.Empty;
+            var blockCode = await Uow.Repository<F03Department>().Query()
+                .AsNoTracking()
+                .Where(d => d.DeptCode == deptCode && d.IsActive == true)
+                .Select(d => d.BlockCode)
+                .FirstOrDefaultAsync(ct);
+
+            var weekOffset = (7 + (int)model.OTDate.DayOfWeek - (int)DayOfWeek.Monday) % 7;
+            var weekStart = model.OTDate.Date.AddDays(-weekOffset);
+            var weekEnd = weekStart.AddDays(7);
+            var monthStart = new DateTime(model.OTDate.Year, model.OTDate.Month, 1);
+            var monthEnd = monthStart.AddMonths(1);
+            var yearStart = new DateTime(model.OTDate.Year, 1, 1);
+            var yearEnd = yearStart.AddYears(1);
+
+            var blockDeptCodes = string.IsNullOrWhiteSpace(blockCode)
+                ? new List<string>()
+                : await Uow.Repository<F03Department>().Query()
+                    .AsNoTracking()
+                    .Where(d => d.IsActive == true && d.BlockCode == blockCode)
+                    .Select(d => d.DeptCode)
+                    .ToListAsync(ct);
+
+            var used = await Uow.Repository<F03OTEmployee>().Query()
+                .AsNoTracking()
+                .Where(e => e.IsActive == true
+                    && e.OTRequest.IsActive == true
+                    && e.OTRequest.RequestStatus != ApprovalStatus.Rejected
+                    && e.OTRequest.RequestStatus != ApprovalStatus.Cancelled
+                    && (e.OTRequest.OTDate >= yearStart && e.OTRequest.OTDate < yearEnd)
+                    && (codes.Contains(e.EmployeeCode)
+                        || (deptCode != string.Empty && e.OTRequest.DeptCode == deptCode)
+                        || blockDeptCodes.Contains(e.OTRequest.DeptCode)))
+                .Select(e => new
+                {
+                    e.EmployeeCode,
+                    e.OTRequest.DeptCode,
+                    EffectiveHours = e.ActualHours.HasValue && e.ActualHours.Value > 0
+                        ? e.ActualHours.Value
+                        : e.OTHours,
+                    e.OTRequest.OTDate
+                })
+                .ToListAsync(ct);
+
+            var rules = await Uow.Repository<F03OTLimitRule>().Query()
+                .AsNoTracking()
+                .Where(r => r.IsActive == true)
+                .ToListAsync(ct);
+
+            foreach (var emp in employees)
+            {
+                var requested = model.Employees
+                    .Where(x => x.EmployeeCode == emp.EmployeeCode)
+                    .Sum(x => x.OTHours);
+
+                var empUsed = used.Where(x => x.EmployeeCode == emp.EmployeeCode).ToList();
+                var row = new OTLimitEmployeePreviewDto
+                {
+                    EmployeeCode = emp.EmployeeCode,
+                    EmployeeName = emp.EmployeeName,
+                    DeptCode = emp.DeptCode,
+                    RequestedHours = requested,
+                    UsedHoursThisWeek = empUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
+                    UsedHoursThisMonth = empUsed.Where(x => x.OTDate >= monthStart && x.OTDate < monthEnd).Sum(x => x.EffectiveHours),
+                    UsedHoursThisYear = empUsed.Where(x => x.OTDate >= yearStart && x.OTDate < yearEnd).Sum(x => x.EffectiveHours)
+                };
+
+                row.WeeklyLimit = ResolveEmployeeRule(rules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode, OTLimitType.Weekly)?.LimitHours;
+                row.MonthlyLimit = ResolveEmployeeRule(rules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode, OTLimitType.Monthly)?.LimitHours;
+                row.YearlyLimit = ResolveEmployeeRule(rules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode, OTLimitType.Yearly)?.LimitHours;
+
+                preview.Employees.Add(row);
+                AddPreviewMessages(preview, row);
+            }
+
+            if (!string.IsNullOrWhiteSpace(deptCode))
+            {
+                var deptUsed = used.Where(x => x.DeptCode == deptCode).ToList();
+                var deptName = await Uow.Repository<F03Department>().Query()
+                    .AsNoTracking()
+                    .Where(d => d.DeptCode == deptCode)
+                    .Select(d => d.DeptName)
+                    .FirstOrDefaultAsync(ct) ?? deptCode;
+
+                var deptRequest = model.Employees
+                    .Where(x => employees.Any(e => e.EmployeeCode == x.EmployeeCode && e.DeptCode == deptCode))
+                    .Sum(x => x.OTHours);
+
+                var deptPreview = new OTLimitScopePreviewDto
+                {
+                    ScopeType = OTLimitScopeType.Department,
+                    ScopeCode = deptCode,
+                    ScopeName = deptName,
+                    RequestedHours = deptRequest,
+                    UsedHoursThisWeek = deptUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
+                    UsedHoursThisMonth = deptUsed.Where(x => x.OTDate >= monthStart && x.OTDate < monthEnd).Sum(x => x.EffectiveHours),
+                    UsedHoursThisYear = deptUsed.Where(x => x.OTDate >= yearStart && x.OTDate < yearEnd).Sum(x => x.EffectiveHours)
+                };
+                deptPreview.WeeklyLimit = ResolveAggregateRule(rules, OTLimitScopeType.Department, deptCode, OTLimitType.Weekly)?.LimitHours;
+                deptPreview.MonthlyLimit = ResolveAggregateRule(rules, OTLimitScopeType.Department, deptCode, OTLimitType.Monthly)?.LimitHours;
+                deptPreview.YearlyLimit = ResolveAggregateRule(rules, OTLimitScopeType.Department, deptCode, OTLimitType.Yearly)?.LimitHours;
+                preview.Department = deptPreview;
+                AddPreviewMessages(preview, deptPreview);
+            }
+
+            if (!string.IsNullOrWhiteSpace(blockCode))
+            {
+                var blockUsed = used.Where(x => blockDeptCodes.Contains(x.DeptCode)).ToList();
+                var blockRequest = model.Employees
+                    .Where(x => employees.Any(e => e.EmployeeCode == x.EmployeeCode && blockDeptCodes.Contains(e.DeptCode)))
+                    .Sum(x => x.OTHours);
+
+                var blockPreview = new OTLimitScopePreviewDto
+                {
+                    ScopeType = OTLimitScopeType.Block,
+                    ScopeCode = blockCode,
+                    ScopeName = blockCode,
+                    RequestedHours = blockRequest,
+                    UsedHoursThisWeek = blockUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
+                    UsedHoursThisMonth = blockUsed.Where(x => x.OTDate >= monthStart && x.OTDate < monthEnd).Sum(x => x.EffectiveHours),
+                    UsedHoursThisYear = blockUsed.Where(x => x.OTDate >= yearStart && x.OTDate < yearEnd).Sum(x => x.EffectiveHours)
+                };
+                blockPreview.WeeklyLimit = ResolveAggregateRule(rules, OTLimitScopeType.Block, blockCode, OTLimitType.Weekly)?.LimitHours;
+                blockPreview.MonthlyLimit = ResolveAggregateRule(rules, OTLimitScopeType.Block, blockCode, OTLimitType.Monthly)?.LimitHours;
+                blockPreview.YearlyLimit = ResolveAggregateRule(rules, OTLimitScopeType.Block, blockCode, OTLimitType.Yearly)?.LimitHours;
+                preview.Block = blockPreview;
+                AddPreviewMessages(preview, blockPreview);
+            }
+
+            return preview;
         }
 
         public async Task<List<OTEmployeeDto>> GetDeptEmployeesAsync(
@@ -539,9 +695,9 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                     UsedHoursThisYear = empRecords.Sum(r => r.TotalOTHours ?? 0)
                 };
 
-                var dailyRule = ResolveRule(rules, emp.PositionCode, deptCode, OTLimitType.Daily);
-                var monthlyRule = ResolveRule(rules, emp.PositionCode, deptCode, OTLimitType.Monthly);
-                var yearlyRule = ResolveRule(rules, emp.PositionCode, deptCode, OTLimitType.Yearly);
+                var dailyRule = ResolveEmployeeRule(rules, emp.EmployeeCode, emp.PositionCode, deptCode, OTLimitType.Daily);
+                var monthlyRule = ResolveEmployeeRule(rules, emp.EmployeeCode, emp.PositionCode, deptCode, OTLimitType.Monthly);
+                var yearlyRule = ResolveEmployeeRule(rules, emp.EmployeeCode, emp.PositionCode, deptCode, OTLimitType.Yearly);
 
                 if (dailyRule != null) dto.DailyLimit = dailyRule.LimitHours;
                 if (monthlyRule != null) dto.MonthlyLimit = monthlyRule.LimitHours;
@@ -554,12 +710,54 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             return result;
         }
 
-        private static F03OTLimitRule? ResolveRule(
-            List<F03OTLimitRule> rules, string? positionCode, string deptCode, OTLimitType type)
+        private static F03OTLimitRule? ResolveEmployeeRule(
+            List<F03OTLimitRule> rules,
+            string employeeCode,
+            string? positionCode,
+            string deptCode,
+            OTLimitType type)
         {
-            return rules.FirstOrDefault(r => r.LimitType == type && r.PositionCode == positionCode)
-                ?? rules.FirstOrDefault(r => r.LimitType == type && r.DeptCode == deptCode)
-                ?? rules.FirstOrDefault(r => r.LimitType == type && r.PositionCode == null && r.DeptCode == null);
+            return rules
+                .Where(r => r.ScopeType == OTLimitScopeType.Employee
+                    && r.LimitType == type
+                    && (string.IsNullOrWhiteSpace(r.EmployeeCode) || r.EmployeeCode == employeeCode)
+                    && (r.DeptCode == null || r.DeptCode == deptCode)
+                    && (r.PositionCode == null || r.PositionCode == positionCode))
+                .OrderByDescending(r => !string.IsNullOrWhiteSpace(r.EmployeeCode))
+                .ThenByDescending(r => r.PositionCode != null && r.DeptCode != null)
+                .ThenByDescending(r => r.DeptCode != null)
+                .ThenByDescending(r => r.PositionCode != null)
+                .FirstOrDefault();
+        }
+
+        private static F03OTLimitRule? ResolveAggregateRule(
+            List<F03OTLimitRule> rules,
+            OTLimitScopeType scopeType,
+            string scopeCode,
+            OTLimitType type)
+            => rules.FirstOrDefault(r =>
+                r.ScopeType == scopeType &&
+                r.LimitType == type &&
+                r.ScopeCode == scopeCode);
+
+        private static void AddPreviewMessages(OTLimitPreviewDto preview, OTLimitEmployeePreviewDto row)
+        {
+            if (row.ExceedsWeekly)
+                preview.Errors.Add($"{row.EmployeeCode}: vượt giới hạn OT tuần.");
+            if (row.ExceedsMonthly)
+                preview.Errors.Add($"{row.EmployeeCode}: vượt giới hạn OT tháng.");
+            if (row.ExceedsYearly)
+                preview.Errors.Add($"{row.EmployeeCode}: vượt giới hạn OT năm.");
+        }
+
+        private static void AddPreviewMessages(OTLimitPreviewDto preview, OTLimitScopePreviewDto row)
+        {
+            if (row.ExceedsWeekly)
+                preview.Errors.Add($"{row.ScopeType}: {row.ScopeCode} vượt giới hạn OT tuần.");
+            if (row.ExceedsMonthly)
+                preview.Errors.Add($"{row.ScopeType}: {row.ScopeCode} vượt giới hạn OT tháng.");
+            if (row.ExceedsYearly)
+                preview.Errors.Add($"{row.ScopeType}: {row.ScopeCode} vượt giới hạn OT năm.");
         }
 
         private static OTSummaryDto MapToSummary(VF03OTRequest x) => new()

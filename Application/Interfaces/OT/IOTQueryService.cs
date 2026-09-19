@@ -17,6 +17,8 @@ namespace FVN_REGISTER.Application.Interfaces.OT
 
         Task<OTValidationResultDto> ValidateHoursAsync(OTRequestUpsertDto model, CancellationToken ct = default);
 
+        Task<OTLimitPreviewDto> GetLimitPreviewAsync(OTRequestUpsertDto model, CancellationToken ct = default);
+
         Task<OTBalanceDto> GetBalanceAsync(string employeeCode, int year, int month, CancellationToken ct = default);
 
         Task<List<OTEmployeeDto>> GetDeptEmployeesAsync(string deptCode, CancellationToken ct = default);

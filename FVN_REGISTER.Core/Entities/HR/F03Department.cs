@@ -14,6 +14,9 @@ public partial class F03Department : BaseAuditEntity
 
     [Required, StringLength(100)]
     public string DeptName { get; set; } = string.Empty;
+
+    [StringLength(20)]
+    public string? BlockCode { get; set; }
     [StringLength(50)]
   
     public string? ParentDeptCode { get; set; }   // từ BPMaCha

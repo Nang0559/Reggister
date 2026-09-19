@@ -242,6 +242,24 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(await _otService.CancelAsync(id, body.Reason ?? "Hủy bởi người dùng", UserInfo, ct));
         }
 
+        [HttpPost("validate-request")]
+        public async Task<IActionResult> ValidateRequest([FromBody] OTRequestUpsertDto dto, CancellationToken ct)
+        {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
+            if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
+            return Ok(ApiResponse<OTValidationResultDto>.Ok(await _queryService.ValidateHoursAsync(dto, ct)));
+        }
+
+        [HttpPost("limit-preview")]
+        public async Task<IActionResult> LimitPreview([FromBody] OTRequestUpsertDto dto, CancellationToken ct)
+        {
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
+            if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
+            return Ok(ApiResponse<OTLimitPreviewDto>.Ok(await _queryService.GetLimitPreviewAsync(dto, ct)));
+        }
+
         [HttpPost("validate")]
         public async Task<IActionResult> ValidateHours([FromBody] OTValidateHoursRequestDto body, CancellationToken ct)
         {
