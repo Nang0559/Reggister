@@ -16,7 +16,7 @@
                 </MudItem>
                 <MudItem xs="12" sm="6">
                     <MudSelect T="int" @bind-Value="Model.Level" Label="Cấp duyệt (*)" Variant="Variant.Outlined" Required="true">
-                        <MudSelectItem Value="1">Cấp 1</MudSelectItem><MudSelectItem Value="2">Cấp 2</MudSelectItem><MudSelectItem Value="3">Cấp 3</MudSelectItem><MudSelectItem Value="4">Cấp 4</MudSelectItem><MudSelectItem Value="5">Cấp 5</MudSelectItem>
+                        <MudSelectItem Value="1">Cấp 1</MudSelectItem><MudSelectItem Value="2">Cấp 2</MudSelectItem><MudSelectItem Value="3">Cấp 3</MudSelectItem><MudSelectItem Value="4">Cấp 4</MudSelectItem><MudSelectItem Value="5">Cấp 5</MudSelectItem><MudSelectItem Value="6">Cấp 6</MudSelectItem><MudSelectItem Value="7">Cấp 7</MudSelectItem>
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" sm="6"><MudSwitch @bind-Value="Model.IsActive" Label="@(Model.IsActive ? "Đang hoạt động" : "Vô hiệu hóa")" Color="Color.Success" /></MudItem>
@@ -24,6 +24,8 @@
                     <MudSelect T="RequestModule" @bind-Value="Model.RequestType" Label="Loại đơn (*)" Variant="Variant.Outlined">
                         <MudSelectItem Value="@RequestModule.Leave">Nghỉ phép</MudSelectItem>
                         <MudSelectItem Value="@RequestModule.Overtime">OT</MudSelectItem>
+                        <MudSelectItem Value="@RequestModule.Trip">Công tác</MudSelectItem>
+                        <MudSelectItem Value="@RequestModule.Equipment">Thiết bị / Requirement</MudSelectItem>
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12">
