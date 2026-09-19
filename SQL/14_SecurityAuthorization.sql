@@ -225,7 +225,7 @@ WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.Functio
 GO
 
 /* Update metadata for already-created canonical functions without overwriting business data. */
-UPDATE dbo.F03Functions AS f
+UPDATE f
 SET ModuleCode=LEFT(f.FunctionName,CHARINDEX(N'.',f.FunctionName+N'.')-1),
     ActionCode=SUBSTRING(f.FunctionName,CHARINDEX(N'.',f.FunctionName+N'.')+1,50),
     ScopeCode=CASE
