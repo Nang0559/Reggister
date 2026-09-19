@@ -56,7 +56,6 @@ IMPORTANT:
 :r 18_OT_Leave_Limits.sql
 :r 19_WorkCalendar.sql
 :r 20_Reports.sql
-:r 20_Reports.sql
 :r 21_Verify_Reports.sql
 :r 22_HrmCompatibleAttendance.sql
 :r 99_Verify.sql
