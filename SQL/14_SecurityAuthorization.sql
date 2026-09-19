@@ -88,7 +88,7 @@ BEGIN
         ModifiedBy int NULL,
         CONSTRAINT PK_F03UserRoles PRIMARY KEY(IdUser,IdRole),
         CONSTRAINT FK_F03UserRoles_User FOREIGN KEY(IdUser) REFERENCES dbo.F03Users(Id),
-        CONSTRAINT FK_F03UserRoles_Role FOREIGN KEY(IdRole) REFERENCES dbo.F03Roles(IdRole)
+        CONSTRAINT FK_F03UserRoles_Role FOREIGN KEY(IdRole) REFERENCES dbo.F03Roles(Id)
     );
 END;
 GO
@@ -177,15 +177,15 @@ WHERE f.FunctionCode BETWEEN 2000 AND 2999;
 GO
 
 /* Seed role -> function matrix. Role codes retain existing F03Permissions values. */
-DECLARE @SuperAdmin int=(SELECT IdRole FROM dbo.F03Roles WHERE RoleCode=1);
-DECLARE @Admin int=(SELECT IdRole FROM dbo.F03Roles WHERE RoleCode=2);
-DECLARE @Editor int=(SELECT IdRole FROM dbo.F03Roles WHERE RoleCode=3);
-DECLARE @Approver int=(SELECT IdRole FROM dbo.F03Roles WHERE RoleCode=4);
-DECLARE @User int=(SELECT IdRole FROM dbo.F03Roles WHERE RoleCode=5);
-DECLARE @Guest int=(SELECT IdRole FROM dbo.F03Roles WHERE RoleCode=6);
+DECLARE @SuperAdmin int=(SELECT Id FROM dbo.F03Roles WHERE RoleCode=1);
+DECLARE @Admin int=(SELECT Id FROM dbo.F03Roles WHERE RoleCode=2);
+DECLARE @Editor int=(SELECT Id FROM dbo.F03Roles WHERE RoleCode=3);
+DECLARE @Approver int=(SELECT Id FROM dbo.F03Roles WHERE RoleCode=4);
+DECLARE @User int=(SELECT Id FROM dbo.F03Roles WHERE RoleCode=5);
+DECLARE @Guest int=(SELECT Id FROM dbo.F03Roles WHERE RoleCode=6);
 
 INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
-SELECT r.IdRole,f.Id
+SELECT r.Id,f.Id
 FROM
 (
     SELECT @SuperAdmin IdRole, f.FunctionCode FROM dbo.F03Functions f WHERE f.FunctionCode BETWEEN 2001 AND 2999
@@ -209,10 +209,10 @@ FROM
     SELECT @Guest, f.FunctionCode FROM dbo.F03Functions f
       WHERE f.ActionCode=N'View' AND f.ModuleCode IN(N'Leave',N'OT',N'Trip',N'Equipment')
 ) x
-JOIN dbo.F03Roles r ON r.IdRole=x.IdRole
+JOIN dbo.F03Roles r ON r.Id=x.IdRole
 JOIN dbo.F03Functions f ON f.FunctionCode=x.FunctionCode
 WHERE x.IdRole IS NOT NULL
-  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.IdRole AND rf.IdFunction=f.Id);
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
 GO
 
 /* Every authenticated role gets the dashboard shell; module providers still require their own capability. */
@@ -223,7 +223,7 @@ JOIN dbo.F03Functions f ON f.FunctionCode=2701
 WHERE r.IsActive=1
   AND NOT EXISTS(
       SELECT 1 FROM dbo.F03RoleFunctions rf
-      WHERE rf.IdRole=r.IdRole AND rf.IdFunction=f.Id
+      WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id
   );
 GO
 
@@ -234,7 +234,7 @@ FROM dbo.F03Users u
 JOIN dbo.F03Roles r ON r.RoleCode=u.PermissionCode
 WHERE NOT EXISTS
 (
-    SELECT 1 FROM dbo.F03UserRoles ur WHERE ur.IdUser=u.Id AND ur.IdRole=r.IdRole
+    SELECT 1 FROM dbo.F03UserRoles ur WHERE ur.IdUser=u.Id AND ur.Id=r.Id
 );
 GO
 
