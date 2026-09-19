@@ -145,7 +145,12 @@ BEGIN
         c.EmailAddress,
         c.DeptCode,
         c.DeptName,
-        CONVERT(nvarchar(20),v.RequestType) AS RequestType,
+        CASE v.RequestType
+            WHEN 0 THEN N'Leave'
+            WHEN 1 THEN N'Overtime'
+            WHEN 2 THEN N'Trip'
+            WHEN 3 THEN N'Equipment'
+        END AS RequestType,
         v.Level,
         CASE
             WHEN c.PositionApproveRank=4 THEN N'ALL'
