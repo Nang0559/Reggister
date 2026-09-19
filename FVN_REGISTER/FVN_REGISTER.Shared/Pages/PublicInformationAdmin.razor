@@ -6,6 +6,7 @@
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @inject IHttpClientWithAuth Http
+@inject ISnackbar Snackbar
 @inject NavigationManager Navigation
 
 <PageTitle>CMS thông tin công khai</PageTitle>
@@ -61,7 +62,7 @@
         </MudGrid>
     }
 
-    <MudDialog @bind-IsVisible="_editorOpen">
+    <MudDialog @bind-Visible="_editorOpen">
         <DialogContent>
             <MudText Typo="Typo.h6" Class="mb-4">@(_editing.Id == 0 ? "Tạo bản nháp" : "Chỉnh sửa bản nháp")</MudText>
             <MudSelect T="string" Label="Loại" @bind-Value="_editing.Type" Variant="Variant.Outlined" Class="mb-3">
