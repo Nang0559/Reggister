@@ -4,6 +4,7 @@
 @using FVN_REGISTER.Contract.Dtos.HrmSync
 @using FVN_REGISTER.Shared.Services.Departments
 @using FVN_REGISTER.Shared.Services.HrmSync
+@inject IJSRuntime JS
 @inject IDepartmentManagementClientService Departments
 @inject IHrmAttendanceCalculationClientService Calculation
 @inject ISnackbar Snackbar
@@ -23,7 +24,18 @@
   <MudItem xs="12" md="2" Class="d-flex align-center"><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_running" OnClick="CalculateAsync">Tính giờ</MudButton></MudItem>
  </MudGrid>
  @if(_running){<MudProgressLinear Indeterminate="true" Class="mt-4"/>}
- @if(_result is not null){<MudAlert Severity="Severity.Success" Class="mt-4">Batch @_result.CalculationBatchId — @_result.CalculatedRows dòng / @_result.EmployeeCount nhân viên.</MudAlert>}
+ @if(_result is not null)
+{
+ <MudAlert Severity="Severity.Success" Class="mt-4">Batch @_result.CalculationBatchId — @_result.CalculatedRows dòng / @_result.EmployeeCount nhân viên.</MudAlert>
+ <MudStack Row="true" Spacing="2" Class="mt-3">
+  <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="_exporting" OnClick="ExportAttendanceAsync">
+   Xuất chấm công
+  </MudButton>
+  <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Disabled="_exporting" OnClick="ExportOtAsync">
+   Xuất tính OT
+  </MudButton>
+ </MudStack>
+}
 </MudPaper>
 
 @code {
@@ -32,6 +44,7 @@
  private DateTime? _fromDate=DateTime.Today;
  private DateTime? _toDate=DateTime.Today;
  private bool _running;
+ private bool _exporting;
  private HrmAttendanceCalculationResultDto? _result;
  protected override async Task OnInitializedAsync()
  {
