@@ -21,21 +21,27 @@
   </MudItem>
   <MudItem xs="12" md="3"><MudDatePicker Label="Từ ngày" @bind-Date="_fromDate" Variant="Variant.Outlined"/></MudItem>
   <MudItem xs="12" md="3"><MudDatePicker Label="Đến ngày" @bind-Date="_toDate" Variant="Variant.Outlined"/></MudItem>
-  <MudItem xs="12" md="2" Class="d-flex align-center"><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_running" OnClick="CalculateAsync">Tính giờ</MudButton></MudItem>
+  <MudItem xs="12" md="2" Class="d-flex align-center">
+   <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_running" OnClick="CalculateAsync">Tính giờ</MudButton>
+  </MudItem>
  </MudGrid>
+
  @if(_running){<MudProgressLinear Indeterminate="true" Class="mt-4"/>}
+
  @if(_result is not null)
-{
- <MudAlert Severity="Severity.Success" Class="mt-4">Batch @_result.CalculationBatchId — @_result.CalculatedRows dòng / @_result.EmployeeCount nhân viên.</MudAlert>
- <MudStack Row="true" Spacing="2" Class="mt-3">
-  <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="_exporting" OnClick="ExportAttendanceAsync">
-   Xuất chấm công
-  </MudButton>
-  <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Disabled="_exporting" OnClick="ExportOtAsync">
-   Xuất tính OT
-  </MudButton>
- </MudStack>
-}
+ {
+  <MudAlert Severity="Severity.Success" Class="mt-4">
+   Batch @_result.CalculationBatchId — @_result.CalculatedRows dòng / @_result.EmployeeCount nhân viên.
+  </MudAlert>
+  <MudStack Row="true" Spacing="2" Class="mt-3">
+   <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="_exporting" OnClick="ExportAttendanceAsync">
+    Xuất chấm công
+   </MudButton>
+   <MudButton Variant="Variant.Outlined" Color="Color.Secondary" Disabled="_exporting" OnClick="ExportOtAsync">
+    Xuất tính OT
+   </MudButton>
+  </MudStack>
+ }
 </MudPaper>
 
 @code {
@@ -46,21 +52,67 @@
  private bool _running;
  private bool _exporting;
  private HrmAttendanceCalculationResultDto? _result;
+
  protected override async Task OnInitializedAsync()
  {
   var r=await Departments.GetListAsync(true);
   if(r.IsSuccess&&r.Data is not null) _departments=r.Data;
  }
+
  private async Task CalculateAsync()
  {
-  if(_fromDate is null||_toDate is null||_fromDate>_toDate){Snackbar.Add("Khoảng ngày không hợp lệ.",Severity.Warning);return;}
-  _running=true; _result=null;
+  if(_fromDate is null||_toDate is null||_fromDate>_toDate)
+  {
+   Snackbar.Add("Khoảng ngày không hợp lệ.",Severity.Warning);
+   return;
+  }
+
+  _running=true;
+  _result=null;
   try
   {
-   var r=await Calculation.CalculateAsync(new HrmAttendanceCalculationRequestDto{DeptCode=_deptCode,FromDate=_fromDate.Value,ToDate=_toDate.Value});
-   if(r.IsSuccess&&r.Data is not null){_result=r.Data;Snackbar.Add("Đã tính giờ xong.",Severity.Success);}
+   var r=await Calculation.CalculateAsync(new HrmAttendanceCalculationRequestDto
+   {
+    DeptCode=_deptCode,
+    FromDate=_fromDate.Value,
+    ToDate=_toDate.Value
+   });
+   if(r.IsSuccess&&r.Data is not null)
+   {
+    _result=r.Data;
+    Snackbar.Add("Đã tính giờ xong.",Severity.Success);
+   }
    else Snackbar.Add(r.Message??"Tính giờ thất bại.",Severity.Error);
   }
   finally{_running=false;}
+ }
+
+ private Task ExportAttendanceAsync()
+  => ExportAsync(_result?.CalculationBatchId,true);
+
+ private Task ExportOtAsync()
+  => ExportAsync(_result?.CalculationBatchId,false);
+
+ private async Task ExportAsync(Guid? batchId,bool attendance)
+ {
+  if(batchId is null)return;
+  _exporting=true;
+  try
+  {
+   var r=attendance
+    ? await Calculation.ExportAttendanceAsync(batchId.Value)
+    : await Calculation.ExportOtAsync(batchId.Value);
+
+   if(r.IsSuccess&&r.Data is not null)
+   {
+    var name=attendance
+     ? $"BangChamCong_{_result?.FromDate:yyyyMMdd}_{_result?.ToDate:yyyyMMdd}.xls"
+     : $"BangLamThem_{_result?.FromDate:yyyyMMdd}_{_result?.ToDate:yyyyMMdd}.xls";
+    await JS.InvokeVoidAsync("hrmAttendanceExport.download",r.Data,name);
+    Snackbar.Add("Đã xuất Excel.",Severity.Success);
+   }
+   else Snackbar.Add(r.Message??"Xuất Excel thất bại.",Severity.Error);
+  }
+  finally{_exporting=false;}
  }
 }
