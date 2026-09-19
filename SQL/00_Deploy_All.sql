@@ -29,6 +29,7 @@ Order:
   22 HRM-compatible attendance pipeline
   23 Leave balance schema upgrade
   24 Work year schema upgrade
+  25 Legacy OT sync cleanup
   99 Final cross-layer/schema verification
 
 IMPORTANT:
@@ -62,10 +63,11 @@ IMPORTANT:
 :r 22_HrmCompatibleAttendance.sql
 :r 23_LeaveBalanceUpgrade.sql
 :r 24_WorkYearUpgrade.sql
+:r 25_RemoveLegacyOTSync.sql
 :r 99_Verify.sql
 
 PRINT N'============================================================';
-PRINT N'FVN_REGISTER SQL deployment 01..24 + 99 verification completed.';
+PRINT N'FVN_REGISTER SQL deployment 01..25 + 99 verification completed.';
 PRINT N'============================================================';
 GO
 
