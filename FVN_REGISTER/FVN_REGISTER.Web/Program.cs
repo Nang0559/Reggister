@@ -48,6 +48,7 @@ builder.Services.AddScoped<IUserManagementClientService, UserManagementClientSer
 builder.Services.AddScoped<ISecurityClientService, SecurityClientService>();
 builder.Services.AddScoped<IApprovalListClientService, ApprovalListClientService>();
 builder.Services.AddScoped<IApproverClientService, ApproverClientService>();
+builder.Services.AddScoped<IApprovalRouteClientService, ApprovalRouteClientService>();
 builder.Services.AddScoped<IHistoryClientService, HistoryClientService>();
 builder.Services.AddScoped<IOTSyncClientService, OTSyncClientService>();
 builder.Services.AddScoped<IDepartmentStatusClientService, DepartmentStatusClientService>();
