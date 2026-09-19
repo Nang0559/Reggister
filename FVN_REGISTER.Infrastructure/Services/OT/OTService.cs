@@ -21,6 +21,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
     {
         private readonly IOTValidator _validator;
         private readonly IAuthorizationService _authorization;
+        private readonly IApprovalSelectionService _approvalSelections;
         protected override RequestModule ModuleKind => RequestModule.Overtime;
 
         public OTService(
@@ -28,12 +29,14 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
             IApprovalWorkflowOrchestrator<OTRequestSubject> workflow,
             IOTValidator validator,
             IAuthorizationService authorization,
+            IApprovalSelectionService approvalSelections,
             ILogger<BaseRequestCommandService<OTRequestUpsertDto, F03OTRequest, OTRequestSubject>> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(uow, workflow, logger, options)
         {
             _validator = validator;
             _authorization = authorization;
+            _approvalSelections = approvalSelections;
         }
 
         public override async Task<ServiceResult<int>> CreateAsync(OTRequestUpsertDto model, UserIdentityDto user, CancellationToken ct = default)
@@ -79,7 +82,13 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                 }
                 await Uow.SaveChangesAsync(ct);
 
+                if (model.ApprovalSelections == null || model.ApprovalSelections.Count == 0)
+                    return ServiceResult<int>.Fail("Vui lòng chọn người phê duyệt cho từng cấp.");
+
+                await _approvalSelections.ReplaceAsync(RequestModule.Overtime, entity.Id, model.ApprovalSelections, user.UserId, ct);
+
                 var context = ApprovalBuildContext.ForOT(
+                    requestId: entity.Id,
                     employeeCode: user.EmployeeCode ?? "",
                     deptCode: entity.DeptCode ?? "",
                     positionCode: user.PositionCode ?? "",
