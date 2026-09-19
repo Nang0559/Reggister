@@ -21,7 +21,8 @@ Order:
   14 Application RBAC / authorization
   15 Public Information CMS
   16 Equipment flexible schema / import
-  17 Documentation consistency verification
+  17 Approval route configuration
+  18 Documentation consistency verification
   18 OT / Leave limits
   19 Shared Work Calendar indexes / policy
   20 Reporting read models
@@ -55,6 +56,7 @@ IMPORTANT:
 :r 14_SecurityAuthorization.sql
 :r 15_PublicInformation.sql
 :r 16_EquipmentFlexibleImport.sql
+:r 17_ApprovalRouteSelection.sql
 :r 17_DocumentationConsistency.sql
 :r 18_OT_Leave_Limits.sql
 :r 19_WorkCalendar.sql
