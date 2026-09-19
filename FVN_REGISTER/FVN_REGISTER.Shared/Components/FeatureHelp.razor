@@ -22,10 +22,10 @@
         <MudText Typo="Typo.subtitle2" Class="mb-2">Luồng thao tác</MudText>
         <MudPaper Outlined="true" Class="pa-3 mb-4" Style="white-space:pre-line;font-family:monospace;font-size:.82rem">@_content.Flow</MudPaper>
         <MudText Typo="Typo.subtitle2" Class="mb-2">Các bước</MudText>
-        <MudList Dense="true" Class="mb-4">
+        <MudList T="string" Dense="true" Class="mb-4">
             @foreach (var step in _content.Steps)
             {
-                <MudListItem Icon="@Icons.Material.Filled.CheckCircleOutline">@step</MudListItem>
+                <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircleOutline">@step</MudListItem>
             }
         </MudList>
         <MudText Typo="Typo.subtitle2" Class="mb-2">Ví dụ</MudText>
