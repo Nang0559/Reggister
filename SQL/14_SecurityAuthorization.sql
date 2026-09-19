@@ -42,6 +42,21 @@ BEGIN
 END;
 GO
 
+/* Upgrade legacy RBAC tables to the canonical BaseAuditEntity Id model. */
+IF OBJECT_ID(N'dbo.F03Roles',N'U') IS NOT NULL
+   AND COL_LENGTH(N'dbo.F03Roles',N'Id') IS NULL
+   AND COL_LENGTH(N'dbo.F03Roles',N'IdRole') IS NOT NULL
+BEGIN
+    EXEC sp_rename N'dbo.F03Roles.IdRole', N'Id', N'COLUMN';
+END;
+IF OBJECT_ID(N'dbo.F03Roles',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03Roles',N'IsActive') IS NULL ALTER TABLE dbo.F03Roles ADD IsActive bit NULL CONSTRAINT DF_F03Roles_IsActive DEFAULT 1;
+    IF COL_LENGTH(N'dbo.F03Roles',N'CreatedBy') IS NULL ALTER TABLE dbo.F03Roles ADD CreatedBy int NOT NULL CONSTRAINT DF_F03Roles_CreatedBy DEFAULT 0;
+    IF COL_LENGTH(N'dbo.F03Roles',N'LastModifiedSource') IS NULL ALTER TABLE dbo.F03Roles ADD LastModifiedSource nvarchar(50) NULL;
+    IF COL_LENGTH(N'dbo.F03Roles',N'ModifiedAt') IS NULL ALTER TABLE dbo.F03Roles ADD ModifiedAt datetime2(0) NULL;
+    IF COL_LENGTH(N'dbo.F03Roles',N'ModifiedBy') IS NULL ALTER TABLE dbo.F03Roles ADD ModifiedBy int NULL;
+END;
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03Roles_RoleCode' AND object_id=OBJECT_ID(N'dbo.F03Roles'))
     CREATE UNIQUE INDEX UX_F03Roles_RoleCode ON dbo.F03Roles(RoleCode);
 GO
