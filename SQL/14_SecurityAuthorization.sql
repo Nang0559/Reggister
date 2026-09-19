@@ -218,8 +218,8 @@ FROM (VALUES
 (2604,N'Security.Audit',N'Xem audit security',N'Security',N'Audit',N'All',640),
 (2701,N'Dashboard.View',N'Xem dashboard',N'Dashboard',N'View',N'Own',710),
 (2307,N'Equipment.Export',N'Xuất báo cáo thiết bị',N'Equipment',N'Export',N'Department',360),
-(2901,N'Attendance.View',N'Xem báo cáo chấm công',N'Attendance',N'View',810),
-(2902,N'Attendance.Export',N'Xuất báo cáo chấm công',N'Attendance',N'Export',820)
+(2901,N'Attendance.View',N'Xem báo cáo chấm công',N'Attendance',N'View',810,N'All',810),
+(2902,N'Attendance.Export',N'Xuất báo cáo chấm công',N'Attendance',N'Export',820,N'All',820)
 ) AS v(FunctionCode,Name,Detail,ModuleCode,ActionCode,ScopeCode,SortNo)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.FunctionCode);
 GO
