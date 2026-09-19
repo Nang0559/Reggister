@@ -54,7 +54,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
                 on ur.IdRole equals r.IdRole
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on rf.IdFunction equals f.IdFunction
+                on rf.Id equals f.IdFunction
             where ur.IdUser == userId
                 && r.IsActive
                 && (f.IsActive ?? true)
@@ -198,7 +198,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
     {
         var roles = await _uow.Repository<F03Role>().Query()
             .AsNoTracking()
-            .Where(x => x.IsActive)
+            .Where(x => x.IsActive == true)
             .OrderBy(x => x.RoleCode)
             .ToListAsync(ct);
 
@@ -257,7 +257,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             throw new InvalidOperationException("Tài khoản phải có ít nhất một role.");
 
         var roles = await _uow.Repository<F03Role>().Query()
-            .Where(x => x.IsActive && roleCodes.Contains(x.RoleCode))
+            .Where(x => x.IsActive == true && roleCodes.Contains(x.RoleCode))
             .ToListAsync(ct);
 
         if (roles.Count != roleCodes.Distinct().Count())
@@ -312,7 +312,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             throw new InvalidOperationException("FunctionCodes không hợp lệ.");
 
         var role = await _uow.Repository<F03Role>().Query()
-            .FirstOrDefaultAsync(x => x.RoleCode == roleCode && x.IsActive, ct);
+            .FirstOrDefaultAsync(x => x.RoleCode == roleCode && x.IsActive == true, ct);
 
         if (role == null)
             throw new InvalidOperationException("Role không tồn tại hoặc đã ngừng hoạt động.");
@@ -335,7 +335,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             await repo.AddAsync(new F03RoleFunction
             {
                 IdRole = role.IdRole,
-                IdFunction = function.IdFunction,
+                IdFunction = function.Id,
                 CreatedBy = actorUserId,
                 CreatedAt = DateTime.Now
             }, ct);
