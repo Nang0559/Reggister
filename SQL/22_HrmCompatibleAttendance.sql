@@ -149,7 +149,6 @@ END
 
 
 GO
-GO
 CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 	@StaffID int,	
 	@D Datetime
