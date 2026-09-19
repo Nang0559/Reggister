@@ -1,4 +1,5 @@
 using FVN_REGISTER.Contract.Requests.Approvals;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Trips;
@@ -70,8 +71,10 @@ public sealed class TripService : ITripService
         return await MapAsync(entity, ct);
     }
 
-    public async Task<TripRequestDto> SubmitAsync(int requestId, List<ApprovalSelectionDto>? approvalSelections = null, CancellationToken ct = default)
+    public async Task<ServiceResult<TripRequestDto>> SubmitAsync(int requestId, List<ApprovalSelectionDto>? approvalSelections = null, CancellationToken ct = default)
     {
+        try
+        {
         var user = _currentUser.GetCurrentUser()
             ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
 
@@ -108,7 +111,31 @@ public sealed class TripService : ITripService
             employee?.PositionCode ?? string.Empty);
 
         await _workflow.InitApprovalAsync(entity.Id, context, ct);
-        return await MapAsync(entity, ct);
+        var approvalResult = await _workflow.InitApprovalAsync(entity.Id, context, ct);
+        if (!approvalResult.IsSuccess)
+        {
+            entity.RequestStatus = ApprovalStatus.Draft;
+            await _uow.SaveChangesAsync(ct);
+            return ServiceResult<TripRequestDto>.Fail(
+                approvalResult.Message ?? "Không thể khởi tạo luồng duyệt công tác.");
+        }
+
+        return ServiceResult<TripRequestDto>.Ok(
+            await MapAsync(entity, ct),
+            "Đã gửi đăng ký công tác vào quy trình phê duyệt.");
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return ServiceResult<TripRequestDto>.Fail(ex.Message);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return ServiceResult<TripRequestDto>.Fail(ex.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            return ServiceResult<TripRequestDto>.Fail(ex.Message);
+        }
     }
 
     public async Task<TripRequestDto?> GetAsync(int requestId, CancellationToken ct = default)
