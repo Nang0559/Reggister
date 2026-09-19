@@ -149,11 +149,9 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
             {
                 var date = month.AddMonths(-1).Date.AddDays(20 + day);
                 var cell = row.GetCell(4 + day) ?? row.CreateCell(4 + day);
+
                 var value = GetOtValue(byDate.GetValueOrDefault(date));
-                if (value is string text)
-                    cell.SetCellValue(text);
-                else
-                    cell.SetCellValue((double)value);
+                cell.SetCellValue(value);
             }
         }
 
