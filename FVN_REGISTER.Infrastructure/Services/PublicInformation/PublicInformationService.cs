@@ -15,18 +15,32 @@ public sealed class PublicInformationService : IPublicInformationService
     public PublicInformationService(IUnitOfWork uow, IAuditService audit) { _uow = uow; _audit = audit; }
 
     public async Task<List<PublicInformationDto>> GetPublishedAsync(CancellationToken ct = default)
-        => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking()
-            .Where(x => x.Status == "Published" && (!x.EffectiveFrom.HasValue || x.EffectiveFrom <= DateTime.Now) && (!x.EffectiveTo.HasValue || x.EffectiveTo >= DateTime.Now))
-            .OrderByDescending(x => x.IsImportant).ThenByDescending(x => x.PublishedAt).ToListAsync(ct)
-            .ContinueWith(t => t.Result.Select(MapEntity).ToList(), ct);
+    {
+        var rows = await _uow.Repository<F03PublicInformation>().Query().AsNoTracking()
+            .Where(x => x.Status == "Published"
+                && (!x.EffectiveFrom.HasValue || x.EffectiveFrom <= DateTime.Now)
+                && (!x.EffectiveTo.HasValue || x.EffectiveTo >= DateTime.Now))
+            .OrderByDescending(x => x.IsImportant)
+            .ThenByDescending(x => x.PublishedAt)
+            .ToListAsync(ct);
+        return rows.Select(MapEntity).ToList();
+    }
 
     public async Task<List<PublicInformationDto>> GetManageListAsync(CancellationToken ct = default)
-        => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking()
-            .OrderByDescending(x => x.CreatedAt).ToListAsync(ct)
-            .ContinueWith(t => t.Result.Select(MapEntity).ToList(), ct);
+    {
+        var rows = await _uow.Repository<F03PublicInformation>().Query().AsNoTracking()
+            .OrderByDescending(x => x.CreatedAt)
+            .ToListAsync(ct);
+        return rows.Select(MapEntity).ToList();
+    }
 
     public async Task<PublicInformationDto?> GetAsync(int id, CancellationToken ct = default)
-        => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking().Where(x => x.Id == id).Select(x => new PublicInformationDto { Id=x.Id, Type=x.Type, Title=x.Title, Summary=x.Summary, Content=x.Content, Status=x.Status, EffectiveFrom=x.EffectiveFrom, EffectiveTo=x.EffectiveTo, IsImportant=x.IsImportant, AttachmentUrl=x.AttachmentUrl, PublishedAt=x.PublishedAt }).FirstOrDefaultAsync(ct);
+    {
+        var entity = await _uow.Repository<F03PublicInformation>().Query()
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id, ct);
+        return entity == null ? null : MapEntity(entity);
+    }
 
     public async Task<ServiceResult<PublicInformationDto>> CreateAsync(SavePublicInformationRequest request, int actorUserId, CancellationToken ct = default)
     {
