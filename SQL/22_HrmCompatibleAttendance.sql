@@ -3735,64 +3735,32 @@ BEGIN
  INSERT dbo.F03HrmOTActual(CalculationBatchId,WorkDate,HrmEmployeeId,EmployeeCode,DeptCode,ActualStartTime,ActualEndTime,ActualMinutes,ActualOTDayMinutes,ActualOTNightMinutes,RecognizedOTMinutes,SourceAttendanceId)
  SELECT CalculationBatchId,WorkDate,HrmEmployeeId,EmployeeCode,DeptCode,CheckInTime,CheckOutTime,CASE WHEN CheckInTime IS NOT NULL AND CheckOutTime IS NOT NULL THEN DATEDIFF(minute,CheckInTime,CheckOutTime) ELSE 0 END,OTMinutesDay+OTMinutesDayTC,OTMinutesNight+OTMinutesNightTC,OTRecognizedMinutesDay+OTRecognizedMinutesNight,Id
  FROM dbo.F03HrmAttendanceCalculated WHERE CalculationBatchId=@BatchId AND (CheckInTime IS NOT NULL OR CheckOutTime IS NOT NULL);
+
+ /* Centralized OT actual synchronization: HRM calculation owns this write. */
+ ;WITH LatestActual AS
+ (
+  SELECT h.*, ROW_NUMBER() OVER(PARTITION BY h.HrmEmployeeId,h.WorkDate ORDER BY h.CalculatedAt DESC,h.Id DESC) rn
+  FROM dbo.F03HrmOTActual h
+  WHERE h.CalculationBatchId=@BatchId
+ )
+ UPDATE emp
+ SET emp.ActualStartTime = a.ActualStartTime,
+     emp.ActualEndTime = a.ActualEndTime,
+     emp.ActualHours = CAST(ISNULL(a.RecognizedOTMinutes,0) / 60.0 AS decimal(5,2)),
+     emp.ValidationStatus = CASE WHEN a.ActualStartTime IS NOT NULL AND a.ActualEndTime IS NOT NULL THEN 1 ELSE 0 END,
+     emp.ValidationMessage = CASE WHEN a.ActualStartTime IS NOT NULL AND a.ActualEndTime IS NOT NULL THEN NULL ELSE N'Chưa đủ dữ liệu CheckIn/CheckOut từ HRM-compatible calculation.' END,
+     emp.ModifiedAt=GETDATE(),
+     emp.ModifiedBy=0
+ FROM dbo.F03OTEmployees emp
+ INNER JOIN dbo.F03OTRequests ot ON ot.Id=emp.OTRequestId AND ot.IsActive=1 AND ot.RequestStatus=3
+ INNER JOIN HRM.dbo.tblNhanVien nv ON RTRIM(nv.NVMaNV)=emp.EmployeeCode
+ INNER JOIN LatestActual a ON a.HrmEmployeeId=nv.NVMa AND a.WorkDate=CAST(ot.OTDate AS date) AND a.rn=1
+ WHERE emp.IsActive=1 AND a.CalculationBatchId=@BatchId;
  SELECT @BatchId AS CalculationBatchId,@DeptCode AS DeptCode,@FromDate AS FromDate,@ToDate AS ToDate,COUNT(DISTINCT HrmEmployeeId) AS EmployeeCount,COUNT(*) AS CalculatedRows,MIN(CalculatedAt) AS StartedAt,MAX(CalculatedAt) AS FinishedAt,@CalculationVersion AS CalculationVersion
  FROM dbo.F03HrmAttendanceCalculated WHERE CalculationBatchId=@BatchId;
 END;
 GO
-CREATE OR ALTER PROCEDURE dbo.usp_SyncOTActualHours
- @OTDate date=NULL,@DeptCode nvarchar(30)=NULL
-AS
-BEGIN
- SET NOCOUNT ON; SET XACT_ABORT ON;
- SET @OTDate=COALESCE(@OTDate,CAST(GETDATE()-1 AS date));
 
- ;WITH Latest AS
- (
-  SELECT h.*,ROW_NUMBER() OVER(PARTITION BY h.HrmEmployeeId,h.WorkDate ORDER BY h.CalculatedAt DESC,h.Id DESC) rn
-  FROM dbo.F03HrmOTActual h
-  WHERE h.WorkDate=@OTDate AND (@DeptCode IS NULL OR h.DeptCode=@DeptCode)
- )
- UPDATE emp
- SET emp.ActualStartTime=l.ActualStartTime,
-     emp.ActualEndTime=l.ActualEndTime,
-     emp.ActualHours=CAST((ISNULL(l.ActualOTDayMinutes,0)+ISNULL(l.ActualOTNightMinutes,0))/60.0 AS decimal(5,2)),
-     emp.ValidationStatus=CASE WHEN l.ActualStartTime IS NOT NULL AND l.ActualEndTime IS NOT NULL THEN 1 ELSE 0 END,
-     emp.ValidationMessage=CASE WHEN l.ActualStartTime IS NOT NULL AND l.ActualEndTime IS NOT NULL THEN NULL ELSE N'Chưa đủ dữ liệu CheckIn/CheckOut từ HRM-compatible calculation.' END,
-     emp.ModifiedAt=GETDATE(),emp.ModifiedBy=0
- FROM dbo.F03OTEmployees emp
- INNER JOIN dbo.F03OTRequests ot ON ot.Id=emp.OTRequestId AND ot.IsActive=1 AND CAST(ot.OTDate AS date)=@OTDate AND ot.RequestStatus=3
- INNER JOIN HRM.dbo.tblNhanVien nv ON RTRIM(nv.NVMaNV)=emp.EmployeeCode
- INNER JOIN Latest l ON l.HrmEmployeeId=nv.NVMa AND l.rn=1
- WHERE emp.IsActive=1 AND (@DeptCode IS NULL OR ot.DeptCode=@DeptCode);
-
- SELECT
-  l.WorkDate,COALESCE(e.EmployeeName,nv.NVHoTen,N'') AS FullName,l.EmployeeCode,l.DeptCode,
-  CAST(ISNULL(l.ActualOTDayMinutes+l.ActualOTNightMinutes,0)/60.0 AS decimal(5,2)) AS OTHoursActual,
-  CAST(ISNULL(ot.PlannedHours,0) AS decimal(5,2)) AS OTHoursPlanned,
-  CAST(ISNULL(ot.PlannedHours,0) AS decimal(5,2)) AS OTHoursRequest,
-  CAST(CASE WHEN ot.Id IS NULL THEN N'CHUA_CO_DON'
-            WHEN ot.RequestStatus<>3 THEN N'DON_CHUA_DUYET'
-            WHEN l.ActualStartTime IS NULL OR l.ActualEndTime IS NULL THEN N'CHUA_DU_QUET'
-            WHEN ABS((ISNULL(l.ActualOTDayMinutes+l.ActualOTNightMinutes,0)/60.0)-ISNULL(ot.PlannedHours,0)) < 0.01 THEN N'MATCHED'
-            WHEN (ISNULL(l.ActualOTDayMinutes+l.ActualOTNightMinutes,0)/60.0) < ISNULL(ot.PlannedHours,0) THEN N'ACTUAL_LESS_THAN_REGISTERED'
-            ELSE N'ACTUAL_MORE_THAN_REGISTERED' END AS nvarchar(40)) AS TinhHuong
- FROM (
-  SELECT h.*,ROW_NUMBER() OVER(PARTITION BY h.HrmEmployeeId,h.WorkDate ORDER BY h.CalculatedAt DESC,h.Id DESC) rn
-  FROM dbo.F03HrmOTActual h WHERE h.WorkDate=@OTDate AND (@DeptCode IS NULL OR h.DeptCode=@DeptCode)
- ) l
- LEFT JOIN HRM.dbo.tblNhanVien nv ON nv.NVMa=l.HrmEmployeeId
- LEFT JOIN dbo.F03Employees e ON e.EmployeeCode=l.EmployeeCode
- OUTER APPLY (
-  SELECT TOP(1) r.Id,r.PlannedHours,r.RequestStatus,r.DeptCode
-  FROM dbo.F03OTRequests r
-  INNER JOIN dbo.F03OTEmployees oe ON oe.OTRequestId=r.Id AND oe.EmployeeCode=l.EmployeeCode AND oe.IsActive=1
-  WHERE r.IsActive=1 AND CAST(r.OTDate AS date)=@OTDate AND (@DeptCode IS NULL OR r.DeptCode=@DeptCode)
-  ORDER BY CASE WHEN r.RequestStatus=3 THEN 0 ELSE 1 END,r.CreatedAt DESC,r.Id DESC
- ) ot
- WHERE l.rn=1
- ORDER BY l.DeptCode,l.EmployeeCode;
-END;
-GO
 CREATE OR ALTER VIEW dbo.VF03HrmAttendanceDaily AS
 SELECT a.* FROM dbo.F03HrmAttendanceCalculated a
 INNER JOIN (
