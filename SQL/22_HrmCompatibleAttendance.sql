@@ -793,8 +793,10 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 					SELECT CMa,CVietTat,CTGBatDau,CTGKetThuc,CQuetTruocCa,CQuetSauCa
 					FROM HRM.dbo.tblCa
 					WHERE ISNULL(CMa,0)<>0
-					  AND CHARINDEX(N','+CONVERT(nvarchar(20),CVietTat)+N',',
-					                N','+@HrmDaySchedule+N')>0;
+					  AND CHARINDEX(
+							CONCAT(N',', ISNULL(CONVERT(nvarchar(20),CVietTat), N''), N','),
+							CONCAT(N',', ISNULL(@HrmDaySchedule, N''), N',')
+						  ) > 0;
 
 					/*
 					  For TTDD this is the exact HRM rule:
