@@ -10,9 +10,10 @@ public sealed class ApprovalRouteService : IApprovalRouteService
 {
     private readonly IUnitOfWork _uow;
 
-    public ApprovalRouteService(IUnitOfWork uow) => _uow = uow;
+    public ApprovalRouteService(IUnitOfWork uow)
+        => _uow = uow;
 
-    public async Task<ApprovalRoutePreviewDto> GetPreviewAsync(
+    public async Task<ServiceResult<ApprovalRoutePreviewDto>> GetPreviewAsync(
         RequestModule requestType,
         string employeeCode,
         string deptCode,
@@ -34,20 +35,27 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 .AsNoTracking()
                 .Where(x => x.IsActive == true &&
                             x.RequestType == requestType &&
-                            (x.RequesterPositionCode == null || x.RequesterPositionCode == "*"))
+                            (x.RequesterPositionCode == null ||
+                             x.RequesterPositionCode == "*"))
                 .OrderBy(x => x.Sequence)
                 .ThenBy(x => x.Level)
                 .ToListAsync(ct);
 
+        // Business error:
+        // Chưa cấu hình luồng phê duyệt.
         if (policies.Count == 0)
         {
             return ServiceResult<ApprovalRoutePreviewDto>.Fail(
-                $"Chưa cấu hình luồng phê duyệt cho {requestType} / chức vụ {positionCode}.");
+                $"Chưa cấu hình luồng phê duyệt cho " +
+                $"{requestType} / chức vụ {positionCode}.");
         }
 
         var levels = new List<ApprovalRouteLevelDto>();
 
-        foreach (var policy in policies.Where(x => x.Required).OrderBy(x => x.Sequence).ThenBy(x => x.Level))
+        foreach (var policy in policies
+            .Where(x => x.Required)
+            .OrderBy(x => x.Sequence)
+            .ThenBy(x => x.Level))
         {
             var query = _uow.Repository<F03Approver>().Query()
                 .AsNoTracking()
@@ -60,12 +68,18 @@ public sealed class ApprovalRouteService : IApprovalRouteService
 
             var candidates = await query
                 .Join(
-                    _uow.Repository<F03Employee>().Query().AsNoTracking().Where(e => e.IsActive == true),
+                    _uow.Repository<F03Employee>()
+                        .Query()
+                        .AsNoTracking()
+                        .Where(e => e.IsActive == true),
                     a => a.ApproverCode,
                     e => e.EmployeeCode,
                     (a, e) => new { a, e })
                 .Join(
-                    _uow.Repository<F03Position>().Query().AsNoTracking().Where(p => p.IsActive == true),
+                    _uow.Repository<F03Position>()
+                        .Query()
+                        .AsNoTracking()
+                        .Where(p => p.IsActive == true),
                     x => x.e.PositionCode,
                     p => p.PositionCode,
                     (x, p) => new { x.a, x.e, p })
@@ -82,19 +96,36 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 })
                 .ToListAsync(ct);
 
-            // Nếu cấp có cấu hình riêng cho bộ phận thì không lấy thêm ALL.
+            // Nếu cấp có cấu hình riêng cho bộ phận
+            // thì không lấy thêm ALL.
             var departmentCandidates = candidates
-                .Where(x => string.Equals(x.ApproveForDeptCode, deptCode, StringComparison.OrdinalIgnoreCase))
+                .Where(x =>
+                    string.Equals(
+                        x.ApproveForDeptCode,
+                        deptCode,
+                        StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             if (departmentCandidates.Count > 0)
                 candidates = departmentCandidates;
 
             candidates = candidates
-                .GroupBy(x => x.ApproverCode, StringComparer.OrdinalIgnoreCase)
+                .GroupBy(
+                    x => x.ApproverCode,
+                    StringComparer.OrdinalIgnoreCase)
                 .Select(x => x.First())
                 .OrderBy(x => x.ApproverName)
                 .ToList();
+
+            // Business error:
+            // Có policy nhưng chưa có người phê duyệt.
+            if (candidates.Count == 0)
+            {
+                return ServiceResult<ApprovalRoutePreviewDto>.Fail(
+                    $"Chưa cấu hình người phê duyệt cho cấp " +
+                    $"{policy.Level} ({policy.LevelName}) " +
+                    $"của {requestType} / bộ phận {deptCode}.");
+            }
 
             levels.Add(new ApprovalRouteLevelDto
             {
@@ -107,7 +138,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
             });
         }
 
-        return new ApprovalRoutePreviewDto
+        var preview = new ApprovalRoutePreviewDto
         {
             RequestType = requestType,
             EmployeeCode = employeeCode,
@@ -115,5 +146,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
             PositionCode = positionCode,
             Levels = levels
         };
+
+        return ServiceResult<ApprovalRoutePreviewDto>.Ok(preview);
     }
 }
