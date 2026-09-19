@@ -1,3 +1,4 @@
+using FVN_REGISTER.Contract.Requests.Approvals;
 ﻿
 using System.ComponentModel.DataAnnotations;
 
@@ -22,7 +23,9 @@ namespace FVN_REGISTER.Contract.Requests.Leaves
 
         // Sử dụng lại OTEmployeeDto hoặc LeaveRequestDetailDto (tùy vào dự án)
         // Quan trọng: Phải dùng DTO không chứa logic UI
-        public List<LeaveRequestDetailUpsertDto> Details { get; set; } = new();
+    
+        public List<undefined> undefined { get; set; } = new();
+    public List<LeaveRequestDetailUpsertDto> Details { get; set; } = new();
 
       
     }
