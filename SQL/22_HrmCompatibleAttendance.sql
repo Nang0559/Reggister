@@ -3751,7 +3751,7 @@ BEGIN
  UPDATE emp
  SET emp.ActualStartTime = a.ActualStartTime,
      emp.ActualEndTime = a.ActualEndTime,
-     emp.ActualHours = CAST(ISNULL(a.RecognizedOTMinutes,0) / 60.0 AS decimal(5,2)),
+     emp.ActualHours = CAST((ISNULL(a.ActualOTDayMinutes,0) + ISNULL(a.ActualOTNightMinutes,0)) / 60.0 AS decimal(5,2)),
      emp.ValidationStatus = CASE WHEN a.ActualStartTime IS NOT NULL AND a.ActualEndTime IS NOT NULL THEN 1 ELSE 0 END,
      emp.ValidationMessage = CASE WHEN a.ActualStartTime IS NOT NULL AND a.ActualEndTime IS NOT NULL THEN NULL ELSE N'Chưa đủ dữ liệu CheckIn/CheckOut từ HRM-compatible calculation.' END,
      emp.ModifiedAt=GETDATE(),
