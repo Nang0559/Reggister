@@ -161,7 +161,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                     employeeCode: user.EmployeeCode ?? "",
                     deptCode: emp.DeptCode ?? "",
                     positionCode: emp.PositionCode ?? "",
-                    year: model.WorkYear,
+                    year: workYear,
                     leaveTypeCode: model.LeaveTypeCode);
 
                 var hierarchy = await _approvalProvider.BuildHierarchyAsync(ctx, ct);
