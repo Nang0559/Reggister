@@ -3717,13 +3717,16 @@ BEGIN
        WHEN a.CheckInTime IS NULL OR a.CheckOutTime IS NULL THEN N'?'
        WHEN ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0)<=0 THEN N''
        WHEN ISNULL(a.RequiredMinutes,0)>0 AND ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0)=a.RequiredMinutes THEN NULLIF(LTRIM(RTRIM(a.ShiftAbbr)),N'')
-       ELSE CONVERT(nvarchar(50),CONVERT(decimal(9,2),(ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0))/60.0)) END,
+       ELSE CONVERT(nvarchar(50),CONVERT(float,(ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0))/60.0)) END,
        OtDisplayValue=CASE
        WHEN ISNULL(a.HrmBCDaXacNhanLamThem,0)=0 THEN N''
        WHEN ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)<=0 THEN N''
-       WHEN ISNULL(a.HrmBCNgayLe,0)<>0 OR ISNULL(a.HrmBCNgayLeNV,0)<>0 THEN N'NL'+COALESCE(NULLIF(LTRIM(RTRIM(a.ShiftAbbr)),N''),N'')+CONVERT(nvarchar(20),CONVERT(decimal(9,2),(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0))
-       WHEN ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)>=480 THEN N'CN'+CONVERT(nvarchar(20),CONVERT(decimal(9,2),(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0))
-       ELSE CONVERT(nvarchar(20),CONVERT(decimal(9,2),(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0)) END
+       WHEN ISNULL(a.HrmBCNgayLe,0)<>0 OR ISNULL(a.HrmBCNgayLeNV,0)<>0 THEN
+            CASE WHEN ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)>=480
+                 THEN N'NL'+COALESCE(NULLIF(LTRIM(RTRIM(a.ShiftAbbr)),N''),N'')+CONVERT(nvarchar(20),CONVERT(float,(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0))
+                 ELSE N'NL'+LEFT(COALESCE(NULLIF(LTRIM(RTRIM(a.ShiftAbbr)),N''),N'C'),1)+CONVERT(nvarchar(20),ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)) END
+       WHEN ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)>=480 THEN N'CN'+CONVERT(nvarchar(20),CONVERT(float,(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0))
+       ELSE CONVERT(nvarchar(20),CONVERT(float,(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0)) END
    FROM dbo.F03HrmAttendanceCalculated a WHERE a.CalculationBatchId=@BatchId AND a.WorkDate=@D AND a.HrmEmployeeId=@StaffID;
    FETCH NEXT FROM staff_cur INTO @StaffID;
   END
