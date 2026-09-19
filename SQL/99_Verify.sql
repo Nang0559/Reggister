@@ -9,15 +9,19 @@ SELECT name,type_desc FROM sys.procedures WHERE name IN(N'usp_GetPendingApproval
 SELECT fk.name,OBJECT_NAME(fk.parent_object_id) AS ParentTable,OBJECT_NAME(fk.referenced_object_id) AS ReferencedTable FROM sys.foreign_keys fk ORDER BY ParentTable,fk.name;
 GO
 
-/* Architecture/PK verification: security entities use legacy DB PK names mapped to C# BaseAuditEntity.Id. */
+/* Architecture/PK verification: BaseAuditEntity-backed security entities use canonical Id. */
 SELECT t.name AS TableName,c.name AS ColumnName,ty.name AS DataType,c.is_identity,c.is_nullable
 FROM sys.tables t JOIN sys.columns c ON c.object_id=t.object_id JOIN sys.types ty ON ty.user_type_id=c.user_type_id
 WHERE t.name IN(N'F03Users',N'F03Permissions',N'F03Functions') AND c.name IN(N'Id',N'IdUser',N'IdPermission',N'IdFunction')
 ORDER BY t.name,c.column_id;
 
-/* Duplicate canonical Id columns must not remain in the three legacy security tables. */
-IF COL_LENGTH('dbo.F03Users','Id') IS NOT NULL OR COL_LENGTH('dbo.F03Permissions','Id') IS NOT NULL OR COL_LENGTH('dbo.F03Functions','Id') IS NOT NULL
-    THROW 50010,'Duplicate canonical Id column remains in a security table.',1;
+/* Canonical Id must exist; legacy per-entity PK names must not remain. */
+IF COL_LENGTH('dbo.F03Users','Id') IS NULL OR COL_LENGTH('dbo.F03Permissions','Id') IS NULL OR COL_LENGTH('dbo.F03Functions','Id') IS NULL
+    THROW 50010,'BaseAuditEntity.Id is missing from a canonical security table.',1;
+IF COL_LENGTH('dbo.F03Users','IdUser') IS NOT NULL OR COL_LENGTH('dbo.F03Permissions','IdPermission') IS NOT NULL OR COL_LENGTH('dbo.F03Functions','IdFunction') IS NOT NULL
+    THROW 50011,'Legacy per-entity security PK column remains.',1;
+IF COL_LENGTH('dbo.F03Roles','Id') IS NULL OR COL_LENGTH('dbo.F03RoleFunctions','Id') IS NULL OR COL_LENGTH('dbo.F03UserRoles','Id') IS NULL
+    THROW 50012,'RBAC BaseAuditEntity.Id is missing.',1;
 GO
 
 /* OT/HRM canonical verification. */
