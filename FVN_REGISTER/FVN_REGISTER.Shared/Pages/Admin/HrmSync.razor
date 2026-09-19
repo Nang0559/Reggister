@@ -38,7 +38,7 @@
     <MudButton Variant="Variant.Filled" Color="Color.Secondary"
                StartIcon="@Icons.Material.Filled.Security"
                OnClick="ReconcileSecurityAsync" Disabled="@(_loading || _status?.IsRunning == true)">
-        Đồng bộ User + Approver
+        Đồng bộ HRM + User + Approver
     </MudButton>
 </MudStack>
 
@@ -226,19 +226,58 @@ else
         _loading = true;
         try
         {
-            var result = await SyncService.ReconcileSecurityAsync();
-            if (!result.IsSuccess || result.Data == null)
+            // Nút này là pipeline đầy đủ:
+            // 1. Import HRM -> staging
+            // 2. Đồng bộ Department/Position/Employee vào F03*
+            // 3. Provision F03Users/F03Approvers từ dữ liệu F03* vừa có
+            var sync = await SyncService.RunAllAsync();
+            if (!sync.IsSuccess || sync.Data == null)
             {
-                Snackbar.Add(result.Message ?? "Không thể provision User + Approver từ HRM.", Severity.Error);
+                Snackbar.Add(sync.Message ?? "Không thể lấy dữ liệu HRM.", Severity.Error);
                 return;
             }
 
-            _status = new HrmSyncRuntimeStatusDto { IsRunning = false, LastRun = result.Data };
+            if (!sync.Data.Success)
+            {
+                _status = new HrmSyncRuntimeStatusDto
+                {
+                    IsRunning = false,
+                    LastRun = sync.Data
+                };
+
+                var firstError = sync.Data.Jobs
+                    .SelectMany(x => x.Errors)
+                    .FirstOrDefault();
+
+                Snackbar.Add(
+                    firstError ?? sync.Data.Summary ?? "Đồng bộ HRM có lỗi; chưa provision User + Approver.",
+                    Severity.Error);
+                return;
+            }
+
+            // RunAll đã cập nhật dữ liệu HRM. Reconcile lần nữa để tự-heal
+            // toàn bộ User/Approver còn thiếu, kể cả các bản ghi không có
+            // staging change trong lần chạy hiện tại.
+            var security = await SyncService.ReconcileSecurityAsync();
+            if (!security.IsSuccess || security.Data == null)
+            {
+                Snackbar.Add(
+                    security.Message ?? "Đã lấy dữ liệu HRM nhưng không thể provision User + Approver.",
+                    Severity.Error);
+                return;
+            }
+
+            _status = new HrmSyncRuntimeStatusDto
+            {
+                IsRunning = false,
+                LastRun = security.Data
+            };
+
             Snackbar.Add(
-                result.Data.Success
-                    ? result.Data.Summary
-                    : result.Data.Summary ?? "Provision User + Approver có lỗi.",
-                result.Data.Success ? Severity.Success : Severity.Error);
+                security.Data.Success
+                    ? security.Data.Summary
+                    : security.Data.Summary ?? "Provision User + Approver có lỗi.",
+                security.Data.Success ? Severity.Success : Severity.Error);
 
             await RefreshConflictCountAsync();
         }
