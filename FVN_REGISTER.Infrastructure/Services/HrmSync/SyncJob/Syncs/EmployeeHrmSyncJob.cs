@@ -5,6 +5,7 @@ using FVN_REGISTER.Core.Entities.Common;
 using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Entities.HRM;
 using FVN_REGISTER.Core.Entities.Security;
+using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob;
 using FVN_REGISTER.Infrastructure.Utils;

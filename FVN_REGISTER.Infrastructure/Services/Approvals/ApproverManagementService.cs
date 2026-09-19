@@ -6,6 +6,7 @@ using FVN_REGISTER.Contract.Dtos.Depts;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Extensions;
+using FVN_REGISTER.Core.Entities.HRM;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
