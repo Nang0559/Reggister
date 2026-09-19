@@ -209,3 +209,10 @@ Không resolve `UserId` ở Shared/UI. Backend chịu trách nhiệm `EmployeeCo
 - [x] Worker interval is 15 minutes, reducing post-threshold delay compared with a 4-hour polling cycle.
 - [x] Current-step history prevents duplicate escalation on later worker ticks.
 - [ ] Full solution build and runtime/integration test must still be executed in the project environment.
+
+
+## Approval Route v2 — nhiều approver trong cùng một cấp
+
+Thiết kế hiện tại được mở rộng: hệ thống vẫn tự xác định **các cấp phê duyệt** theo chức vụ người đăng ký, nhưng mỗi cấp có thể có nhiều approver hợp lệ. Người đăng ký chỉ chọn **một approver trong danh sách của từng cấp**; không được thay đổi cấp.
+
+Chi tiết: [20_APPROVAL_ROUTE_SELECTION.md](./20_APPROVAL_ROUTE_SELECTION.md).
