@@ -9,10 +9,10 @@ GO
 WORK CALENDAR + ANNUAL LEAVE ENTITLEMENT
 ===============================================================================
 Canonical master data:
-  dbo.F03WorkYear
+  dbo.F03WorkYears
       - defines the active work year and its date range.
 
-  dbo.F03CompanyHoliday
+  dbo.F03CompanyHolidays
       - defines company non-working dates.
       - TinhPhep controls whether the holiday is counted in leave entitlement
         calculations; it does not turn a holiday into a working day.
@@ -31,8 +31,8 @@ Annual leave rule:
   - F03LeaveBalances stores the calculated annual entitlement snapshot.
 
 Legacy compatibility:
-  - F03WorkYears -> F03WorkYear
-  - F03CompanyHolidays -> F03CompanyHoliday
+  - F03WorkYear -> F03WorkYears
+  - F03CompanyHoliday -> F03CompanyHolidays
   - IsPaidLeave -> TinhPhep
 ===============================================================================
 */
@@ -62,7 +62,7 @@ GO
 IF OBJECT_ID(N'dbo.F03WorkYear',N'U') IS NOT NULL
    AND NOT EXISTS (
        SELECT 1 FROM sys.indexes
-       WHERE name=N'UX_F03WorkYear_WorkYear'
+       WHERE name=N'UX_F03WorkYears_WorkYear'
          AND object_id=OBJECT_ID(N'dbo.F03WorkYear'))
 BEGIN
     CREATE UNIQUE INDEX UX_F03WorkYear_WorkYear
@@ -73,7 +73,7 @@ GO
 IF OBJECT_ID(N'dbo.F03CompanyHoliday',N'U') IS NOT NULL
    AND NOT EXISTS (
        SELECT 1 FROM sys.indexes
-       WHERE name=N'UX_F03CompanyHoliday_Date'
+       WHERE name=N'UX_F03CompanyHolidays_Date'
          AND object_id=OBJECT_ID(N'dbo.F03CompanyHoliday'))
 BEGIN
     CREATE UNIQUE INDEX UX_F03CompanyHoliday_Date
@@ -84,7 +84,7 @@ GO
 IF OBJECT_ID(N'dbo.F03CompanyHoliday',N'U') IS NOT NULL
    AND NOT EXISTS (
        SELECT 1 FROM sys.indexes
-       WHERE name=N'IX_F03CompanyHoliday_YearDate'
+       WHERE name=N'IX_F03CompanyHolidays_YearDate'
          AND object_id=OBJECT_ID(N'dbo.F03CompanyHoliday'))
 BEGIN
     CREATE INDEX IX_F03CompanyHoliday_YearDate
