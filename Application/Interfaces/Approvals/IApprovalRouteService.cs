@@ -9,7 +9,5 @@ public interface IApprovalRouteService
     Task<ServiceResult<ApprovalRoutePreviewDto>> GetPreviewAsync(
         RequestModule requestType,
         string employeeCode,
-        string deptCode,
-        string positionCode,
         CancellationToken ct = default);
 }
