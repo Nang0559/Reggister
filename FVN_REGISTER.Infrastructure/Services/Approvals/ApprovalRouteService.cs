@@ -1,5 +1,4 @@
 using FVN_REGISTER.Application.Interfaces.Approvals;
-using FVN_REGISTER.Application.Rules;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.Approvers;
@@ -62,27 +61,26 @@ public sealed class ApprovalRouteService : IApprovalRouteService
 
             var candidates = await query
                 .Join(
-                    _uow.Repository<F03Employee>().Query().AsNoTracking(),
+                    _uow.Repository<F03Employee>().Query().AsNoTracking().Where(e => e.IsActive == true),
                     a => a.ApproverCode,
                     e => e.EmployeeCode,
                     (a, e) => new { a, e })
-                .GroupJoin(
-                    _uow.Repository<F03Position>().Query().AsNoTracking(),
+                .Join(
+                    _uow.Repository<F03Position>().Query().AsNoTracking().Where(p => p.IsActive == true),
                     x => x.e.PositionCode,
                     p => p.PositionCode,
-                    (x, positions) => new { x.a, x.e, positions })
-                .SelectMany(
-                    x => x.positions.DefaultIfEmpty(),
-                    (x, p) => new ApprovalCandidateDto
-                    {
-                        ApproverCode = x.a.ApproverCode,
-                        ApproverName = x.a.ApproverName,
-                        PositionCode = x.e.PositionCode,
-                        PositionName = p == null ? null : p.PositionName,
-                        ApproverEmail = x.a.ApproverEmail,
-                        ApproverDeptCode = x.a.ApproverDeptCode,
-                        ApproveForDeptCode = x.a.ApproveForDeptCode
-                    })
+                    (x, p) => new { x.a, x.e, p })
+                .Where(x => x.p.IsApprove || x.p.IsAllowApprove)
+                .Select(x => new ApprovalCandidateDto
+                {
+                    ApproverCode = x.a.ApproverCode,
+                    ApproverName = x.a.ApproverName,
+                    PositionCode = x.e.PositionCode,
+                    PositionName = x.p.PositionName,
+                    ApproverEmail = x.a.ApproverEmail,
+                    ApproverDeptCode = x.a.ApproverDeptCode,
+                    ApproveForDeptCode = x.a.ApproveForDeptCode
+                })
                 .ToListAsync(ct);
 
             // Nếu cấp có cấu hình riêng cho bộ phận thì không lấy thêm ALL.
