@@ -10,9 +10,6 @@ public sealed class F03UserConfiguration : IEntityTypeConfiguration<F03User>
         entity.ToTable("F03Users");
         entity.HasKey(e => e.Id);
 
-        // Giữ nguyên tên PK của database legacy.
-        entity.Property(e => e.Id).HasColumnName("IdUser");
-
         entity.HasIndex(e => e.EmployeeCode, "IX_User_EmployeeCode").IsUnique();
 
         entity.Property(e => e.EmployeeCode).IsRequired().HasMaxLength(50);
