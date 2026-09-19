@@ -781,7 +781,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 					CREATE TABLE #HrmShiftCandidates
 					(
 						CMa int NOT NULL,
-						CVietTat nvarchar(10) NOT NULL,
+						CVietTat nvarchar(10) NULL,
 						CTGBatDau datetime NOT NULL,
 						CTGKetThuc datetime NOT NULL,
 						CQuetTruocCa int NULL,
