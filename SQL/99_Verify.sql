@@ -89,6 +89,19 @@ IF COL_LENGTH(N'dbo.F03Departments',N'DisplayPriority') IS NULL
 IF COL_LENGTH(N'dbo.F03Departments',N'ShowInReport') IS NULL
     THROW 50112,'F03Departments.ShowInReport is required.',1;
 
+/* Employee email source contract: FVN_REGISTER consumes HRM personal email. */
+IF COL_LENGTH(N'HRM.dbo.tblNhanVien',N'NVEmailCaNhan') IS NULL
+    THROW 50113, 'HRM.dbo.tblNhanVien.NVEmailCaNhan is required for employee synchronization.', 1;
+
+SELECT TOP (10)
+    EmployeeCode = LTRIM(RTRIM(NV.NVMaNV)),
+    Email = NULLIF(LTRIM(RTRIM(NV.NVEmailCaNhan)), N'')
+FROM HRM.dbo.tblNhanVien AS NV
+WHERE ISNULL(NV.DLocked, 0) = 0
+  AND NULLIF(LTRIM(RTRIM(NV.NVMaNV)), N'') IS NOT NULL
+ORDER BY NV.NVMaNV;
+GO
+
 /* Pipeline A — HRM master source contracts. */
 IF OBJECT_ID(N'dbo.usp_SyncHrmLeaveTypeSource',N'P') IS NULL THROW 50100,'Missing usp_SyncHrmLeaveTypeSource',1;
 IF OBJECT_ID(N'dbo.usp_SyncHrmDepartmentSource',N'P') IS NULL THROW 50101,'Missing usp_SyncHrmDepartmentSource',1;
