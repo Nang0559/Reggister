@@ -56,7 +56,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
                 on rf.IdFunction equals f.Id
             where ur.IdUser == userId
-                && r.IsActive
+                && r.IsActive == true
                 && (f.IsActive ?? true)
                 && f.FunctionCode == functionCode
             select f.ScopeCode
@@ -68,7 +68,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         scopes.AddRange(await (
             from uf in _uow.Repository<F03UserFunction>().Query().AsNoTracking()
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on uf.Id equals f.Id
+                on uf.IdFunction equals f.Id
             where uf.IdUser == userId
                 && (f.IsActive ?? true)
                 && f.FunctionCode == functionCode
@@ -131,7 +131,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
                 on ur.IdRole equals r.Id
-            where ur.IdUser == userId && r.IsActive
+            where ur.IdUser == userId && r.IsActive == true
             select r.RoleCode
         ).Distinct().ToListAsync(ct);
 
@@ -161,7 +161,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         var legacyFunctions = await (
             from uf in _uow.Repository<F03UserFunction>().Query().AsNoTracking()
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on uf.Id equals f.Id
+                on uf.IdFunction equals f.Id
             where uf.IdUser == userId && (f.IsActive ?? true)
             select f
         ).ToListAsync(ct);
