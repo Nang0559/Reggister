@@ -5,11 +5,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace FVN_REGISTER.Core.Entities.Leaves;
 
 [Table("F03LeaveDayDetails")]
-public partial class F03LeaveDayDetail
+public partial class F03LeaveDayDetail : BaseAuditEntity
 {
-    [Key]
-    public int Id { get; set; }
-
     [ForeignKey(nameof(LeaveDay))]
     public int LeaveDaysId { get; set; }
 
@@ -31,10 +28,6 @@ public partial class F03LeaveDayDetail
 
     [Column(TypeName = "decimal(5,2)")]
     public decimal DayValue { get; set; }
-
-    // Audit info (nếu bạn muốn track mỗi dòng chi tiết)
-    public DateTime? CreatedAt { get; set; }
-    public int? CreatedBy { get; set; }
 
     // Navigation Property (Navigation tới F03LeaveDay đã chuẩn hóa tên)
     public virtual F03LeaveDay LeaveDay { get; set; } = null!;
