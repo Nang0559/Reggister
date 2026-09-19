@@ -27,5 +27,4 @@ public partial class F03UserLog : BaseAuditEntity
     [Required, StringLength(100)]
     public string WorkstationUser { get; set; } = string.Empty;
 
-    public DateTime CreatedAt { get; set; } = DateTime.Now;
 }
