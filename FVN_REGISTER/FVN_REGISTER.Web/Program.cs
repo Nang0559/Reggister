@@ -49,6 +49,7 @@ builder.Services.AddScoped<ISecurityClientService, SecurityClientService>();
 builder.Services.AddScoped<IApprovalListClientService, ApprovalListClientService>();
 builder.Services.AddScoped<IApproverClientService, ApproverClientService>();
 builder.Services.AddScoped<IApprovalRouteClientService, ApprovalRouteClientService>();
+builder.Services.AddScoped<IApprovalPolicyClientService, ApprovalPolicyClientService>();
 builder.Services.AddScoped<IHistoryClientService, HistoryClientService>();
 builder.Services.AddScoped<IDepartmentStatusClientService, DepartmentStatusClientService>();
 builder.Services.AddScoped<IEmailTemplateClientService, EmailTemplateClientService>();
