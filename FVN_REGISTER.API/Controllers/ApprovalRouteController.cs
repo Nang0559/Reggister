@@ -32,8 +32,8 @@ public sealed class ApprovalRouteController : ControllerBase
 
     [HttpGet("preview")]
     public async Task<ActionResult<ServiceResult<ApprovalRoutePreviewDto>>> Preview(
-     [FromQuery] RequestModule requestType,
-     CancellationToken ct)
+        [FromQuery] RequestModule requestType,
+        CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
 
@@ -64,11 +64,11 @@ public sealed class ApprovalRouteController : ControllerBase
         if (!await _authorization.HasAsync(user, functionCode, ct))
             return Forbid();
 
+        // EmployeeCode is the only requester identity sent into route resolution.
+        // PositionCode/DeptCode are always loaded from F03Employee by the service.
         var result = await _routeService.GetPreviewAsync(
             requestType,
             user.EmployeeCode,
-            user.DeptCode ?? string.Empty,
-            user.PositionCode ?? string.Empty,
             ct);
 
         if (!result.IsSuccess)
