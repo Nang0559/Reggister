@@ -10,7 +10,7 @@ WHERE FunctionCode IN
 (2001,2006,2101,2107,2201,2206,2301,2307,2901,2902)
 ORDER BY FunctionCode;
 
-SELECT v.ObjectName, v.ObjectType
+SELECT v.ObjectName, x.ObjectType
 FROM (VALUES
 (N'VF03Report_LeaveRequests'),
 (N'VF03Report_OTRequests'),
