@@ -27,11 +27,13 @@
             @foreach (var dept in _departments) { <MudSelectItem Value="@dept.DeptCode">@dept.DeptName</MudSelectItem> }
         </MudSelect></MudItem>
         <MudItem xs="12" sm="3"><MudSelect T="int?" Label="Cấp duyệt" @bind-Value="_filterLevel" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
-            @for (var level = 1; level <= 5; level++) { var l = level; <MudSelectItem T="int?" Value="@((int?)l)">Cấp @l</MudSelectItem> }
+            @for (var level = 1; level <= 7; level++) { var l = level; <MudSelectItem T="int?" Value="@((int?)l)">Cấp @l</MudSelectItem> }
         </MudSelect></MudItem>
         <MudItem xs="12" sm="3"><MudSelect T="RequestModule?" Label="Loại đơn" @bind-Value="_filterType" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Leave)">Nghỉ phép</MudSelectItem>
             <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Overtime)">OT</MudSelectItem>
+            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Trip)">Công tác</MudSelectItem>
+            <MudSelectItem T="RequestModule?" Value="@((RequestModule?)RequestModule.Equipment)">Thiết bị / Requirement</MudSelectItem>
         </MudSelect></MudItem>
         <MudItem xs="12" sm="2"><MudButton FullWidth="true" Variant="Variant.Outlined" OnClick="ResetFilter">Tất cả</MudButton></MudItem>
     </MudGrid>
