@@ -4,6 +4,7 @@ using FVN_REGISTER.Application.Interfaces.Trips;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Trips;
 using FVN_REGISTER.Contract.Requests.Trips;
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -59,7 +60,9 @@ public sealed class TripController : ControllerBase
     public async Task<ActionResult<TripRequestDto>> Submit(int id, [FromBody] List<ApprovalSelectionDto>? approvalSelections, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.TripEdit, ct)) return Forbid();
-        return Ok(await _service.SubmitAsync(id, approvalSelections, ct));
+        var result = await _service.SubmitAsync(id, approvalSelections, ct);
+        var response = ApiResponse<TripRequestDto>.FromResult(result);
+        return result.IsSuccess ? Ok(response) : BadRequest(response);
     }
 
     [HttpGet("{id:int}")]
