@@ -3841,13 +3841,6 @@ SET QUOTED_IDENTIFIER ON
 GO
 
 GO
-/****** Object:  StoredProcedure [dbo].[sphrmvn_TimeKeepingForStaff_K]    Script Date: 9/19/2026 11:05:53 AM ******/
-SET ANSI_NULLS ON
-GO
-SET QUOTED_IDENTIFIER ON
-GO
-
-GO
 /*
   Single entry point for HRM-compatible attendance calculation.
   It also synchronizes ActualHours for approved OT rows in the same calculation run.
