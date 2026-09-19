@@ -6,6 +6,9 @@
 @using FVN_REGISTER.Contract.Requests.OT
 @using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.OTs
+@using FVN_REGISTER.Shared.Services.Approvals
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Contract.Requests.Approvals
 @using FVN_REGISTER.Shared.Components.Calendar
 @using FVN_REGISTER.Contract.Dtos.Calendar
 @using FVN_REGISTER.Shared.Services.Users
@@ -15,6 +18,7 @@
 @implements IDisposable
 
 @inject IOTClientService OTService
+@inject IApprovalRouteClientService ApprovalRouteService
 @inject ICurrentUserClientService CurrentUser
 @inject ISnackbar Snackbar
 @inject NavigationManager Nav
@@ -80,7 +84,12 @@ else if (_form != null)
                 }
             </MudCard>
 
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Class="mt-4" StartIcon="@Icons.Material.Filled.Send" OnClick="Submit" Disabled="@(_submitting || !_approvalSteps.Any())">
+            @if (_approvalRoute != null)
+            {
+                <ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" />
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large" Class="mt-4" StartIcon="@Icons.Material.Filled.Send" OnClick="Submit" Disabled="@_submitting">
                 @(_submitting ? "Đang gửi..." : "GỬI ĐƠN OT")
             </MudButton>
         </MudItem>
@@ -117,7 +126,8 @@ else if (_form != null)
     private OTRequestUpsertDto? _form;
     private List<OTEmployeeDto> _employees = new();
     private List<OTTypeDto> _otTypes = new();
-    private List<ApprovalStepSnapshotDto> _approvalSteps = new();
+    private ApprovalRoutePreviewDto? _approvalRoute;
+    private ApprovalRouteSelector? _approvalSelector;
     private List<OTSummaryDto> _recent = new();
     private OTBalanceDto? _balance;
     private DateTime? _date = DateTime.Today;
@@ -142,7 +152,7 @@ else if (_form != null)
             _form = combined.Data.OTForm;
             _recent = combined.Data.RecentOTRequests;
             _balance = combined.Data.Balance;
-            _approvalSteps = combined.Data.ApprovalSteps;
+            await LoadApprovalRouteAsync();
 
             var types = await OTService.GetActiveOTTypesAsync(_cts.Token);
             if (types.IsSuccess && types.Data != null)
@@ -183,7 +193,7 @@ else if (_form != null)
                 OTHours = CalculateHours(_start, _end)
             });
         }
-        _approvalSteps.Clear();
+        // Approval route depends on the requester position, not on OT participants.
     }
 
     private void RemoveEmployee(OTEmployeeDto employee)
@@ -210,8 +220,14 @@ else if (_form != null)
             employee.OTHours = CalculateHours(_start, _end);
         }
         _form.Employees = _employees;
+        _form.ApprovalSelections = _approvalSelector?.GetSelections() ?? new();
+        if (_form.ApprovalSelections.Any(x => string.IsNullOrWhiteSpace(x.ApproverCode)))
+        {
+            Snackbar.Add("Vui lòng chọn người phê duyệt cho từng cấp.", Severity.Warning);
+            return;
+        }
 
-        // Controller hiện tại không có endpoint /preview. Validate từng nhân viên
+        // Kiểm tra giờ OT trước khi gửi. Validate từng nhân viên
         // qua POST /api/ot/validate trước khi gọi POST /api/ot/create.
         foreach (var employee in _employees)
         {
@@ -242,6 +258,13 @@ else if (_form != null)
             if (result.IsSuccess) Nav.NavigateTo("/history/ot");
         }
         finally { _submitting = false; }
+    }
+
+    private async Task LoadApprovalRouteAsync()
+    {
+        var result = await ApprovalRouteService.GetPreviewAsync(RequestModule.Overtime, _cts.Token);
+        if (result.IsSuccess) _approvalRoute = result.Data;
+        else Snackbar.Add(result.Message ?? "Không tải được luồng phê duyệt OT.", Severity.Warning);
     }
 
     private static decimal CalculateHours(TimeSpan? start, TimeSpan? end) =>
