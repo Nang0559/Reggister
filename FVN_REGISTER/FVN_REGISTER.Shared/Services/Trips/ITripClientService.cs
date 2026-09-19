@@ -11,6 +11,7 @@ public interface ITripClientService
 
     Task<ApiResponse<TripRequestDto>> SubmitAsync(
         int requestId,
+        List<FVN_REGISTER.Contract.Requests.Approvals.ApprovalSelectionDto>? approvalSelections = null,
         CancellationToken ct = default);
 
     Task<ApiResponse<TripRequestDto>> GetAsync(
