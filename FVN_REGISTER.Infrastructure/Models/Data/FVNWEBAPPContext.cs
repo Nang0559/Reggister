@@ -19,7 +19,7 @@ public class FVNWEBAPPContext : DbContext
     public FVNWEBAPPContext(DbContextOptions<FVNWEBAPPContext> options) : base(options) { }
     public DbSet<F03User> Users { get; set; } public DbSet<F03Function> Functions { get; set; } public DbSet<F03Permission> Permissions { get; set; } public DbSet<F03UserFunction> UserFunctions { get; set; } public DbSet<F03UserSession> UserSessions { get; set; } public DbSet<F03Role> Roles { get; set; } public DbSet<F03RoleFunction> RoleFunctions { get; set; } public DbSet<F03UserRole> UserRoles { get; set; }
     public DbSet<F03Employee> Employees { get; set; } public DbSet<F03Department> Departments { get; set; } public DbSet<F03Position> Positions { get; set; } public DbSet<F03Gender> Genders { get; set; }
-    public DbSet<F03Approver> Approvers { get; set; } public DbSet<F03ApprovalPolicy> ApprovalPolicies { get; set; } public DbSet<F03ApprovalSelection> ApprovalSelections { get; set; } public DbSet<F03ApprovalStep> ApprovalSteps { get; set; } public DbSet<F03ApprovalSnapshot> ApprovalSnapshots { get; set; } public DbSet<F03ApprovalHistory> ApprovalHistories { get; set; }
+    public DbSet<F03Approver> Approvers { get; set; } public DbSet<F03ApprovalPositionGroup> ApprovalPositionGroups { get; set; } public DbSet<F03ApprovalPolicy> ApprovalPolicies { get; set; } public DbSet<F03ApprovalSelection> ApprovalSelections { get; set; } public DbSet<F03ApprovalStep> ApprovalSteps { get; set; } public DbSet<F03ApprovalSnapshot> ApprovalSnapshots { get; set; } public DbSet<F03ApprovalHistory> ApprovalHistories { get; set; }
     public DbSet<F03LeaveBalance> LeaveBalances { get; set; } public DbSet<F03LeaveType> LeaveTypes { get; set; } public DbSet<F03LeaveDay> LeaveDays { get; set; } public DbSet<F03LeaveDayDetail> LeaveDayDetails { get; set; } public DbSet<F03AttendanceStaging> AttendanceStagings { get; set; }
     public DbSet<F03OTRequest> OvertimeRequests { get; set; } public DbSet<F03OTEmployee> OvertimeEmployees { get; set; } public DbSet<F03OTLimitRule> OvertimeLimitRules { get; set; } public DbSet<F03OTReasonCode> OvertimeReasonCodes { get; set; } public DbSet<F03OTType> OTTypes { get; set; }
     public DbSet<F03TripRequest> TripRequests { get; set; } public DbSet<F03StagingTrip> StagingTrips { get; set; }
@@ -35,10 +35,22 @@ public class FVNWEBAPPContext : DbContext
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
         modelBuilder.Entity<VwShiftCheckInOut>(entity => { entity.HasNoKey(); entity.ToView("VwShiftCheckInOut"); });
 
+        modelBuilder.Entity<F03ApprovalPositionGroup>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.PositionCode).IsUnique();
+            entity.Property(x => x.PositionCode).HasMaxLength(20).IsRequired();
+            entity.Property(x => x.ApprovalGroupCode).HasMaxLength(30).IsRequired();
+            entity.Property(x => x.ApprovalGroupName).HasMaxLength(100).IsRequired();
+            entity.Property(x => x.CreatedAt).HasDefaultValueSql("(getdate())");
+            entity.Property(x => x.IsActive).HasDefaultValue(true);
+        });
+
         modelBuilder.Entity<F03ApprovalPolicy>(entity =>
         {
             entity.HasKey(x => x.Id);
-            entity.HasIndex(x => new { x.RequestType, x.RequesterPositionCode, x.Level }).IsUnique();
+            entity.HasIndex(x => new { x.RequestType, x.ApprovalGroupCode, x.Level })
+                .IsUnique();
         });
 
         modelBuilder.Entity<F03ApprovalSelection>(entity =>

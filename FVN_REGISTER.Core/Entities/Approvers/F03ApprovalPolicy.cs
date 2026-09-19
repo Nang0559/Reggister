@@ -11,7 +11,15 @@ public sealed class F03ApprovalPolicy : BaseAuditEntity
     public RequestModule RequestType { get; set; }
 
     /// <summary>
-    /// Mã chức vụ của người đăng ký. Null hoặc "*" là policy mặc định.
+    /// Approval group resolved from the HRM PositionCode.
+    /// Null or "*" is the optional default policy.
+    /// </summary>
+    [StringLength(30)]
+    public string? ApprovalGroupCode { get; set; }
+
+    /// <summary>
+    /// Kept for backward compatibility during migration. Runtime routing must
+    /// resolve PositionCode -> ApprovalGroupCode before reading policies.
     /// </summary>
     [StringLength(20)]
     public string? RequesterPositionCode { get; set; }
