@@ -99,7 +99,10 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                     x => x.e.PositionCode,
                     p => p.PositionCode,
                     (x, p) => new { x.a, x.e, p })
-                .Where(x => x.p.IsApprove || x.p.IsAllowApprove)
+                // F03Approvers is the assignment source of truth.
+                // F03Positions remains the HRM master and must not exclude an
+                // explicitly assigned approver because IsApprove/IsAllowApprove
+                // are metadata flags, not the assignment itself.
                 .Select(x => new ApprovalCandidateDto
                 {
                     ApproverCode = x.a.ApproverCode,

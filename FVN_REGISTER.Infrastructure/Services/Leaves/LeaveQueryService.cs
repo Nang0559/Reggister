@@ -174,7 +174,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             var leaveRequests = await Uow.Repository<VF03LeaveRequest>().Query().AsNoTracking().Where(x => x.EmployeeCode == empCode && x.IsActive == true && x.WorkYear == year).OrderBy(x => x.StartDate).ToListAsync(ct);
             var leaveEvents = leaveRequests.Select(x => new LeaveCalendarEventDto { RequestId = x.Id, LeaveCode = x.LeaveCode ?? string.Empty, EmployeeCode = x.EmployeeCode, RegisterDate = x.RegisterDate, StartDate = x.StartDate, EndDate = x.EndDate, TotalDay = x.TotalDay, TotalLeaveDay = x.TotalLeaveDay ?? 0, LeaveTypeCode = x.LeaveTypeCode ?? string.Empty, LeaveTypeName = x.LeaveTypeName ?? string.Empty, Reason = x.LeaveReason ?? string.Empty, Status = x.RequestStatus.ToString() }).ToList();
             var ctx = ApprovalBuildContext.ForLeave(0, empCode, deptCode, positionCode, year, null);
-            var snapshotSteps = await _approvalProvider.BuildHierarchyAsync(ctx, ct);
+            // Calendar/master-data is read-only. Missing approval configuration
+            // must not make the calendar endpoint fail with HTTP 500.
+            // Submit/command flows remain strict and still validate the full route.
+            var snapshotSteps = await _approvalProvider.BuildHierarchyAsync(ctx, ct, strict: false);
             var defaultFlow = snapshotSteps.Select(s => new ApprovalStepDto { Level = s.Level, RoleName = s.RoleName, ApproverCode = s.ApproverCode, ApproverName = s.ApproverName, ApproverEmail = s.ApproverEmail, IsRequired = s.IsRequired }).ToList();
             return new SystemMasterDataDto { CompanyHolidays = calendarEvents, HolidaysNotCountLeave = holidaysNotCount, FiscalYears = workYears, LeaveTypes = leaveTypes, LeaveEvents = leaveEvents, DefaultApprovalFlow = defaultFlow };
         }
