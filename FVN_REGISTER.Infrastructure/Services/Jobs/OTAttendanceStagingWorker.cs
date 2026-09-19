@@ -1,4 +1,5 @@
 ﻿using FVN_REGISTER.Application.Interfaces.Jobs;
+using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Dtos.OtReasons;
@@ -12,9 +13,8 @@ using Microsoft.Extensions.Logging;
 namespace FVN_REGISTER.Infrastructure.Services.Jobs
 {
     /// <summary>
-    /// Chạy mỗi đêm: kéo dữ liệu chấm công HRM vào F03AttendanceStaging (Pipeline B, bước 1 — GHI).
-    /// KHÔNG gọi IOTAttendanceReconciliationService — Reconcile luôn là hành động admin
-    /// chủ động bấm trên OTAttendanceReconcilePage.razor, không bao giờ tự động chạy ngầm.
+    /// Chạy mỗi đêm HRM-compatible calculation để tạo F03HrmAttendanceCalculated/F03HrmOTActual.
+    /// Worker không ghi vào HRM và không chạy bước Reconcile/Approve OT.
     /// </summary>
     public class OTAttendanceStagingWorker : BackgroundService, IOTWorkerStatus
     {
@@ -105,17 +105,26 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
             {
                 await using var scope = _serviceProvider.CreateAsyncScope();
 
-                // CHỈ gọi Staging — tuyệt đối không gọi IOTAttendanceReconciliationService ở đây
-                var stagingService = scope.ServiceProvider.GetRequiredService<IOTAttendanceStagingService>();
+                var calculation = scope.ServiceProvider.GetRequiredService<IHrmAttendanceCalculationService>();
 
                 var yesterday = DateTime.Today.AddDays(-1);
-                var count = await stagingService.SyncAttendanceStagingAsync(yesterday, ct);
+                var result = await calculation.CalculateAsync(
+                    new FVN_REGISTER.Contract.Dtos.HrmSync.HrmAttendanceCalculationRequestDto
+                    {
+                        DeptCode = null,
+                        FromDate = yesterday,
+                        ToDate = yesterday
+                    },
+                    "OT-STAGING-WORKER",
+                    ct);
+
+                var count = result.IsSuccess && result.Data is not null ? result.Data.CalculatedRows : 0;
 
                 _lastFinished = DateTime.Now;
-                _lastResult = "OK";
-                _lastMessage = count > 0
-                    ? $"Đã đồng bộ {count} bản ghi chấm công ngày {yesterday:dd/MM/yyyy} vào staging. Admin cần vào trang Đối chiếu để chạy Reconcile."
-                    : $"Không có bản ghi chấm công nào ngày {yesterday:dd/MM/yyyy}.";
+                _lastResult = result.IsSuccess ? "OK" : "FAILED";
+                _lastMessage = result.IsSuccess
+                    ? $"Đã tính HRM-compatible {count} dòng chấm công ngày {yesterday:dd/MM/yyyy}. F03HrmOTActual đã được cập nhật cho đối chiếu OT."
+                    : (result.Message ?? "HRM-compatible calculation failed.");
                 _lastCount = count;
                 _state = WorkerRunState.Waiting;
 
