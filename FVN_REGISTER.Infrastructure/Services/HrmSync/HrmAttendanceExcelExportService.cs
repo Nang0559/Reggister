@@ -1,6 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.HrmSync;
-using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Repositories;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.Data.SqlClient;
 using NPOI.HSSF.UserModel;
 using NPOI.SS.UserModel;

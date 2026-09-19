@@ -53,7 +53,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Companies
                     HolidayDate = model.HolidayDate,
                     Description = model.Description,
                     Year = model.HolidayDate.Year,
-                    IsPaidLeave = model.IsPaidLeave,
+                    TinhPhep = model.IsPaidLeave,
                     CreatedBy = userId,
                     CreatedAt = DateTime.Now
                 };
@@ -81,7 +81,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Companies
                 entity.HolidayDate = model.HolidayDate;
                 entity.Description = model.Description;
                 entity.Year = model.HolidayDate.Year;
-                entity.IsPaidLeave = model.IsPaidLeave;
+                entity.TinhPhep = model.IsPaidLeave;
                 entity.ModifiedBy = userId;
                 entity.ModifiedAt = DateTime.Now;
 
@@ -131,7 +131,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Companies
                         HolidayDate = date,
                         Description = "Chủ nhật",
                         Year = year,
-                        IsPaidLeave = false,
+                        TinhPhep = false,
                         CreatedBy = userId,
                         CreatedAt = DateTime.Now
                     }, ct);
@@ -154,7 +154,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Companies
             HolidayDate = e.HolidayDate,
             Description = e.Description,
             Year = e.Year,
-            IsPaidLeave = e.IsPaidLeave
+            IsPaidLeave = e.TinhPhep
         };
 
         private static List<DateTime> GetSundays(int year)

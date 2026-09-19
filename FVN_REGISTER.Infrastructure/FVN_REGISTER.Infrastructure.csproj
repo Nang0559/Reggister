@@ -21,12 +21,12 @@
 
   <ItemGroup><FrameworkReference Include="Microsoft.AspNetCore.App" /></ItemGroup>
   <ItemGroup>
-    <ProjectReference Include="..ApplicationFVN_REGISTER.Application.csproj" />
-    <ProjectReference Include="..FVN_REGISTER.CoreFVN_REGISTER.Core.csproj" />
-    <ProjectReference Include="..FVN_REGISTER.ModelsFVN_REGISTER.Contract.csproj" />
-  </ItemGroup>
-  <ItemGroup>
     <None Include="..SQLHRMGA.xls" Link="TemplatesHRMGA.xls" CopyToOutputDirectory="PreserveNewest" />
     <None Include="..SQLHRMOT - GA.xls" Link="TemplatesHRMOT - GA.xls" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Application\FVN_REGISTER.Application.csproj" />
+    <ProjectReference Include="..\FVN_REGISTER.Core\FVN_REGISTER.Core.csproj" />
+    <ProjectReference Include="..\FVN_REGISTER.Models\FVN_REGISTER.Contract.csproj" />
   </ItemGroup>
 </Project>

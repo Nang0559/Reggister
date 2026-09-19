@@ -167,7 +167,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
         public async Task<SystemMasterDataDto> GetCombinedDataAsync(string empCode, string deptCode, string positionCode, int year, CancellationToken ct = default)
         {
             var holidays = await Uow.Repository<F03CompanyHoliday>().Query().AsNoTracking().Where(h => h.Year == year).ToListAsync(ct);
-            var holidaysNotCount = holidays.Where(h => !h.IsPaidLeave).Select(h => h.HolidayDate.ToString("yyyy-MM-dd")).ToList();
+            var holidaysNotCount = holidays.Where(h => !h.TinhPhep).Select(h => h.HolidayDate.ToString("yyyy-MM-dd")).ToList();
             var calendarEvents = holidays.Select(h => new CalendarEventDto { Title = h.Description, Start = h.HolidayDate, End = h.HolidayDate, Module = RequestModule.Leave, Status = ApprovalStatus.Approved }).ToList();
             var workYears = await Uow.Repository<F03WorkYear>().Query().AsNoTracking().OrderByDescending(x => x.WorkYear).Select(x => new WorkYearDto { Id = x.Id, Year = x.WorkYear, YearName = $"Năm {x.WorkYear}", StartDate = x.StartDate, EndDate = x.EndDate, IsActive = x.IsActive == true }).ToListAsync(ct);
             var leaveTypes = await Uow.Repository<F03LeaveType>().Query().AsNoTracking().Where(x => x.IsActive == true).OrderBy(x => x.LeaveTypeCode).Select(x => new FVN_REGISTER.Contract.Dtos.LeaveTypes.LeaveTypeDto { Id = x.Id, LeaveTypeCode = x.LeaveTypeCode, LeaveTypeName = x.LeaveTypeName, LeaveTypeName2 = x.LeaveTypeName2, IsCountedAsLeave = x.IsCountedAsLeave, HRMCode = x.HRMCode, IsActive = x.IsActive == true }).ToListAsync(ct);
