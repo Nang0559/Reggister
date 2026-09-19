@@ -262,15 +262,15 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             {
                 try
                 {
-                    await Uow.SqlQueryRawAsync<ApproverProvisionRow>(
+                    await Uow.ExecuteSqlRawAsync(
                         """
                         EXEC dbo.usp_ReconcileEmployeeApprovers
-                            @EmployeeCode=@EmployeeCode,
-                            @CreatedBy=@CreatedBy;
+                            @EmployeeCode={0},
+                            @CreatedBy={1};
                         """,
                         ct,
-                        new SqlParameter("@EmployeeCode", employeeCode),
-                        new SqlParameter("@CreatedBy", 0));
+                        employeeCode,
+                        0);
                 }
                 catch (Exception ex)
                 {
@@ -455,10 +455,5 @@ ORDER BY
             public int PermissionCode { get; set; }
         }
 
-        private sealed class ApproverProvisionRow
-        {
-            public string? AffectedEmployee { get; set; }
-            public int ActiveApprovers { get; set; }
-        }
     }
 }
