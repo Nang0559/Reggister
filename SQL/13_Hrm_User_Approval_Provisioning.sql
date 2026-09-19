@@ -238,6 +238,7 @@ BEGIN
     THEN
         UPDATE SET
             target.IsActive=1,
+            target.UserId=(SELECT TOP(1) u.Id FROM dbo.F03Users u WHERE u.EmployeeCode=src.EmployeeCode),
             target.PositionCode=src.PositionCode,
             target.ApproverName=src.EmployeeName,
             target.ApproverEmail=ISNULL(src.EmailAddress,N''),
