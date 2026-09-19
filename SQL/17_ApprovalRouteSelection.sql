@@ -227,6 +227,25 @@ INNER JOIN DuplicatePolicies d
 WHERE d.rn > 1;
 GO
 
+ALTER TABLE dbo.F03ApprovalPolicies
+    ALTER COLUMN PositionCode nvarchar(20) NOT NULL;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.foreign_keys
+    WHERE name = N'FK_F03ApprovalPolicies_F03Positions'
+      AND parent_object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
+)
+BEGIN
+    ALTER TABLE dbo.F03ApprovalPolicies
+        ADD CONSTRAINT FK_F03ApprovalPolicies_F03Positions
+        FOREIGN KEY (PositionCode)
+        REFERENCES dbo.F03Positions(PositionCode);
+END;
+GO
+
 IF NOT EXISTS
 (
     SELECT 1
