@@ -22,7 +22,6 @@ using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Dashboards;
 using FVN_REGISTER.Application.Interfaces.UserManagers;
 using FVN_REGISTER.Application.Interfaces.Users;
-using FVN_REGISTER.Application.Interfaces.Jobs;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Application.Orchestrators;
 using FVN_REGISTER.Contract.Dtos.Leaves;

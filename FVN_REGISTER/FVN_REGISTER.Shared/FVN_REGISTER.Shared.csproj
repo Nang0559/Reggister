@@ -7,8 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Utils\Extentions\OTHoursCheckStatusExtensions.cs" />
     <Compile Remove="Utils\Extentions\OTSyncSituationExtensions.cs" />
     <Compile Remove="Utils\Extentions\OTUnconfirmedUIExtensions.cs" />
+    <Compile Remove="Utils\Extentions\WorkerRunStateUIExtensions.cs" />
   </ItemGroup>
 
   <ItemGroup>
