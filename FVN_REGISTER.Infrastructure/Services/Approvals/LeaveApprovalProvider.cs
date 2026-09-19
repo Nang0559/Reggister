@@ -22,37 +22,16 @@ public class LeaveApprovalProvider
     : BaseApprovalProvider<LeaveRequestSubject, LeaveApprovalProvider>, IApprovalProvider<LeaveRequestSubject>
 {
     public override RequestModule RequestType => RequestModule.Leave;
-    private const int SubLeaderStep = 1;
-    private const int ManagerStep = 2;
-    private const int GmStep = 3;
-
-    protected override IReadOnlyList<(int Level, string LevelName, string RoleName)> LevelDefs { get; } = new[]
-    {
-        (SubLeaderStep, "Sub-leader/Leader", "SubLeader"),
-        (ManagerStep, "Manager", "Manager"),
-        (GmStep, "GM", "GM")
-    };
-
     public LeaveApprovalProvider(
         IUnitOfWork uow,
         IEmailService email,
         IApprovalNotificationService notification,
         IEmployeeUserResolver userResolver,
+        IApprovalRouteService routeService,
+        IApprovalSelectionService selectionService,
         ILogger<LeaveApprovalProvider> logger,
         IOptionsMonitor<AuthDebugOptions> options)
-        : base(uow, email, notification, userResolver, logger, options) { }
-
-    protected override bool? ResolveRequired(int level, ApprovalBuildContext ctx)
-    {
-        var isWorker = CvCodeRules.IsLv1Required(ctx.PositionCode);
-        return level switch
-        {
-            SubLeaderStep => isWorker ? true : (bool?)null,
-            ManagerStep => true,
-            GmStep => true,
-            _ => null
-        };
-    }
+        : base(uow, email, notification, userResolver, routeService, selectionService, logger, options) { }
 
     public override async Task<LeaveRequestSubject?> GetSubjectAsync(int requestId, CancellationToken ct)
     {
