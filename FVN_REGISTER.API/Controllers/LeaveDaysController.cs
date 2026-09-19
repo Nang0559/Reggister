@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Users;
+using AppAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.Leaves;
@@ -21,7 +22,7 @@ namespace FVN_REGISTER.API.Controllers
     [Route("api/[controller]")]
     public class LeaveDaysController : BaseApiController
     {
-        private readonly IAuthorizationService _authorization;
+        private readonly AppAuthorizationService _authorization;
         private readonly ILeaveService _leaveService;
         private readonly ILeaveQueryService _queryService;
         private readonly IApprovalWorkflowOrchestrator<LeaveRequestSubject> _workflow;
@@ -34,7 +35,7 @@ namespace FVN_REGISTER.API.Controllers
             IUserLogService userLog,
             ILogger<LeaveDaysController> logger,
             IOptionsMonitor<AuthDebugOptions> options,
-            FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService authorization)
+            AppAuthorizationService authorization)
             : base(currentUser, userLog, logger, options)
         {
             _authorization = authorization;
@@ -143,7 +144,6 @@ namespace FVN_REGISTER.API.Controllers
                 await _queryService.GetSimpleBalanceAsync(UserInfo.EmployeeCode, year, ct)));
         }
 
-        [HttpGet("details/{id:int}")]
         [HttpGet("details/{id:int}")]
         public async Task<IActionResult> GetDetails(int id, CancellationToken ct)
         {

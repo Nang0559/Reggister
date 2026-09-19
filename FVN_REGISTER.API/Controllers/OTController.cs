@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.Users;
+using AppAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Approvals;
@@ -22,7 +23,7 @@ namespace FVN_REGISTER.API.Controllers
     [Route("api/[controller]")]
     public class OTController : BaseApiController
     {
-        private readonly IAuthorizationService _authorization;
+        private readonly AppAuthorizationService _authorization;
         private readonly IOTService _otService;
         private readonly IOTQueryService _queryService;
         private readonly IApprovalWorkflowOrchestrator<OTRequestSubject> _workflow;
@@ -35,7 +36,7 @@ namespace FVN_REGISTER.API.Controllers
             IUserLogService userLog,
             ILogger<OTController> logger,
             IOptionsMonitor<AuthDebugOptions> options,
-            FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService authorization)
+            AppAuthorizationService authorization)
             : base(currentUser, userLog, logger, options)
         {
             _authorization = authorization;
@@ -148,7 +149,6 @@ namespace FVN_REGISTER.API.Controllers
             return HandleResult(ServiceResult<PaginationResult<OTSummaryDto>>.Ok(data));
         }
 
-        [HttpGet("detail/{id:int}")]
         [HttpGet("detail/{id:int}")]
         public async Task<IActionResult> GetDetail(int id, CancellationToken ct)
         {

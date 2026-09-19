@@ -1,6 +1,6 @@
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.HrmSync;
-using FVN_REGISTER.Application.Interfaces.Security;
+using AppAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Logging;
 using FVN_REGISTER.Core.Constants;
@@ -19,7 +19,7 @@ namespace FVN_REGISTER.API.Controllers;
 public sealed class HrmSyncController : BaseApiController
 {
     private readonly IHrmSyncService _sync;
-    private readonly IAuthorizationService _authorization;
+    private readonly AppAuthorizationService _authorization;
 
     public HrmSyncController(
         IHrmSyncService sync,
@@ -27,7 +27,7 @@ public sealed class HrmSyncController : BaseApiController
         IUserLogService userLog,
         ILogger<HrmSyncController> logger,
         IOptionsMonitor<AuthDebugOptions> options,
-        IAuthorizationService authorization)
+        AppAuthorizationService authorization)
         : base(currentUser, userLog, logger, options)
     {
         _sync = sync;

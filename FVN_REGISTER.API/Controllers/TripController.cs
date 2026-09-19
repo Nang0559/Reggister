@@ -1,4 +1,4 @@
-using FVN_REGISTER.Application.Interfaces.Security;
+using AppAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using FVN_REGISTER.Application.Interfaces.Trips;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Trips;
@@ -17,12 +17,12 @@ public sealed class TripController : ControllerBase
 {
     private readonly ITripService _service;
     private readonly ICurrentUserService _currentUser;
-    private readonly IAuthorizationService _authorization;
+    private readonly AppAuthorizationService _authorization;
 
     public TripController(
         ITripService service,
         ICurrentUserService currentUser,
-        IAuthorizationService authorization)
+        AppAuthorizationService authorization)
     {
         _service = service;
         _currentUser = currentUser;
