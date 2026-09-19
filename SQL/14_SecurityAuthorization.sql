@@ -234,6 +234,7 @@ SET ModuleCode=LEFT(f.FunctionName,CHARINDEX(N'.',f.FunctionName+N'.')-1),
         WHEN f.FunctionCode BETWEEN 2001 AND 2999 THEN N'Own'
         ELSE f.ScopeCode
     END
+FROM dbo.F03Functions AS f
 WHERE f.FunctionCode BETWEEN 2000 AND 2999;
 GO
 
