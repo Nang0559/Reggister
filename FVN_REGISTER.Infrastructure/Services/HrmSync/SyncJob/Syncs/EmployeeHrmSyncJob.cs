@@ -141,9 +141,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
         {
             // Chỉ reconcile những Employee thực sự thay đổi trong batch.
             // Full repair vẫn được hỗ trợ bởi SQL/13_Hrm_User_Approval_Provisioning.sql.
-            var employeeCodes = batchContext.Added
-                .Concat(batchContext.Updated)
-                .Concat(batchContext.Deleted)
+            var employeeCodes = batchContext.Processed
                 .Select(x => x.EmployeeCode)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
@@ -163,7 +161,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                 .Where(x => employeeCodes.Contains(x.EmployeeCode))
                 .ToListAsync(ct);
 
-            var usersByCode = users.ToDictionary(x => x.EmployeeCode);
+            var usersByCode = users.ToDictionary(x => x.EmployeeCode, StringComparer.OrdinalIgnoreCase);
 
             foreach (var employee in employees)
             {
@@ -237,12 +235,14 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                 }
                 catch (Exception ex)
                 {
+                    var message = $"Không thể đồng bộ tài khoản F03User cho nhân viên {employee.EmployeeCode}: {ex.Message}";
+                    batchContext.ProvisioningErrors.Add(message);
                     await Uow.Repository<F03SyncReviewFlag>().AddAsync(new F03SyncReviewFlag
                     {
                         EntityType = "Employee",
                         EntityKey = employee.EmployeeCode,
                         FlagType = "UserProvisioningFailed",
-                        Message = $"Không thể đồng bộ tài khoản F03User cho nhân viên {employee.EmployeeCode}: {ex.Message}"
+                        Message = message
                     }, ct);
                 }
             }
@@ -276,12 +276,14 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                 }
                 catch (Exception ex)
                 {
+                    var message = $"Không thể đồng bộ F03Approvers cho nhân viên {employeeCode}: {ex.Message}";
+                    batchContext.ProvisioningErrors.Add(message);
                     await Uow.Repository<F03SyncReviewFlag>().AddAsync(new F03SyncReviewFlag
                     {
                         EntityType = "Employee",
                         EntityKey = employeeCode,
                         FlagType = "ApproverProvisioningFailed",
-                        Message = $"Không thể đồng bộ F03Approvers cho nhân viên {employeeCode}: {ex.Message}"
+                        Message = message
                     }, ct);
                 }
             }
