@@ -3765,3 +3765,46 @@ BEGIN
  ORDER BY DeptCode,EmployeeCode,WorkDate;
 END;
 GO
+GO
+CREATE OR ALTER VIEW dbo.VF03HrmAttendanceMonthly AS
+SELECT
+    YEAR(a.WorkDate) AS WorkYear,
+    MONTH(a.WorkDate) AS WorkMonth,
+    a.EmployeeCode,
+    MAX(a.FullName) AS FullName,
+    a.DeptCode,
+    MAX(a.CalculationVersion) AS CalculationVersion,
+    MIN(a.WorkDate) AS FromDate,
+    MAX(a.WorkDate) AS ToDate,
+    MIN(a.CheckInTime) AS FirstCheckInTime,
+    MAX(a.CheckOutTime) AS LastCheckOutTime,
+    SUM(ISNULL(a.WorkMinutesDay,0)) AS WorkMinutesDay,
+    SUM(ISNULL(a.WorkMinutesNight,0)) AS WorkMinutesNight,
+    SUM(ISNULL(a.OTMinutesDay,0)) AS OTMinutesDay,
+    SUM(ISNULL(a.OTMinutesNight,0)) AS OTMinutesNight,
+    SUM(ISNULL(a.OTMinutesDayTC,0)) AS OTMinutesDayTC,
+    SUM(ISNULL(a.OTMinutesNightTC,0)) AS OTMinutesNightTC,
+    SUM(ISNULL(a.OTRecognizedMinutesDay,0)) AS OTRecognizedMinutesDay,
+    SUM(ISNULL(a.OTRecognizedMinutesNight,0)) AS OTRecognizedMinutesNight,
+    SUM(ISNULL(a.LateMinutesDay,0)) AS LateMinutesDay,
+    SUM(ISNULL(a.LateMinutesNight,0)) AS LateMinutesNight,
+    SUM(ISNULL(a.EarlyLeaveMinutesDay,0)) AS EarlyLeaveMinutesDay,
+    SUM(ISNULL(a.EarlyLeaveMinutesNight,0)) AS EarlyLeaveMinutesNight,
+    SUM(ISNULL(a.RequiredMinutes,0)) AS RequiredMinutes,
+    SUM(ISNULL(a.LeaveTotal,0)) AS LeaveTotal,
+    SUM(ISNULL(a.LeaveAnnual,0)) AS LeaveAnnual,
+    SUM(ISNULL(a.Leave100,0)) AS Leave100,
+    SUM(ISNULL(a.Leave70,0)) AS Leave70,
+    SUM(ISNULL(a.LeaveUnpaid,0)) AS LeaveUnpaid,
+    SUM(ISNULL(a.LeaveBH100,0)) AS LeaveBH100,
+    SUM(ISNULL(a.LeaveBH70,0)) AS LeaveBH70,
+    SUM(ISNULL(a.LeaveBusinessTrip,0)) AS LeaveBusinessTrip,
+    SUM(ISNULL(a.LeaveCompensatory,0)) AS LeaveCompensatory,
+    SUM(ISNULL(a.LeaveOther,0)) AS LeaveOther,
+    COUNT(*) AS AttendanceDays,
+    SUM(CASE WHEN a.CheckInTime IS NOT NULL OR a.CheckOutTime IS NOT NULL THEN 1 ELSE 0 END) AS DaysWithSwipe,
+    SUM(CASE WHEN ISNULL(a.HrmHoliday,0)=1 OR ISNULL(a.HrmEmployeeHoliday,0)=1 THEN 1 ELSE 0 END) AS HolidayDays,
+    SUM(CASE WHEN ISNULL(a.IsLocked,0)=1 THEN 1 ELSE 0 END) AS LockedDays,
+    MAX(a.CalculatedAt) AS LastCalculatedAt
+FROM dbo.VF03HrmAttendanceDaily a
+GROUP BY YEAR(a.WorkDate), MONTH(a.WorkDate), a.EmployeeCode, a.DeptCode;
