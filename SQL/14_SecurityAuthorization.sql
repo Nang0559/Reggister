@@ -65,7 +65,7 @@ BEGIN
         CreatedBy int NOT NULL CONSTRAINT DF_F03RoleFunctions_CreatedBy DEFAULT(0),
         CONSTRAINT PK_F03RoleFunctions PRIMARY KEY(IdRole,IdFunction),
         CONSTRAINT FK_F03RoleFunctions_Role FOREIGN KEY(IdRole) REFERENCES dbo.F03Roles(IdRole),
-        CONSTRAINT FK_F03RoleFunctions_Function FOREIGN KEY(IdFunction) REFERENCES dbo.F03Functions(IdFunction)
+        CONSTRAINT FK_F03RoleFunctions_Function FOREIGN KEY(IdFunction) REFERENCES dbo.F03Functions(Id)
     );
 END;
 GO
@@ -82,7 +82,7 @@ BEGIN
         ModifiedAt datetime2(0) NULL,
         ModifiedBy int NULL,
         CONSTRAINT PK_F03UserRoles PRIMARY KEY(IdUser,IdRole),
-        CONSTRAINT FK_F03UserRoles_User FOREIGN KEY(IdUser) REFERENCES dbo.F03Users(IdUser),
+        CONSTRAINT FK_F03UserRoles_User FOREIGN KEY(IdUser) REFERENCES dbo.F03Users(Id),
         CONSTRAINT FK_F03UserRoles_Role FOREIGN KEY(IdRole) REFERENCES dbo.F03Roles(IdRole)
     );
 END;
@@ -180,7 +180,7 @@ DECLARE @User int=(SELECT IdRole FROM dbo.F03Roles WHERE RoleCode=5);
 DECLARE @Guest int=(SELECT IdRole FROM dbo.F03Roles WHERE RoleCode=6);
 
 INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
-SELECT r.IdRole,f.IdFunction
+SELECT r.IdRole,f.Id
 FROM
 (
     SELECT @SuperAdmin IdRole, f.FunctionCode FROM dbo.F03Functions f WHERE f.FunctionCode BETWEEN 2001 AND 2999
@@ -207,7 +207,7 @@ FROM
 JOIN dbo.F03Roles r ON r.IdRole=x.IdRole
 JOIN dbo.F03Functions f ON f.FunctionCode=x.FunctionCode
 WHERE x.IdRole IS NOT NULL
-  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.IdRole AND rf.IdFunction=f.IdFunction);
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.IdRole AND rf.IdFunction=f.Id);
 GO
 
 /* Every authenticated role gets the dashboard shell; module providers still require their own capability. */
@@ -224,12 +224,12 @@ GO
 
 /* Migrate the legacy primary role into the normalized multi-role table. */
 INSERT dbo.F03UserRoles(IdUser,IdRole,IsPrimary,CreatedBy)
-SELECT u.IdUser,r.IdRole,1,0
+SELECT u.Id,r.IdRole,1,0
 FROM dbo.F03Users u
 JOIN dbo.F03Roles r ON r.RoleCode=u.PermissionCode
 WHERE NOT EXISTS
 (
-    SELECT 1 FROM dbo.F03UserRoles ur WHERE ur.IdUser=u.IdUser AND ur.IdRole=r.IdRole
+    SELECT 1 FROM dbo.F03UserRoles ur WHERE ur.IdUser=u.Id AND ur.IdRole=r.IdRole
 );
 GO
 
