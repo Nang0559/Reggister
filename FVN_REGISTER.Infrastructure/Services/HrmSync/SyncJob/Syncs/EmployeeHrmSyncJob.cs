@@ -139,8 +139,8 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             HrmSyncBatchContext<F03Employee> batchContext,
             CancellationToken ct)
         {
-            // Chỉ reconcile những Employee thực sự thay đổi trong batch.
-            // Full repair vẫn được hỗ trợ bởi SQL/13_Hrm_User_Approval_Provisioning.sql.
+            // Reconcile mọi Employee đã được staging xử lý trong batch.
+            // Điều này tự-heal User/Approver bị thiếu mà không cần chạy SQL repair thủ công.
             var employeeCodes = batchContext.Processed
                 .Select(x => x.EmployeeCode)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
@@ -252,9 +252,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             HrmSyncBatchContext<F03Employee> batchContext,
             CancellationToken ct)
         {
-            var employeeCodes = batchContext.Added
-                .Concat(batchContext.Updated)
-                .Concat(batchContext.Deleted)
+            var employeeCodes = batchContext.Processed
                 .Select(x => x.EmployeeCode)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
                 .Distinct(StringComparer.OrdinalIgnoreCase)
