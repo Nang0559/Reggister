@@ -50,9 +50,9 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         var scopes = await (
             from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
             join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking()
-                on ur.IdRole equals rf.Id
+                on ur.IdRole equals rf.IdRole
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
-                on ur.IdRole equals r.IdRole
+                on ur.IdRole equals r.Id
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
                 on rf.Id equals f.Id
             where ur.IdUser == userId
@@ -148,11 +148,11 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         var functionCodes = await (
             from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
             join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking()
-                on ur.IdRole equals rf.Id
+                on ur.IdRole equals rf.IdRole
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on rf.Id equals f.Id
+                on rf.IdFunction equals f.Id
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
-                on ur.IdRole equals r.IdRole
+                on ur.IdRole equals r.Id
             where ur.IdUser == userId && r.IsActive && (f.IsActive ?? true)
             select f
         ).Distinct().ToListAsync(ct);
@@ -202,24 +202,24 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .OrderBy(x => x.RoleCode)
             .ToListAsync(ct);
 
-        var roleIds = roles.Select(x => x.IdRole).ToList();
+        var roleIds = roles.Select(x => x.Id).ToList();
         var map = await (
             from rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking()
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on rf.Id equals f.Id
-            where roleIds.Contains(rf.Id)
-            select new { rf.Id, f.FunctionCode }
+                on rf.IdFunction equals f.Id
+            where roleIds.Contains(rf.IdRole)
+            select new { rf.IdRole, f.FunctionCode }
         ).ToListAsync(ct);
 
         return roles.Select(r => new SecurityRoleDto
         {
-            IdRole = r.IdRole,
+            IdRole = r.Id,
             RoleCode = r.RoleCode,
             RoleName = r.RoleName,
             Detail = r.Detail,
             IsSystem = r.IsSystem,
             IsActive = r.IsActive,
-            FunctionCodes = map.Where(x => x.Id == r.IdRole)
+            FunctionCodes = map.Where(x => x.IdRole == r.Id)
                 .Select(x => x.FunctionCode).Distinct().OrderBy(x => x).ToList()
         }).ToList();
     }
@@ -326,7 +326,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             throw new InvalidOperationException("Một hoặc nhiều function không tồn tại hoặc đã ngừng hoạt động.");
 
         var repo = _uow.Repository<F03RoleFunction>();
-        var existing = await repo.Query().Where(x => x.Id == role.IdRole).ToListAsync(ct);
+        var existing = await repo.Query().Where(x => x.IdRole == role.Id).ToListAsync(ct);
         foreach (var row in existing)
             repo.Remove(row);
 
@@ -334,7 +334,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         {
             await repo.AddAsync(new F03RoleFunction
             {
-                Id = role.IdRole,
+                IdRole = role.Id,
                 IdFunction = function.Id,
                 CreatedBy = actorUserId,
                 CreatedAt = DateTime.Now
