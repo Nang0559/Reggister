@@ -699,7 +699,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 		-- OUT = dau doc DDChinhVao=0, lan muon nhat.
 		CREATE TABLE #tblRecordDataRaw
 		(
-			IDM tinyint NULL,
+			IDM smallint NULL,
 			IDCard nvarchar(20) NOT NULL,
 			ThoiGian datetime NOT NULL,
 			Status bit NULL,
@@ -732,6 +732,38 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 			FROM #tblRecordDataRaw
 			WHERE DDChinhVao=0
 			ORDER BY ThoiGian DESC, IDM DESC;
+
+			/*
+			  HRM normally supplies BCMaCa from the daily report.  Some employees,
+			  however, have no shift persisted there (BCMaCa/NVMaCa = 0) while
+			  RecordDataNew contains valid punches.  Do not lose the punches and
+			  do not leave the calculation permanently at ShiftId=0.  Resolve the
+			  shift from tblCa using the actual first IN punch as the primary key.
+			  The candidate window honours the shift's pre/post scan tolerance and
+			  also handles overnight shifts.
+			*/
+			IF @Maca=0 AND @TGDen > '19000101'
+			BEGIN
+				DECLARE @FallbackShiftId int;
+				SELECT TOP 1 @FallbackShiftId=ca.CMa
+				FROM HRM.dbo.tblCa ca
+				CROSS APPLY
+				(
+					SELECT
+						DATEADD(day,DATEDIFF(day,0,CONVERT(date,@D)),CONVERT(datetime,CONVERT(time,ca.CTGBatDau))) AS ShiftStart,
+						DATEADD(day,DATEDIFF(day,0,CONVERT(date,@D)),CONVERT(datetime,CONVERT(time,ca.CTGKetThuc))) AS ShiftEnd
+				) s
+				WHERE ISNULL(ca.CMa,0)<>0
+				  AND @TGDen >= DATEADD(minute,-ISNULL(ca.CQuetTruocCa,0),s.ShiftStart)
+				  AND @TGDen <= DATEADD(minute,ISNULL(ca.CQuetSauCa,0),
+				      CASE WHEN s.ShiftEnd<=s.ShiftStart THEN DATEADD(day,1,s.ShiftEnd) ELSE s.ShiftEnd END)
+				ORDER BY
+					ABS(DATEDIFF(minute,@TGDen,s.ShiftStart)),
+					ca.CMa;
+
+				IF @FallbackShiftId IS NOT NULL
+					SET @Maca=@FallbackShiftId;
+			END
 		END
 
 		-- Neu chua co ca, chi ket thuc phan tinh Work/OT; IN/OUT raw van duoc
