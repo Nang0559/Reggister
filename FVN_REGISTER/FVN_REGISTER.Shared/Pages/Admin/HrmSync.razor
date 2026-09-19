@@ -250,13 +250,13 @@ else
                     LastRun = sync.Data
                 };
 
-                var firstError = sync.Data.Jobs
+                var securityFirstError = sync.Data.Jobs
                     .SelectMany(x => x.Errors)
                     .FirstOrDefault();
 
                 Snackbar.Add(
                     security.Message
-                        ?? firstError
+                        ?? securityFirstError
                         ?? "HRM đã chạy nhưng không thể provision User + Approver.",
                     Severity.Error);
                 return;
