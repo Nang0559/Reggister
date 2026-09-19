@@ -86,11 +86,11 @@ public sealed class TripService : ITripService
             throw new UnauthorizedAccessException("Bạn không có quyền gửi đăng ký này theo phạm vi dữ liệu được cấp.");
 
         if (entity.RequestStatus != ApprovalStatus.Draft && entity.RequestStatus != ApprovalStatus.NeedsRevision)
-            throw new InvalidOperationException("Chỉ đăng ký Nháp/NeedsRevision mới được gửi duyệt.");
+            throw new ArgumentException("Chỉ đăng ký Nháp/NeedsRevision mới được gửi duyệt.");
 
         ValidatePeriod(entity.StartDate, entity.EndDate);
         if (string.IsNullOrWhiteSpace(entity.Destination) || string.IsNullOrWhiteSpace(entity.Purpose))
-            throw new InvalidOperationException("Địa điểm và mục đích công tác là bắt buộc.");
+            throw new ArgumentException("Địa điểm và mục đích công tác là bắt buộc.");
 
         if (approvalSelections != null && approvalSelections.Count > 0)
             await _approvalSelections.ReplaceAsync(RequestModule.Trip, entity.Id, approvalSelections, user.UserId, ct);
