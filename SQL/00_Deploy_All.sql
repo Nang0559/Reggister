@@ -52,12 +52,12 @@ IMPORTANT:
 :r 10_Triggers.sql
 :r 11_Automation.sql
 :r 12_Verify.sql
-:r 13_Hrm_User_Approval_Provisioning.sql
 :r 13_HrmShiftMaster.sql
 :r 14_SecurityAuthorization.sql
 :r 15_PublicInformation.sql
 :r 16_EquipmentFlexibleImport.sql
 :r 17_ApprovalRouteSelection.sql
+:r 13_Hrm_User_Approval_Provisioning.sql
 :r 17_DocumentationConsistency.sql
 :r 18_OT_Leave_Limits.sql
 :r 19_WorkCalendar.sql
