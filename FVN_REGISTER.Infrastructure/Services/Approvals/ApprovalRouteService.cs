@@ -24,9 +24,17 @@ public sealed class ApprovalRouteService : IApprovalRouteService
         string positionCode,
         CancellationToken ct = default)
     {
+        if (string.IsNullOrWhiteSpace(positionCode))
+        {
+            return ServiceResult<ApprovalRoutePreviewDto>.Fail(
+                "Chưa xác định PositionCode HRM của người đăng ký.");
+        }
+
         // Canonical route resolution:
-        // HRM PositionCode -> local ApprovalGroup -> ApprovalLevel policy.
-        var positionGroup = await _uow.Repository<F03ApprovalPositionGroup>()
+        // F03Employee.PositionCode -> F03Positions.PositionCode
+        // -> F03ApprovalPolicies.PositionCode.
+        // No local approval-group translation is used.
+        var position = await _uow.Repository<F03Position>()
             .Query()
             .AsNoTracking()
             .Where(x => x.IsActive == true &&
@@ -34,17 +42,14 @@ public sealed class ApprovalRouteService : IApprovalRouteService
             .Select(x => new
             {
                 x.PositionCode,
-                x.ApprovalGroupCode,
-                x.ApprovalGroupName
+                x.PositionName
             })
             .FirstOrDefaultAsync(ct);
 
-        if (positionGroup == null ||
-            string.IsNullOrWhiteSpace(positionGroup.ApprovalGroupCode))
+        if (position == null)
         {
             return ServiceResult<ApprovalRoutePreviewDto>.Fail(
-                $"Chưa cấu hình nhóm phê duyệt cho chức vụ HRM " +
-                $"{positionCode}.");
+                $"Không tìm thấy chức vụ HRM {positionCode} trong F03Positions.");
         }
 
         var policies = await _uow.Repository<F03ApprovalPolicy>()
@@ -52,7 +57,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
             .AsNoTracking()
             .Where(x => x.IsActive == true &&
                         x.RequestType == requestType &&
-                        x.ApprovalGroupCode == positionGroup.ApprovalGroupCode)
+                        x.PositionCode == position.PositionCode)
             .OrderBy(x => x.Sequence)
             .ThenBy(x => x.Level)
             .ToListAsync(ct);
@@ -61,8 +66,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
         {
             return ServiceResult<ApprovalRoutePreviewDto>.Fail(
                 $"Chưa cấu hình luồng phê duyệt cho {requestType} / " +
-                $"nhóm {positionGroup.ApprovalGroupCode} " +
-                $"(chức vụ HRM {positionCode}).");
+                $"chức vụ {position.PositionCode} - {position.PositionName}.");
         }
 
         var levels = new List<ApprovalRouteLevelDto>();
@@ -108,7 +112,6 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 })
                 .ToListAsync(ct);
 
-            // Nếu cấp có cấu hình riêng cho bộ phận thì không lấy thêm ALL.
             var departmentCandidates = candidates
                 .Where(x =>
                     string.Equals(
@@ -132,7 +135,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
             {
                 return ServiceResult<ApprovalRoutePreviewDto>.Fail(
                     $"Chưa cấu hình người phê duyệt cho cấp {policy.Level} " +
-                    $"({policy.LevelName}) / nhóm {positionGroup.ApprovalGroupCode} " +
+                    $"({policy.LevelName}) / chức vụ {position.PositionCode} " +
                     $" / bộ phận {deptCode}.");
             }
 
@@ -152,7 +155,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
             RequestType = requestType,
             EmployeeCode = employeeCode,
             DepartmentCode = deptCode,
-            PositionCode = positionCode,
+            PositionCode = position.PositionCode,
             Levels = levels
         };
 
