@@ -48,6 +48,10 @@ IF COL_LENGTH(N'dbo.F03AttendanceStaging',N'OtHours') IS NULL
 
 IF OBJECT_ID(N'dbo.usp_SyncAttendanceStaging',N'P') IS NULL
     THROW 50029,'usp_SyncAttendanceStaging is missing.',1;
+/* Legacy OT sync must no longer exist; HRM attendance calculation owns actual OT synchronization. */
+IF OBJECT_ID(N'dbo.usp_SyncOTActualHours',N'P') IS NOT NULL
+    THROW 50030,'Legacy usp_SyncOTActualHours must not exist; use usp_CalculateHrmAttendance.',1;
+
 /* Raw result contract checks used by C# SqlQueryRaw<T>. */
 SELECT
     p.name AS ProcedureName,
