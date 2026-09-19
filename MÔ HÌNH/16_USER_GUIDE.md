@@ -157,3 +157,9 @@ Nút Excel chỉ hoạt động khi tài khoản có capability Export tương �
 Báo cáo là chức năng tra cứu. Không thể dùng báo cáo để sửa, duyệt hoặc hủy nghiệp vụ. Nếu số liệu cần xử lý, quay về module nghiệp vụ tương ứng.
 
 Chi tiết kiến trúc và ma trận quyền xem `MÔ HÌNH/19_REPORTS_STATISTICS.md`.
+
+## Chọn người phê duyệt khi đăng ký
+
+Trong Leave / OT / Trip / Equipment, người dùng không chọn cấp approve. Hệ thống tự sinh các cấp theo chức vụ, tải danh sách approver của từng cấp và người dùng chọn một người ở mỗi cấp.
+
+Chi tiết thao tác: [21_USER_GUIDE_APPROVAL_SELECTION.md](./21_USER_GUIDE_APPROVAL_SELECTION.md).
