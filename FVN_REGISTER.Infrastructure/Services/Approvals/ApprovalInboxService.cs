@@ -52,16 +52,15 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         {
             try
             {
-                var leaveItemsTask = _leaveWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct);
-                var otItemsTask = _otWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct);
-                var tripItemsTask = _tripWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct);
-                await Task.WhenAll(leaveItemsTask, otItemsTask, tripItemsTask);
-
+                // All approval workflows are scoped services and share the same UnitOfWork/DbContext.
+                // Do not execute EF queries concurrently on those workflows: DbContext is not thread-safe.
+                // Running these reads sequentially also keeps the current DI lifetime safe without
+                // requiring a separate DbContextFactory for every workflow.
                 var byModule = new Dictionary<RequestModule, List<PendingApprovalItemDto>>
                 {
-                    [RequestModule.Leave] = await leaveItemsTask,
-                    [RequestModule.Overtime] = await otItemsTask,
-                    [RequestModule.Trip] = await tripItemsTask,
+                    [RequestModule.Leave] = await _leaveWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct),
+                    [RequestModule.Overtime] = await _otWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct),
+                    [RequestModule.Trip] = await _tripWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct),
                     [RequestModule.Equipment] = await _equipmentWorkflow.GetPendingForApproverAsync(user.Email ?? "", ct)
                 };
 
