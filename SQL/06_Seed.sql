@@ -103,11 +103,11 @@ INSERT dbo.F03HrmUserRoleRules
 SELECT 1,0,N'Seed',v.DeptCode,v.PositionCode,v.PermissionCode,v.Priority,v.Note
 FROM (VALUES
 (NULL,NULL,5,999,N'Default normal user'),
-(N'IT',N'EMP',1,10,N'Demo E0001 SuperAdmin'),
-(N'IT',N'SL',4,20,N'Demo IT approver'),
-(N'PROD',N'CHIEF',4,20,N'Demo production approver'),
-(N'HR',N'MGR',2,20,N'Demo HR admin'),
-(N'PROD',N'GM',2,20,N'Demo production admin')
+(N'IT',N'0003',1,10,N'Demo E0001 SuperAdmin'),
+(N'IT',N'0002',4,20,N'Demo IT approver'),
+(N'PROD',N'0004',4,20,N'Demo production approver'),
+(N'HR',N'0005',2,20,N'Demo HR admin'),
+(N'PROD',N'0001',2,20,N'Demo production admin')
 ) AS v(DeptCode,PositionCode,PermissionCode,Priority,Note)
 WHERE NOT EXISTS
 (
@@ -125,11 +125,11 @@ WHERE NOT EXISTS
 INSERT dbo.F03Employees(IsActive,CreatedBy,EmployeeCode,EmployeeName,DeptCode,PositionCode,BirthDate,GenderCode,EmailAddress,PhoneNumber,FirstWorkingDate,TotalLeaveDays,EmployeeNo,LevelApprove)
 SELECT 1,0,v.Code,v.Name,v.Dept,v.Position,TRY_CONVERT(datetime2(0),v.Birth),g.Id,v.Email,v.Phone,TRY_CONVERT(datetime2(0),v.StartDate),v.LeaveDays,v.EmpNo,v.LevelApprove
 FROM (VALUES
-(N'E0001',N'Nguyen Van An',N'IT',N'EMP',N'1990-02-10',N'M',N'e0001@test.local',N'0900000001',N'2020-01-06',12,1,0),
-(N'E0002',N'Tran Thi Binh',N'IT',N'SL',N'1988-06-15',N'F',N'e0002@test.local',N'0900000002',N'2019-03-11',14,2,1),
-(N'E0003',N'Le Van Cuong',N'PROD',N'CHIEF',N'1985-09-20',N'M',N'e0003@test.local',N'0900000003',N'2018-07-02',14,3,2),
-(N'E0004',N'Pham Thi Dung',N'HR',N'MGR',N'1983-12-01',N'F',N'e0004@test.local',N'0900000004',N'2017-04-03',16,4,3),
-(N'E0005',N'Hoang Van Em',N'PROD',N'GM',N'1978-11-25',N'M',N'e0005@test.local',N'0900000005',N'2015-01-05',18,5,4)
+(N'E0001',N'Nguyen Van An',N'IT',N'0003',N'1990-02-10',N'M',N'e0001@test.local',N'0900000001',N'2020-01-06',12,1,0),
+(N'E0002',N'Tran Thi Binh',N'IT',N'0002',N'1988-06-15',N'F',N'e0002@test.local',N'0900000002',N'2019-03-11',14,2,1),
+(N'E0003',N'Le Van Cuong',N'PROD',N'0004',N'1985-09-20',N'M',N'e0003@test.local',N'0900000003',N'2018-07-02',14,3,2),
+(N'E0004',N'Pham Thi Dung',N'HR',N'0005',N'1983-12-01',N'F',N'e0004@test.local',N'0900000004',N'2017-04-03',16,4,3),
+(N'E0005',N'Hoang Van Em',N'PROD',N'0001',N'1978-11-25',N'M',N'e0005@test.local',N'0900000005',N'2015-01-05',18,5,4)
 ) AS v(Code,Name,Dept,Position,Birth,GenderCode,Email,Phone,StartDate,LeaveDays,EmpNo,LevelApprove)
 INNER JOIN dbo.F03Genders g ON g.GenderCode=v.GenderCode
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Employees e WHERE e.EmployeeCode=v.Code);
@@ -137,11 +137,11 @@ WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Employees e WHERE e.EmployeeCode=v.Code);
 INSERT dbo.F03Users(IsActive,CreatedBy,Password,EmployeeCode,FullName,PermissionCode,LockoutEnable,NumLoginFailed,LevelApprove,DeptCode,Cvcode)
 SELECT 1,0,N'f925916e2754e5e03f75dd58a5733251',v.Code,v.Name,v.PermissionCode,1,0,v.LevelApprove,v.Dept,v.Position
 FROM (VALUES
-(N'E0001',N'Nguyen Van An',1,0,N'IT',N'EMP'),
-(N'E0002',N'Tran Thi Binh',4,1,N'IT',N'SL'),
-(N'E0003',N'Le Van Cuong',2,2,N'PROD',N'CHIEF'),
-(N'E0004',N'Pham Thi Dung',2,3,N'HR',N'MGR'),
-(N'E0005',N'Hoang Van Em',3,4,N'PROD',N'GM')
+(N'E0001',N'Nguyen Van An',1,0,N'IT',N'0003'),
+(N'E0002',N'Tran Thi Binh',4,1,N'IT',N'0002'),
+(N'E0003',N'Le Van Cuong',2,2,N'PROD',N'0004'),
+(N'E0004',N'Pham Thi Dung',2,3,N'HR',N'0005'),
+(N'E0005',N'Hoang Van Em',3,4,N'PROD',N'0001')
 ) AS v(Code,Name,PermissionCode,LevelApprove,Dept,Position)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Users u WHERE u.EmployeeCode=v.Code);
 
@@ -212,11 +212,11 @@ AND NOT EXISTS(SELECT 1 FROM dbo.F03UserFunctions x WHERE x.IdUser=u.Id AND x.Id
 INSERT dbo.F03Approvers(IsActive,CreatedBy,UserId,RequestType,ApproverCode,PositionCode,ApproverName,ApproverEmail,ApproverDeptCode,ApproverDeptName,ApproveForDeptCode,ApproveForDeptName,Level,RoleName)
 SELECT 1,0,u.Id,N'Leave',v.Code,v.Position,v.Name,v.Email,v.Dept,d.DeptName,v.ForDept,d2.DeptName,v.Level,v.RoleName
 FROM (VALUES
-(N'E0002',N'SL',N'Tran Thi Binh',N'e0002@test.local',N'IT',N'IT',N'IT',1,N'Lead/Sub Lead'),
-(N'E0003',N'CHIEF',N'Le Van Cuong',N'e0003@test.local',N'PROD',N'PROD',N'PROD',2,N'Chief/A Chief'),
-(N'E0004',N'MGR',N'Pham Thi Dung',N'e0004@test.local',N'HR',N'HR',N'HR',3,N'Manager/A Manager'),
-(N'E0005',N'GM',N'Hoang Van Em',N'e0005@test.local',N'PROD',N'PROD',N'PROD',4,N'General Manager'),
-(N'E0003',N'CHIEF',N'Le Van Cuong',N'e0003@test.local',N'PROD',N'PRODUCTION',N'PROD',1,N'Lead/Sub Lead')
+(N'E0002',N'0002',N'Tran Thi Binh',N'e0002@test.local',N'IT',N'IT',N'IT',1,N'Lead/Sub Lead'),
+(N'E0003',N'0004',N'Le Van Cuong',N'e0003@test.local',N'PROD',N'PROD',N'PROD',2,N'Chief/A Chief'),
+(N'E0004',N'0005',N'Pham Thi Dung',N'e0004@test.local',N'HR',N'HR',N'HR',3,N'Manager/A Manager'),
+(N'E0005',N'0001',N'Hoang Van Em',N'e0005@test.local',N'PROD',N'PROD',N'PROD',4,N'General Manager'),
+(N'E0003',N'0004',N'Le Van Cuong',N'e0003@test.local',N'PROD',N'PRODUCTION',N'PROD',1,N'Lead/Sub Lead')
 ) AS v(Code,Position,Name,Email,Dept,DeptName,ForDept,Level,RoleName)
 JOIN dbo.F03Users u ON u.EmployeeCode=v.Code
 JOIN dbo.F03Departments d ON d.DeptCode=v.Dept
