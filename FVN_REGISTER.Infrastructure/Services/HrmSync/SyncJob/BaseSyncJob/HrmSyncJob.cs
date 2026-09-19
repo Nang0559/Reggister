@@ -93,8 +93,6 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
                     foreach (var staging in deleteItems)
                     {
                         staging.IsProcessed = true;
-                        if (entity != null)
-                            batchContext.Processed.Add(entity);
                         staging.ErrorMessage = $"Delete guard: từ chối {deleteItems.Count} delete trên {activeCount} bản ghi active (>50%).";
                     }
 
@@ -163,6 +161,8 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
                         }
 
                         staging.IsProcessed = true;
+                        if (entity != null)
+                            batchContext.Processed.Add(entity);
                     }
                     catch (Exception ex)
                     {
