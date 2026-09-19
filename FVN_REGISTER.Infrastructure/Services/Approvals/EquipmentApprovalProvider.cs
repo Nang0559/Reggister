@@ -14,22 +14,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals;
 public sealed class EquipmentApprovalProvider : BaseApprovalProvider<EquipmentRequestSubject, EquipmentApprovalProvider>, IApprovalProvider<EquipmentRequestSubject>
 {
     public override RequestModule RequestType => RequestModule.Equipment;
-    protected override IReadOnlyList<(int Level, string LevelName, string RoleName)> LevelDefs { get; } = new[] { (1, "Level 1", "EquipmentApprover"), (2, "Level 2", "EquipmentManager"), (3, "Level 3", "GM") };
     public EquipmentApprovalProvider(IUnitOfWork uow, IEmailService email, IApprovalNotificationService notification, IEmployeeUserResolver userResolver, ILogger<EquipmentApprovalProvider> logger, IOptionsMonitor<AuthDebugOptions> options) : base(uow, email, notification, userResolver, logger, options) { }
-    protected override bool? ResolveRequired(int level, ApprovalBuildContext ctx) => true;
-    public override async Task<List<ApprovalStepSnapshotDto>> BuildHierarchyAsync(ApprovalBuildContext ctx, CancellationToken ct)
-    {
-        var result = new List<ApprovalStepSnapshotDto>();
-        foreach (var def in LevelDefs)
-        {
-            F03Approver? approver = def.Level == 1 && !string.IsNullOrWhiteSpace(ctx.SelectedApproverCode)
-                ? await _uow.Repository<F03Approver>().Query().AsNoTracking().FirstOrDefaultAsync(x => x.RequestType == RequestType && x.IsActive == true && x.ApproverCode == ctx.SelectedApproverCode && (x.ApproveForDeptCode == ctx.DeptCode || x.ApproveForDeptCode == ApproveForDept.All), ct)
-                : await GetApproverForLevelAsync(def.Level, ctx.DeptCode, ct);
-            if (approver == null) continue;
-            result.Add(new ApprovalStepSnapshotDto(def.Level, def.LevelName, def.RoleName, approver.ApproverCode, approver.ApproverName, approver.ApproverEmail, true));
-        }
-        return result;
-    }
     public override async Task<EquipmentRequestSubject?> GetSubjectAsync(int requestId, CancellationToken ct)
     {
         var x = await _uow.Repository<F03EquipmentRequest>().Query().AsNoTracking().FirstOrDefaultAsync(r => r.Id == requestId && r.IsActive == true, ct); if (x == null) return null;
