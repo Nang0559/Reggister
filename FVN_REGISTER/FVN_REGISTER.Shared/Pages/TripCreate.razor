@@ -241,6 +241,7 @@
         _saving = true;
         try
         {
+            var selections = _approvalSelector?.GetSelections() ?? new();
             var draft = await TripService.CreateDraftAsync(BuildRequest());
             if (!draft.IsSuccess || draft.Data == null)
             {
@@ -248,7 +249,7 @@
                 return;
             }
 
-            var submitted = await TripService.SubmitAsync(draft.Data!.Id, draft.Data.ApprovalSelections);
+            var submitted = await TripService.SubmitAsync(draft.Data!.Id, selections);
             if (!submitted.IsSuccess)
             {
                 Snackbar.Add(submitted.Message ?? "Không thể gửi đăng ký công tác.", Severity.Error);
