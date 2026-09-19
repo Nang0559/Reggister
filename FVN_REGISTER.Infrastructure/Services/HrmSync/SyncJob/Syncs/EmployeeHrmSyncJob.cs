@@ -83,7 +83,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             if (e.GenderCode != s.GenderCode) { e.GenderCode = s.GenderCode; changed = true; }
             if (e.FirstWorkingDate != s.FirstWorkingDate) { e.FirstWorkingDate = s.FirstWorkingDate; changed = true; }
             if (e.EmployeeNo != s.EmployeeNo) { e.EmployeeNo = s.EmployeeNo; changed = true; }
-            if (e.EmailAddress != (s.EmailAddress ?? "")) { e.EmailAddress = s.EmailAddress??""; changed = true; }
+            if (e.EmailAddress != (s.EmailAddress ?? "")) { e.EmailAddress = s.EmailAddress ?? ""; changed = true; }
             if (e.PhoneNumber != s.PhoneNumber) { e.PhoneNumber = s.PhoneNumber; changed = true; }
             if (e.EndWorkingDate != s.EndWorkingDate) { e.EndWorkingDate = s.EndWorkingDate; changed = true; }
             if (e.TotalLeaveDays != (s.TotalLeaveDays ?? 0)) { e.TotalLeaveDays = s.TotalLeaveDays ?? 0; changed = true; }
@@ -98,8 +98,10 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             }
 
             if (positionChanged || deptChanged)
+            {
                 _changedApproverRelevantCodes.Add(e.EmployeeCode);
                 _approverChangeSnapshot[e.EmployeeCode] = (oldDeptCode, oldPositionCode);
+            }
 
             if (changed)
                 e.LastModifiedSource = SyncSourceTags.Hrm;
@@ -121,7 +123,15 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
         protected override async Task AfterBatchAsync(
             HrmSyncBatchContext<F03Employee> batchContext, CancellationToken ct)
         {
+            // Base HrmSyncJob đã SaveChanges batch Employee trước khi vào hook.
+            // Vì vậy Employee mới/cập nhật đã tồn tại trong DB khi provision security.
             await ProvisionUsersAsync(batchContext, ct);
+
+            // F03User.Id là database-generated và F03Approvers.UserId cần nó.
+            // Save một lần ngay tại đây trước khi chạy SQL approver reconciliation.
+            await Uow.SaveChangesAsync(ct);
+
+            await ProvisionApproversAsync(batchContext, ct);
             await RefreshApproverReviewFlagsAsync(ct);
         }
 
@@ -129,15 +139,25 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             HrmSyncBatchContext<F03Employee> batchContext,
             CancellationToken ct)
         {
-            // Full reconciliation ở F03Users giúp tự phục hồi user bị thiếu và áp dụng
-            // role rule mới mà không cần chờ Employee có một thay đổi khác.
+            // Chỉ reconcile những Employee thực sự thay đổi trong batch.
+            // Full repair vẫn được hỗ trợ bởi SQL/13_Hrm_User_Approval_Provisioning.sql.
+            var employeeCodes = batchContext.Added
+                .Concat(batchContext.Updated)
+                .Concat(batchContext.Deleted)
+                .Select(x => x.EmployeeCode)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (employeeCodes.Count == 0)
+                return;
+
             var employees = await Uow.Repository<F03Employee>().Query()
+                .Where(x => employeeCodes.Contains(x.EmployeeCode))
                 .ToListAsync(ct);
 
             if (employees.Count == 0)
                 return;
-
-            var employeeCodes = employees.Select(x => x.EmployeeCode).ToList();
 
             var users = await Uow.Repository<F03User>().Query()
                 .Where(x => employeeCodes.Contains(x.EmployeeCode))
@@ -183,9 +203,10 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                         user.DeptCode = employee.DeptCode;
                         user.Cvcode = employee.PositionCode;
                         user.LevelApprove = employee.LevelApprove ?? 0;
+
                         // SECURITY BOUNDARY:
                         // Existing FVN users keep their role/permissions. HRM only owns
-                        // employee identity/master fields. The HRM role rule is used only
+                        // employee identity/master fields. HRM role rule is used only
                         // when provisioning a brand-new F03User.
                         user.IsActive = employee.IsActive;
                         user.LastModifiedSource = SyncSourceTags.Hrm;
@@ -227,12 +248,51 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             }
         }
 
+        private async Task ProvisionApproversAsync(
+            HrmSyncBatchContext<F03Employee> batchContext,
+            CancellationToken ct)
+        {
+            var employeeCodes = batchContext.Added
+                .Concat(batchContext.Updated)
+                .Concat(batchContext.Deleted)
+                .Select(x => x.EmployeeCode)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var employeeCode in employeeCodes)
+            {
+                try
+                {
+                    await Uow.SqlQueryRawAsync<ApproverProvisionRow>(
+                        """
+                        EXEC dbo.usp_ReconcileEmployeeApprovers
+                            @EmployeeCode=@EmployeeCode,
+                            @CreatedBy=@CreatedBy;
+                        """,
+                        ct,
+                        new SqlParameter("@EmployeeCode", employeeCode),
+                        new SqlParameter("@CreatedBy", 0));
+                }
+                catch (Exception ex)
+                {
+                    await Uow.Repository<F03SyncReviewFlag>().AddAsync(new F03SyncReviewFlag
+                    {
+                        EntityType = "Employee",
+                        EntityKey = employeeCode,
+                        FlagType = "ApproverProvisioningFailed",
+                        Message = $"Không thể đồng bộ F03Approvers cho nhân viên {employeeCode}: {ex.Message}"
+                    }, ct);
+                }
+            }
+        }
+
         private async Task<int> ResolvePermissionCodeAsync(
             string? deptCode,
             string? positionCode,
             CancellationToken ct)
         {
-            const string sql = @"
+            const string sql = """
 SELECT TOP (1)
     PermissionCode
 FROM dbo.F03HrmUserRoleRules
@@ -247,7 +307,8 @@ ORDER BY
         ELSE 3
     END,
     Priority,
-    Id;";
+    Id;
+""";
 
             var rows = await Uow.SqlQueryRawAsync<UserRoleRuleRow>(
                 sql,
@@ -295,46 +356,109 @@ ORDER BY
         private async Task RefreshApproverReviewFlagsAsync(CancellationToken ct)
         {
             if (_changedApproverRelevantCodes.Count == 0) return;
-            var approvers=await Uow.Repository<F03Approver>().Query().Where(x=>x.IsActive==true&&_changedApproverRelevantCodes.Contains(x.ApproverCode)).ToListAsync(ct);
-            var flags=Uow.Repository<F03SyncReviewFlag>();
-            foreach(var a in approvers)
+
+            var approvers = await Uow.Repository<F03Approver>().Query()
+                .Where(x => x.IsActive == true && _changedApproverRelevantCodes.Contains(x.ApproverCode))
+                .ToListAsync(ct);
+
+            var flags = Uow.Repository<F03SyncReviewFlag>();
+
+            foreach (var a in approvers)
             {
-                if(!_approverChangeSnapshot.TryGetValue(a.ApproverCode,out var old)) continue;
-                var employee=await Uow.Repository<F03Employee>().Query().AsNoTracking().FirstOrDefaultAsync(x=>x.EmployeeCode==a.ApproverCode,ct);
-                if(employee==null) continue;
-                var level=employee.LevelApprove??GetSuggestedLevel(employee.PositionCode);
-                string? suggestedCode=null;
-                if(level.HasValue&&level.Value>0)
+                if (!_approverChangeSnapshot.TryGetValue(a.ApproverCode, out var old)) continue;
+
+                var employee = await Uow.Repository<F03Employee>().Query()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.EmployeeCode == a.ApproverCode, ct);
+
+                if (employee == null) continue;
+
+                var level = employee.LevelApprove ?? GetSuggestedLevel(employee.PositionCode);
+                string? suggestedCode = null;
+
+                if (level.HasValue && level.Value > 0)
                 {
-                    suggestedCode=await Uow.Repository<F03Employee>().Query().AsNoTracking()
-                        .Join(Uow.Repository<F03Position>().Query().AsNoTracking().Where(p=>p.IsActive==true),x=>x.PositionCode,p=>p.PositionCode,(x,p)=>new{x,p})
-                        .Where(x=>x.x.IsActive==true&&x.x.DeptCode==employee.DeptCode&&x.x.PositionCode==employee.PositionCode&&x.p.DefaultApproveLevel==level.Value&&(x.p.IsApprove||x.p.IsAllowApprove))
-                        .Select(x=>x.x.EmployeeCode).FirstOrDefaultAsync(ct);
+                    suggestedCode = await Uow.Repository<F03Employee>().Query()
+                        .AsNoTracking()
+                        .Join(
+                            Uow.Repository<F03Position>().Query().AsNoTracking()
+                                .Where(p => p.IsActive == true),
+                            x => x.PositionCode,
+                            p => p.PositionCode,
+                            (x, p) => new { x, p })
+                        .Where(x =>
+                            x.x.IsActive == true &&
+                            x.x.DeptCode == employee.DeptCode &&
+                            x.x.PositionCode == employee.PositionCode &&
+                            x.p.DefaultApproveLevel == level.Value &&
+                            (x.p.IsApprove || x.p.IsAllowApprove))
+                        .Select(x => x.x.EmployeeCode)
+                        .FirstOrDefaultAsync(ct);
                 }
-                var scope=a.ApproveForDeptCode==ApproveForDept.All?a.ApproveForDeptCode:employee.DeptCode;
-                var msg=$"HRM thay đổi {a.ApproverCode}: {old.Dept}/{old.Position} → {employee.DeptCode}/{employee.PositionCode}. Cấu hình hiện tại: {a.ApproverCode}/L{a.Level}/{a.ApproveForDeptCode}. "+(suggestedCode!=null?$"Đề xuất: {suggestedCode}/L{level}/{scope}.":"Chưa xác định được duy nhất người duyệt mới; cần Admin quyết định thủ công.");
-                await flags.AddAsync(new F03SyncReviewFlag{EntityType="Employee",EntityKey=a.ApproverCode,FlagType="ApproverConfigurationChanged",Message=msg,CurrentApproverId=a.Id,OldDeptCode=old.Dept,OldPositionCode=old.Position,NewDeptCode=employee.DeptCode,NewPositionCode=employee.PositionCode,CurrentApproverCode=a.ApproverCode,CurrentLevel=a.Level,CurrentRoleName=a.RoleName,CurrentApproveForDeptCode=a.ApproveForDeptCode,SuggestedApproverCode=suggestedCode,SuggestedLevel=level,SuggestedRoleName=level.HasValue?ResolveRoleName(level.Value,a.RequestType):null,SuggestedApproveForDeptCode=scope},ct);
+
+                var scope = a.ApproveForDeptCode == ApproveForDept.All
+                    ? a.ApproveForDeptCode
+                    : employee.DeptCode;
+
+                var msg =
+                    $"HRM thay đổi {a.ApproverCode}: {old.Dept}/{old.Position} → " +
+                    $"{employee.DeptCode}/{employee.PositionCode}. " +
+                    $"Cấu hình hiện tại: {a.ApproverCode}/L{a.Level}/{a.ApproveForDeptCode}. " +
+                    (suggestedCode != null
+                        ? $"Đề xuất: {suggestedCode}/L{level}/{scope}."
+                        : "Chưa xác định được duy nhất người duyệt mới; cần Admin quyết định thủ công.");
+
+                await flags.AddAsync(new F03SyncReviewFlag
+                {
+                    EntityType = "Employee",
+                    EntityKey = a.ApproverCode,
+                    FlagType = "ApproverConfigurationChanged",
+                    Message = msg,
+                    CurrentApproverId = a.Id,
+                    OldDeptCode = old.Dept,
+                    OldPositionCode = old.Position,
+                    NewDeptCode = employee.DeptCode,
+                    NewPositionCode = employee.PositionCode,
+                    CurrentApproverCode = a.ApproverCode,
+                    CurrentLevel = a.Level,
+                    CurrentRoleName = a.RoleName,
+                    CurrentApproveForDeptCode = a.ApproveForDeptCode,
+                    SuggestedApproverCode = suggestedCode,
+                    SuggestedLevel = level,
+                    SuggestedRoleName = level.HasValue
+                        ? ResolveRoleName(level.Value, a.RequestType)
+                        : null,
+                    SuggestedApproveForDeptCode = scope
+                }, ct);
             }
         }
 
         private static string ResolveRoleName(int level, RequestModule requestType) => requestType switch
         {
-            RequestModule.Overtime when level==3=>ApproverRole.SubLeader,
-            RequestModule.Overtime when level==5=>ApproverRole.Chief,
-            RequestModule.Overtime when level==6=>ApproverRole.Manager,
-            RequestModule.Overtime when level==7=>ApproverRole.GM,
-            _ when level==1=>ApproverRole.SubLeader,
-            _ when level==2=>ApproverRole.Manager,
-            _ when level==3=>ApproverRole.GM,
-            _=>$"Level{level}"
+            RequestModule.Overtime when level == 3 => ApproverRole.SubLeader,
+            RequestModule.Overtime when level == 5 => ApproverRole.Chief,
+            RequestModule.Overtime when level == 6 => ApproverRole.Manager,
+            RequestModule.Overtime when level == 7 => ApproverRole.GM,
+            _ when level == 1 => ApproverRole.SubLeader,
+            _ when level == 2 => ApproverRole.Manager,
+            _ when level == 3 => ApproverRole.GM,
+            _ => $"Level{level}"
         };
 
         private int? GetSuggestedLevel(string? positionCode)
-            => positionCode != null && _positionLevelCache.TryGetValue(positionCode, out var level) ? level : null;
+            => positionCode != null && _positionLevelCache.TryGetValue(positionCode, out var level)
+                ? level
+                : null;
 
         private sealed class UserRoleRuleRow
         {
             public int PermissionCode { get; set; }
+        }
+
+        private sealed class ApproverProvisionRow
+        {
+            public string? AffectedEmployee { get; set; }
+            public int ActiveApprovers { get; set; }
         }
     }
 }
