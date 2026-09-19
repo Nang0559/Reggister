@@ -20,6 +20,13 @@ namespace FVN_REGISTER.Contract.Dtos.OT
         public double DailyUsedPercent =>                                          // thêm mới
             DailyLimit == 0 ? 0 : (double)(UsedHoursToday / DailyLimit * 100);
 
+        // Theo tuần (Thứ 2 → Chủ nhật, theo tuần lịch ISO-like của ngày hiện tại)
+        public decimal UsedHoursThisWeek { get; set; }
+        public decimal? WeeklyLimit { get; set; }
+        public decimal? RemainingWeekly => WeeklyLimit.HasValue ? WeeklyLimit.Value - UsedHoursThisWeek : null;
+        public double WeeklyUsedPercent =>
+            !WeeklyLimit.HasValue || WeeklyLimit.Value == 0 ? 0 : (double)(UsedHoursThisWeek / WeeklyLimit.Value * 100);
+
         // Theo tháng
         public decimal UsedHoursThisMonth { get; set; }
         public decimal MonthlyLimit { get; set; } = 40m;
@@ -37,6 +44,7 @@ namespace FVN_REGISTER.Contract.Dtos.OT
 
         // Cảnh báo
         public bool IsNearDailyLimit => (DailyLimit - UsedHoursToday) <= 1;
+        public bool IsNearWeeklyLimit => WeeklyLimit.HasValue && RemainingWeekly <= 4;
         public bool IsNearMonthlyLimit => RemainingMonthly <= 8;
         public bool IsNearYearlyLimit => RemainingYearly <= 20;
         public bool ExceedsDailyLimit => UsedHoursToday >= DailyLimit;   // 👈 thêm để validate bước 3

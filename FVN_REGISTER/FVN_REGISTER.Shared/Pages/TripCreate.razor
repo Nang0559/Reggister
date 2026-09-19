@@ -4,6 +4,8 @@
 @using FVN_REGISTER.Contract.Dtos.Trips
 @using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.Trips
+@using FVN_REGISTER.Shared.Components.Calendar
+@using FVN_REGISTER.Contract.Dtos.Calendar
 @using Microsoft.AspNetCore.Authorization
 @inject ITripClientService TripService
 @inject ISnackbar Snackbar
@@ -11,6 +13,12 @@
 @inherits AppComponentBase
 
 <PageTitle>Đăng ký công tác</PageTitle>
+
+<MudPaper Class="pa-2 mb-4" Elevation="1">
+    <MudText Typo="Typo.subtitle1">Lịch làm việc chung</MudText>
+    <MudText Typo="Typo.caption" Color="Color.Secondary">Theo dõi ngày nghỉ công ty, nghỉ phép, OT và các chuyến công tác hiện có.</MudText>
+    <WorkCalendar ModuleContext="TRIP" OnDateSelected="OnCalendarDateSelected" OnEventSelected="OnCalendarEventSelected" />
+</MudPaper>
 
 <MudStack Spacing="2">
     <MudPaper Class="pa-3" Elevation="1">
@@ -258,4 +266,25 @@
         _note = null;
         _validationMessage = null;
     }
+    private Task OnCalendarDateSelected(DateTime date)
+    {
+        _startDate = date.Date;
+        _endDate = date.Date;
+        _validationMessage = null;
+        return InvokeAsync(StateHasChanged);
+    }
+
+    private Task OnCalendarEventSelected(WorkCalendarEventDto item)
+    {
+        if (item.ModuleCode == "TRIP" && item.RequestId.HasValue)
+            Navigation.NavigateTo($"/trip/{item.RequestId.Value}");
+        else if (item.ModuleCode == "LEAVE")
+            Snackbar.Add($"Đã có nghỉ phép: {item.Title}", Severity.Info);
+        else if (item.ModuleCode == "OT")
+            Snackbar.Add($"Đã có OT: {item.Title}", Severity.Info);
+        else
+            Snackbar.Add(item.Title, Severity.Info);
+        return Task.CompletedTask;
+    }
+
 }

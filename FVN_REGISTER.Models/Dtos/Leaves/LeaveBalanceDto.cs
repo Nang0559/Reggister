@@ -13,5 +13,10 @@
         public decimal Unpaid { get; set; }        // Nghỉ không lương
         public decimal Sick { get; set; }          // Nghỉ bệnh
         public int Year { get; set; }
+
+        // Lịch nghỉ sắp tới (đã duyệt, từ hôm nay trở đi)
+        public decimal UpcomingDays { get; set; }
+        public DateTime? NextLeaveDate { get; set; }
+        public string? NextLeaveTypeName { get; set; }
     }
 }

@@ -75,7 +75,7 @@ namespace FVN_REGISTER.API.Controllers
                 return BadRequest(ApiResponse<object>.Fail("Dữ liệu đổi mật khẩu không hợp lệ."));
 
             var result = await _authService.ChangePassword(
-                UserInfo.EmployeeCode,
+                UserInfo.EmployeeCode??"",
                 request.CurrentPassword,
                 request.NewPassword,
                 ct);

@@ -7,8 +7,7 @@ namespace FVN_REGISTER.Core.Entities.Security;
 [Table("F03Users")]
 public partial class F03User : BaseAuditEntity
 {
-    // PK kế thừa từ BaseAuditEntity.Id.
-    // EF mapping Id -> IdUser được đặt tại Infrastructure để giữ nguyên schema DB legacy.
+    // PK duy nhất kế thừa trực tiếp từ BaseAuditEntity.Id.
 
     [Required, StringLength(255)]
     public string Password { get; set; } = string.Empty;
@@ -43,4 +42,5 @@ public partial class F03User : BaseAuditEntity
 
     public virtual ICollection<F03AuditLog> AuditLogs { get; set; } = new List<F03AuditLog>();
     public virtual ICollection<F03UserFunction> F03userFunctions { get; set; } = new List<F03UserFunction>();
+    public virtual ICollection<F03UserRole> UserRoles { get; set; } = new List<F03UserRole>();
 }

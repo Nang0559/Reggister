@@ -79,7 +79,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
             if (e.GenderCode != s.GenderCode) { e.GenderCode = s.GenderCode; changed = true; }
             if (e.FirstWorkingDate != s.FirstWorkingDate) { e.FirstWorkingDate = s.FirstWorkingDate; changed = true; }
             if (e.EmployeeNo != s.EmployeeNo) { e.EmployeeNo = s.EmployeeNo; changed = true; }
-            if (e.EmailAddress != (s.EmailAddress ?? "")) { e.EmailAddress = s.EmailAddress; changed = true; }
+            if (e.EmailAddress != (s.EmailAddress ?? "")) { e.EmailAddress = s.EmailAddress??""; changed = true; }
             if (e.PhoneNumber != s.PhoneNumber) { e.PhoneNumber = s.PhoneNumber; changed = true; }
             if (e.EndWorkingDate != s.EndWorkingDate) { e.EndWorkingDate = s.EndWorkingDate; changed = true; }
             if (e.TotalLeaveDays != (s.TotalLeaveDays ?? 0)) { e.TotalLeaveDays = s.TotalLeaveDays ?? 0; changed = true; }
@@ -167,7 +167,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                         await Uow.Repository<F03User>().AddAsync(user, ct);
                         usersByCode[employee.EmployeeCode] = user;
 
-                        if (employee.IsActive && !string.IsNullOrWhiteSpace(employee.EmailAddress))
+                        if (employee.IsActive == true && !string.IsNullOrWhiteSpace(employee.EmailAddress))
                             await QueueRegistrationEmailAsync(employee, ct);
                     }
                     else
@@ -178,16 +178,19 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                         user.DeptCode = employee.DeptCode;
                         user.Cvcode = employee.PositionCode;
                         user.LevelApprove = employee.LevelApprove ?? 0;
-                        user.PermissionCode = permissionCode;
+                        // SECURITY BOUNDARY:
+                        // Existing FVN users keep their role/permissions. HRM only owns
+                        // employee identity/master fields. The HRM role rule is used only
+                        // when provisioning a brand-new F03User.
                         user.IsActive = employee.IsActive;
                         user.LastModifiedSource = SyncSourceTags.Hrm;
 
-                        if (wasActive && employee.IsActive == false)
+                        if (wasActive && employee.IsActive != true)
                         {
                             user.LockoutEndDate = DateTime.Now;
 
                             var sessions = await Uow.Repository<F03UserSession>().Query()
-                                .Where(x => x.UserId == user.Id && x.IsActive)
+                                .Where(x => x.UserId == user.Id && x.IsActive == true)
                                 .ToListAsync(ct);
 
                             foreach (var session in sessions)

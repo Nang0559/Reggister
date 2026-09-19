@@ -3,6 +3,9 @@ using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Histories;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Contract.Dtos.Authentication;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Maps;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using FVN_REGISTER.Contract.Dtos;
@@ -22,6 +25,8 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
           IOTQueryService
     {
         private readonly IApprovalProvider<OTRequestSubject> _approvalProvider;
+        private readonly ICurrentUserService _currentUser;
+        private readonly IAuthorizationService _authorization;
 
         protected override RequestModule Module => RequestModule.Overtime;
 
@@ -30,10 +35,13 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             IApprovalHistoryService historyService,
             IAttachmentService attachmentService,
             ICurrentUserService currentUserService,
-            IApprovalProvider<OTRequestSubject> approvalProvider)
+            IApprovalProvider<OTRequestSubject> approvalProvider,
+            IAuthorizationService authorization)
             : base(uow, historyService, attachmentService, currentUserService)
         {
             _approvalProvider = approvalProvider;
+            _currentUser = currentUserService;
+            _authorization = authorization;
         }
 
         protected override async Task<OTRequestDto?> GetHeaderByIdAsync(int requestId, CancellationToken ct)
@@ -43,6 +51,10 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct);
 
             if (entity == null)
+                return null;
+
+            var user = _currentUser.GetCurrentUser();
+            if (user == null || !await _authorization.CanAccessAsync(user, SecurityFunctionCodes.OTView, entity.EmployeeCode, entity.DeptCode, ct))
                 return null;
 
             var requester = await Uow.Repository<VF03employee>().Query()
@@ -120,7 +132,19 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .AsNoTracking()
                 .Where(x => x.IsActive == true);
 
-            if (!string.IsNullOrWhiteSpace(deptCode))
+            var user = _currentUser.GetCurrentUser();
+            if (user == null)
+                return new PaginationResult<OTSummaryDto>(new List<OTSummaryDto>(), 0, page, pageSize);
+
+            var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.OTView, ct);
+            if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
+                query = query.Where(x => x.EmployeeCode == user.EmployeeCode);
+            else if (scope == AuthorizationScopeCodes.Department)
+                query = query.Where(x => x.DeptCode == user.DeptCode);
+            else if (scope != AuthorizationScopeCodes.All)
+                query = query.Where(x => false);
+
+            if (!string.IsNullOrWhiteSpace(deptCode) && scope == AuthorizationScopeCodes.All)
                 query = query.Where(x => x.DeptCode == deptCode);
             if (status.HasValue)
                 query = query.Where(x => x.RequestStatus == status.Value);
@@ -144,9 +168,21 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         public override async Task<List<OTRequestDto>> GetDeptByDateAsync(
             string deptCode, DateTime date, CancellationToken ct = default)
         {
+            var user = _currentUser.GetCurrentUser();
+            if (user == null)
+                return new List<OTRequestDto>();
+
+            var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.OTView, ct);
             var data = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
                 .Where(x => x.IsActive == true
+                    && (scope == AuthorizationScopeCodes.All
+                        ? x.DeptCode == deptCode
+                        : scope == AuthorizationScopeCodes.Department
+                            ? x.DeptCode == user.DeptCode
+                            : (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
+                                ? x.EmployeeCode == user.EmployeeCode
+                                : false)
                     && x.DeptCode == deptCode
                     && x.OTDate.Date == date.Date
                     && x.RequestStatus != ApprovalStatus.Cancelled
@@ -264,12 +300,58 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             foreach (var emp in model.Employees)
             {
                 var balance = await GetBalanceAsync(emp.EmployeeCode, model.OTDate.Year, model.OTDate.Month, ct);
-                CheckLimit(result, emp, OTLimitType.Daily, balance.UsedHoursToday, balance.DailyLimit, emp.OTHours);
+
+                // Daily must be calculated against the requested OT date, not DateTime.Today.
+                var usedOnRequestedDate = await Uow.Repository<VF03OTRequest>().Query()
+                    .AsNoTracking()
+                    .Where(x => x.EmployeeCode == emp.EmployeeCode
+                        && x.IsActive == true
+                        && x.RequestStatus == ApprovalStatus.Approved
+                        && x.OTDate.Date == model.OTDate.Date)
+                    .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
+
+                CheckLimit(result, emp, OTLimitType.Daily, usedOnRequestedDate, balance.DailyLimit, emp.OTHours);
+
+                // Weekly window is always Monday 00:00 through the following Monday.
+                var weekOffset = (7 + (int)model.OTDate.DayOfWeek - (int)DayOfWeek.Monday) % 7;
+                var weekStart = model.OTDate.Date.AddDays(-weekOffset);
+                var weekEnd = weekStart.AddDays(7);
+                var usedThisWeek = await Uow.Repository<VF03OTRequest>().Query()
+                    .AsNoTracking()
+                    .Where(x => x.EmployeeCode == emp.EmployeeCode
+                        && x.IsActive == true
+                        && x.RequestStatus == ApprovalStatus.Approved
+                        && x.OTDate >= weekStart && x.OTDate < weekEnd)
+                    .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
+
+                var employeeContext = await Uow.Repository<F03Employee>().Query()
+                    .AsNoTracking()
+                    .Where(e => e.EmployeeCode == emp.EmployeeCode)
+                    .Select(e => new { e.DeptCode, e.PositionCode })
+                    .FirstOrDefaultAsync(ct);
+
+                var weeklyRule = employeeContext == null
+                    ? null
+                    : await Uow.Repository<F03OTLimitRule>().Query()
+                        .AsNoTracking()
+                        .Where(r => r.IsActive == true && r.LimitType == OTLimitType.Weekly
+                            && (r.PositionCode == null || r.PositionCode == employeeContext.PositionCode)
+                            && (r.DeptCode == null || r.DeptCode == employeeContext.DeptCode))
+                        .OrderByDescending(r => r.PositionCode != null && r.DeptCode != null)
+                        .ThenByDescending(r => r.DeptCode != null)
+                        .ThenByDescending(r => r.PositionCode != null)
+                        .FirstOrDefaultAsync(ct);
+
+                if (weeklyRule != null)
+                    CheckLimit(result, emp, OTLimitType.Weekly, usedThisWeek, weeklyRule.LimitHours, emp.OTHours);
+
                 CheckLimit(result, emp, OTLimitType.Monthly, balance.UsedHoursThisMonth, balance.MonthlyLimit, emp.OTHours);
                 CheckLimit(result, emp, OTLimitType.Yearly, balance.UsedHoursThisYear, balance.YearlyLimit, emp.OTHours);
 
                 if (balance.IsNearMonthlyLimit)
                     result.Warnings.Add($"{emp.EmployeeCode}: gần đạt giới hạn giờ OT tháng này ({balance.RemainingMonthly}h còn lại).");
+                if (weeklyRule != null && usedThisWeek + emp.OTHours > weeklyRule.LimitHours * 0.9m)
+                    result.Warnings.Add($"{emp.EmployeeCode}: gần đạt giới hạn giờ OT tuần này ({weeklyRule.LimitHours - usedThisWeek - emp.OTHours}h còn lại sau đăng ký).");
             }
 
             result.IsValid = result.Errors.Count == 0;
@@ -321,6 +403,16 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                     && x.OTDate.Year == year && x.OTDate.Month == month)
                 .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
 
+            var weekOffset = (7 + (int)today.DayOfWeek - (int)DayOfWeek.Monday) % 7;
+            var monday = today.Date.AddDays(-weekOffset);
+            var sunday = monday.AddDays(7);
+            var usedThisWeek = await Uow.Repository<VF03OTRequest>().Query()
+                .AsNoTracking()
+                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
+                    && x.RequestStatus == ApprovalStatus.Approved
+                    && x.OTDate >= monday && x.OTDate < sunday)
+                .SumAsync(x => (decimal?)x.TotalOTHours, ct) ?? 0;
+
             var usedThisYear = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
                 .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
@@ -334,6 +426,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 Year = year,
                 Month = month,
                 UsedHoursToday = usedToday,
+                UsedHoursThisWeek = usedThisWeek,
                 UsedHoursThisMonth = usedThisMonth,
                 UsedHoursThisYear = usedThisYear
             };
@@ -348,11 +441,13 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                         || (r.PositionCode == null && r.DeptCode == null)))
                 .ToListAsync(ct);
 
-            var dailyRule = rules.FirstOrDefault(r => r.LimitType == OTLimitType.Daily);
-            var monthlyRule = rules.FirstOrDefault(r => r.LimitType == OTLimitType.Monthly);
-            var yearlyRule = rules.FirstOrDefault(r => r.LimitType == OTLimitType.Yearly);
+            var dailyRule = ResolveRule(rules, emp.PositionCode, emp.DeptCode, OTLimitType.Daily);
+            var weeklyRule = ResolveRule(rules, emp.PositionCode, emp.DeptCode, OTLimitType.Weekly);
+            var monthlyRule = ResolveRule(rules, emp.PositionCode, emp.DeptCode, OTLimitType.Monthly);
+            var yearlyRule = ResolveRule(rules, emp.PositionCode, emp.DeptCode, OTLimitType.Yearly);
 
             if (dailyRule != null) dto.DailyLimit = dailyRule.LimitHours;
+            if (weeklyRule != null) dto.WeeklyLimit = weeklyRule.LimitHours;
             if (monthlyRule != null) dto.MonthlyLimit = monthlyRule.LimitHours;
             if (yearlyRule != null) dto.YearlyLimit = yearlyRule.LimitHours;
 
@@ -384,6 +479,16 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 .Where(e => e.EmployeeCode == employeeCode)
                 .Select(e => e.DeptCode)
                 .FirstOrDefaultAsync(ct) ?? string.Empty;
+        }
+
+        private async Task<string?> GetEmployeePositionCodeAsync(
+            string employeeCode, CancellationToken ct = default)
+        {
+            return await Uow.Repository<F03Employee>().Query()
+                .AsNoTracking()
+                .Where(e => e.EmployeeCode == employeeCode)
+                .Select(e => e.PositionCode)
+                .FirstOrDefaultAsync(ct);
         }
 
         public async Task<List<OTBalanceDto>> GetDeptNearLimitAsync(

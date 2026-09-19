@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Factories;
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Interfaces.Common;
+using FVN_REGISTER.Application.Interfaces.Calendar;
 using FVN_REGISTER.Application.Interfaces.Companies;
 using FVN_REGISTER.Application.Interfaces.EmailTemplates;
 using FVN_REGISTER.Application.Interfaces.Emails;
@@ -13,9 +14,11 @@ using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.OTTypes;
+using FVN_REGISTER.Application.Interfaces.PublicInformation;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Reports;
 using FVN_REGISTER.Application.Interfaces.Statics;
+using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Dashboards;
 using FVN_REGISTER.Application.Interfaces.UserManagers;
 using FVN_REGISTER.Application.Interfaces.Users;
@@ -30,6 +33,7 @@ using FVN_REGISTER.Infrastructure.Repositories;
 using FVN_REGISTER.Infrastructure.Services.Approvals;
 using FVN_REGISTER.Infrastructure.Services.Auths;
 using FVN_REGISTER.Infrastructure.Services.Companies;
+using FVN_REGISTER.Infrastructure.Services.Calendar;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using FVN_REGISTER.Infrastructure.Services.Emails;
 using FVN_REGISTER.Infrastructure.Services.Employees;
@@ -45,10 +49,12 @@ using FVN_REGISTER.Infrastructure.Services.Leaves;
 using FVN_REGISTER.Infrastructure.Services.Notifications;
 using FVN_REGISTER.Infrastructure.Services.OT;
 using FVN_REGISTER.Infrastructure.Services.OTs;
+using FVN_REGISTER.Infrastructure.Services.PublicInformation;
 using FVN_REGISTER.Infrastructure.Services.Reports;
 using FVN_REGISTER.Infrastructure.Services.Statics;
 using FVN_REGISTER.Infrastructure.Services.Dashboards;
 using FVN_REGISTER.Infrastructure.Services.Users;
+using FVN_REGISTER.Infrastructure.Services.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
@@ -90,6 +96,7 @@ builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<INetworkService, NetworkService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IWorkingDayService, WorkingDayService>();
+builder.Services.AddScoped<IWorkCalendarService, WorkCalendarService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 builder.Services.AddScoped<IDepartmentLookupService, DepartmentLookupService>();
 builder.Services.AddScoped<IDepartmentManagementService, DepartmentManagementService>();
@@ -99,6 +106,8 @@ builder.Services.AddScoped<IStatisticsService, StatisticsService>();
 builder.Services.AddScoped<IDashboardOrchestrator, DashboardOrchestrator>();
 builder.Services.AddScoped<IModuleDashboardProvider, LeaveDashboardProvider>();
 builder.Services.AddScoped<IModuleDashboardProvider, OTDashboardProvider>();
+builder.Services.AddScoped<IModuleDashboardProvider, TripDashboardProvider>();
+builder.Services.AddScoped<IModuleDashboardProvider, EquipmentDashboardProvider>();
 builder.Services.AddScoped<ILeaveQueryService, LeaveQueryService>();
 builder.Services.AddScoped<IEscalationRuleService, EscalationRuleService>();
 builder.Services.AddScoped<ILeaveValidator, LeaveValidator>();
@@ -108,6 +117,7 @@ builder.Services.AddScoped<ILeaveService, LeaveService>();
 // Reports
 builder.Services.AddScoped<IReportService, LeaveReportService>();
 builder.Services.AddScoped<IReportService, OTReportService>();
+builder.Services.AddScoped<IReportService, OperationalReportService>();
 builder.Services.AddScoped<IReportDispatcher, ReportDispatcher>();
 
 // OT
@@ -126,6 +136,7 @@ builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Trips.ITripServic
 
 // Equipment
 builder.Services.AddScoped<IEquipmentService, EquipmentService>();
+builder.Services.AddScoped<IEquipmentImportService, EquipmentImportService>();
 builder.Services.AddScoped<IEquipmentQrCodeService, QrCodeService>();
 
 // Auth / users
@@ -137,6 +148,8 @@ builder.Services.AddScoped<IEmployeeUserResolver, EmployeeUserResolver>();
 builder.Services.AddScoped<ISessionService, SessionService>();
 builder.Services.AddScoped<ISessionTerminationNotifier, SignalRSessionTerminationNotifier>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
+builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
+builder.Services.AddScoped<IPublicInformationService, PublicInformationService>();
 builder.Services.AddScoped<IApproverManagementService, ApproverManagementService>();
 builder.Services.AddScoped<IEmployeeManagementService, EmployeeManagementService>();
 builder.Services.AddScoped<ILeaveTypeManagementService, LeaveTypeManagementService>();
@@ -194,6 +207,7 @@ builder.Services.AddScoped<IHrmStagingImporterResolver, HrmStagingImporterResolv
 builder.Services.AddScoped<IHrmSyncJobResolver, HrmSyncJobResolver>();
 builder.Services.AddScoped<IHrmSyncReviewQueryService, HrmSyncReviewQueryService>();
 builder.Services.AddScoped<IHrmSyncService, HrmSyncService>();
+builder.Services.AddScoped<IHrmAttendanceCalculationService, HrmAttendanceCalculationService>();
 builder.Services.AddScoped<IHrmUserRoleRuleService, HrmUserRoleRuleService>();
 
 builder.Services.AddAuthentication(options =>

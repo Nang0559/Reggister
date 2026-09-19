@@ -9,15 +9,19 @@ SELECT name,type_desc FROM sys.procedures WHERE name IN(N'usp_GetPendingApproval
 SELECT fk.name,OBJECT_NAME(fk.parent_object_id) AS ParentTable,OBJECT_NAME(fk.referenced_object_id) AS ReferencedTable FROM sys.foreign_keys fk ORDER BY ParentTable,fk.name;
 GO
 
-/* Architecture/PK verification: security entities use legacy DB PK names mapped to C# BaseAuditEntity.Id. */
+/* Architecture/PK verification: BaseAuditEntity-backed security entities use canonical Id. */
 SELECT t.name AS TableName,c.name AS ColumnName,ty.name AS DataType,c.is_identity,c.is_nullable
 FROM sys.tables t JOIN sys.columns c ON c.object_id=t.object_id JOIN sys.types ty ON ty.user_type_id=c.user_type_id
 WHERE t.name IN(N'F03Users',N'F03Permissions',N'F03Functions') AND c.name IN(N'Id',N'IdUser',N'IdPermission',N'IdFunction')
 ORDER BY t.name,c.column_id;
 
-/* Duplicate canonical Id columns must not remain in the three legacy security tables. */
-IF COL_LENGTH('dbo.F03Users','Id') IS NOT NULL OR COL_LENGTH('dbo.F03Permissions','Id') IS NOT NULL OR COL_LENGTH('dbo.F03Functions','Id') IS NOT NULL
-    THROW 50010,'Duplicate canonical Id column remains in a security table.',1;
+/* Canonical Id must exist; legacy per-entity PK names must not remain. */
+IF COL_LENGTH('dbo.F03Users','Id') IS NULL OR COL_LENGTH('dbo.F03Permissions','Id') IS NULL OR COL_LENGTH('dbo.F03Functions','Id') IS NULL
+    THROW 50010,'BaseAuditEntity.Id is missing from a canonical security table.',1;
+IF COL_LENGTH('dbo.F03Users','IdUser') IS NOT NULL OR COL_LENGTH('dbo.F03Permissions','IdPermission') IS NOT NULL OR COL_LENGTH('dbo.F03Functions','IdFunction') IS NOT NULL
+    THROW 50011,'Legacy per-entity security PK column remains.',1;
+IF COL_LENGTH('dbo.F03Roles','Id') IS NULL OR COL_LENGTH('dbo.F03RoleFunctions','Id') IS NULL OR COL_LENGTH('dbo.F03UserRoles','Id') IS NULL
+    THROW 50012,'RBAC BaseAuditEntity.Id is missing.',1;
 GO
 
 /* OT/HRM canonical verification. */
@@ -104,3 +108,35 @@ IF OBJECT_ID(N'dbo.F03HrmUserRoleRules',N'U') IS NULL
 
 SELECT
     UserRoleRuleCount = (SELECT COUNT(*) FROM dbo.F03HrmUserRoleRules);
+
+/* BaseAudit synchronization checks for common entities normalized in this pass. */
+IF OBJECT_ID(N'dbo.F03LeaveDayDetails',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03LeaveDayDetails',N'Id') IS NULL THROW 51010, 'F03LeaveDayDetails must expose canonical Id.', 1;
+    IF COL_LENGTH(N'dbo.F03LeaveDayDetails',N'CreatedBy') IS NULL THROW 51011, 'F03LeaveDayDetails must expose BaseAudit CreatedBy.', 1;
+    IF COL_LENGTH(N'dbo.F03LeaveDayDetails',N'CreatedAt') IS NULL THROW 51012, 'F03LeaveDayDetails must expose BaseAudit CreatedAt.', 1;
+END;
+IF OBJECT_ID(N'dbo.F03UserSessions',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03UserSessions',N'Id') IS NULL THROW 51013, 'F03UserSessions must expose canonical Id.', 1;
+    IF COL_LENGTH(N'dbo.F03UserSessions',N'CreatedBy') IS NULL THROW 51014, 'F03UserSessions must expose BaseAudit CreatedBy.', 1;
+    IF COL_LENGTH(N'dbo.F03UserSessions',N'CreatedAt') IS NULL THROW 51015, 'F03UserSessions must expose BaseAudit CreatedAt.', 1;
+END;
+IF OBJECT_ID(N'dbo.F03Attachment',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03Attachment',N'Id') IS NULL THROW 51016, 'F03Attachment must expose canonical Id.', 1;
+    IF COL_LENGTH(N'dbo.F03Attachment',N'FileId') IS NOT NULL THROW 51017, 'Legacy F03Attachment.FileId must not remain as the database PK column.', 1;
+END;
+IF OBJECT_ID(N'dbo.F03EmailLogs',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03EmailLogs',N'CreatedBy') IS NULL THROW 51018, 'F03EmailLogs must expose BaseAudit CreatedBy.', 1;
+END;
+IF OBJECT_ID(N'dbo.F03UserLogs',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03UserLogs',N'CreatedBy') IS NULL THROW 51019, 'F03UserLogs must expose BaseAudit CreatedBy.', 1;
+END;
+
+/* Approval BaseAudit checks */
+IF OBJECT_ID(N'dbo.F03ApprovalSnapshots',N'U') IS NOT NULL AND COL_LENGTH(N'dbo.F03ApprovalSnapshots',N'CreatedBy') IS NULL THROW 51020,'F03ApprovalSnapshots must expose BaseAudit fields.',1;
+IF OBJECT_ID(N'dbo.F03ApprovalStepSnapshots',N'U') IS NOT NULL AND COL_LENGTH(N'dbo.F03ApprovalStepSnapshots',N'CreatedBy') IS NULL THROW 51021,'F03ApprovalStepSnapshots must expose BaseAudit fields.',1;
+IF OBJECT_ID(N'dbo.F03ApprovalReminderLog',N'U') IS NOT NULL AND COL_LENGTH(N'dbo.F03ApprovalReminderLog',N'CreatedBy') IS NULL THROW 51022,'F03ApprovalReminderLog must expose BaseAudit fields.',1;

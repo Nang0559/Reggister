@@ -75,10 +75,25 @@ else
                     </MudCardHeader>
                     <MudCardContent>
                         <MudGrid>
-                            <MudItem xs="4"><MudText Typo="Typo.caption">Được hưởng</MudText><MudText Typo="Typo.h6">@Data.Leave.PersonalBalance.TotalEntitled.ToString("N1")</MudText></MudItem>
-                            <MudItem xs="4"><MudText Typo="Typo.caption">Đã dùng</MudText><MudText Typo="Typo.h6">@Data.Leave.PersonalBalance.Used.ToString("N1")</MudText></MudItem>
-                            <MudItem xs="4"><MudText Typo="Typo.caption">Còn lại</MudText><MudText Typo="Typo.h6">@Data.Leave.PersonalBalance.Remaining.ToString("N1")</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.caption">Được hưởng</MudText><MudText Typo="Typo.h6">@Data.Leave.PersonalBalance.TotalEntitled.ToString("N1") ngày</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.caption">Đã nghỉ</MudText><MudText Typo="Typo.h6">@Data.Leave.PersonalBalance.Used.ToString("N1") ngày</MudText></MudItem>
+                            <MudItem xs="4"><MudText Typo="Typo.caption">Còn lại</MudText><MudText Typo="Typo.h6">@Data.Leave.PersonalBalance.Remaining.ToString("N1") ngày</MudText></MudItem>
                         </MudGrid>
+                        @if (Data.Leave.PersonalBalance.NextLeaveDate.HasValue)
+                        {
+                            <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-3">
+                                Sắp nghỉ: <b>@Data.Leave.PersonalBalance.NextLeaveDate.Value.ToString("dd/MM/yyyy")</b>
+                                @if (!string.IsNullOrWhiteSpace(Data.Leave.PersonalBalance.NextLeaveTypeName))
+                                {
+                                    <span> — @Data.Leave.PersonalBalance.NextLeaveTypeName</span>
+                                }
+                                <span> • Tổng các đợt nghỉ sắp tới: @Data.Leave.PersonalBalance.UpcomingDays.ToString("N1") ngày</span>
+                            </MudAlert>
+                        }
+                        else
+                        {
+                            <MudText Typo="Typo.caption" Class="mt-3 mud-text-secondary">Chưa có ngày nghỉ đã duyệt sắp tới.</MudText>
+                        }
                     </MudCardContent>
                 </MudCard>
             </MudItem>
@@ -94,9 +109,18 @@ else
                     </MudCardHeader>
                     <MudCardContent>
                         <MudGrid>
-                            <MudItem xs="6"><MudText Typo="Typo.caption">OT tháng</MudText><MudText Typo="Typo.h6">@Data.OT.PersonalBalance.UsedHoursThisMonth.ToString("N1") / @Data.OT.PersonalBalance.MonthlyLimit.ToString("N1") h</MudText></MudItem>
-                            <MudItem xs="6"><MudText Typo="Typo.caption">OT năm</MudText><MudText Typo="Typo.h6">@Data.OT.PersonalBalance.UsedHoursThisYear.ToString("N1") / @Data.OT.PersonalBalance.YearlyLimit.ToString("N1") h</MudText></MudItem>
+                            <MudItem xs="12" sm="4"><MudText Typo="Typo.caption">OT tuần</MudText><MudText Typo="Typo.h6">@Data.OT.PersonalBalance.UsedHoursThisWeek.ToString("N1") / @(Data.OT.PersonalBalance.WeeklyLimit?.ToString("N1") ?? "—") h</MudText></MudItem>
+                            <MudItem xs="12" sm="4"><MudText Typo="Typo.caption">OT tháng</MudText><MudText Typo="Typo.h6">@Data.OT.PersonalBalance.UsedHoursThisMonth.ToString("N1") / @Data.OT.PersonalBalance.MonthlyLimit.ToString("N1") h</MudText></MudItem>
+                            <MudItem xs="12" sm="4"><MudText Typo="Typo.caption">OT năm</MudText><MudText Typo="Typo.h6">@Data.OT.PersonalBalance.UsedHoursThisYear.ToString("N1") / @Data.OT.PersonalBalance.YearlyLimit.ToString("N1") h</MudText></MudItem>
                         </MudGrid>
+                        @if (Data.OT.PersonalBalance.IsNearWeeklyLimit || Data.OT.PersonalBalance.IsNearMonthlyLimit || Data.OT.PersonalBalance.IsNearYearlyLimit)
+                        {
+                            <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mt-3">
+                                Có giới hạn OT đang gần chạm. Tuần: @(Data.OT.PersonalBalance.RemainingWeekly?.ToString("N1") ?? "—")h,
+                                tháng: @Data.OT.PersonalBalance.RemainingMonthly.ToString("N1")h,
+                                năm: @Data.OT.PersonalBalance.RemainingYearly.ToString("N1")h.
+                            </MudAlert>
+                        }
                     </MudCardContent>
                 </MudCard>
             </MudItem>

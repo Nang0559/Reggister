@@ -1,0 +1,135 @@
+@using FVN_REGISTER.Contract.Dtos.Calendar
+@using FVN_REGISTER.Shared.Services.Calendar
+@using FVN_REGISTER.Shared.Services.Users
+@inject IWorkCalendarClientService CalendarService
+@inject ICurrentUserClientService CurrentUser
+@inject IJSRuntime JS
+@implements IAsyncDisposable
+
+<MudPaper Class="pa-2" Elevation="0">
+    <MudStack Row="true" Spacing="1" Class="mb-2 flex-wrap">
+        @foreach (var filter in Filters)
+        {
+            <MudChip T="string" Size="Size.Small"
+                     Variant="@(_moduleFilter == filter.Code ? Variant.Filled : Variant.Outlined)"
+                     Color="@(_moduleFilter == filter.Code ? Color.Primary : Color.Default)"
+                     OnClick="@(() => SetFilter(filter.Code))">
+                @filter.Name
+            </MudChip>
+        }
+    </MudStack>
+    <div @ref="_element" style="min-height:450px; touch-action:manipulation; user-select:none; -webkit-user-select:none;"></div>
+</MudPaper>
+
+@code {
+    [Parameter] public string ModuleContext { get; set; } = "ALL";
+    [Parameter] public EventCallback<DateTime> OnDateSelected { get; set; }
+    [Parameter] public EventCallback<WorkCalendarEventDto> OnEventSelected { get; set; }
+
+    private static readonly (string Code, string Name)[] Filters =
+    [
+        ("ALL", "Tất cả"), ("COMPANY", "Công ty"), ("LEAVE", "Nghỉ phép"),
+        ("OT", "OT"), ("TRIP", "Công tác")
+    ];
+
+    private ElementReference _element;
+    private DotNetObjectReference<WorkCalendar>? _ref;
+    private WorkCalendarDto _data = new();
+    private string _moduleFilter = "ALL";
+    private bool _initialized;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _initialized) return;
+
+        if (!CurrentUser.IsLoggedIn)
+            await CurrentUser.InitializeAsync();
+
+        // Context chỉ quyết định hành động khi click; không được tự động ẩn dữ liệu module khác.
+        _moduleFilter = "ALL";
+
+        await LoadAsync(DateTime.Today.AddMonths(-1).Date, DateTime.Today.AddMonths(2).Date);
+        _ref = DotNetObjectReference.Create(this);
+
+        await JS.InvokeVoidAsync(
+            "workCalendar.init",
+            _element,
+            _ref,
+            BuildEvents(),
+            DateTime.Today.ToString("yyyy-MM-dd"));
+
+        _initialized = true;
+    }
+
+    private async Task LoadAsync(DateTime from, DateTime to)
+    {
+        var result = await CalendarService.GetAsync(from.Date, to.Date);
+        if (result.IsSuccess && result.Data != null)
+            _data = result.Data;
+    }
+
+    private List<object> BuildEvents()
+    {
+        var events = _data.Events
+            .Where(Visible)
+            .Select(e => new
+            {
+                id = e.Id,
+                title = e.Title,
+                start = e.Start.ToString("s"),
+                end = e.End.ToString("s"),
+                moduleCode = e.ModuleCode,
+                status = e.Status,
+                requestId = e.RequestId,
+                display = e.ModuleCode == "COMPANY" ? "background" : "auto"
+            })
+            .ToList<object>();
+
+        return events;
+    }
+
+    private bool Visible(WorkCalendarEventDto e) =>
+        _moduleFilter == "ALL" || e.ModuleCode == "COMPANY" || e.ModuleCode == _moduleFilter;
+
+    private async Task SetFilter(string code)
+    {
+        _moduleFilter = code;
+        if (_initialized)
+            await JS.InvokeVoidAsync("workCalendar.updateEvents", BuildEvents());
+    }
+
+    [JSInvokable]
+    public async Task OnCalendarDateClick(string date)
+    {
+        if (DateTime.TryParse(date, out var value) && OnDateSelected.HasDelegate)
+            await OnDateSelected.InvokeAsync(value.Date);
+    }
+
+    [JSInvokable]
+    public async Task OnCalendarEventClick(string id)
+    {
+        var item = _data.Events.FirstOrDefault(x => x.Id == id);
+        if (item != null && OnEventSelected.HasDelegate)
+            await OnEventSelected.InvokeAsync(item);
+    }
+
+    [JSInvokable]
+    public async Task OnCalendarRangeChanged(string start, string end)
+    {
+        if (!DateTime.TryParse(start, out var from) || !DateTime.TryParse(end, out var to))
+            return;
+
+        await LoadAsync(from, to.AddDays(-1));
+        if (_initialized)
+            await JS.InvokeVoidAsync("workCalendar.updateEvents", BuildEvents());
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        _ref?.Dispose();
+        if (_initialized)
+        {
+            try { await JS.InvokeVoidAsync("workCalendar.destroy", _element); } catch { }
+        }
+    }
+}

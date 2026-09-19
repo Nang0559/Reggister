@@ -1,0 +1,53 @@
+@page "/hrm/attendance-calculation"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using FVN_REGISTER.Contract.Dtos.Depts
+@using FVN_REGISTER.Contract.Dtos.HrmSync
+@using FVN_REGISTER.Shared.Services.Departments
+@using FVN_REGISTER.Shared.Services.HrmSync
+@inject IDepartmentManagementClientService Departments
+@inject IHrmAttendanceCalculationClientService Calculation
+@inject ISnackbar Snackbar
+@rendermode InteractiveServer
+
+<MudPaper Class="pa-6">
+ <MudText Typo="Typo.h5">Tính giờ theo HRM</MudText>
+ <MudText Typo="Typo.body2" Class="mb-4">FVN đọc dữ liệu HRM và lưu kết quả tính giờ vào database FVN.</MudText>
+ <MudGrid>
+  <MudItem xs="12" md="4">
+   <MudSelect T="string" Label="Bộ phận" @bind-Value="_deptCode" Variant="Variant.Outlined" Clearable="true">
+    @foreach(var d in _departments){<MudSelectItem Value="@d.DeptCode">@d.DeptCode - @d.DeptName</MudSelectItem>}
+   </MudSelect>
+  </MudItem>
+  <MudItem xs="12" md="3"><MudDatePicker Label="Từ ngày" @bind-Date="_fromDate" Variant="Variant.Outlined"/></MudItem>
+  <MudItem xs="12" md="3"><MudDatePicker Label="Đến ngày" @bind-Date="_toDate" Variant="Variant.Outlined"/></MudItem>
+  <MudItem xs="12" md="2" Class="d-flex align-center"><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_running" OnClick="CalculateAsync">Tính giờ</MudButton></MudItem>
+ </MudGrid>
+ @if(_running){<MudProgressLinear Indeterminate="true" Class="mt-4"/>}
+ @if(_result is not null){<MudAlert Severity="Severity.Success" Class="mt-4">Batch @_result.CalculationBatchId — @_result.CalculatedRows dòng / @_result.EmployeeCount nhân viên.</MudAlert>}
+</MudPaper>
+
+@code {
+ private List<DepartmentDto> _departments=new();
+ private string? _deptCode;
+ private DateTime? _fromDate=DateTime.Today;
+ private DateTime? _toDate=DateTime.Today;
+ private bool _running;
+ private HrmAttendanceCalculationResultDto? _result;
+ protected override async Task OnInitializedAsync()
+ {
+  var r=await Departments.GetListAsync(true);
+  if(r.IsSuccess&&r.Data is not null) _departments=r.Data;
+ }
+ private async Task CalculateAsync()
+ {
+  if(_fromDate is null||_toDate is null||_fromDate>_toDate){Snackbar.Add("Khoảng ngày không hợp lệ.",Severity.Warning);return;}
+  _running=true; _result=null;
+  try
+  {
+   var r=await Calculation.CalculateAsync(new HrmAttendanceCalculationRequestDto{DeptCode=_deptCode,FromDate=_fromDate.Value,ToDate=_toDate.Value});
+   if(r.IsSuccess&&r.Data is not null){_result=r.Data;Snackbar.Add("Đã tính giờ xong.",Severity.Success);}
+   else Snackbar.Add(r.Message??"Tính giờ thất bại.",Severity.Error);
+  }
+  finally{_running=false;}
+ }
+}

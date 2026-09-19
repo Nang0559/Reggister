@@ -2,11 +2,13 @@ using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Trips;
 using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Contract.Dtos.Trips;
 using FVN_REGISTER.Core.Entities.Trips;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Constants;
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Trips;
@@ -16,20 +18,26 @@ public sealed class TripService : ITripService
     private readonly IUnitOfWork _uow;
     private readonly ICurrentUserService _currentUser;
     private readonly IApprovalWorkflowOrchestrator<TripRequestSubject> _workflow;
+    private readonly IAuthorizationService _authorization;
 
     public TripService(IUnitOfWork uow, ICurrentUserService currentUser,
-        IApprovalWorkflowOrchestrator<TripRequestSubject> workflow)
+        IApprovalWorkflowOrchestrator<TripRequestSubject> workflow,
+        IAuthorizationService authorization)
     {
         _uow = uow;
         _currentUser = currentUser;
         _workflow = workflow;
+        _authorization = authorization;
     }
 
     public async Task<TripRequestDto> CreateDraftAsync(CreateTripRequestDto request, CancellationToken ct = default)
     {
         var user = _currentUser.GetCurrentUser()
             ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
-        ValidatePeriod(request.StartDate, request.EndDate);
+        ValidateRequest(request);
+
+        if (!await _authorization.CanAccessAsync(user, SecurityFunctionCodes.TripCreate, user.EmployeeCode, user.DeptCode, ct))
+            throw new UnauthorizedAccessException("Bạn không có quyền tạo đăng ký công tác theo phạm vi dữ liệu được cấp.");
 
         var employeeCode = user.EmployeeCode
             ?? throw new InvalidOperationException("Tài khoản chưa có EmployeeCode.");
@@ -67,8 +75,8 @@ public sealed class TripService : ITripService
             .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct)
             ?? throw new KeyNotFoundException("Không tìm thấy đăng ký công tác.");
 
-        if (!string.Equals(entity.EmployeeCode, user.EmployeeCode, StringComparison.OrdinalIgnoreCase) && !user.IsAdmin)
-            throw new UnauthorizedAccessException("Bạn không có quyền gửi đăng ký này.");
+        if (!await _authorization.CanAccessAsync(user, SecurityFunctionCodes.TripEdit, entity.EmployeeCode, entity.DeptCode, ct))
+            throw new UnauthorizedAccessException("Bạn không có quyền gửi đăng ký này theo phạm vi dữ liệu được cấp.");
 
         if (entity.RequestStatus != ApprovalStatus.Draft && entity.RequestStatus != ApprovalStatus.NeedsRevision)
             throw new InvalidOperationException("Chỉ đăng ký Nháp/NeedsRevision mới được gửi duyệt.");
@@ -103,7 +111,7 @@ public sealed class TripService : ITripService
         var entity = await _uow.Repository<F03TripRequest>().Query().AsNoTracking()
             .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct);
         if (entity == null) return null;
-        if (!user.IsAdmin && !string.Equals(entity.EmployeeCode, user.EmployeeCode, StringComparison.OrdinalIgnoreCase))
+        if (!await _authorization.CanAccessAsync(user, SecurityFunctionCodes.TripView, entity.EmployeeCode, entity.DeptCode, ct))
             throw new UnauthorizedAccessException("Bạn không có quyền xem đăng ký này.");
 
         return await MapAsync(entity, ct);
@@ -113,8 +121,18 @@ public sealed class TripService : ITripService
     {
         var user = _currentUser.GetCurrentUser()
             ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
-        var entities = await _uow.Repository<F03TripRequest>().Query().AsNoTracking()
-            .Where(x => x.IsActive == true && (user.IsAdmin || x.EmployeeCode == user.EmployeeCode))
+        var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.TripView, ct);
+        var query = _uow.Repository<F03TripRequest>().Query().AsNoTracking()
+            .Where(x => x.IsActive == true);
+
+        if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
+            query = query.Where(x => x.EmployeeCode == user.EmployeeCode);
+        else if (scope == AuthorizationScopeCodes.Department)
+            query = query.Where(x => x.DeptCode == user.DeptCode);
+        else if (scope != AuthorizationScopeCodes.All)
+            query = query.Where(x => false);
+
+        var entities = await query
             .OrderByDescending(x => x.CreatedAt)
             .ToListAsync(ct);
 
@@ -155,6 +173,72 @@ public sealed class TripService : ITripService
         Accommodation = x.Accommodation,
         Note = x.Note
     };
+
+
+    public async Task<TripRequestDto> UpdateDraftAsync(int requestId, CreateTripRequestDto request, CancellationToken ct = default)
+    {
+        var user = _currentUser.GetCurrentUser()
+            ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
+        var entity = await _uow.Repository<F03TripRequest>().Query()
+            .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy đăng ký công tác.");
+
+        if (!await _authorization.CanAccessAsync(user, SecurityFunctionCodes.TripEdit, entity.EmployeeCode, entity.DeptCode, ct))
+            throw new UnauthorizedAccessException("Bạn không có quyền sửa đăng ký này.");
+
+        if (entity.RequestStatus != ApprovalStatus.Draft && entity.RequestStatus != ApprovalStatus.NeedsRevision)
+            throw new InvalidOperationException("Chỉ Draft/NeedsRevision mới được sửa.");
+
+        ValidateRequest(request);
+        entity.StartDate = request.StartDate;
+        entity.EndDate = request.EndDate;
+        entity.Destination = request.Destination.Trim();
+        entity.Purpose = request.Purpose.Trim();
+        entity.CustomerOrPartner = request.CustomerOrPartner?.Trim();
+        entity.TransportMethod = request.TransportMethod?.Trim();
+        entity.CompanionEmployeeCodes = request.CompanionEmployeeCodes?.Trim();
+        entity.EstimatedCost = request.EstimatedCost;
+        entity.Accommodation = request.Accommodation?.Trim();
+        entity.Note = request.Note?.Trim();
+        entity.ModifiedBy = user.UserId;
+        entity.ModifiedAt = DateTime.Now;
+        await _uow.SaveChangesAsync(ct);
+        return await MapAsync(entity, ct);
+    }
+
+    public async Task CancelAsync(int requestId, string reason, CancellationToken ct = default)
+    {
+        var user = _currentUser.GetCurrentUser()
+            ?? throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
+        var entity = await _uow.Repository<F03TripRequest>().Query()
+            .FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy đăng ký công tác.");
+
+        if (!await _authorization.CanAccessAsync(user, SecurityFunctionCodes.TripEdit, entity.EmployeeCode, entity.DeptCode, ct))
+            throw new UnauthorizedAccessException("Bạn không có quyền hủy đăng ký này.");
+        if (entity.RequestStatus == ApprovalStatus.Approved || entity.RequestStatus == ApprovalStatus.Rejected || entity.RequestStatus == ApprovalStatus.Cancelled)
+            throw new InvalidOperationException("Đăng ký đã kết thúc, không thể hủy.");
+        if (string.IsNullOrWhiteSpace(reason))
+            throw new ArgumentException("Lý do hủy không được để trống.");
+
+        entity.RequestStatus = ApprovalStatus.Cancelled;
+        entity.IsActive = false;
+        entity.ModifiedBy = user.UserId;
+        entity.ModifiedAt = DateTime.Now;
+        await _uow.SaveChangesAsync(ct);
+    }
+
+    private static void ValidateRequest(CreateTripRequestDto request)
+    {
+        if (request == null) throw new ArgumentNullException(nameof(request));
+        ValidatePeriod(request.StartDate, request.EndDate);
+        if (string.IsNullOrWhiteSpace(request.Destination))
+            throw new ArgumentException("Địa điểm công tác là bắt buộc.");
+        if (string.IsNullOrWhiteSpace(request.Purpose))
+            throw new ArgumentException("Mục đích công tác là bắt buộc.");
+        if (request.EstimatedCost.HasValue && request.EstimatedCost.Value < 0)
+            throw new ArgumentException("Chi phí dự kiến không được âm.");
+    }
 
     private static void ValidatePeriod(DateTime start, DateTime end)
     {

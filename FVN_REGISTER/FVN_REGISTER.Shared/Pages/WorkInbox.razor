@@ -1,0 +1,134 @@
+@page "/work/inbox"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Notifications
+@using FVN_REGISTER.Shared.Handlers
+@using FVN_REGISTER.Shared.Components
+@using FVN_REGISTER.Shared.Services.Notifications
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IHttpClientWithAuth Http
+@inject INotificationClientService Notifications
+@inject NavigationManager Navigation
+
+<PageTitle>Trung tâm công việc</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-5">
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight:800">Trung tâm công việc</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Thông báo và phê duyệt được gom về một nơi.</MudText>
+        </div>
+        <FeatureHelp />
+    </MudStack>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (_model == null)
+    {
+        <MudAlert Severity="Severity.Warning">@_error</MudAlert>
+    }
+    else
+    {
+        <MudGrid Spacing="3" Class="mb-5">
+            <MudItem xs="12" sm="6">
+                <MudCard Elevation="1" Style="border-radius:18px;cursor:pointer" @onclick="ScrollNotifications">
+                    <MudCardContent Class="pa-5">
+                        <MudText Typo="Typo.overline">THÔNG BÁO CHƯA ĐỌC</MudText>
+                        <MudText Typo="Typo.h3" Color="Color.Primary">@_model.UnreadNotificationCount</MudText>
+                        <MudText Typo="Typo.body2">Thông báo cá nhân và nghiệp vụ.</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12" sm="6">
+                <MudCard Elevation="1" Style="border-radius:18px;cursor:pointer" @onclick="ScrollApprovals">
+                    <MudCardContent Class="pa-5">
+                        <MudText Typo="Typo.overline">CHỜ PHÊ DUYỆT</MudText>
+                        <MudText Typo="Typo.h3" Color="Color.Warning">@_model.PendingApprovalCount</MudText>
+                        <MudText Typo="Typo.body2">Đã lọc theo capability và data scope.</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+
+        <MudPaper id="notifications" Outlined="true" Class="pa-5 mb-5">
+            <MudText Typo="Typo.h6" Class="mb-3">Thông báo</MudText>
+            @if (_model.Notifications.Count == 0)
+            {
+                <MudText Class="mud-text-secondary">Không có thông báo.</MudText>
+            }
+            @foreach (var n in _model.Notifications)
+            {
+                <MudListItem T="string" OnClick="@(() => OpenNotification(n))" Icon="@(n.IsRead ? Icons.Material.Filled.MarkEmailRead : Icons.Material.Filled.MarkEmailUnread)">
+                    <MudText Typo="Typo.subtitle2">@n.Title</MudText>
+                    <MudText Typo="Typo.body2">@n.Body</MudText>
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary">@n.CreatedAt.ToString("dd/MM/yyyy HH:mm")</MudText>
+                </MudListItem>
+                <MudDivider />
+            }
+        </MudPaper>
+
+        <MudPaper id="approvals" Outlined="true" Class="pa-5">
+            <MudText Typo="Typo.h6" Class="mb-3">Approval Inbox</MudText>
+            @if (_model.ApprovalGroups.Count == 0)
+            {
+                <MudAlert Severity="Severity.Success" Variant="Variant.Outlined">Không có việc phê duyệt trong phạm vi của bạn.</MudAlert>
+            }
+            @foreach (var group in _model.ApprovalGroups)
+            {
+                <MudExpansionPanel Text="@($"{group.RequestType} • Cấp {group.ApproverLevel} • {group.Count} việc")">
+                    @foreach (var item in group.Requests)
+                    {
+                        <MudPaper Outlined="true" Class="pa-3 mb-2">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.subtitle2">@item.EmployeeName (@item.EmployeeCode)</MudText>
+                                    <MudText Typo="Typo.body2">@item.DeptName • @item.FromDate?.ToString("dd/MM/yyyy") - @item.ToDate?.ToString("dd/MM/yyyy")</MudText>
+                                </div>
+                                <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo(item.Kind.ToString().ToLowerInvariant()))">Mở</MudButton>
+                            </MudStack>
+                        </MudPaper>
+                    }
+                </MudExpansionPanel>
+            }
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    private ActionCenterDto? _model;
+    private bool _loading = true;
+    private string _error = "Không thể tải trung tâm công việc.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var result = await Http.GetAsync<ActionCenterDto>("api/notification/action-center");
+            if (result.IsSuccess && result.Data != null)
+            {
+                _model = result.Data;
+                return;
+            }
+            _error = result.Message ?? _error;
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[ACTION-CENTER] Load failed");
+            _error = "Không thể kết nối máy chủ.";
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task OpenNotification(NotificationDto n)
+    {
+        if (!n.IsRead)
+            await Notifications.MarkReadAsync(n.Id);
+        if (!string.IsNullOrWhiteSpace(n.ActionUrl))
+            Navigation.NavigateTo(n.ActionUrl);
+    }
+
+    private void ScrollNotifications() => Navigation.NavigateTo("/work/inbox#notifications");
+    private void ScrollApprovals() => Navigation.NavigateTo("/work/inbox#approvals");
+}

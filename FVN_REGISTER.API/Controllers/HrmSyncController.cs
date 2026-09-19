@@ -1,5 +1,6 @@
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.HrmSync;
+using AppAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Logging;
 using FVN_REGISTER.Core.Constants;
@@ -8,6 +9,7 @@ using FVN_REGISTER.Contract.Responses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using IAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 
 namespace FVN_REGISTER.API.Controllers;
 
@@ -17,22 +19,25 @@ namespace FVN_REGISTER.API.Controllers;
 public sealed class HrmSyncController : BaseApiController
 {
     private readonly IHrmSyncService _sync;
+    private readonly AppAuthorizationService _authorization;
 
     public HrmSyncController(
         IHrmSyncService sync,
         ICurrentUserService currentUser,
         IUserLogService userLog,
         ILogger<HrmSyncController> logger,
-        IOptionsMonitor<AuthDebugOptions> options)
+        IOptionsMonitor<AuthDebugOptions> options,
+        AppAuthorizationService authorization)
         : base(currentUser, userLog, logger, options)
     {
         _sync = sync;
+        _authorization = authorization;
     }
 
     [HttpGet("status")]
-    public IActionResult Status()
+    public async Task<IActionResult> Status(CancellationToken ct)
     {
-        if (!CanManageHrmSync())
+        if (!await CanAsync(SecurityFunctionCodes.HrmSyncViewStatus, ct))
             return Forbid();
 
         return Ok(ApiResponse<HrmSyncRuntimeStatusDto>.Ok(_sync.GetRuntimeStatus()));
@@ -41,11 +46,15 @@ public sealed class HrmSyncController : BaseApiController
     [HttpPost("run")]
     public async Task<IActionResult> Run(CancellationToken ct)
     {
-        if (!CanManageHrmSync())
+        if (!await CanAsync(SecurityFunctionCodes.HrmSyncSync, ct))
             return Forbid();
 
         var user = UserInfo;
-        var result = await _sync.RunAllAsync(user?.EmployeeCode ?? User.Identity?.Name ?? "ADMIN", manual: true, ct);
+        var result = await _sync.RunAllAsync(
+            user?.EmployeeCode ?? User.Identity?.Name ?? "ADMIN",
+            manual: true,
+            ct);
+
         await LogActionAsync("HRM master sync: run all");
         return HandleResult(result);
     }
@@ -53,20 +62,23 @@ public sealed class HrmSyncController : BaseApiController
     [HttpPost("run/{entityType}")]
     public async Task<IActionResult> RunEntity(string entityType, CancellationToken ct)
     {
-        if (!CanManageHrmSync())
+        if (!await CanAsync(SecurityFunctionCodes.HrmSyncSync, ct))
             return Forbid();
 
         if (string.IsNullOrWhiteSpace(entityType))
             return BadRequest("EntityType không được để trống.");
 
         var user = UserInfo;
-        var result = await _sync.RunEntityAsync(entityType, user?.EmployeeCode ?? User.Identity?.Name ?? "ADMIN", ct);
+        var result = await _sync.RunEntityAsync(
+            entityType,
+            user?.EmployeeCode ?? User.Identity?.Name ?? "ADMIN",
+            ct);
+
         await LogActionAsync($"HRM master sync: {entityType}");
         return HandleResult(result);
     }
 
-    private bool CanManageHrmSync()
-        => UserInfo?.PermissionCode is int code
-           && code >= UserPermissionCodes.SuperAdmin
-           && code <= UserPermissionCodes.Editor;
+
+    private async Task<bool> CanAsync(int functionCode, CancellationToken ct)
+        => UserInfo != null && await _authorization.HasAsync(UserInfo, functionCode, ct);
 }

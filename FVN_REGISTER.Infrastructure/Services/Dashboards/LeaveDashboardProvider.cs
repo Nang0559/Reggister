@@ -20,6 +20,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
         private readonly IStatisticsService _statistics;
 
         public RequestModule Module => RequestModule.Leave;
+        public int RequiredFunctionCode => SecurityFunctionCodes.LeaveView;
 
         public LeaveDashboardProvider(
             ILeaveQueryService leaveQuery,

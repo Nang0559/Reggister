@@ -117,7 +117,45 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                     }
                 }
 
-                // ═══════════ 4. APPROVER — build hierarchy thật ═══════════
+                // ═══════════ 4. BALANCE — server tính lại quota phép ═══════════
+                // Không tin TotalLeaveDay từ client. Chỉ ngày được tính phép và request
+                // Approved/Pending/InProgress mới ảnh hưởng quota dự kiến.
+                var balance = await _uow.Repository<F03LeaveBalance>().Query()
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(x => x.EmployeeCode == user.EmployeeCode && x.WorkYear == workYear, ct);
+
+                if (balance != null)
+                {
+                    var countedExisting = await _uow.Repository<F03LeaveDayDetail>().Query()
+                        .AsNoTracking()
+                        .Where(x => x.LeaveDay.EmployeeCode == user.EmployeeCode
+                            && x.LeaveDay.WorkYear == workYear
+                            && x.LeaveDay.IsActive == true
+                            && x.IsCountedAsLeave == true
+                            && (x.LeaveDay.RequestStatus == ApprovalStatus.Approved
+                                || x.LeaveDay.RequestStatus == ApprovalStatus.Pending
+                                || x.LeaveDay.RequestStatus == ApprovalStatus.InProgress)
+                            && (model.Id <= 0 || x.LeaveDaysId != model.Id))
+                        .SumAsync(x => (decimal?)x.DayValue, ct) ?? 0;
+
+                    var requestedCounted = model.Details
+                        .Where(d => leaveTypeMap.TryGetValue(d.LeaveTypeCode, out var lt) && lt.IsCountedAsLeave == true)
+                        .Sum(d => d.IsHalfDay ? 0.5m : 1m);
+
+                    if (countedExisting + requestedCounted > balance.TotalDays)
+                        return Fail($"Số ngày phép đăng ký vượt quỹ phép. Đã giữ/dùng: {countedExisting:0.##} ngày; đăng ký: {requestedCounted:0.##} ngày; quỹ: {balance.TotalDays:0.##} ngày.");
+                }
+
+                // Không cho trùng nửa ngày ngay trong chính payload.
+                var duplicateDay = model.Details
+                    .GroupBy(x => x.LeaveDate.Date)
+                    .FirstOrDefault(g =>
+                        g.Count() > 1 &&
+                        g.Any(x => !x.IsHalfDay || g.Any(y => y != x && !y.IsHalfDay || (y.IsHalfDay && x.IsHalfDay && y.HalfDayOption == x.HalfDayOption))));
+                if (duplicateDay != null)
+                    return Fail($"Danh sách ngày nghỉ có ngày trùng: {duplicateDay.Key:dd/MM/yyyy}.");
+
+                // ═══════════ 5. APPROVER — build hierarchy thật ═══════════
                 var ctx = ApprovalBuildContext.ForLeave(
                     user.EmployeeCode ?? "", emp.DeptCode ?? "", emp.PositionCode ?? "");
 

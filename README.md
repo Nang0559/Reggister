@@ -276,3 +276,19 @@
 ├── .gitignore
 ├── FVN_REGISTER.sln
 └── FVN_REGISTER.slnLaunch.user
+
+## Work Calendar
+
+Leave, OT and Trip share one Work Calendar. It aggregates company holidays plus the current user's Leave/OT/Trip events without duplicating business state.
+
+- API: `GET /api/calendar`
+- Availability: `GET /api/calendar/availability`
+- UI component: `WorkCalendar`
+- Design: `MÔ HÌNH/18_WORK_CALENDAR.md`
+- SQL: `SQL/19_WorkCalendar.sql`
+
+Company holidays are informational calendar data; final Leave/OT/Trip authorization and validation remain in each module.
+
+## Reports & Statistics
+
+Trung tâm `/reports` cung cấp báo cáo Leave, OT, Trip, Equipment và Attendance theo capability + data scope. View và Export là hai quyền độc lập. SQL reporting read models nằm tại `SQL/20_Reports.sql`; kiểm tra bằng `SQL/21_Verify_Reports.sql`. Chi tiết: `MÔ HÌNH/19_REPORTS_STATISTICS.md`.

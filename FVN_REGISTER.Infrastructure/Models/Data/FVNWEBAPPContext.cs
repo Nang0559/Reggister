@@ -17,7 +17,7 @@ using Microsoft.EntityFrameworkCore;
 public class FVNWEBAPPContext : DbContext
 {
     public FVNWEBAPPContext(DbContextOptions<FVNWEBAPPContext> options) : base(options) { }
-    public DbSet<F03User> Users { get; set; } public DbSet<F03Function> Functions { get; set; } public DbSet<F03Permission> Permissions { get; set; } public DbSet<F03UserFunction> UserFunctions { get; set; } public DbSet<F03UserSession> UserSessions { get; set; }
+    public DbSet<F03User> Users { get; set; } public DbSet<F03Function> Functions { get; set; } public DbSet<F03Permission> Permissions { get; set; } public DbSet<F03UserFunction> UserFunctions { get; set; } public DbSet<F03UserSession> UserSessions { get; set; } public DbSet<F03Role> Roles { get; set; } public DbSet<F03RoleFunction> RoleFunctions { get; set; } public DbSet<F03UserRole> UserRoles { get; set; }
     public DbSet<F03Employee> Employees { get; set; } public DbSet<F03Department> Departments { get; set; } public DbSet<F03Position> Positions { get; set; } public DbSet<F03Gender> Genders { get; set; }
     public DbSet<F03Approver> Approvers { get; set; } public DbSet<F03ApprovalStep> ApprovalSteps { get; set; } public DbSet<F03ApprovalSnapshot> ApprovalSnapshots { get; set; } public DbSet<F03ApprovalHistory> ApprovalHistories { get; set; }
     public DbSet<F03LeaveBalance> LeaveBalances { get; set; } public DbSet<F03LeaveType> LeaveTypes { get; set; } public DbSet<F03LeaveDay> LeaveDays { get; set; } public DbSet<F03LeaveDayDetail> LeaveDayDetails { get; set; } public DbSet<F03AttendanceStaging> AttendanceStagings { get; set; }
@@ -31,10 +31,36 @@ public class FVNWEBAPPContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        base.OnModelCreating(modelBuilder); modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
+        base.OnModelCreating(modelBuilder);
+        modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
         modelBuilder.Entity<VwShiftCheckInOut>(entity => { entity.HasNoKey(); entity.ToView("VwShiftCheckInOut"); });
+
+        modelBuilder.Entity<F03RoleFunction>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.IdRole, x.IdFunction }).IsUnique();
+            entity.HasOne(x => x.Role).WithMany(x => x.RoleFunctions).HasForeignKey(x => x.IdRole).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Function).WithMany(x => x.RoleFunctions).HasForeignKey(x => x.IdFunction).OnDelete(DeleteBehavior.Cascade);
+        });
+
+        modelBuilder.Entity<F03UserRole>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.IdUser, x.IdRole }).IsUnique();
+            entity.HasOne(x => x.User).WithMany(x => x.UserRoles).HasForeignKey(x => x.IdUser).OnDelete(DeleteBehavior.Cascade);
+            entity.HasOne(x => x.Role).WithMany(x => x.UserRoles).HasForeignKey(x => x.IdRole).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<F03Role>(entity => entity.HasIndex(x => x.RoleCode).IsUnique());
     }
+
     public override int SaveChanges() { ApplyAuditInfo(); return base.SaveChanges(); }
     public override Task<int> SaveChangesAsync(CancellationToken cancellationToken = default) { ApplyAuditInfo(); return base.SaveChangesAsync(cancellationToken); }
-    private void ApplyAuditInfo() { foreach (var entry in ChangeTracker.Entries<BaseAuditEntity>()) { if (entry.State == EntityState.Added) entry.Entity.CreatedAt = DateTime.Now; else if (entry.State == EntityState.Modified) entry.Entity.ModifiedAt = DateTime.Now; } }
+    private void ApplyAuditInfo()
+    {
+        foreach (var entry in ChangeTracker.Entries<BaseAuditEntity>())
+        {
+            if (entry.State == EntityState.Added) entry.Entity.CreatedAt = DateTime.Now;
+            else if (entry.State == EntityState.Modified) entry.Entity.ModifiedAt = DateTime.Now;
+        }
+    }
 }

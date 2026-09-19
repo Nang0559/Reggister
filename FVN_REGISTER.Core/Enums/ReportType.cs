@@ -20,5 +20,20 @@
         // Chấm công (mở rộng sau)
         AttendanceSummary,
         AttendanceDetail,
+
+        // Công tác
+        TripSummaryByDept,
+        TripSummaryByEmployee,
+        TripDetail,
+        TripApprovalStatus,
+
+        // Thiết bị
+        EquipmentSummaryByDept,
+        EquipmentAssetDetail,
+        EquipmentRepairSummary,
+
+        // Báo cáo quản trị
+        CompanyWorkloadSummary,
+        SecurityAuditSummary,
     }
 }

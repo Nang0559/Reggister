@@ -1,6 +1,9 @@
 ﻿@using FVN_REGISTER.Shared.Services.Users
-@using FVN_REGISTER.Core.Constants
 @using FVN_REGISTER.Shared.Utils
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Shared.Services.Security
+@using FVN_REGISTER.Core.Constants
+@inject ISecurityClientService SecurityService
 @using MudBlazor
 @inject ICurrentUserClientService CurrentUser
 
@@ -8,14 +11,14 @@
     <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="ml-4 my-3">DASHBOARD</MudText>
     <MudNavLink href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Trang chủ</MudNavLink>
 
-    @if (CurrentUser.PermissionCode.IsApprover())
+    @if (CanAny(SecurityFunctionCodes.LeaveApprove, SecurityFunctionCodes.OTApprove, SecurityFunctionCodes.TripApprove, SecurityFunctionCodes.EquipmentApprove))
     {
         <MudNavGroup Title="Phê duyệt" Icon="@Icons.Material.Filled.CheckCircle" Expanded="false">
             <MudNavLink href="/approvals" Icon="@Icons.Material.Filled.List">Danh sách chờ duyệt</MudNavLink>
         </MudNavGroup>
     }
 
-    @if (CurrentUser.PermissionCode.CanRequestLeave())
+    @if (Can(SecurityFunctionCodes.LeaveCreate))
     {
         <MudNavGroup Title="Nghỉ phép" Icon="@Icons.Material.Filled.EventBusy" Expanded="true">
             <MudNavLink href="/leave/create" Icon="@Icons.Material.Filled.Add">Tạo đơn mới</MudNavLink>
@@ -23,7 +26,7 @@
         </MudNavGroup>
     }
 
-    @if (CurrentUser.PermissionCode.CanRequestLeave())
+    @if (Can(SecurityFunctionCodes.OTCreate))
     {
         <MudNavGroup Title="Làm thêm giờ (OT)" Icon="@Icons.Material.Filled.AccessTime" Expanded="false">
             <MudNavLink href="/ot/create" Icon="@Icons.Material.Filled.AddAlarm">Đăng ký OT</MudNavLink>
@@ -31,7 +34,7 @@
         </MudNavGroup>
     }
 
-    @if (CurrentUser.PermissionCode.CanRequestLeave())
+    @if (Can(SecurityFunctionCodes.TripCreate))
     {
         <MudNavGroup Title="Công tác" Icon="@Icons.Material.Filled.FlightTakeoff" Expanded="false">
             <MudNavLink href="/trip/create" Icon="@Icons.Material.Filled.Add">Đăng ký công tác</MudNavLink>
@@ -39,7 +42,7 @@
         </MudNavGroup>
     }
 
-    @if (CurrentUser.PermissionCode.CanManageData())
+    @if (CanAny(SecurityFunctionCodes.HrmSyncViewStatus, SecurityFunctionCodes.UserManagementView))
     {
         <MudNavGroup Title="Dữ liệu" Icon="@Icons.Material.Filled.Storage" Expanded="false">
             <MudNavLink href="/admin/departments" Icon="@Icons.Material.Filled.Business">Bộ phận</MudNavLink>
@@ -49,6 +52,10 @@
             <MudNavLink href="/admin/hrm-sync" Icon="@Icons.Material.Filled.Sync">Đồng bộ HRM</MudNavLink>
             <MudNavLink href="/admin/hrm-sync-review" Icon="@Icons.Material.Filled.WarningAmber">Conflict HRM</MudNavLink>
             <MudNavLink href="/admin/hrm-role-rules" Icon="@Icons.Material.Filled.Rule">Role HRM → User</MudNavLink>
+            @if (Can(SecurityFunctionCodes.AttendanceView))
+            {
+                <MudNavLink href="/hrm/attendance-calculation" Icon="@Icons.Material.Filled.AccessTime">Tính giờ theo HRM</MudNavLink>
+            }
         </MudNavGroup>
 
         <MudNavGroup Title="Quản lý OT" Icon="@Icons.Material.Filled.Timelapse" Expanded="false">
@@ -57,20 +64,59 @@
         </MudNavGroup>
     }
 
-    @if (CurrentUser.PermissionCode.IsApprover())
+    @if (CanAny(SecurityFunctionCodes.LeaveView, SecurityFunctionCodes.OTView, SecurityFunctionCodes.TripView, SecurityFunctionCodes.EquipmentView, SecurityFunctionCodes.AttendanceView))
     {
-        <MudNavGroup Title="Báo cáo" Icon="@Icons.Material.Filled.Assessment" Expanded="false">
-            <MudNavLink href="/report/leave" Icon="@Icons.Material.Filled.BeachAccess">Báo cáo nghỉ phép</MudNavLink>
-            <MudNavLink href="/report/ot" Icon="@Icons.Material.Filled.MoreTime">Báo cáo làm thêm giờ</MudNavLink>
+        <MudNavGroup Title="Báo cáo & thống kê" Icon="@Icons.Material.Filled.Assessment" Expanded="false">
+            <MudNavLink href="/reports" Icon="@Icons.Material.Filled.Dashboard">Trung tâm báo cáo</MudNavLink>
+            @if (Can(SecurityFunctionCodes.LeaveView))
+            {
+                <MudNavLink href="/report/leave" Icon="@Icons.Material.Filled.BeachAccess">Nghỉ phép</MudNavLink>
+            }
+            @if (Can(SecurityFunctionCodes.OTView))
+            {
+                <MudNavLink href="/report/ot" Icon="@Icons.Material.Filled.MoreTime">OT</MudNavLink>
+            }
+            @if (Can(SecurityFunctionCodes.TripView))
+            {
+                <MudNavLink href="/report/operations?module=trip" Icon="@Icons.Material.Filled.FlightTakeoff">Công tác</MudNavLink>
+            }
+            @if (Can(SecurityFunctionCodes.EquipmentView))
+            {
+                <MudNavLink href="/report/operations?module=equipment" Icon="@Icons.Material.Filled.Devices">Thiết bị</MudNavLink>
+            }
+            @if (Can(SecurityFunctionCodes.AttendanceView))
+            {
+                <MudNavLink href="/report/operations?module=attendance" Icon="@Icons.Material.Filled.AccessTime">Chấm công</MudNavLink>
+            }
         </MudNavGroup>
     }
 
-    @if (CurrentUser.PermissionCode.IsSuperAdmin())
+    @if (Can(SecurityFunctionCodes.UserManagementView))
     {
         <MudNavGroup Title="Hệ thống" Icon="@Icons.Material.Filled.Settings" Expanded="false">
             <MudNavLink href="/admin/managers" Icon="@Icons.Material.Filled.AdminPanelSettings">Quản trị viên</MudNavLink>
+            @if (Can(SecurityFunctionCodes.SecurityView))
+            {
+                <MudNavLink href="/admin/security" Icon="@Icons.Material.Filled.Security">Security Center</MudNavLink>
+            }
             <MudNavLink href="/admin/email-templates" Icon="@Icons.Material.Filled.Email">Email mẫu</MudNavLink>
             <MudNavLink href="/admin/email-queue" Icon="@Icons.Material.Filled.MarkEmailRead">Email chờ gửi</MudNavLink>
         </MudNavGroup>
     }
 </MudNavMenu>
+
+@code {
+    private PermissionSnapshotDto? _permissions;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await SecurityService.GetMyPermissionsAsync();
+        if (result.IsSuccess)
+            _permissions = result.Data;
+    }
+
+    private bool Can(int functionCode) => _permissions?.Has(functionCode) == true;
+
+    private bool CanAny(params int[] functionCodes)
+        => functionCodes.Any(Can);
+}

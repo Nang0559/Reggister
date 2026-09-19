@@ -184,3 +184,6 @@ Application được coi là sạch khi thỏa tất cả:
 - build Application thành công độc lập sau khi Core và Contract build thành công.
 
 Sau checkpoint này mới chuyển sang quét Infrastructure.
+
+## Shared Work Calendar
+Work Calendar is a read-only projection shared by Leave, OT and Trip. The application does not persist a duplicated calendar state.Sources: F03CompanyHolidays, VF03LeaveRequest, VF03OTRequest and F03TripRequests.The calendar is not a business-rule authority. Each module remains responsible for authorization and final validation.

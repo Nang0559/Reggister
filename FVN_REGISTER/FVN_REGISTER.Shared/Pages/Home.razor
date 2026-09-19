@@ -11,32 +11,115 @@
 @inject IDashboardClientService DashboardService
 @inject ICurrentUserClientService CurrentUserService
 @inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>Trang chủ</PageTitle>
 
 @if (_isLoading)
 {
-    <div style="padding:24px 0"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="120px" Class="mb-4" Style="border-radius:16px" /><MudGrid Spacing="3" Class="mb-4"><MudItem xs="4"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="80px" Style="border-radius:12px" /></MudItem><MudItem xs="4"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="80px" Style="border-radius:12px" /></MudItem><MudItem xs="4"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="80px" Style="border-radius:12px" /></MudItem></MudGrid></div>
+    <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+        <MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="190px" Style="border-radius:24px" Class="mb-4" />
+        <MudGrid Spacing="3">
+            @for (var i = 0; i < 4; i++)
+            {
+                <MudItem xs="6" sm="3"><MudSkeleton SkeletonType="SkeletonType.Rectangle" Height="110px" Style="border-radius:18px" /></MudItem>
+            }
+        </MudGrid>
+    </MudContainer>
 }
 else if (_model != null)
 {
-    <MudText Typo="Typo.h5" Class="mb-4">Chào mừng, @(CurrentUserService.User?.FullName ?? "Cán bộ FCC")!</MudText>
-    <EquipmentDashboardTile />
-    <DashboardOverview Data="_model" />
+    <MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
+        <MudPaper Elevation="0" Class="pa-6 mb-5" Style="border-radius:24px; background:linear-gradient(135deg, rgba(25,118,210,.12), rgba(0,150,136,.08)); border:1px solid rgba(25,118,210,.10)">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Spacing="4" Wrap="Wrap.Wrap">
+                <div>
+                    <MudText Typo="Typo.overline" Color="Color.Primary">FVN REGISTER • WORKSPACE</MudText>
+                    <MudText Typo="Typo.h4" Style="font-weight:850">
+                        Xin chào, @(CurrentUserService.User?.FullName ?? "Cán bộ FCC")
+                    </MudText>
+                    <MudText Typo="Typo.body2" Class="mt-1 mud-text-secondary">
+                        Đây là trung tâm công việc cá nhân: theo dõi đơn, xử lý phê duyệt và các thông tin cần chú ý.
+                    </MudText>
+                </div>
+                <MudStack Row="true" Spacing="1">
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Campaign"
+                               OnClick="@(() => Navigation.NavigateTo("/thong-tin-cong-khai"))">
+                        Thông tin
+                    </MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                               OnClick="@(() => Navigation.NavigateTo("/leave/create"))">
+                        Tạo đơn nghỉ
+                    </MudButton>
+                </MudStack>
+            </MudStack>
+        </MudPaper>
+
+        <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight:750">Trung tâm công việc</MudText>
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">Thông báo và phê duyệt dùng chung một Action Center. Thiết bị cũng được mở ngay trong Workspace.</MudAlert>
+        <MudGrid Spacing="3" Class="mb-5">
+            <MudItem xs="12" sm="4">
+                <MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/work/inbox"))">
+                    <MudCardContent Class="pa-5">
+                        <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Primary" Size="Size.Large" />
+                        <MudText Typo="Typo.h6" Class="mt-3">Phê duyệt</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Tập trung các việc đang chờ xử lý theo quyền của tài khoản.</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/history/leave"))">
+                    <MudCardContent Class="pa-5">
+                        <MudIcon Icon="@Icons.Material.Filled.EventAvailable" Color="Color.Success" Size="Size.Large" />
+                        <MudText Typo="Typo.h6" Class="mt-3">Nghỉ phép của tôi</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Xem số dư, lịch sử và trạng thái các đơn nghỉ.</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12" sm="4">
+                <MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/history/ot"))">
+                    <MudCardContent Class="pa-5">
+                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Warning" Size="Size.Large" />
+                        <MudText Typo="Typo.h6" Class="mt-3">OT của tôi</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Theo dõi giờ OT và các yêu cầu đã gửi.</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+        </MudGrid>
+
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudText Typo="Typo.h6" Style="font-weight:750">Tổng quan cá nhân</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">Cập nhật @_loadedAt?.ToString("dd/MM/yyyy HH:mm")</MudText>
+        </MudStack>
+
+        <MudPaper Outlined="true" Class="pa-4 mb-4" Style="border-radius:18px">
+            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                <div><MudText Typo="Typo.h6">Thiết bị</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">Schema theo phòng ban và Excel import nằm trong cùng workspace.</MudText></div>
+                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Devices" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">Mở Equipment</MudButton>
+            </MudStack>
+        </MudPaper>
+
+        <EquipmentDashboardTile />
+        <DashboardOverview Data="_model" />
+    </MudContainer>
 }
 else if (!string.IsNullOrWhiteSpace(_errorMessage))
 {
-    <MudAlert Severity="Severity.Error">@_errorMessage</MudAlert>
+    <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+        <MudAlert Severity="Severity.Error">@_errorMessage</MudAlert>
+    </MudContainer>
 }
 else
 {
-    <MudAlert Severity="Severity.Info">
-        Dashboard không có dữ liệu để hiển thị.
-    </MudAlert>
+    <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+        <MudAlert Severity="Severity.Info">Dashboard chưa có dữ liệu để hiển thị.</MudAlert>
+    </MudContainer>
 }
 
 @code {
     private DashboardResponse? _model;
     private bool _isLoading = true;
     private string? _errorMessage;
+    private DateTime? _loadedAt;
     private readonly CancellationTokenSource _cts = new();
 
     protected override async Task OnInitializedAsync()
@@ -52,10 +135,10 @@ else
             }
 
             var result = await DashboardService.GetDashboardDataAsync(_cts.Token);
-
             if (result.IsSuccess && result.Data != null)
             {
                 _model = result.Data;
+                _loadedAt = DateTime.Now;
             }
             else if (result.IsUnauthorized)
             {

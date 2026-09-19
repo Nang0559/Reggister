@@ -19,6 +19,11 @@ public sealed class F03EquipmentAsset : BaseAuditEntity
     [Required, StringLength(128)] public string QrToken { get; set; } = string.Empty;
     public bool IsQrActive { get; set; }
     [StringLength(1000)] public string? Note { get; set; }
+
+    // Flexible, department-specific attributes. The canonical fields above remain strongly typed.
+    [Column(TypeName = "nvarchar(max)")]
+    public string CustomDataJson { get; set; } = "{}";
+
     public ICollection<F03EquipmentRepairHistory> RepairHistory { get; set; } = new List<F03EquipmentRepairHistory>();
     public ICollection<F03EquipmentRequest> Requests { get; set; } = new List<F03EquipmentRequest>();
 }

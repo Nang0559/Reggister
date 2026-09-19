@@ -4,6 +4,9 @@ using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Reports;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Application.Interfaces.Security;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -15,14 +18,17 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
     {
         private readonly IEnumerable<IReportService> _reportServices;
         private readonly IUnitOfWork _uow;
+        private readonly IAuthorizationService _authorization;
 
         public ReportDispatcher(
             IEnumerable<IReportService> reportServices,
             IUnitOfWork uow,
+            IAuthorizationService authorization,
             ILogger<ReportDispatcher> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(logger, options)
         {
+            _authorization = authorization;
             _reportServices = reportServices;
             _uow = uow;
         }
@@ -35,6 +41,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         {
             try
             {
+                var requiredFunction = GetViewFunction(query.Type);
+                if (requiredFunction == 0 || !await _authorization.HasAsync(user, requiredFunction, ct))
+                    return ServiceResult<ReportResultDto>.Fail("Bạn không có quyền xem báo cáo này.");
+
                 var handler = _reportServices.FirstOrDefault(s => s.CanHandle(query.Type));
 
                 if (handler == null)
@@ -61,6 +71,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         {
             try
             {
+                var exportFunction = GetExportFunction(query.Type);
+                if (exportFunction == 0 || !await _authorization.HasAsync(user, exportFunction, ct))
+                    return ServiceResult<byte[]>.Fail("Bạn không có quyền xuất báo cáo này.");
+
                 var reportResult = await GetReportAsync(query, user, ct);
 
                 if (!reportResult.IsSuccess || reportResult.Data == null)
@@ -157,6 +171,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         {
             try
             {
+                if (!await HasAnyReportViewAsync(user, ct))
+                    return ServiceResult<List<KeyValuePair<string, string>>>.Fail("Bạn không có quyền xem báo cáo.");
                 var list = await _uow.Repository<F03Department>().Query()
                     .AsNoTracking()
                     .Where(x => x.IsActive == true)
@@ -183,6 +199,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         {
             try
             {
+                if (!await HasAnyReportViewAsync(user, ct))
+                    return ServiceResult<List<KeyValuePair<string, string>>>.Fail("Bạn không có quyền xem báo cáo.");
                 var q = _uow.Repository<VF03employee>().Query()
                     .AsNoTracking()
                     .Where(x => x.IsActive);
@@ -217,5 +235,36 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 return InternalError<List<KeyValuePair<string, string>>>(ex, "Lỗi tìm kiếm nhân viên");
             }
         }
+        private async Task<bool> HasAnyReportViewAsync(UserIdentityDto user, CancellationToken ct)
+            => await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveView, ct)
+            || await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct)
+            || await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct)
+            || await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentView, ct)
+            || await _authorization.HasAsync(user, SecurityFunctionCodes.AttendanceView, ct);
+
+        private static int GetViewFunction(ReportType type) => type switch
+        {
+            ReportType.LeaveBalance or ReportType.LeaveSummaryByDept or ReportType.LeaveSummaryByEmployee or ReportType.LeaveDetail or ReportType.LeaveApprovalStatus => SecurityFunctionCodes.LeaveView,
+            ReportType.OTSummaryByDept or ReportType.OTSummaryByEmployee or ReportType.OTDetail or ReportType.OTApprovalStatus or ReportType.OTLimitUsage => SecurityFunctionCodes.OTView,
+            ReportType.TripSummaryByDept or ReportType.TripSummaryByEmployee or ReportType.TripDetail or ReportType.TripApprovalStatus => SecurityFunctionCodes.TripView,
+            ReportType.EquipmentSummaryByDept or ReportType.EquipmentAssetDetail or ReportType.EquipmentRepairSummary => SecurityFunctionCodes.EquipmentView,
+            ReportType.AttendanceSummary or ReportType.AttendanceDetail => SecurityFunctionCodes.AttendanceView,
+            ReportType.CompanyWorkloadSummary => SecurityFunctionCodes.DashboardView,
+            ReportType.SecurityAuditSummary => SecurityFunctionCodes.SecurityAudit,
+            _ => 0
+        };
+
+        private static int GetExportFunction(ReportType type) => type switch
+        {
+            ReportType.LeaveBalance or ReportType.LeaveSummaryByDept or ReportType.LeaveSummaryByEmployee or ReportType.LeaveDetail or ReportType.LeaveApprovalStatus => SecurityFunctionCodes.LeaveExport,
+            ReportType.OTSummaryByDept or ReportType.OTSummaryByEmployee or ReportType.OTDetail or ReportType.OTApprovalStatus or ReportType.OTLimitUsage => SecurityFunctionCodes.OTExport,
+            ReportType.TripSummaryByDept or ReportType.TripSummaryByEmployee or ReportType.TripDetail or ReportType.TripApprovalStatus => SecurityFunctionCodes.TripExport,
+            ReportType.EquipmentSummaryByDept or ReportType.EquipmentAssetDetail or ReportType.EquipmentRepairSummary => SecurityFunctionCodes.EquipmentExport,
+            ReportType.AttendanceSummary or ReportType.AttendanceDetail => SecurityFunctionCodes.AttendanceExport,
+            ReportType.CompanyWorkloadSummary => SecurityFunctionCodes.DashboardView,
+            ReportType.SecurityAuditSummary => SecurityFunctionCodes.SecurityAudit,
+            _ => 0
+        };
+
     }
 }

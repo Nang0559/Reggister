@@ -1,0 +1,144 @@
+@page "/huong-dan"
+@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize]
+@inherits AppComponentBase
+@inject NavigationManager Navigation
+
+<PageTitle>Hướng dẫn chức năng</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-5">
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight:800">Hướng dẫn chức năng</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Tài liệu thao tác theo đúng ngữ cảnh tính năng đang mở.</MudText>
+        </div>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.ArrowBack" OnClick="Back">Quay lại</MudButton>
+    </MudStack>
+
+    <MudPaper Outlined="true" Class="pa-5">
+        <MudText Typo="Typo.overline" Color="Color.Primary">@_feature</MudText>
+        <MudText Typo="Typo.h5" Class="mb-3">@Title</MudText>
+        <MudText Typo="Typo.body1" Class="mb-5">@Summary</MudText>
+
+        <MudText Typo="Typo.h6" Class="mb-2">Sơ đồ chuẩn</MudText>
+        <MudPaper Class="pa-4 mb-5" Outlined="true" Style="font-family:monospace;white-space:pre-line">@Flow</MudPaper>
+
+        <MudText Typo="Typo.h6" Class="mb-2">Quy trình thao tác</MudText>
+        <MudList T="string" Class="mb-5">
+            @foreach (var step in Steps)
+            {
+                <MudListItem T="string" Icon="@Icons.Material.Filled.CheckCircleOutline">@step</MudListItem>
+            }
+        </MudList>
+
+        <MudText Typo="Typo.h6" Class="mb-2">Ví dụ minh họa</MudText>
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-5">@Example</MudAlert>
+
+        <MudText Typo="Typo.h6" Class="mb-2">Quyền và phạm vi</MudText>
+        <MudText Typo="Typo.body1">@Security</MudText>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private string _feature = "HOME_WORKSPACE";
+    private string Title = "Workspace cá nhân";
+    private string Summary = "Trang chủ gom việc cần làm, thông báo, phê duyệt và module được cấp quyền.";
+    private string Flow = "USER → ACTION CENTER → MY WORK → NOTIFICATION/APPROVAL → MODULE";
+    private IReadOnlyList<string> Steps = new[] { "Kiểm tra việc cần làm.", "Mở thông báo hoặc hồ sơ.", "Chọn module cần xử lý.", "Xem dashboard khi có capability." };
+    private string Example = "Người có LeaveView nhưng không có LeaveApprove không có thao tác duyệt.";
+    private string Security = "Capability và data scope được kiểm tra ở server.";
+
+    protected override void OnInitialized()
+    {
+        var uri = Navigation.ToAbsoluteUri(Navigation.Uri);
+        var query = uri.Query.TrimStart('?');
+        foreach (var part in query.Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var pair = part.Split('=', 2);
+            if (pair.Length == 2 && string.Equals(Uri.UnescapeDataString(pair[0]), "feature", StringComparison.OrdinalIgnoreCase))
+            {
+                _feature = Uri.UnescapeDataString(pair[1]);
+                break;
+            }
+        }
+
+        switch (_feature.ToUpperInvariant())
+        {
+            case "APPROVAL_INBOX":
+                Title = "Hộp việc phê duyệt";
+                Summary = "Tập trung Leave, OT, Trip và Equipment thuộc phạm vi được phép.";
+                Flow = "PENDING → SCOPE CHECK → REVIEW → APPROVE/REJECT → AUDIT";
+                Steps = new[] { "Lọc module.", "Mở chi tiết.", "Chọn mục cùng cấp.", "Approve/Reject và kiểm tra kết quả." };
+                Example = "Một item vượt scope làm cả batch thất bại, tránh silently skip.";
+                Security = "Approve là capability riêng; không đồng nghĩa All.";
+                break;
+            case "EQUIPMENT_WORKSPACE":
+                Title = "Equipment Workspace";
+                Summary = "Core + dynamic fields theo phòng ban + Excel staging.";
+                Flow = "SCHEMA → EXCEL → STAGING → VALIDATE → REVIEW → COMMIT → AUDIT";
+                Steps = new[] { "Chọn phòng ban.", "Kiểm tra schema.", "Upload Excel.", "Xem lỗi từng dòng.", "Commit batch hợp lệ." };
+                Example = "IT có IP/MAC; Hành chính có Vị trí/Nhà cung cấp.";
+                Security = "EquipmentImport yêu cầu capability và scope Department.";
+                break;
+            case "PUBLIC_INFORMATION_CMS":
+                Title = "CMS thông tin công khai";
+                Summary = "Quản trị Draft → Published → Archived.";
+                Flow = "DRAFT → PREVIEW → PUBLISH → PUBLIC READ → ARCHIVE";
+                Steps = new[] { "Tạo Draft.", "Nhập nội dung và hiệu lực.", "Preview.", "Publish.", "Archive khi kết thúc." };
+                Example = "Quy định có EffectiveFrom 01/10 chỉ hiển thị trong cửa sổ hiệu lực.";
+                Security = "PublicInformationManage là capability quản trị.";
+                break;
+            case "REPORTS":
+                Title = "Báo cáo & thống kê";
+                Summary = "Tra cứu Leave, OT, Trip, Equipment và Attendance theo đúng capability và data scope.";
+                Flow = "REPORT CENTER → VIEW CAPABILITY → DATA SCOPE → QUERY → TABLE/CHART → OPTIONAL EXCEL";
+                Steps = new[] { "Mở Trung tâm báo cáo.", "Chọn nhóm nghiệp vụ mà tài khoản được phép xem.", "Chọn khoảng thời gian và bộ lọc.", "Xem bảng/biểu đồ tổng hợp.", "Xuất Excel chỉ khi có capability Export tương ứng." };
+                Example = "Người dùng chỉ có Leave.View xem được báo cáo nghỉ phép trong phạm vi của mình; không có Leave.Export thì nút xuất hoặc API export bị từ chối.";
+                Security = "ReportDispatcher kiểm tra capability View/Export; service tiếp tục áp dụng Own/Department/All. SQL view chỉ là read model, không cấp quyền.";
+                break;
+            case "WORK_CALENDAR":
+            case "CALENDAR":
+                Title = "Lịch làm việc chung";
+                Summary = "Một lịch thống nhất cho ngày nghỉ công ty, Nghỉ phép, OT và Công tác.";
+                Flow = "COMPANY CALENDAR → WORK CALENDAR → LEAVE / OT / TRIP → MODULE VALIDATOR";
+                Steps = new[] { "Mở lịch từ Leave, OT hoặc Trip.", "Dùng bộ lọc Tất cả/Công ty/Nghỉ phép/OT/Công tác.", "Click ngày để đưa ngày vào nghiệp vụ đang mở.", "Click event để xem thông tin hoặc chi tiết.", "Nếu lịch cảnh báo xung đột, vẫn chờ server validator quyết định trước khi lưu/gửi." };
+                Example = "Một ngày nghỉ công ty vẫn có thể xuất hiện trên lịch OT hoặc Trip; Holiday không tự động khóa tất cả nghiệp vụ.";
+                Security = "Calendar API chỉ trả dữ liệu của người dùng hiện tại và yêu cầu ít nhất một trong LeaveView, OTView hoặc TripView. Create/Edit/Cancel/Approve vẫn là capability riêng.";
+                break;
+            case "LEAVE":
+                Title = "Đăng ký nghỉ phép";
+                Summary = "Chọn ngày trực tiếp từ Work Calendar; số dư và điều kiện nghỉ được kiểm tra ở server.";
+                Flow = "WORK CALENDAR → CHỌN NGÀY → NHẬP LEAVE → VALIDATE BALANCE/CONFLICT → SUBMIT → APPROVAL";
+                Steps = new[] { "Chọn ngày trên lịch hoặc nút Đăng ký nghỉ.", "Kiểm tra ngày nghỉ công ty và các event đang có.", "Chọn loại nghỉ và nhập lý do.", "Kiểm tra số dư phép và trùng ngày.", "Gửi duyệt và theo dõi trạng thái." };
+                Example = "Ngày đã có OT hoặc công tác được lịch cảnh báo; việc có được phép nghỉ vẫn do LeaveValidator quyết định.";
+                Security = "LeaveCreate/LeaveEdit/LeaveCancel/LeaveApprove độc lập với quyền xem lịch.";
+                break;
+            case "TRIP":
+                Title = "Đăng ký công tác";
+                Summary = "Chọn ngày bắt đầu từ Work Calendar và kiểm tra lịch các nghiệp vụ liên quan.";
+                Flow = "WORK CALENDAR → CHỌN NGÀY → TRIP DRAFT → VALIDATE → SUBMIT → APPROVAL";
+                Steps = new[] { "Click ngày bắt đầu trên lịch.", "Nhập ngày kết thúc, địa điểm và mục đích.", "Lưu nháp hoặc gửi duyệt.", "Theo dõi công tác đã đăng ký trên lịch." };
+                Example = "Lịch có thể hiển thị Leave/OT cùng ngày để người dùng phát hiện xung đột trước khi gửi.";
+                Security = "TripCreate/TripEdit/TripCancel/TripApprove được kiểm tra ở server theo capability và data scope.";
+                break;
+            case "OT":
+                Title = "Đăng ký OT";
+                Summary = "Đăng ký OT với kiểm tra hạn mức ngày, tuần, tháng và năm trước khi Submit.";
+                Flow = "NHẬP OT → NGÀY → TUẦN → THÁNG → NĂM → SUBMIT → APPROVAL → RECONCILE";
+                Steps = new[] { "Chọn ngày, loại OT và số giờ.", "Kiểm tra giới hạn ngày.", "Kiểm tra tuần Thứ 2 → Chủ nhật nếu Weekly rule được cấu hình.", "Kiểm tra hạn mức tháng và năm.", "Xử lý policy đặc biệt nếu vượt ngưỡng năm tiêu chuẩn.", "Submit và theo dõi duyệt/đối soát." };
+                Example = "Dashboard cho biết OT đã Approved của tuần, tháng, năm; khi đăng ký, request chưa bị Reject/Cancel vẫn được tính để tránh đăng ký chồng.";
+                Security = "Server là nơi quyết định giới hạn. Rule được resolve theo Dept + Position > Dept > Position > toàn công ty; OTCreate/OTEdit/OTApprove là các capability độc lập.";
+                break;
+            case "SECURITY_CENTER":
+                Title = "Security Center";
+                Summary = "Role, Function/Action, effective permission và audit.";
+                Flow = "USER → ROLE → FUNCTION/ACTION → SCOPE → AUDIT";
+                Steps = new[] { "Xem effective permission.", "Kiểm tra role/function.", "Thay đổi có kiểm soát.", "Kiểm tra audit." };
+                Example = "LeaveApprove + Department không cấp quyền xem toàn công ty.";
+                Security = "DB là authority; IsAdmin không bypass data scope.";
+                break;
+        }
+    }
+
+    private void Back() => Navigation.NavigateTo("/");
+}

@@ -46,13 +46,24 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
 
         public virtual async Task<ServiceResult> ApproveAsync(
             List<int> ids, int level, UserIdentityDto user, string? comment, CancellationToken ct = default)
-            => await ProcessBulkAsync(ids, level, user, comment, isReject: false, ct);
+        {
+            var scopeError = await ValidateApprovalScopeAsync(ids, user, ct);
+            if (scopeError != null)
+                return ServiceResult.Fail(scopeError);
+
+            return await ProcessBulkAsync(ids, level, user, comment, isReject: false, ct);
+        }
 
         public virtual async Task<ServiceResult> RejectAsync(
             List<int> ids, int level, UserIdentityDto user, string comment, CancellationToken ct = default)
         {
             if (string.IsNullOrWhiteSpace(comment))
                 return ServiceResult.Fail("Lý do từ chối không được để trống.");
+
+            var scopeError = await ValidateApprovalScopeAsync(ids, user, ct);
+            if (scopeError != null)
+                return ServiceResult.Fail(scopeError);
+
             return await ProcessBulkAsync(ids, level, user, comment, isReject: true, ct);
         }
 
@@ -76,10 +87,21 @@ namespace FVN_REGISTER.Infrastructure.Services.Common
             catch (Exception ex) { return InternalError(ex, "Lỗi hệ thống khi hủy đơn."); }
         }
 
+        /// <summary>
+        /// Domain hook for target data-scope validation before a bulk approval/rejection
+        /// reaches the workflow engine. Null means all selected targets are authorized.
+        /// Returning an error blocks the entire batch to prevent partial authorization.
+        /// </summary>
+        protected virtual Task<string?> ValidateApprovalScopeAsync(
+            List<int> ids, UserIdentityDto user, CancellationToken ct)
+            => Task.FromResult<string?>(null);
+
         private async Task<ServiceResult> ProcessBulkAsync(
             List<int> ids, int level, UserIdentityDto user, string? comment, bool isReject, CancellationToken ct)
         {
             if (ids == null || ids.Count == 0) return ServiceResult.Fail("Không có đơn nào được chọn.");
+            ids = ids.Distinct().ToList();
+            if (ids.Count == 0) return ServiceResult.Fail("Không có đơn nào được chọn.");
             try
             {
                 var action = new ApprovalActionDto

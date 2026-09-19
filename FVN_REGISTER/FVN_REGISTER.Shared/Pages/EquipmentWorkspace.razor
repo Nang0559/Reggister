@@ -1,0 +1,157 @@
+@page "/equipment/workspace"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.EquipmentImport
+@using FVN_REGISTER.Shared.Handlers
+@using FVN_REGISTER.Shared.Components
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Net.Http.Headers
+@inherits AppComponentBase
+@inject IHttpClientWithAuth Http
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>Equipment Workspace</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-5">
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight:800">Equipment Workspace</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Schema theo phòng ban • Excel staging • validation • commit</MudText>
+        </div>
+        <FeatureHelp />
+    </MudStack>
+
+    <MudPaper Outlined="true" Class="pa-5 mb-5">
+        <MudText Typo="Typo.h6" Class="mb-3">1. Chọn phòng ban</MudText>
+        <MudStack Row="true" AlignItems="AlignItems.End" Spacing="2">
+            <MudTextField Label="DeptCode" @bind-Value="_deptCode" Variant="Variant.Outlined" />
+            <MudButton Variant="Variant.Filled" OnClick="LoadSchema" Disabled="@_loading">Tải schema</MudButton>
+        </MudStack>
+    </MudPaper>
+
+    @if (_schemaLoaded)
+    {
+        <MudGrid Spacing="3">
+            <MudItem xs="12" md="6">
+                <MudPaper Outlined="true" Class="pa-5 h-100">
+                    <MudText Typo="Typo.h6" Class="mb-3">2. Schema hiện hành</MudText>
+                    @if (_fields.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info">Phòng ban chưa khai báo field động.</MudAlert>
+                    }
+                    @foreach (var f in _fields.OrderBy(x => x.DisplayOrder))
+                    {
+                        <MudPaper Outlined="true" Class="pa-3 mb-2">
+                            <MudStack Row="true" Justify="Justify.SpaceBetween">
+                                <div><MudText Typo="Typo.subtitle2">@f.FieldLabel</MudText><MudText Typo="Typo.caption">@f.FieldKey • @f.DataType</MudText></div>
+                                <MudStack Row="true"><MudChip T="string" Size="Size.Small">@((f.IsRequired) ? "Bắt buộc" : "Tùy chọn")</MudChip><MudChip T="string" Size="Size.Small">@((f.IsImportable) ? "Import" : "Không import")</MudChip></MudStack>
+                            </MudStack>
+                        </MudPaper>
+                    }
+                    <MudDivider Class="my-4" />
+                    <MudText Typo="Typo.subtitle2" Class="mb-2">Thêm field</MudText>
+                    <MudTextField Label="FieldKey" @bind-Value="_newField.FieldKey" Variant="Variant.Outlined" Class="mb-2" />
+                    <MudTextField Label="Tên hiển thị" @bind-Value="_newField.FieldLabel" Variant="Variant.Outlined" Class="mb-2" />
+                    <MudSelect T="string" Label="Kiểu dữ liệu" @bind-Value="_newField.DataType" Variant="Variant.Outlined" Class="mb-2">
+                        <MudSelectItem Value="@("Text")">Text</MudSelectItem>
+                        <MudSelectItem Value="@("Number")">Number</MudSelectItem>
+                        <MudSelectItem Value="@("Date")">Date</MudSelectItem>
+                        <MudSelectItem Value="@("Boolean")">Boolean</MudSelectItem>
+                    </MudSelect>
+                    <MudCheckBox @bind-Value="_newField.IsRequired">Bắt buộc</MudCheckBox>
+                    <MudButton Variant="Variant.Filled" OnClick="SaveField">Lưu field</MudButton>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="6">
+                <MudPaper Outlined="true" Class="pa-5 h-100">
+                    <MudText Typo="Typo.h6" Class="mb-3">3. Import Excel</MudText>
+                    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-3">Dùng dòng đầu tiên làm header. Header phải khớp FieldKey hoặc alias canonical đã cấu hình.</MudText>
+                    <InputFile OnChange="OnFileSelected" accept=".xlsx" />
+                    @if (_file != null)
+                    {
+                        <MudAlert Severity="Severity.Info" Class="my-3">Đã chọn: @_file.Name (@_file.Size bytes)</MudAlert>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Stage" Disabled="@_uploading">@( _uploading ? "Đang kiểm tra..." : "Upload & Preview")</MudButton>
+                    }
+                    @if (_batch != null)
+                    {
+                        <MudDivider Class="my-4" />
+                        <MudText Typo="Typo.subtitle1">Batch #@_batch.Id</MudText>
+                        <MudText>Trạng thái: @_batch.Status</MudText>
+                        <MudText>Tổng: @_batch.TotalRows • Hợp lệ: @_batch.ValidRows • Lỗi: @_batch.InvalidRows</MudText>
+                        <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-3" Disabled="@(_batch.InvalidRows > 0)" OnClick="Commit">Commit vào hệ thống</MudButton>
+                    }
+                </MudPaper>
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private string _deptCode = string.Empty;
+    private bool _schemaLoaded;
+    private bool _loading;
+    private bool _uploading;
+    private readonly List<EquipmentFieldDefinitionDto> _fields = new();
+    private SaveEquipmentFieldDefinitionRequest _newField = new();
+    private IBrowserFile? _file;
+    private EquipmentImportBatchDto? _batch;
+
+    private async Task LoadSchema()
+    {
+        if (string.IsNullOrWhiteSpace(_deptCode)) { Snackbar.Add("Vui lòng nhập DeptCode.", Severity.Warning); return; }
+        _loading = true;
+        try
+        {
+            var r = await Http.GetAsync<List<EquipmentFieldDefinitionDto>>($"api/equipment/schema/{Uri.EscapeDataString(_deptCode.Trim())}");
+            if (r.IsSuccess && r.Data != null)
+            {
+                _fields.Clear(); _fields.AddRange(r.Data);
+                _newField = new SaveEquipmentFieldDefinitionRequest { DeptCode = _deptCode.Trim(), DisplayOrder = _fields.Count + 1 };
+                _schemaLoaded = true;
+            }
+            else Snackbar.Add(r.Message ?? "Không tải được schema.", Severity.Error);
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task SaveField()
+    {
+        _newField.DeptCode = _deptCode.Trim();
+        if (string.IsNullOrWhiteSpace(_newField.FieldKey) || string.IsNullOrWhiteSpace(_newField.FieldLabel)) { Snackbar.Add("FieldKey và tên hiển thị là bắt buộc.", Severity.Warning); return; }
+        var r = await Http.PutAsync<EquipmentFieldDefinitionDto>("api/equipment/schema", _newField);
+        Snackbar.Add(r.IsSuccess ? "Đã lưu field." : (r.Message ?? "Không thể lưu field."), r.IsSuccess ? Severity.Success : Severity.Error);
+        if (r.IsSuccess) await LoadSchema();
+    }
+
+    private void OnFileSelected(InputFileChangeEventArgs e) => _file = e.File;
+
+    private async Task Stage()
+    {
+        if (_file == null) return;
+        _uploading = true;
+        try
+        {
+            await using var stream = _file.OpenReadStream(10 * 1024 * 1024);
+            using var content = new MultipartFormDataContent();
+            var fileContent = new StreamContent(stream);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            content.Add(fileContent, "file", _file.Name);
+            content.Add(new StringContent(_deptCode.Trim()), "deptCode");
+
+            var r = await Http.PostMultipartAsync<EquipmentImportBatchDto>("api/equipment/import", content);
+            if (r.IsSuccess) { _batch = r.Data; Snackbar.Add("Excel đã staging, hãy kiểm tra batch.", Severity.Success); }
+            else Snackbar.Add(r.Message ?? "Import thất bại.", Severity.Error);
+        }
+        finally { _uploading = false; }
+    }
+
+    private async Task Commit()
+    {
+        if (_batch == null) return;
+        var r = await Http.PostAsync<EquipmentImportCommitResultDto>($"api/equipment/import/{_batch.Id}/commit", new { });
+        Snackbar.Add(r.IsSuccess ? "Đã commit batch." : (r.Message ?? "Không thể commit."), r.IsSuccess ? Severity.Success : Severity.Error);
+        if (r.IsSuccess) await LoadSchema();
+    }
+}

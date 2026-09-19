@@ -67,7 +67,8 @@ namespace FVN_REGISTER.API.Services.OT
                 bool isWeekday = await IsWeekdayTypeAsync(otType, ct);
                 decimal defaultDailyLimit = isWeekday ? 4m : 12m;
                 decimal dailyLimit = GetLimit(limitRules, OTLimitType.Daily, defaultDailyLimit);
-                decimal monthlyLimit = GetLimit(limitRules, OTLimitType.Weekly, 40m);
+                decimal? weeklyLimit = GetConfiguredLimit(limitRules, OTLimitType.Weekly);
+                decimal monthlyLimit = GetLimit(limitRules, OTLimitType.Monthly, 40m);
                 decimal yearlyLimit = GetLimit(limitRules, OTLimitType.Yearly, 200m);
                 decimal yearlySpecialLimit = GetLimit(limitRules, OTLimitType.Special, 300m);
 
@@ -80,6 +81,9 @@ namespace FVN_REGISTER.API.Services.OT
 
                 int year = otDate.Year;
                 int month = otDate.Month;
+                int weekOffset = (7 + (int)otDate.DayOfWeek - (int)DayOfWeek.Monday) % 7;
+                DateTime weekStart = otDate.Date.AddDays(-weekOffset);
+                DateTime weekEnd = weekStart.AddDays(7);
 
                 var query = _uow.Repository<F03OTEmployee>().Query()
                     .AsNoTracking()
@@ -104,6 +108,17 @@ namespace FVN_REGISTER.API.Services.OT
                         e.OTRequest.OTDate
                     })
                     .ToListAsync(ct);
+
+                decimal weekUsed = usedData
+                    .Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd)
+                    .Sum(x => x.EffectiveHours);
+
+                if (weeklyLimit.HasValue && weekUsed + hours > weeklyLimit.Value)
+                {
+                    result.IsValid = false;
+                    result.Errors.Add(
+                        $"Vượt {weeklyLimit.Value}h/tuần (đã dùng: {weekUsed}h, thêm: {hours}h).");
+                }
 
                 decimal monthUsed = usedData
                     .Where(x => x.OTDate.Month == month && x.OTDate.Year == year)
@@ -182,8 +197,10 @@ namespace FVN_REGISTER.API.Services.OT
                 bool isWeekday = await IsWeekdayTypeAsync(otType, ct);
                 decimal defaultDailyLimit = isWeekday ? 4m : 12m;
                 decimal dailyLimit = GetLimit(limitRules, OTLimitType.Daily, defaultDailyLimit);
-                decimal monthlyLimit = GetLimit(limitRules, OTLimitType.Weekly, 40m);
+                decimal? weeklyLimit = GetConfiguredLimit(limitRules, OTLimitType.Weekly);
+                decimal monthlyLimit = GetLimit(limitRules, OTLimitType.Monthly, 40m);
                 decimal yearlyLimit = GetLimit(limitRules, OTLimitType.Yearly, 200m);
+                decimal yearlySpecialLimit = GetLimit(limitRules, OTLimitType.Special, 300m);
 
                 // ⚠️ CHỜ XÁC NHẬN: emp.OTReasonCategoryCode không tồn tại trong OTEmployeeUpsertDto
                 // (chỉ có emp.Reason string tự do). Tạm bỏ đoạn check "hạng mục lý do" —
@@ -193,6 +210,9 @@ namespace FVN_REGISTER.API.Services.OT
                 var empCodes = model.Employees.Select(e => e.EmployeeCode).ToList();
                 int year = model.OTDate.Year;
                 int month = model.OTDate.Month;
+                int weekOffset = (7 + (int)model.OTDate.DayOfWeek - (int)DayOfWeek.Monday) % 7;
+                DateTime weekStart = model.OTDate.Date.AddDays(-weekOffset);
+                DateTime weekEnd = weekStart.AddDays(7);
 
                 var usedData = await _uow.Repository<F03OTEmployee>().Query()
                     .AsNoTracking()
@@ -222,6 +242,12 @@ namespace FVN_REGISTER.API.Services.OT
 
                     var empUsed = usedData.Where(x => x.EmployeeCode == emp.EmployeeCode).ToList();
 
+                    decimal weekUsed = empUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd)
+                        .Sum(x => x.EffectiveHours);
+
+                    if (weeklyLimit.HasValue && weekUsed + empHours > weeklyLimit.Value)
+                        return Fail($"Nhân viên {emp.EmployeeCode}: vượt {weeklyLimit.Value}h/tuần (đã dùng: {weekUsed}h, thêm: {empHours}h).");
+
                     decimal monthUsed = empUsed.Where(x => x.OTDate.Month == month && x.OTDate.Year == year)
                         .Sum(x => x.EffectiveHours);
 
@@ -231,9 +257,12 @@ namespace FVN_REGISTER.API.Services.OT
 
                     decimal yearUsed = empUsed.Where(x => x.OTDate.Year == year).Sum(x => x.EffectiveHours);
 
+                    if (yearUsed + empHours > yearlySpecialLimit)
+                        return Fail($"Nhân viên {emp.EmployeeCode}: vượt giới hạn tối đa {yearlySpecialLimit}h/năm " +
+                            $"(đã dùng: {yearUsed}h, thêm: {empHours}h). Không thể đăng ký thêm.");
+
                     if (yearUsed + empHours > yearlyLimit)
-                        return Fail($"Nhân viên {emp.EmployeeCode}: vượt {yearlyLimit}h/năm " +
-                            $"(đã dùng: {yearUsed}h, thêm: {empHours}h). Liên hệ HR nếu có thủ tục đặc biệt.");
+                        return Fail($"Nhân viên {emp.EmployeeCode}: đã vượt {yearlyLimit}h/năm tiêu chuẩn; cần thủ tục đặc biệt trước khi đăng ký phần OT vượt chuẩn.");
                 }
 
                 // ⚠️ CHỜ XÁC NHẬN: model.ApprovalSteps do client gửi lên — dùng để làm gì?
@@ -299,7 +328,14 @@ namespace FVN_REGISTER.API.Services.OT
 
         private static decimal GetLimit(
             List<F03OTLimitRule> rules, OTLimitType limitType, decimal defaultVal)
-            => rules.FirstOrDefault(r => r.LimitType == limitType)?.LimitValue ?? defaultVal;
+            => rules.FirstOrDefault(r => r.LimitType == limitType)?.LimitHours
+               ?? rules.FirstOrDefault(r => r.LimitType == limitType)?.LimitValue
+               ?? defaultVal;
+
+        private static decimal? GetConfiguredLimit(
+            List<F03OTLimitRule> rules, OTLimitType limitType)
+            => rules.FirstOrDefault(r => r.LimitType == limitType)?.LimitHours
+               ?? rules.FirstOrDefault(r => r.LimitType == limitType)?.LimitValue;
 
         private static ServiceResult Fail(string msg) => ServiceResult.Fail(msg);
     }

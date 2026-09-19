@@ -3,6 +3,9 @@ using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Histories;
 using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Contract.Dtos.Authentication;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Maps;
 using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Infrastructure.Services.Common;
@@ -20,6 +23,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
           ILeaveQueryService
     {
         private readonly IApprovalProvider<LeaveRequestSubject> _approvalProvider;
+        private readonly ICurrentUserService _currentUser;
+        private readonly IAuthorizationService _authorization;
         protected override RequestModule Module => RequestModule.Leave;
 
         public LeaveQueryService(
@@ -27,14 +32,22 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             IApprovalHistoryService historyService,
             IAttachmentService attachmentService,
             ICurrentUserService currentUserService,
-            IApprovalProvider<LeaveRequestSubject> approvalProvider)
+            IApprovalProvider<LeaveRequestSubject> approvalProvider,
+            IAuthorizationService authorization)
             : base(uow, historyService, attachmentService, currentUserService)
-            => _approvalProvider = approvalProvider;
+        {
+            _approvalProvider = approvalProvider;
+            _currentUser = currentUserService;
+            _authorization = authorization;
+        }
 
         protected override async Task<LeaveRequestDto?> GetHeaderByIdAsync(int requestId, CancellationToken ct)
         {
             var entity = await Uow.Repository<F03LeaveDay>().Query().AsNoTracking().FirstOrDefaultAsync(x => x.Id == requestId && x.IsActive == true, ct);
             if (entity == null) return null;
+            var user = _currentUser.GetCurrentUser();
+            if (user == null || !await _authorization.CanAccessAsync(user, SecurityFunctionCodes.LeaveView, entity.EmployeeCode, entity.DeptCode, ct))
+                return null;
             var requester = await Uow.Repository<VF03employee>().Query().AsNoTracking().FirstOrDefaultAsync(e => e.EmployeeCode == entity.EmployeeCode, ct);
             F03Department? department = null;
             if (!string.IsNullOrEmpty(entity.DeptCode))
@@ -73,13 +86,51 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             var approvedDetails = await Uow.Repository<F03LeaveDayDetail>().Query().AsNoTracking().Where(d => d.LeaveDay.EmployeeCode == employeeCode && d.LeaveDay.WorkYear == year && d.LeaveDay.IsActive == true && d.LeaveDay.RequestStatus == ApprovalStatus.Approved).Select(d => new { d.LeaveTypeCode, d.IsCountedAsLeave, d.DayValue }).ToListAsync(ct);
             var sick = approvedDetails.Where(d => sickCodes.Contains(d.LeaveTypeCode)).Sum(d => d.DayValue);
             var unpaid = approvedDetails.Where(d => !d.IsCountedAsLeave && !sickCodes.Contains(d.LeaveTypeCode)).Sum(d => d.DayValue);
-            return new LeaveBalanceDto { EmployeeCode = employeeCode, EmployeeName = phep?.EmployeeName ?? string.Empty, WorkYear = year, Year = year, TotalEntitled = phep?.TotalEntitledLeave ?? 0, Used = phep?.LeaveDaysUsed ?? 0, Remaining = phep?.RemainingLeave ?? 0, Unpaid = unpaid, Sick = sick };
+
+            var today = DateTime.Today;
+            var upcoming = await Uow.Repository<VF03LeaveRequest>().Query()
+                .AsNoTracking()
+                .Where(x => x.EmployeeCode == employeeCode
+                    && x.IsActive == true
+                    && x.RequestStatus == ApprovalStatus.Approved
+                    && x.EndDate >= today
+                    && x.WorkYear == year)
+                .OrderBy(x => x.StartDate)
+                .ToListAsync(ct);
+
+            var upcomingDays = upcoming.Sum(x => x.TotalLeaveDay ?? x.TotalDay);
+            var nextLeave = upcoming.FirstOrDefault();
+
+            return new LeaveBalanceDto
+            {
+                EmployeeCode = employeeCode,
+                EmployeeName = phep?.EmployeeName ?? string.Empty,
+                WorkYear = year,
+                Year = year,
+                TotalEntitled = phep?.TotalEntitledLeave ?? 0,
+                Used = phep?.LeaveDaysUsed ?? 0,
+                Remaining = phep?.RemainingLeave ?? 0,
+                Unpaid = unpaid,
+                Sick = sick,
+                UpcomingDays = upcomingDays,
+                NextLeaveDate = nextLeave?.StartDate,
+                NextLeaveTypeName = nextLeave?.LeaveTypeName
+            };
         }
 
         public override async Task<PaginationResult<LeaveSummaryDto>> GetPagedAsync(string? deptCode, ApprovalStatus? status, DateTime? fromDate, DateTime? toDate, int page, int pageSize, CancellationToken ct = default)
         {
             var query = Uow.Repository<VF03LeaveRequest>().Query().AsNoTracking().Where(x => x.IsActive == true);
-            if (!string.IsNullOrWhiteSpace(deptCode)) query = query.Where(x => x.DeptCode == deptCode);
+            var user = _currentUser.GetCurrentUser();
+            if (user == null) return new PaginationResult<LeaveSummaryDto>(new List<LeaveSummaryDto>(), 0, page, pageSize);
+            var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.LeaveView, ct);
+            if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
+                query = query.Where(x => x.EmployeeCode == user.EmployeeCode);
+            else if (scope == AuthorizationScopeCodes.Department)
+                query = query.Where(x => x.DeptCode == user.DeptCode);
+            else if (scope != AuthorizationScopeCodes.All)
+                query = query.Where(x => false);
+            if (!string.IsNullOrWhiteSpace(deptCode) && scope == AuthorizationScopeCodes.All) query = query.Where(x => x.DeptCode == deptCode);
             if (status.HasValue) query = query.Where(x => x.RequestStatus == status.Value);
             if (fromDate.HasValue) query = query.Where(x => x.StartDate >= fromDate.Value.Date);
             if (toDate.HasValue) query = query.Where(x => x.EndDate <= toDate.Value.Date);
@@ -90,7 +141,19 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
 
         public override async Task<List<LeaveRequestDto>> GetDeptByDateAsync(string deptCode, DateTime date, CancellationToken ct = default)
         {
-            var data = await Uow.Repository<VF03LeaveRequest>().Query().AsNoTracking().Where(x => x.IsActive == true && x.DeptCode == deptCode && x.StartDate <= date.Date && x.EndDate >= date.Date && x.RequestStatus != ApprovalStatus.Cancelled && x.RequestStatus != ApprovalStatus.Rejected).OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
+            var user = _currentUser.GetCurrentUser();
+            if (user == null) return new List<LeaveRequestDto>();
+            var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.LeaveView, ct);
+            var query = Uow.Repository<VF03LeaveRequest>().Query().AsNoTracking().Where(x => x.IsActive == true
+                && (scope == AuthorizationScopeCodes.All
+                    ? x.DeptCode == deptCode
+                    : scope == AuthorizationScopeCodes.Department
+                        ? x.DeptCode == user.DeptCode
+                        : (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
+                            ? x.EmployeeCode == user.EmployeeCode
+                            : false)
+                && x.DeptCode == deptCode && x.StartDate <= date.Date && x.EndDate >= date.Date && x.RequestStatus != ApprovalStatus.Cancelled && x.RequestStatus != ApprovalStatus.Rejected);
+            var data = await query.OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
             return data.Select(LeaveMapper.ToDtoFromView).ToList();
         }
 

@@ -9,7 +9,6 @@ public sealed class F03FunctionConfiguration : IEntityTypeConfiguration<F03Funct
     {
         entity.ToTable("F03Functions");
         entity.HasKey(e => e.Id);
-        entity.Property(e => e.Id).HasColumnName("IdFunction");
 
         entity.HasIndex(e => e.FunctionCode, "IX_Function_Code").IsUnique();
 

@@ -172,14 +172,14 @@ WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.Functio
 
 -- Permission/function mapping
 INSERT dbo.F03UserFunctions(IdUser,IdPermission,IdFunction)
-SELECT u.IdUser,p.IdPermission,f.IdFunction
+SELECT u.Id,p.Id,f.Id
 FROM dbo.F03Users u CROSS JOIN dbo.F03Permissions p CROSS JOIN dbo.F03Functions f
 WHERE u.EmployeeCode=N'E0001' AND p.PermissionCode=1 AND f.FunctionCode=1001
-AND NOT EXISTS(SELECT 1 FROM dbo.F03UserFunctions x WHERE x.IdUser=u.IdUser AND x.IdPermission=p.IdPermission AND x.IdFunction=f.IdFunction);
+AND NOT EXISTS(SELECT 1 FROM dbo.F03UserFunctions x WHERE x.IdUser=u.Id AND x.IdPermission=p.Id AND x.IdFunction=f.Id);
 
 -- Approvers: five test approver rows
 INSERT dbo.F03Approvers(IsActive,CreatedBy,UserId,RequestType,ApproverCode,PositionCode,ApproverName,ApproverEmail,ApproverDeptCode,ApproverDeptName,ApproveForDeptCode,ApproveForDeptName,Level,RoleName)
-SELECT 1,0,u.IdUser,N'Leave',v.Code,v.Position,v.Name,v.Email,v.Dept,d.DeptName,v.ForDept,d2.DeptName,v.Level,v.RoleName
+SELECT 1,0,u.Id,N'Leave',v.Code,v.Position,v.Name,v.Email,v.Dept,d.DeptName,v.ForDept,d2.DeptName,v.Level,v.RoleName
 FROM (VALUES
 (N'E0002',N'SL',N'Tran Thi Binh',N'e0002@test.local',N'IT',N'IT',N'IT',1,N'Lead/Sub Lead'),
 (N'E0003',N'CHIEF',N'Le Van Cuong',N'e0003@test.local',N'PROD',N'PROD',N'PROD',2,N'Chief/A Chief'),

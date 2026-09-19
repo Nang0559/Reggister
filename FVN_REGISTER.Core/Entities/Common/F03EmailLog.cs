@@ -5,11 +5,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace FVN_REGISTER.Core.Entities.Common;
 
 [Table("F03EmailLogs")]
-public partial class F03EmailLog
-{
-    [Key]
-    public int Id { get; set; }
-
+public partial class F03EmailLog : BaseAuditEntity
+    {
     // Liên kết với bảng Queue (nếu cần truy xuất ngược lại)
     public int? QueueId { get; set; }
 

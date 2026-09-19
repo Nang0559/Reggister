@@ -33,4 +33,15 @@ public static class LoggerExtensions
         if (enabled)
             logger.LogWarning(message, args);
     }
+
+    public static void LogErrorIf(
+        this ILogger logger,
+        bool enabled,
+        Exception exception,
+        string message,
+        params object?[] args)
+    {
+        if (enabled)
+            logger.LogError(exception, message, args);
+    }
 }

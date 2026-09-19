@@ -1,0 +1,123 @@
+@page "/thong-tin-cong-khai"
+@using System.Text.Json
+@using FVN_REGISTER.Shared.Handlers
+@inherits AppComponentBase
+@inject IHttpClientWithAuth Http
+@inject NavigationManager Navigation
+
+<PageTitle>Thông tin công khai</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-8">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-6" Wrap="Wrap.Wrap">
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight:800">Thông tin công khai</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Thông báo, quy định và hướng dẫn được công ty công bố cho cán bộ nhân viên.</MudText>
+        </div>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Login" OnClick="GoLogin">Đăng nhập</MudButton>
+    </MudStack>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" Class="mb-4" />
+        <MudSkeleton Height="120px" Class="mb-3" />
+        <MudSkeleton Height="120px" />
+    }
+    else if (!string.IsNullOrWhiteSpace(_error))
+    {
+        <MudAlert Severity="Severity.Warning">@_error</MudAlert>
+    }
+    else if (_items.Count == 0)
+    {
+        <MudPaper Outlined="true" Class="pa-8 text-center">
+            <MudIcon Icon="@Icons.Material.Filled.Campaign" Size="Size.Large" Color="Color.Secondary" />
+            <MudText Typo="Typo.h6" Class="mt-3">Hiện chưa có thông tin công khai</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Các thông báo hoặc quy định mới sẽ được đăng tại đây.</MudText>
+        </MudPaper>
+    }
+    else
+    {
+        <MudGrid Spacing="3">
+            @foreach (var item in _items)
+            {
+                <MudItem xs="12" md="6">
+                    <MudCard Elevation="1" Class="h-100" Style="border-radius:18px">
+                        <MudCardContent Class="pa-5">
+                            <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1" Class="mb-3">
+                                <MudChip T="string" Size="Size.Small" Color="@(item.Important ? Color.Error : Color.Primary)">@GetTypeName(item.Type)</MudChip>
+                                @if (item.Important)
+                                {
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">Quan trọng</MudChip>
+                                }
+                                <MudSpacer />
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@item.PublishedAt</MudText>
+                            </MudStack>
+                            <MudText Typo="Typo.h6" Style="font-weight:750">@item.Title</MudText>
+                            @if (!string.IsNullOrWhiteSpace(item.Summary))
+                            {
+                                <MudText Typo="Typo.body2" Class="mt-2 mud-text-secondary">@item.Summary</MudText>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(item.Content))
+                            {
+                                <MudText Typo="Typo.body2" Class="mt-4" Style="white-space:pre-line">@item.Content</MudText>
+                            }
+                            @if (!string.IsNullOrWhiteSpace(item.AttachmentUrl))
+                            {
+                                <MudButton Href="@item.AttachmentUrl" Target="_blank" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.AttachFile" Class="mt-3">Xem tài liệu</MudButton>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            }
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private readonly List<PublicItem> _items = new();
+    private bool _loading = true;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            var result = await Http.GetAsync<JsonElement>("api/public-information");
+            if (!result.IsSuccess || result.Data.ValueKind != JsonValueKind.Array)
+            {
+                _error = result.Message ?? "Không thể tải thông tin công khai.";
+                return;
+            }
+
+            var items = JsonSerializer.Deserialize<List<PublicItem>>(result.Data.GetRawText(), new JsonSerializerOptions(JsonSerializerDefaults.Web));
+            if (items != null) _items.AddRange(items);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[PUBLIC-INFO] Load error");
+            _error = "Không thể kết nối đến máy chủ.";
+        }
+        finally { _loading = false; }
+    }
+
+    private void GoLogin() => Navigation.NavigateTo("/login");
+
+    private static string GetTypeName(string? type) => type?.ToLowerInvariant() switch
+    {
+        "regulation" => "Quy định",
+        "guide" => "Hướng dẫn",
+        "policy" => "Chính sách",
+        _ => "Thông báo"
+    };
+
+    private sealed class PublicItem
+    {
+        public string Id { get; set; } = string.Empty;
+        public string Type { get; set; } = "Announcement";
+        public string Title { get; set; } = string.Empty;
+        public string Summary { get; set; } = string.Empty;
+        public string Content { get; set; } = string.Empty;
+        public string PublishedAt { get; set; } = string.Empty;
+        public bool Important { get; set; }
+        public string AttachmentUrl { get; set; } = string.Empty;
+    }
+}

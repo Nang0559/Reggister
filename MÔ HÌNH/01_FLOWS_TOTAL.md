@@ -285,3 +285,31 @@ Thêm module mới phải ưu tiên thêm implementation + DI, không sửa orch
 - Lộ trình loại bỏ `F03ApprovalStep` cũ.
 - Resolve `ApproverCode → UserId` cho notification in-app.
 - Hoàn thiện kiểu `Detail` của dashboard contribution.
+
+## Shared Work Calendar Flow
+
+```text
+User
+  |
+  v
+WorkCalendar UI
+  |
+  v
+GET /api/calendar
+  |
+  v
+WorkCalendarService
+  +--> Company holidays
+  +--> Leave requests
+  +--> OT requests
+  +--> Trip requests
+  |
+  v
+WorkCalendarDto
+  |
+  +--> Leave registration
+  +--> OT registration
+  +--> Trip registration
+```
+
+The calendar is a read projection. Final authorization and business validation remain in the corresponding module service/validator.

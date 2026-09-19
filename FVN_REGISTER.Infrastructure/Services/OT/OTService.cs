@@ -1,12 +1,15 @@
 ﻿
 
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Requests.OT;
 using FVN_REGISTER.Core.Repositories;
+using FVN_REGISTER.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
@@ -17,15 +20,21 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
           IOTService
     {
         private readonly IOTValidator _validator;
+        private readonly IAuthorizationService _authorization;
         protected override RequestModule ModuleKind => RequestModule.Overtime;
 
         public OTService(
             IUnitOfWork uow,
             IApprovalWorkflowOrchestrator<OTRequestSubject> workflow,
             IOTValidator validator,
+            IAuthorizationService authorization,
             ILogger<BaseRequestCommandService<OTRequestUpsertDto, F03OTRequest, OTRequestSubject>> logger,
             IOptionsMonitor<AuthDebugOptions> options)
-            : base(uow, workflow, logger, options) => _validator = validator;
+            : base(uow, workflow, logger, options)
+        {
+            _validator = validator;
+            _authorization = authorization;
+        }
 
         public override async Task<ServiceResult<int>> CreateAsync(OTRequestUpsertDto model, UserIdentityDto user, CancellationToken ct = default)
         {
@@ -34,6 +43,8 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                 var valResult = await _validator.ValidateCreateAsync(model, user, ct);
                 if (!valResult.IsSuccess) return ServiceResult<int>.Fail(valResult.Message ?? "Dữ liệu không hợp lệ.");
                 if (model.Employees == null || model.Employees.Count == 0) return ServiceResult<int>.Fail("Phải chọn ít nhất 1 nhân viên.");
+                if (!await _authorization.CanAccessAsync(user, SecurityFunctionCodes.OTCreate, user.EmployeeCode, model.DeptCode, ct))
+                    return ServiceResult<int>.Fail("Không có quyền tạo đơn OT cho bộ phận này theo phạm vi dữ liệu được cấp.");
 
                 var totalHours = model.Employees.Sum(e => e.OTHours);
                 await using var tx = await Uow.BeginTransactionAsync(ct);
@@ -128,9 +139,9 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                 var empRepo = Uow.Repository<F03OTEmployee>();
                 var row = await empRepo.Query().FirstOrDefaultAsync(x => x.OTRequestId == otRequestId && x.EmployeeCode == employeeCode && x.IsActive == true, ct);
                 if (row == null) return ServiceResult.Fail("Không tìm thấy nhân viên trong đơn.");
-                bool isSelf = employeeCode == user.EmployeeCode;
-                bool isCreator = entity.EmployeeCode == user.EmployeeCode;
-                if (!isSelf && !isCreator && !IsAdmin(user)) return ServiceResult.Fail("Không có quyền xóa nhân viên này khỏi đơn.");
+                if (!await _authorization.CanAccessAsync(
+                    user, SecurityFunctionCodes.OTEdit, entity.EmployeeCode, entity.DeptCode, ct))
+                    return ServiceResult.Fail("Không có quyền xóa nhân viên này khỏi đơn theo phạm vi dữ liệu được cấp.");
                 row.IsActive = false;
                 entity.TotalOTHours -= row.OTHours;
                 await Uow.SaveChangesAsync(ct);
@@ -147,7 +158,10 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
             {
                 var entity = await Uow.Repository<F03OTRequest>().GetByIdAsync(otRequestId, ct);
                 if (entity == null) return ServiceResult.Fail("Không tìm thấy đơn OT.");
-                if (IsFinalized(entity) && !IsAdmin(user)) return ServiceResult.Fail("Đơn đã xử lý xong, không thể cập nhật.");
+                if (!await _authorization.CanAccessAsync(
+                    user, SecurityFunctionCodes.OTEdit, entity.EmployeeCode, entity.DeptCode, ct))
+                    return ServiceResult.Fail("Không có quyền cập nhật đơn OT theo phạm vi dữ liệu được cấp.");
+                if (IsFinalized(entity)) return ServiceResult.Fail("Đơn đã xử lý xong, không thể cập nhật.");
                 var empRepo = Uow.Repository<F03OTEmployee>();
                 var codes = updates.Select(u => u.EmployeeCode).ToList();
                 var rows = await empRepo.Query().Where(x => x.OTRequestId == otRequestId && codes.Contains(x.EmployeeCode) && x.IsActive == true).ToListAsync(ct);
@@ -172,18 +186,50 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
             {
                 var entity = await Uow.Repository<F03OTRequest>().GetByIdAsync(requestId, ct);
                 if (entity == null) return ServiceResult.Fail("Không tìm thấy đơn OT.");
-                bool isOwner = entity.EmployeeCode == user.EmployeeCode;
-                bool isAdmin = IsAdmin(user);
-                if (!isOwner && !isAdmin) return ServiceResult.Fail("Không có quyền hủy đơn này.");
+                if (!await _authorization.CanAccessAsync(
+                    user, SecurityFunctionCodes.OTCancel, entity.EmployeeCode, entity.DeptCode, ct))
+                    return ServiceResult.Fail("Không có quyền hủy đơn này theo phạm vi dữ liệu được cấp.");
                 var histories = await Uow.Repository<F03ApprovalHistory>().Query().Where(h => h.RequestId == requestId && h.RequestType == ModuleKind).ToListAsync(ct);
                 bool anyDecided = histories.Any(h => h.Decision != DecisionType.Pending);
-                if (anyDecided && !isAdmin) return ServiceResult.Fail("Đơn đã có cấp duyệt xử lý, không thể tự hủy. Liên hệ Admin.");
+                if (anyDecided) return ServiceResult.Fail("Đơn đã có cấp duyệt xử lý, không thể tự hủy.");
                 ApplyCancel(entity, reason, user);
                 await Uow.SaveChangesAsync(ct);
                 Logger.LogInfoIf(Debug, "[{Component}] Cancelled Id={Id} By={User}", ComponentName, requestId, user.EmployeeCode);
                 return ServiceResult.Ok("Đã hủy đơn tăng ca.");
             }
             catch (Exception ex) { return InternalError(ex, "Lỗi hệ thống khi hủy đơn tăng ca."); }
+        }
+
+        protected override async Task<string?> ValidateApprovalScopeAsync(
+            List<int> ids, UserIdentityDto user, CancellationToken ct)
+        {
+            if (user.UserId <= 0)
+                return "Phiên đăng nhập không hợp lệ.";
+
+            var distinctIds = ids.Distinct().ToList();
+            var entities = await Uow.Repository<F03OTRequest>().Query()
+                .AsNoTracking()
+                .Where(x => distinctIds.Contains(x.Id) && x.IsActive == true)
+                .Select(x => new { x.Id, x.EmployeeCode, x.DeptCode })
+                .ToListAsync(ct);
+
+            if (entities.Count != distinctIds.Count)
+                return "Một hoặc nhiều đơn OT không tồn tại hoặc đã ngừng hoạt động.";
+
+            foreach (var entity in entities)
+            {
+                if (!await _authorization.CanAccessAsync(
+                    user,
+                    SecurityFunctionCodes.OTApprove,
+                    entity.EmployeeCode,
+                    entity.DeptCode,
+                    ct))
+                {
+                    return $"Không có quyền duyệt đơn OT [{entity.Id}] theo phạm vi dữ liệu được cấp.";
+                }
+            }
+
+            return null;
         }
 
         protected override void ApplyCancel(F03OTRequest entity, string reason, UserIdentityDto user)
@@ -201,8 +247,9 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
             {
                 var entity = await Uow.Repository<F03OTRequest>().GetByIdAsync(otRequestId, ct);
                 if (entity == null) return ServiceResult.Fail("Không tìm thấy đơn OT.");
-                bool isCreator = entity.EmployeeCode == user.EmployeeCode;
-                if (!isCreator && !IsAdmin(user)) return ServiceResult.Fail("Không có quyền thêm nhân viên vào đơn này.");
+                if (!await _authorization.CanAccessAsync(
+                    user, SecurityFunctionCodes.OTEdit, entity.EmployeeCode, entity.DeptCode, ct))
+                    return ServiceResult.Fail("Không có quyền thêm nhân viên vào đơn này theo phạm vi dữ liệu được cấp.");
                 if (IsFinalized(entity) || (entity.RequestStatus != ApprovalStatus.Draft && entity.RequestStatus != ApprovalStatus.Pending))
                     return ServiceResult.Fail("Đơn đã xử lý, không thể thêm nhân viên.");
                 var empRepo = Uow.Repository<F03OTEmployee>();

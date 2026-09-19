@@ -1,0 +1,336 @@
+@page "/admin/security"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Contract.Dtos.Usermanagers
+@using FVN_REGISTER.Shared.Services.Security
+@using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Utils.Helpers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject ISecurityClientService SecurityService
+@inject IUserManagementClientService UserService
+@inject ISnackbar Snackbar
+
+<PageTitle>Security Center - FCC</PageTitle>
+
+<MudStack Spacing="3">
+    <MudStack Row="true" AlignItems="AlignItems.Center">
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight:800">Security Center</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Quản lý tài khoản, Role và ma trận Function/Action theo RBAC của FVN_REGISTER.
+            </MudText>
+        </div>
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh"
+                   OnClick="LoadAsync" Disabled="_loading">Làm mới</MudButton>
+    </MudStack>
+
+    @if (_error != null)
+    {
+        <MudAlert Severity="Severity.Error">@_error</MudAlert>
+    }
+
+    <MudTabs Elevation="0" Rounded="true" Class="pa-2">
+        <MudTabPanel Text="Users & Effective Permission" Icon="@Icons.Material.Filled.People">
+            <MudGrid>
+                <MudItem xs="12" md="7">
+                    <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
+                        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+                            <MudText Typo="Typo.h6">Tài khoản</MudText>
+                            <MudSpacer />
+                            <MudTextField @bind-Value="_search" Placeholder="Tìm nhân viên..." Immediate="true"
+                                          Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                          Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        </MudStack>
+
+                        <MudTable T="UserAccountDto" Items="FilteredUsers" Hover="true" Dense="true" Loading="_loading"
+                                  OnRowClick="@(args => SelectUser(args))">
+                            <HeaderContent>
+                                <MudTh>Nhân viên</MudTh>
+                                <MudTh>Phòng ban</MudTh>
+                                <MudTh>Role chính</MudTh>
+                                <MudTh>Trạng thái</MudTh>
+                            </HeaderContent>
+                            <RowTemplate>
+                                <MudTd><b>@context.FullName</b><br /><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd>
+                                <MudTd>@context.DeptCode</MudTd>
+                                <MudTd>@context.PermissionName</MudTd>
+                                <MudTd>
+                                    <MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">
+                                        @(context.IsActive ? "Active" : "Inactive")
+                                    </MudChip>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" md="5">
+                    <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
+                        @if (_selected != null)
+                        {
+                            <MudText Typo="Typo.h6">@_selected.FullName</MudText>
+                            <MudText Typo="Typo.caption">@_selected.EmployeeCode · @_selected.DeptCode</MudText>
+                            <MudDivider Class="my-3" />
+
+                            <MudText Typo="Typo.subtitle2" Class="mb-2">Role</MudText>
+                            <MudSelect T="int" MultiSelection="true" SelectedValues="_selectedRoles"
+                                       SelectedValuesChanged="RolesChanged" Variant="Variant.Outlined">
+                                @foreach (var role in _roles)
+                                {
+                                    <MudSelectItem T="int" Value="@role.RoleCode">@role.RoleCode - @role.RoleName</MudSelectItem>
+                                }
+                            </MudSelect>
+
+                            <MudButton Class="mt-3" Variant="Variant.Filled" Color="Color.Primary"
+                                       OnClick="SaveRolesAsync" Disabled="_saving">
+                                Lưu role
+                            </MudButton>
+
+                            <MudDivider Class="my-4" />
+                            <MudText Typo="Typo.subtitle2">Effective permissions</MudText>
+                            @if (_snapshot != null)
+                            {
+                                @foreach (var group in _snapshot.Functions.GroupBy(x => x.ModuleCode))
+                                {
+                                    <MudText Typo="Typo.caption" Class="mt-3" Style="font-weight:700">@group.Key</MudText>
+                                    @foreach (var f in group.OrderBy(x => x.DisplayOrder))
+                                    {
+                                        <MudChip T="string" Size="Size.Small" Class="ma-1" Color="Color.Success">
+                                            @f.ActionCode
+                                        </MudChip>
+                                    }
+                                }
+                            }
+                        }
+                        else
+                        {
+                            <MudText Color="Color.Secondary">Chọn một tài khoản để xem quyền hiệu lực.</MudText>
+                        }
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Role → Function / Action" Icon="@Icons.Material.Filled.GridView">
+            <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px; overflow-x:auto">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+                    <div>
+                        <MudText Typo="Typo.h6">Ma trận phân quyền</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            Mỗi ô là một capability server-side. Thay đổi ma trận sẽ áp dụng cho mọi user đang mang Role đó.
+                        </MudText>
+                    </div>
+                    <MudSpacer />
+                    <MudChip T="string" Size="Size.Small">@_matrixFunctions.Count function/action</MudChip>
+                </MudStack>
+
+                @if (_matrixFunctions.Count > 0 && _roles.Count > 0)
+                {
+                    <MudTable Items="_matrixFunctions" Dense="true" Hover="true" Bordered="true" Striped="true">
+                        <HeaderContent>
+                            <MudTh Style="min-width:280px">Function / Action</MudTh>
+                            @foreach (var role in _roles)
+                            {
+                                <MudTh Style="min-width:120px; text-align:center">
+                                    <b>@role.RoleName</b><br />
+                                    <MudText Typo="Typo.caption">@role.RoleCode</MudText>
+                                </MudTh>
+                            }
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <MudText Typo="Typo.body2"><b>@context.ModuleCode.@context.ActionCode</b></MudText>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Detail</MudText>
+                            </MudTd>
+                            @foreach (var role in _roles)
+                            {
+                                <MudTd Style="text-align:center">
+                                    <MudCheckBox T="bool"
+                                                 Value="@HasRoleFunction(role.RoleCode, context.FunctionCode)"
+                                                 ValueChanged="@(value => ToggleRoleFunction(role.RoleCode, context.FunctionCode, value))"
+                                                 Color="Color.Primary" />
+                                </MudTd>
+                            }
+                        </RowTemplate>
+                    </MudTable>
+
+                    <MudDivider Class="my-4" />
+
+                    @foreach (var role in _roles)
+                    {
+                        <MudPaper Class="pa-3 mb-2" Outlined="true" Style="border-radius:12px">
+                            <MudStack Row="true" AlignItems="AlignItems.Center">
+                                <div>
+                                    <MudText Typo="Typo.subtitle1"><b>@role.RoleName</b> (@role.RoleCode)</MudText>
+                                    <MudText Typo="Typo.caption">@role.Detail</MudText>
+                                </div>
+                                <MudSpacer />
+                                <MudText Typo="Typo.caption">@GetMatrixCount(role.RoleCode) quyền</MudText>
+                                <MudButton Variant="Variant.Filled" Size="Size.Small"
+                                           Color="Color.Primary" Disabled="_savingRoleCode == role.RoleCode"
+                                           OnClick="@(() => SaveRoleFunctionsAsync(role))">
+                                    Lưu @role.RoleName
+                                </MudButton>
+                            </MudStack>
+                        </MudPaper>
+                    }
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Info">Chưa có Role/Function để dựng ma trận.</MudAlert>
+                }
+            </MudPaper>
+        </MudTabPanel>
+    </MudTabs>
+</MudStack>
+
+@code {
+    private List<UserAccountDto> _users = new();
+    private List<SecurityRoleDto> _roles = new();
+    private List<SecurityFunctionDto> _matrixFunctions = new();
+    private Dictionary<int, HashSet<int>> _matrix = new();
+
+    private PermissionSnapshotDto? _snapshot;
+    private UserAccountDto? _selected;
+    private HashSet<int> _selectedRoles = new();
+    private string _search = string.Empty;
+    private string? _error;
+    private bool _loading;
+    private bool _saving;
+    private int? _savingRoleCode;
+
+    private IEnumerable<UserAccountDto> FilteredUsers =>
+        string.IsNullOrWhiteSpace(_search)
+            ? _users
+            : _users.Where(x =>
+                (x.EmployeeCode ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase) ||
+                (x.FullName ?? "").Contains(_search, StringComparison.OrdinalIgnoreCase));
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        _error = null;
+        try
+        {
+            var users = await UserService.GetAllAsync();
+            var roles = await SecurityService.GetRolesAsync();
+            var functions = await SecurityService.GetFunctionsAsync();
+
+            if (!users.IsSuccess) { _error = users.Message; return; }
+            if (!roles.IsSuccess) { _error = roles.Message; return; }
+            if (!functions.IsSuccess) { _error = functions.Message; return; }
+
+            _users = users.Data ?? new();
+            _roles = roles.Data ?? new();
+            _matrixFunctions = functions.Data ?? new();
+            BuildMatrix();
+        }
+        finally { _loading = false; }
+    }
+
+    private void BuildMatrix()
+    {
+        _matrix = _roles.ToDictionary(
+            r => r.RoleCode,
+            r => r.FunctionCodes.ToHashSet());
+    }
+
+    private bool HasRoleFunction(int roleCode, int functionCode)
+        => _matrix.TryGetValue(roleCode, out var functions) && functions.Contains(functionCode);
+
+    private void ToggleRoleFunction(int roleCode, int functionCode, bool enabled)
+    {
+        if (!_matrix.TryGetValue(roleCode, out var functions))
+        {
+            functions = new HashSet<int>();
+            _matrix[roleCode] = functions;
+        }
+
+        if (enabled) functions.Add(functionCode);
+        else functions.Remove(functionCode);
+    }
+
+    private int GetMatrixCount(int roleCode)
+        => _matrix.TryGetValue(roleCode, out var functions) ? functions.Count : 0;
+
+    private async Task SaveRoleFunctionsAsync(SecurityRoleDto role)
+    {
+        if (!_matrix.TryGetValue(role.RoleCode, out var functions))
+            functions = new HashSet<int>();
+
+        _savingRoleCode = role.RoleCode;
+        try
+        {
+            var result = await SecurityService.SetRoleFunctionsAsync(
+                role.RoleCode, functions.OrderBy(x => x).ToList());
+
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể lưu ma trận.", Severity.Error);
+                return;
+            }
+
+            var saved = result.Data;
+            if (saved != null)
+            {
+                var index = _roles.FindIndex(x => x.RoleCode == role.RoleCode);
+                if (index >= 0) _roles[index] = saved;
+                _matrix[role.RoleCode] = saved.FunctionCodes.ToHashSet();
+            }
+
+            if (_selected != null)
+                await SelectUserAsync(_selected);
+
+            Snackbar.Add($"Đã lưu ma trận cho role {role.RoleName}.", Severity.Success);
+        }
+        finally
+        {
+            _savingRoleCode = null;
+        }
+    }
+
+    private Task SelectUser(TableRowClickEventArgs<UserAccountDto> args)
+        => args.Item is null ? Task.CompletedTask : SelectUserAsync(args.Item);
+
+    private async Task SelectUserAsync(UserAccountDto user)
+    {
+        _selected = user;
+        var result = await SecurityService.GetUserPermissionsAsync(_selected.IdUser);
+        if (!result.IsSuccess)
+        {
+            Snackbar.Add(result.Message ?? "Không tải được quyền.", Severity.Error);
+            return;
+        }
+
+        _snapshot = result.Data;
+        _selectedRoles = _snapshot?.RoleCodes.ToHashSet() ?? new();
+    }
+
+    private void RolesChanged(IEnumerable<int> values)
+        => _selectedRoles = values.ToHashSet();
+
+    private async Task SaveRolesAsync()
+    {
+        if (_selected == null) return;
+        _saving = true;
+        try
+        {
+            var result = await SecurityService.SetUserRolesAsync(
+                _selected.IdUser, _selectedRoles.ToList());
+
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể lưu role.", Severity.Error);
+                return;
+            }
+
+            _snapshot = result.Data;
+            Snackbar.Add("Đã cập nhật role và effective permissions.", Severity.Success);
+        }
+        finally { _saving = false; }
+    }
+}
