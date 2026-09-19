@@ -69,10 +69,10 @@ public sealed class HrmSyncService : IHrmSyncService
                 """
                 EXEC dbo.usp_ReconcileHrmSecurity
                     @EmployeeCode=NULL,
-                    @CreatedBy=@CreatedBy;
+                    @CreatedBy={0};
                 """,
                 ct,
-                new Microsoft.Data.SqlClient.SqlParameter("@CreatedBy", 0));
+                0);
 
             var afterUsers = await _uow.SqlQueryRawAsync<MissingCount>(
                 """
