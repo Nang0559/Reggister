@@ -20,13 +20,17 @@ public sealed class OTPreviewController : ControllerBase
         => _provider = provider;
 
     [HttpPost("preview")]
-    public async Task<IActionResult> Preview([FromBody] OTRequestUpsertDto model, CancellationToken ct)
+    public async Task<IActionResult> Preview(
+        [FromBody] OTRequestUpsertDto model,
+        CancellationToken ct)
     {
         if (model == null)
             return BadRequest(ApiResponse<object>.Fail("Dữ liệu OT không hợp lệ."));
 
         var totalHours = model.Employees?.Sum(x => x.OTHours) ?? 0m;
+
         var context = ApprovalBuildContext.ForOT(
+            requestId: 0,
             employeeCode: model.EmployeeCode ?? string.Empty,
             deptCode: model.DeptCode ?? string.Empty,
             positionCode: model.PositionCode ?? string.Empty,
@@ -34,6 +38,7 @@ public sealed class OTPreviewController : ControllerBase
             otTypeCode: model.OTTypeCode ?? string.Empty);
 
         var steps = await _provider.BuildHierarchyAsync(context, ct);
+
         return Ok(ApiResponse<List<ApprovalStepSnapshotDto>>.Ok(steps));
     }
 }
