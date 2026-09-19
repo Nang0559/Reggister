@@ -31,7 +31,7 @@ public partial class F03Employee : BaseAuditEntity
     public DateTime? FirstWorkingDate { get; set; }
     public DateTime? EndWorkingDate { get; set; }
 
-    [Column(TypeName = "decimal(5,2)")]
+    [Column(TypeName = "decimal(10,2)")]
     public decimal TotalLeaveDays { get; set; }
 
     public int? EmployeeNo { get; set; }
