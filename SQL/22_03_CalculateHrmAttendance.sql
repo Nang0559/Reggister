@@ -37,11 +37,11 @@ BEGIN
     HrmBCDaXacNhanLamThem,HrmBCLoaiLamThem,HrmBCTinhLamThem,HrmBCNgayLe,HrmBCNgayLeNV,HrmShiftDayType,AttendanceDisplayValue,OtDisplayValue,CalculatedAt,CalculatedBy)
    SELECT @BatchId,@CalculationVersion,CAST(r.BCNgay AS date),r.BCMaNV,RTRIM(nv.NVMaNV),RTRIM(nv.NVHoTen),r.BCMaBP,CONVERT(nvarchar(20),r.BCMaBP),r.BCMaCV,r.BCMaCa,ca.CVietTat,
     r.BCCuaDen,CASE WHEN r.BCTGDen <= '19000101' THEN NULL ELSE r.BCTGDen END,r.BCCuaVe,CASE WHEN r.BCTGVe <= '19000101' THEN NULL ELSE r.BCTGVe END,r.BCCuaRa,CASE WHEN r.BCTGRa <= '19000101' THEN NULL ELSE r.BCTGRa END,r.BCCuaVao,CASE WHEN r.BCTGVao <= '19000101' THEN NULL ELSE r.BCTGVao END,ISNULL(r.BCTGLamNgay,0),ISNULL(r.BCTGLamToi,0),
-    ISNULL(r.BCTGQuaGioNgay,0),ISNULL(r.BCTGQuaGioToi,0),ISNULL(r.BCTGQuaGioNgayTC,0),ISNULL(r.BCTGQuaGioToiTC,0),CASE WHEN ISNULL(r.BCDaXacNhanLamThem,0)=1 THEN ISNULL(r.BCTGThemNgay,0) ELSE 0 END,CASE WHEN ISNULL(r.BCDaXacNhanLamThem,0)=1 THEN ISNULL(r.BCTGThemToi,0) ELSE 0 END,
+    ISNULL(r.BCTGQuaGioNgay,0),ISNULL(r.BCTGQuaGioToi,0),ISNULL(r.BCTGQuaGioNgayTC,0),ISNULL(r.BCTGQuaGioToiTC,0),ISNULL(r.BCTGThemNgay,0),ISNULL(r.BCTGThemToi,0),
     ISNULL(r.BCTGDiMuonNgay,0),ISNULL(r.BCTGDiMuonToi,0),ISNULL(r.BCTGVeSomNgay,0),ISNULL(r.BCTGVeSomToi,0),ISNULL(r.BCTGQuyDinh,0),
     r.BCNghiPhep+r.BCNghiH100+r.BCNghiH70+r.BCNghiKL+r.BCNghiBH100+r.BCNghiBH70+r.BCNghiCongTac+r.BCNghiBu+r.BCNghiKhac,
     r.BCNghiPhep,r.BCNghiH100,r.BCNghiH70,r.BCNghiKL,r.BCNghiBH100,r.BCNghiBH70,r.BCNghiCongTac,r.BCNghiBu,r.BCNghiKhac,
-    r.BCLydonghi,r.BCLydonghi,r.BCGhiChu,r.BCLoai,CASE WHEN ISNULL(r.BCNgayLe,0)<>0 THEN 1 ELSE 0 END,CASE WHEN ISNULL(r.BCNgayLeNV,0)<>0 THEN 1 ELSE 0 END,r.DLocked,
+    CONVERT(nvarchar(20),r.BCLoaiNgayNghi),r.BCLydonghi,r.BCGhiChu,r.BCLoai,CASE WHEN ISNULL(r.BCNgayLe,0)<>0 THEN 1 ELSE 0 END,CASE WHEN ISNULL(r.BCNgayLeNV,0)<>0 THEN 1 ELSE 0 END,r.DLocked,
     r.BCGhiChu,r.BCLydonghi,ISNULL(r.BCTGNghi,0),r.BCNghiPhep,r.BCNghiH100,r.BCNghiH70,r.BCNghiKL,r.BCNghiBH100,r.BCNghiBH70,r.BCNghiCongTac,r.BCNghiBu,r.BCNghiKhac,
     r.BCDaXacNhanLamThem,r.BCLoaiLamThem,r.BCTinhLamThem,r.BCNgayLe,r.BCNgayLeNV,ca.CNgaynghi,NULL,NULL,GETDATE(),@TriggeredBy
    FROM #Result r INNER JOIN HRM.dbo.tblNhanVien nv ON nv.NVMa=r.BCMaNV
