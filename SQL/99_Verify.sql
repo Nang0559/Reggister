@@ -108,3 +108,30 @@ IF OBJECT_ID(N'dbo.F03HrmUserRoleRules',N'U') IS NULL
 
 SELECT
     UserRoleRuleCount = (SELECT COUNT(*) FROM dbo.F03HrmUserRoleRules);
+
+/* BaseAudit synchronization checks for common entities normalized in this pass. */
+IF OBJECT_ID(N'dbo.F03LeaveDayDetails',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03LeaveDayDetails',N'Id') IS NULL THROW 51010, 'F03LeaveDayDetails must expose canonical Id.', 1;
+    IF COL_LENGTH(N'dbo.F03LeaveDayDetails',N'CreatedBy') IS NULL THROW 51011, 'F03LeaveDayDetails must expose BaseAudit CreatedBy.', 1;
+    IF COL_LENGTH(N'dbo.F03LeaveDayDetails',N'CreatedAt') IS NULL THROW 51012, 'F03LeaveDayDetails must expose BaseAudit CreatedAt.', 1;
+END;
+IF OBJECT_ID(N'dbo.F03UserSessions',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03UserSessions',N'Id') IS NULL THROW 51013, 'F03UserSessions must expose canonical Id.', 1;
+    IF COL_LENGTH(N'dbo.F03UserSessions',N'CreatedBy') IS NULL THROW 51014, 'F03UserSessions must expose BaseAudit CreatedBy.', 1;
+    IF COL_LENGTH(N'dbo.F03UserSessions',N'CreatedAt') IS NULL THROW 51015, 'F03UserSessions must expose BaseAudit CreatedAt.', 1;
+END;
+IF OBJECT_ID(N'dbo.F03Attachment',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03Attachment',N'Id') IS NULL THROW 51016, 'F03Attachment must expose canonical Id.', 1;
+    IF COL_LENGTH(N'dbo.F03Attachment',N'FileId') IS NOT NULL THROW 51017, 'Legacy F03Attachment.FileId must not remain as the database PK column.', 1;
+END;
+IF OBJECT_ID(N'dbo.F03EmailLogs',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03EmailLogs',N'CreatedBy') IS NULL THROW 51018, 'F03EmailLogs must expose BaseAudit CreatedBy.', 1;
+END;
+IF OBJECT_ID(N'dbo.F03UserLogs',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03UserLogs',N'CreatedBy') IS NULL THROW 51019, 'F03UserLogs must expose BaseAudit CreatedBy.', 1;
+END;
