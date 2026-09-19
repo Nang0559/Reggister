@@ -187,3 +187,19 @@ Sau checkpoint này mới chuyển sang quét Infrastructure.
 
 ## Shared Work Calendar
 Work Calendar is a read-only projection shared by Leave, OT and Trip. The application does not persist a duplicated calendar state.Sources: F03CompanyHolidays, VF03LeaveRequest, VF03OTRequest and F03TripRequests.The calendar is not a business-rule authority. Each module remains responsible for authorization and final validation.
+
+## HRM attendance calculation port
+
+The application boundary exposes IHrmAttendanceCalculationService for the explicit Tính giờ use case.
+
+```text
+Request DTO
+  ↓
+IHrmAttendanceCalculationService
+  ↓
+Infrastructure implementation
+  ↓
+dbo.usp_CalculateHrmAttendance
+```
+
+The Application layer owns the contract and orchestration boundary only. It does not contain HRM SQL formulas, HRM table names, EF-specific queries, or attendance calculations. Department/date-range scope is carried by HrmAttendanceCalculationRequestDto; the result contract carries CalculationBatchId and calculation summary metadata.
