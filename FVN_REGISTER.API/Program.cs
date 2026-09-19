@@ -55,6 +55,7 @@ using FVN_REGISTER.Infrastructure.Services.Dashboards;
 using FVN_REGISTER.Infrastructure.Services.Users;
 using FVN_REGISTER.Infrastructure.Services.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Diagnostics;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -259,6 +260,36 @@ builder.Services.AddHostedService<HrmSyncBackgroundWorker>();
 builder.Services.AddHostedService<HrmAttendanceCalculationWorker>();
 
 var app = builder.Build();
+
+app.UseExceptionHandler(errorApp =>
+{
+    errorApp.Run(async context =>
+    {
+        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
+
+        var (statusCode, message) = exception switch
+        {
+            UnauthorizedAccessException ex => (StatusCodes.Status401Unauthorized, ex.Message),
+            KeyNotFoundException ex => (StatusCodes.Status404NotFound, ex.Message),
+            ArgumentException ex => (StatusCodes.Status400BadRequest, ex.Message),
+            InvalidOperationException ex => (StatusCodes.Status400BadRequest, ex.Message),
+            _ => (StatusCodes.Status500InternalServerError,
+                "Đã xảy ra lỗi hệ thống. Vui lòng thử lại hoặc liên hệ quản trị viên.")
+        };
+
+        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
+        if (statusCode >= 500)
+            logger.LogError(exception, "[API] Unhandled exception: {Path}", context.Request.Path);
+        else
+            logger.LogWarning(exception, "[API] Business exception: {Path}", context.Request.Path);
+
+        context.Response.StatusCode = statusCode;
+        context.Response.ContentType = "application/json; charset=utf-8";
+
+        await context.Response.WriteAsJsonAsync(
+            ApiResponse<object>.Fail(message, statusCode));
+    });
+});
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
 app.UseCors("FccCorsPolicy");
 app.UseHttpsRedirection();

@@ -128,15 +128,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                     year: entity.WorkYear,
                     leaveTypeCode: model.LeaveTypeCode);
 
-                try
+                var approvalResult = await Workflow.InitApprovalAsync(entity.Id, context, ct);
+                if (!approvalResult.IsSuccess)
                 {
-                    await Workflow.InitApprovalAsync(entity.Id, context, ct);
-                }
-                catch (Exception ex)
-                {
-                    Logger.LogError(ex, "[{Component}] InitApproval failed, rolling back CreateId={Id}", ComponentName, entity.Id);
                     await tx.RollbackAsync(ct);
-                    return ServiceResult<int>.Fail("Không thể khởi tạo luồng duyệt cho đơn.");
+                    return ServiceResult<int>.Fail(
+                        approvalResult.Message ?? "Không thể khởi tạo luồng duyệt cho đơn nghỉ.");
                 }
 
                 await tx.CommitAsync(ct);

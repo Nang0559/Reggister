@@ -5,6 +5,7 @@ using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Repositories;
@@ -45,30 +46,26 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
     public abstract RequestModule RequestType { get; }
 
     /// <summary>
-    /// Builds the approval hierarchy for a request.
-    /// Strict mode is used by command/submit flows; non-strict mode is used by
-    /// read-only screens such as calendars so missing approval configuration
-    /// does not turn an otherwise valid query into HTTP 500.
+    /// Legacy hierarchy API. Command flows should use the ServiceResult overload
+    /// so business/configuration errors are returned to the caller instead of thrown.
     /// </summary>
-    // Backward-compatible interface implementation.
-    // Existing IApprovalProvider<T> consumers keep the original two-argument contract;
-    // command flows therefore remain strict by default.
-    public virtual Task<List<ApprovalStepSnapshotDto>> BuildHierarchyAsync(
+    public virtual async Task<List<ApprovalStepSnapshotDto>> BuildHierarchyAsync(
         ApprovalBuildContext ctx,
         CancellationToken ct)
-        => BuildHierarchyAsync(ctx, ct, strict: true);
+    {
+        var result = await BuildHierarchyResultAsync(ctx, ct, strict: true);
+        return result.Success && result.Data != null
+            ? result.Data
+            : new List<ApprovalStepSnapshotDto>();
+    }
 
-    public virtual async Task<List<ApprovalStepSnapshotDto>> BuildHierarchyAsync(
+    public virtual async Task<ServiceResult<List<ApprovalStepSnapshotDto>>> BuildHierarchyResultAsync(
         ApprovalBuildContext ctx,
         CancellationToken ct,
         bool strict = true)
     {
         var routeResult = await _routeService.GetPreviewAsync(
-            RequestType,
-            ctx.EmployeeCode,
-            ctx.DeptCode,
-            ctx.PositionCode,
-            ct);
+            RequestType, ctx.EmployeeCode, ctx.DeptCode, ctx.PositionCode, ct);
 
         if (!routeResult.Success || routeResult.Data == null)
         {
@@ -76,15 +73,13 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
             {
                 Logger.LogWarning(
                     "Approval route unavailable for {RequestType}, EmployeeCode={EmployeeCode}, DeptCode={DeptCode}, PositionCode={PositionCode}: {Message}",
-                    RequestType,
-                    ctx.EmployeeCode,
-                    ctx.DeptCode,
-                    ctx.PositionCode,
-                    routeResult.Message);
-                return new List<ApprovalStepSnapshotDto>();
+                    RequestType, ctx.EmployeeCode, ctx.DeptCode, ctx.PositionCode, routeResult.Message);
+
+                return ServiceResult<List<ApprovalStepSnapshotDto>>.Ok(
+                    new List<ApprovalStepSnapshotDto>(), routeResult.Message);
             }
 
-            throw new InvalidOperationException(
+            return ServiceResult<List<ApprovalStepSnapshotDto>>.Fail(
                 routeResult.Message ??
                 $"Không xác định được luồng phê duyệt cho {RequestType}.");
         }
@@ -92,15 +87,11 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
         var route = routeResult.Data;
 
         var selections = await _selectionService.GetAsync(
-            RequestType,
-            ctx.RequestId,
-            ct);
+            RequestType, ctx.RequestId, ct);
 
         var selectedByLevel = selections
             .GroupBy(x => x.Level)
-            .ToDictionary(
-                x => x.Key,
-                x => x.Last().ApproverCode);
+            .ToDictionary(x => x.Key, x => x.Last().ApproverCode);
 
         var result = new List<ApprovalStepSnapshotDto>();
 
@@ -113,67 +104,56 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
 
             if (level.Candidates.Count == 0)
             {
+                var message =
+                    $"Không tìm thấy người phê duyệt cho {RequestType}, " +
+                    $"{level.LevelName} (Level {level.Level}).";
+
                 if (!strict)
                 {
                     Logger.LogWarning(
-                        "No approval candidates for {RequestType}, Level={Level}, LevelName={LevelName}, EmployeeCode={EmployeeCode}, DeptCode={DeptCode}, PositionCode={PositionCode}.",
-                        RequestType,
-                        level.Level,
-                        level.LevelName,
-                        ctx.EmployeeCode,
-                        ctx.DeptCode,
-                        ctx.PositionCode);
+                        "{Message} EmployeeCode={EmployeeCode}, DeptCode={DeptCode}, PositionCode={PositionCode}",
+                        message, ctx.EmployeeCode, ctx.DeptCode, ctx.PositionCode);
                     continue;
                 }
 
-                throw new InvalidOperationException(
-                    $"Không tìm thấy người phê duyệt cho " +
-                    $"{RequestType}, {level.LevelName} (Level {level.Level}).");
+                return ServiceResult<List<ApprovalStepSnapshotDto>>.Fail(message);
             }
 
-            if (!selectedByLevel.TryGetValue(
-                    level.Level,
-                    out var selectedCode) ||
+            if (!selectedByLevel.TryGetValue(level.Level, out var selectedCode) ||
                 string.IsNullOrWhiteSpace(selectedCode))
             {
+                var message =
+                    $"Chưa chọn người phê duyệt cho {RequestType}, " +
+                    $"{level.LevelName} (Level {level.Level}).";
+
                 if (!strict)
                 {
                     Logger.LogDebug(
-                        "No selected approver for {RequestType}, Level={Level}, RequestId={RequestId}; skipping in non-strict mode.",
-                        RequestType,
-                        level.Level,
-                        ctx.RequestId);
+                        "{Message} RequestId={RequestId}", message, ctx.RequestId);
                     continue;
                 }
 
-                throw new InvalidOperationException(
-                    $"Chưa chọn người phê duyệt cho " +
-                    $"{RequestType}, {level.LevelName} (Level {level.Level}).");
+                return ServiceResult<List<ApprovalStepSnapshotDto>>.Fail(message);
             }
 
             var selected = level.Candidates.FirstOrDefault(
                 x => string.Equals(
-                    x.ApproverCode,
-                    selectedCode,
-                    StringComparison.OrdinalIgnoreCase));
+                    x.ApproverCode, selectedCode, StringComparison.OrdinalIgnoreCase));
 
             if (selected == null)
             {
+                var message =
+                    $"Người phê duyệt [{selectedCode}] không thuộc danh sách hợp lệ " +
+                    $"của {RequestType}, Level {level.Level}.";
+
                 if (!strict)
                 {
                     Logger.LogWarning(
-                        "Selected approver {ApproverCode} is not valid for {RequestType}, Level={Level}, RequestId={RequestId}; skipping in non-strict mode.",
-                        selectedCode,
-                        RequestType,
-                        level.Level,
-                        ctx.RequestId);
+                        "{Message} RequestId={RequestId}", message, ctx.RequestId);
                     continue;
                 }
 
-                throw new InvalidOperationException(
-                    $"Người phê duyệt [{selectedCode}] " +
-                    $"không thuộc danh sách hợp lệ của " +
-                    $"{RequestType}, Level {level.Level}.");
+                return ServiceResult<List<ApprovalStepSnapshotDto>>.Fail(message);
             }
 
             result.Add(new ApprovalStepSnapshotDto(
@@ -188,30 +168,52 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
 
         if (result.Count == 0)
         {
+            var message =
+                $"Không xác định được cấp phê duyệt cho " +
+                $"{RequestType} / chức vụ {ctx.PositionCode}.";
+
             if (!strict)
             {
-                Logger.LogWarning(
-                    "Approval hierarchy is empty for {RequestType}, EmployeeCode={EmployeeCode}, DeptCode={DeptCode}, PositionCode={PositionCode}.",
-                    RequestType,
-                    ctx.EmployeeCode,
-                    ctx.DeptCode,
-                    ctx.PositionCode);
-                return result;
+                Logger.LogWarning("{Message}", message);
+                return ServiceResult<List<ApprovalStepSnapshotDto>>.Ok(result, message);
             }
 
-            throw new InvalidOperationException(
-                $"Không xác định được cấp phê duyệt cho " +
-                $"{RequestType} / chức vụ {ctx.PositionCode}.");
+            return ServiceResult<List<ApprovalStepSnapshotDto>>.Fail(message);
         }
 
-        return result;
+        return ServiceResult<List<ApprovalStepSnapshotDto>>.Ok(result);
     }
 
     public virtual async Task<ApprovalSnapshotDto> BuildSnapshotAsync(
         TSubject subject,
         ApprovalBuildContext ctx,
         CancellationToken ct)
-        => new(subject.RequestId, RequestType, DateTime.Now, await BuildHierarchyAsync(ctx, ct));
+    {
+        var result = await BuildSnapshotResultAsync(subject, ctx, ct);
+        return result.Data ?? new ApprovalSnapshotDto(
+            subject.RequestId,
+            RequestType,
+            DateTime.Now,
+            new List<ApprovalStepSnapshotDto>());
+    }
+
+    public virtual async Task<ServiceResult<ApprovalSnapshotDto>> BuildSnapshotResultAsync(
+        TSubject subject,
+        ApprovalBuildContext ctx,
+        CancellationToken ct)
+    {
+        var hierarchy = await BuildHierarchyResultAsync(ctx, ct, strict: true);
+        if (!hierarchy.Success || hierarchy.Data == null)
+            return ServiceResult<ApprovalSnapshotDto>.Fail(
+                hierarchy.Message ?? $"Không thể khởi tạo luồng duyệt cho {RequestType}.");
+
+        return ServiceResult<ApprovalSnapshotDto>.Ok(
+            new ApprovalSnapshotDto(
+                subject.RequestId,
+                RequestType,
+                DateTime.Now,
+                hierarchy.Data));
+    }
 
     protected async Task NotifyEmployeeInAppAsync(
         TSubject subject,

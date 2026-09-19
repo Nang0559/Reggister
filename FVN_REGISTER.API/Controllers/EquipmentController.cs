@@ -3,6 +3,7 @@ using AppAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAu
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Equipment;
 using FVN_REGISTER.Contract.Dtos.EquipmentImport;
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -64,7 +65,9 @@ public sealed class EquipmentController : ControllerBase
     public async Task<ActionResult<EquipmentRequestDto>> SubmitRegistration(int id, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentEdit, ct)) return Forbid();
-        return Ok(await _service.SubmitRegistrationAsync(id, ct));
+        var result = await _service.SubmitRegistrationAsync(id, ct);
+        var response = ApiResponse<EquipmentRequestDto>.FromResult(result);
+        return result.IsSuccess ? Ok(response) : BadRequest(response);
     }
 
     [HttpGet("registrations/mine")]
@@ -85,7 +88,9 @@ public sealed class EquipmentController : ControllerBase
     public async Task<ActionResult<EquipmentRequestDto>> SubmitRepair(int id, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentRepair, ct)) return Forbid();
-        return Ok(await _service.SubmitRepairAsync(id, ct));
+        var result = await _service.SubmitRepairAsync(id, ct);
+        var response = ApiResponse<EquipmentRequestDto>.FromResult(result);
+        return result.IsSuccess ? Ok(response) : BadRequest(response);
     }
 
     [HttpGet("scan/{qrToken}")]

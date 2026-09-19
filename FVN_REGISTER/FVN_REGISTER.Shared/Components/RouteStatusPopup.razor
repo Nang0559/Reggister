@@ -1,0 +1,27 @@
+@using MudBlazor
+@inject ISnackbar Snackbar
+
+@code {
+    [Parameter] public string Message { get; set; } = string.Empty;
+    [Parameter] public Severity Severity { get; set; } = Severity.Error;
+
+    private bool _shown;
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !_shown && !string.IsNullOrWhiteSpace(Message))
+        {
+            _shown = true;
+            Snackbar.Add(
+                Message,
+                Severity,
+                config =>
+                {
+                    config.RequireInteraction = false;
+                    config.ShowCloseIcon = true;
+                });
+        }
+
+        return Task.CompletedTask;
+    }
+}

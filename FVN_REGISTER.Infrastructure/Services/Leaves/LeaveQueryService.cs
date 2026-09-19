@@ -11,6 +11,7 @@ using FVN_REGISTER.Application.Models.Subjects;
 using FVN_REGISTER.Infrastructure.Services.Common;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Approvals;
+using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Dtos.MasterData;
 using FVN_REGISTER.Core.Repositories;
@@ -177,7 +178,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             // Calendar/master-data is read-only. Missing approval configuration
             // must not make the calendar endpoint fail with HTTP 500.
             // Submit/command flows remain strict and still validate the full route.
-            var snapshotSteps = await _approvalProvider.BuildHierarchyAsync(ctx, ct, strict: false);
+            var snapshotResult = await _approvalProvider.BuildHierarchyResultAsync(ctx, ct, strict: false);
+            var snapshotSteps = snapshotResult.Data ?? new List<ApprovalStepSnapshotDto>();
             var defaultFlow = snapshotSteps.Select(s => new ApprovalStepDto { Level = s.Level, RoleName = s.RoleName, ApproverCode = s.ApproverCode, ApproverName = s.ApproverName, ApproverEmail = s.ApproverEmail, IsRequired = s.IsRequired }).ToList();
             return new SystemMasterDataDto { CompanyHolidays = calendarEvents, HolidaysNotCountLeave = holidaysNotCount, FiscalYears = workYears, LeaveTypes = leaveTypes, LeaveEvents = leaveEvents, DefaultApprovalFlow = defaultFlow };
         }

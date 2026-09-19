@@ -3,6 +3,7 @@
 
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Enums;
 
 namespace FVN_REGISTER.Application.Interfaces.Approvals
@@ -11,11 +12,11 @@ namespace FVN_REGISTER.Application.Interfaces.Approvals
     {
         RequestModule RequestType { get; }
         Task<List<ApprovalStepSnapshotDto>> BuildHierarchyAsync(ApprovalBuildContext ctx, CancellationToken ct);
-        Task<List<ApprovalStepSnapshotDto>> BuildHierarchyAsync(
-        ApprovalBuildContext ctx,
-        CancellationToken ct,
-        bool strict);
+        Task<ServiceResult<List<ApprovalStepSnapshotDto>>> BuildHierarchyResultAsync(
+            ApprovalBuildContext ctx, CancellationToken ct, bool strict = true);
         Task<ApprovalSnapshotDto> BuildSnapshotAsync(TSubject subject, ApprovalBuildContext ctx, CancellationToken ct);
+        Task<ServiceResult<ApprovalSnapshotDto>> BuildSnapshotResultAsync(
+            TSubject subject, ApprovalBuildContext ctx, CancellationToken ct);
         Task<TSubject?> GetSubjectAsync(int requestId, CancellationToken ct);
         Task<List<TSubject>> GetSubjectsAsync(List<int> requestIds, CancellationToken ct);
         Task ApplyOverallStatusAsync(int requestId, IReadOnlyList<ApprovalStepDto> allSteps, CancellationToken ct);
