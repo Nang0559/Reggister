@@ -196,6 +196,7 @@ public sealed class LeaveEntitlementService : ILeaveEntitlementService
                 ? BaseAnnualLeaveDays + seniorityLeaveDays
                 : 0m;
 
+            var isNew = false;
             if (!balances.TryGetValue(employee.EmployeeCode, out var balance))
             {
                 balance = new F03LeaveBalance
@@ -207,10 +208,12 @@ public sealed class LeaveEntitlementService : ILeaveEntitlementService
                 };
                 await _uow.Repository<F03LeaveBalance>().AddAsync(balance, ct);
                 balances[employee.EmployeeCode] = balance;
+                isNew = true;
             }
 
             // Không ghi lại balance đã tính trong cùng một ngày nếu entitlement vẫn giống nhau.
-            if (balance.CalculatedAt.Date != today
+            if (isNew
+                || balance.CalculatedAt.Date != today
                 || balance.TotalDays != totalLeaveDays
                 || balance.YearsOfService != yearsOfService)
             {

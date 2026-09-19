@@ -408,8 +408,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
     }
 
     private static string RoleNameFromLevel(int level, RequestModule requestType) =>
-        requestType switch
-        {
+    {
         RequestModule.Overtime when level == 3 => ApproverRole.SubLeader,
         RequestModule.Overtime when level == 5 => ApproverRole.Chief,
         RequestModule.Overtime when level == 6 => ApproverRole.Manager,

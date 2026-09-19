@@ -8,12 +8,4 @@ public interface ILeaveEntitlementService
         string employeeCode,
         int workYear,
         CancellationToken ct = default);
-
-    /// <summary>
-    /// Tự động tính/cập nhật entitlement cho toàn bộ nhân viên đang active của năm làm việc.
-    /// Idempotent: chỉ ghi lại các balance thiếu hoặc đã cũ trong ngày.
-    /// </summary>
-    Task EnsureWorkYearCalculatedAsync(
-        int workYear,
-        CancellationToken ct = default);
 }
