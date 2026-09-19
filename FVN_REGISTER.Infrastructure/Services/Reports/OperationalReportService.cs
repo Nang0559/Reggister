@@ -54,7 +54,7 @@ public sealed class OperationalReportService : BaseReportService<OperationalRepo
     {
         var (from,to)=Range(q);
         var x=_uow.Repository<F03TripRequest>().Query().AsNoTracking()
-            .Where(x=>x.IsActive && x.StartDate<=to && x.EndDate>=from);
+            .Where(x=>x.IsActive == true && x.StartDate<=to && x.EndDate>=from);
         if (u.Permission.IsAdmin())
         {
             if (!string.IsNullOrWhiteSpace(q.DeptCode)) x=x.Where(a=>a.DeptCode==q.DeptCode);
@@ -99,7 +99,7 @@ public sealed class OperationalReportService : BaseReportService<OperationalRepo
 
     private IQueryable<F03EquipmentAsset> Equipment(ReportQueryDto q, UserIdentityDto u)
     {
-        var x=_uow.Repository<F03EquipmentAsset>().Query().AsNoTracking().Where(x=>x.IsActive);
+        var x=_uow.Repository<F03EquipmentAsset>().Query().AsNoTracking().Where(x=>x.IsActive == true);
         if(u.Permission.IsAdmin()){if(!string.IsNullOrWhiteSpace(q.DeptCode))x=x.Where(a=>a.DeptCode==q.DeptCode);}
         else x=x.Where(a=>a.DeptCode==u.DeptCode);
         return x;
@@ -154,7 +154,7 @@ public sealed class OperationalReportService : BaseReportService<OperationalRepo
             new[]{("WorkDate","Ngày","date"),("EmployeeCode","Mã NV","text"),("FullName","Họ tên","text"),("DeptCode","Phòng","text"),("ShiftName","Ca","text"),("CheckIn","Vào","date"),("CheckOut","Ra","date"),("TotalHours","Tổng giờ","decimal"),("OTHours","Giờ OT","decimal"),("IsHoliday","Ngày lễ","text")});
     }
 
-    private static ServiceResult<ReportResultDto> Table<T>(ReportType type,string title,IReadOnlyList<Dictionary<string,object?>> rows,IReadOnlyList<(string field,string header,string dataType)> cols)
+    private static ServiceResult<ReportResultDto> Table(ReportType type,string title,IReadOnlyList<Dictionary<string,object?>> rows,IReadOnlyList<(string field,string header,string dataType)> cols)
     {
         return ServiceResult<ReportResultDto>.Ok(new ReportResultDto{
             Type=type,Title=title,TotalRows=rows.Count,Rows=rows.ToList(),
