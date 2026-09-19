@@ -34,7 +34,8 @@
 
                 <MudItem xs="12" sm="6">
                     <MudSelect T="string"
-                               @bind-Value="_defaultLeaveTypeCode"
+                               Value="_defaultLeaveTypeCode"
+                               ValueChanged="ChangeDefaultLeaveType"
                                Label="Loại nghỉ *"
                                Variant="Variant.Outlined"
                                Margin="Margin.Dense"
@@ -173,6 +174,16 @@
                 HalfDayOption = _defaultHalfDayOption
             });
         }
+    }
+
+    private void ChangeDefaultLeaveType(string? code)
+    {
+        _defaultLeaveTypeCode = code;
+        if (string.IsNullOrWhiteSpace(code))
+            return;
+
+        foreach (var detail in _details)
+            detail.LeaveTypeCode = code;
     }
 
     private void ChangeLeaveType(LeaveRequestDetailUpsertDto detail, string code) => detail.LeaveTypeCode = code;
