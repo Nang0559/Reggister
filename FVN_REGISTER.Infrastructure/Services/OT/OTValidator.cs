@@ -269,8 +269,12 @@ namespace FVN_REGISTER.API.Services.OT
                 // Tạm giữ nguyên cách build hierarchy từ server (an toàn hơn, không tin client),
                 // BỎ QUA model.ApprovalSteps cho tới khi bạn xác nhận mục đích của field này.
                 var buildCtx = ApprovalBuildContext.ForOT(
-                    user.EmployeeCode ?? "", model.DeptCode, user.PositionCode ?? "",
-                    requestHours, model.OTTypeCode);
+                    requestId: 0,
+                    employeeCode: user.EmployeeCode ?? "",
+                    deptCode: model.DeptCode,
+                    positionCode: user.PositionCode ?? "",
+                    totalOTHours: requestHours,
+                    otTypeCode: model.OTTypeCode);
 
                 var steps = await _approvalProvider.BuildHierarchyAsync(buildCtx, ct);   // SỬA: đổi tên biến, bỏ .Steps
 
