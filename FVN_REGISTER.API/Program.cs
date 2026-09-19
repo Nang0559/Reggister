@@ -257,9 +257,7 @@ builder.Services.AddOpenApi();
 builder.Services.AddHostedService<EmailBackgroundWorker>();
 builder.Services.AddHostedService<EscalationBackgroundWorker>();
 builder.Services.AddHostedService<HrmSyncBackgroundWorker>();
-builder.Services.AddSingleton<OTAttendanceStagingWorker>();
-builder.Services.AddHostedService(sp => sp.GetRequiredService<OTAttendanceStagingWorker>());
-builder.Services.AddSingleton<IOTWorkerStatus>(sp => sp.GetRequiredService<OTAttendanceStagingWorker>());
+builder.Services.AddHostedService<OTAttendanceStagingWorker>();
 
 var app = builder.Build();
 if (app.Environment.IsDevelopment()) app.MapOpenApi();
