@@ -182,7 +182,7 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
         if (minutes <= 0)
             minutes = row.OTMinutesDay + row.OTMinutesNight;
 
-        return Math.Round(minutes / 60d, 2);
+        return minutes <= 0 ? string.Empty : Math.Round(minutes / 60d, 2);
     }
 
     private static string FirstNonEmpty(params string?[] values)
@@ -203,13 +203,13 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
     private static void ApplyAttendanceHeader(ISheet sheet, DateTime month)
     {
         SetText(sheet.GetRow(0), 0, "CÔNG TY TNHH FCC VIỆT NAM");
-        SetText(sheet.GetRow(1), 0, $"THÁNG {month:MM}");
-        SetText(sheet.GetRow(3), 0, $"BẢNG CHẤM CÔNG THÁNG {month:MM/yyyy}");
+        SetText(sheet.GetRow(1), 0, $"THÁNG {month:M}");
+        SetText(sheet.GetRow(3), 0, $"BẢNG CHẤM CÔNG THÁNG {month:M}/{month:yyyy}");
 
         for (var i = 0; i < 31; i++)
         {
             var date = month.AddMonths(-1).Date.AddDays(20 + i);
-            SetText(sheet.GetRow(3), 7 + i, date.Day.ToString("00"));
+            SetText(sheet.GetRow(3), 7 + i, date.Day == 1 ? date.ToString("dd/MM") : date.Day.ToString());
             SetText(sheet.GetRow(4), 7 + i, date.ToString("ddd", new System.Globalization.CultureInfo("en-US")));
         }
     }
@@ -217,12 +217,12 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
     private static void ApplyOtHeader(ISheet sheet, DateTime month)
     {
         SetText(sheet.GetRow(0), 0, "CÔNG TY TNHH FCC VIỆT NAM");
-        SetText(sheet.GetRow(1), 0, $"                BẢNG  LÀM THÊM THÁNG {month:MM} NĂM {month:yyyy}");
+        SetText(sheet.GetRow(1), 0, $"                BẢNG  LÀM THÊM THÁNG {month:M} NĂM {month:yyyy}");
 
         for (var i = 0; i < 31; i++)
         {
             var date = month.AddMonths(-1).Date.AddDays(20 + i);
-            SetText(sheet.GetRow(3), 4 + i, date.Day.ToString("00"));
+            SetText(sheet.GetRow(3), 4 + i, date.Day == 1 ? date.ToString("dd/MM") : date.Day.ToString());
             SetText(sheet.GetRow(4), 4 + i, date.ToString("ddd", new System.Globalization.CultureInfo("en-US")));
         }
     }
