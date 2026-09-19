@@ -1,4 +1,5 @@
 using FVN_REGISTER.Contract.Dtos.Trips;
+using FVN_REGISTER.Contract.Requests.Approvals;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Shared.Handlers;
 using Microsoft.Extensions.Logging;
@@ -39,13 +40,14 @@ public sealed class TripClientService : ITripClientService
 
     public async Task<ApiResponse<TripRequestDto>> SubmitAsync(
         int requestId,
+        List<ApprovalSelectionDto>? approvalSelections = null,
         CancellationToken ct = default)
     {
         try
         {
             return await _http.PostAsync<TripRequestDto>(
                 $"api/trips/{requestId}/submit",
-                new { },
+                approvalSelections ?? new List<ApprovalSelectionDto>(),
                 ct);
         }
         catch (OperationCanceledException) when (ct.IsCancellationRequested)
