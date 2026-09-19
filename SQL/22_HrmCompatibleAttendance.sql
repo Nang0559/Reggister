@@ -3674,12 +3674,11 @@ BEGIN
   BCCuaDen int NULL,BCTGDen datetime NULL,BCCuaVe int NULL,BCTGVe datetime NULL,BCCuaRa int NULL,BCTGRa datetime NULL,BCCuaVao int NULL,BCTGVao datetime NULL,
   BCTGLamNgay int NULL,BCTGLamToi int NULL,BCTGQuaGioNgay int NULL,BCTGQuaGioToi int NULL,BCTGQuaGioNgayTC int NULL,BCTGQuaGioToiTC int NULL,
   BCTGThemNgay int NULL,BCTGThemToi int NULL,BCTGRaNgoaiNgay int NULL,BCTGRaNgoaiToi int NULL,BCTGDiMuonNgay int NULL,BCTGDiMuonToi int NULL,
-  BCTGVeSomNgay int NULL,BCTGVeSomToi int NULL,BCGhiChu nvarchar(50) NULL,BCLoai bit NULL,BCLoaiLamThem bit NULL,BCTinhLamThem bit NULL,
-  BCNghiBuChoNgay float NULL,BCNghiPhep float NULL,BCNghiH100 float NULL,BCNghiH70 float NULL,BCNghiKL float NULL,BCNghiBH100 float NULL,BCNghiBH70 float NULL,BCNghiCongTac float NULL,BCNghiBu float NULL,BCNghiKhac float NULL,
-  BCLoaiNgayNghi smallint NULL,BCLydonghi nvarchar(20) NULL,BCTGNghi float NULL,BCDaXacNhanLamThem bit NULL,BCNgayLe int NULL,BCNgayLeNV int NULL,
+  BCTGVeSomNgay int NULL,BCTGVeSomToi int NULL,BCTGQuyDinh int NULL,BCGhiChu nvarchar(50) NULL,BCLoai bit NULL,BCLoaiLamThem bit NULL,BCTinhLamThem bit NULL,
   BCNghiBuChoNgay float NULL,BCNghiPhep float NULL,BCNghiH100 float NULL,BCNghiH70 float NULL,BCNghiKL float NULL,BCNghiBH100 float NULL,BCNghiBH70 float NULL,
   BCNghiCongTac float NULL,BCNghiBu float NULL,BCNghiKhac float NULL,BCLoaiNgayNghi smallint NULL,BCLydonghi nvarchar(20) NULL,BCTGNghi float NULL,
-  BCTGDKNTheogio float NULL,BCLoaiDKN varchar(10) NULL,BCDangKyLTN float NULL,BCDangKyLTD float NULL,BCTGUuDaiN int NULL,BCTGUuDaiD int NULL,BCNgayLe int NULL,BCNgayLeNV int NULL,DLocked bit NULL
+  BCTGDKNTheogio float NULL,BCLoaiDKN varchar(10) NULL,BCDangKyLTN float NULL,BCDangKyLTD float NULL,BCTGUuDaiN int NULL,BCTGUuDaiD int NULL,
+  BCNgayLe int NULL,BCNgayLeNV int NULL,BCDaXacNhanLamThem bit NULL,DLocked bit NULL
  );
  DECLARE @D date=@FromDate;
  WHILE @D<=@ToDate
