@@ -745,7 +745,7 @@ BEGIN
         PositionCode = NULLIF(LEFT(LTRIM(RTRIM(NV.NVMaCV)), 20), N''),
         BirthDate = NV.NVNgaySinh,
         GenderCode = CONVERT(int, NV.NVGioiTinh),
-        EmailAddress = ISNULL(NV.NVEmail, N''),
+        EmailAddress = ISNULL(NULLIF(LTRIM(RTRIM(NV.NVEmailCaNhan)), N''), N''),
         PhoneNumber = NULLIF(LTRIM(RTRIM(NV.NVDienThoai)), N''),
         FirstWorkingDate = NV.NVNgayVao,
         EndWorkingDate =
