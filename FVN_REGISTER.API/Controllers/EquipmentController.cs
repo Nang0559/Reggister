@@ -1,5 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.Equipment;
-using FVN_REGISTER.Application.Interfaces.Security;
+using AppAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Equipment;
 using FVN_REGISTER.Contract.Dtos.EquipmentImport;
@@ -19,7 +19,7 @@ public sealed class EquipmentController : ControllerBase
     private readonly IEquipmentQrCodeService _qr;
     private readonly IConfiguration _configuration;
     private readonly ICurrentUserService _currentUser;
-    private readonly IAuthorizationService _authorization;
+    private readonly AppAuthorizationService _authorization;
 
     public EquipmentController(
         IEquipmentService service,
@@ -27,7 +27,7 @@ public sealed class EquipmentController : ControllerBase
         IEquipmentQrCodeService qr,
         IConfiguration configuration,
         ICurrentUserService currentUser,
-        IAuthorizationService authorization)
+        AppAuthorizationService authorization)
     {
         _service = service;
         _import = import;
