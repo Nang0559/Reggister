@@ -54,7 +54,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
                 on ur.IdRole equals r.Id
             join f in _uow.Repository<F03Function>().Query().AsNoTracking()
-                on rf.Id equals f.Id
+                on rf.IdFunction equals f.Id
             where ur.IdUser == userId
                 && r.IsActive
                 && (f.IsActive ?? true)
@@ -130,7 +130,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         var roleCodes = await (
             from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
-                on ur.IdRole equals r.IdRole
+                on ur.IdRole equals r.Id
             where ur.IdUser == userId && r.IsActive
             select r.RoleCode
         ).Distinct().ToListAsync(ct);
@@ -273,7 +273,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             await repo.AddAsync(new F03UserRole
             {
                 IdUser = userId,
-                IdRole = role.IdRole,
+                IdRole = role.Id,
                 IsPrimary = role.RoleCode == roleCodes.FirstOrDefault(),
                 CreatedBy = actorUserId,
                 CreatedAt = DateTime.Now,
