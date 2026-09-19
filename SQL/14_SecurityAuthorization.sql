@@ -271,7 +271,7 @@ FROM dbo.F03Users u
 JOIN dbo.F03Roles r ON r.RoleCode=u.PermissionCode
 WHERE NOT EXISTS
 (
-    SELECT 1 FROM dbo.F03UserRoles ur WHERE ur.IdUser=u.Id AND ur.Id=r.Id
+    SELECT 1 FROM dbo.F03UserRoles ur WHERE ur.IdUser=u.Id AND ur.IdRole=r.Id
 );
 GO
 
