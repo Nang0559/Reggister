@@ -52,9 +52,10 @@ IMPORTANT:
 :r 18_OT_Leave_Limits.sql
 :r 19_WorkCalendar.sql
 :r 20_Reports.sql
+:r 22_HrmCompatibleAttendance.sql
 
 PRINT N'============================================================';
-PRINT N'FVN_REGISTER SQL deployment 01..19 completed.';
+PRINT N'FVN_REGISTER SQL deployment 01..22 completed.';
 PRINT N'============================================================';
 GO
 
