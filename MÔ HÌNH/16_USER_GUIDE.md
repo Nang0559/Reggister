@@ -69,7 +69,7 @@ Chọn Mở tài liệu chi tiết để xem /huong-dan theo FeatureCode.
 
 ## 8. OT và hạn mức giờ
 
-Luồng: **NHẬP OT → NGÀY → TUẦN → THÁNG → NĂM → SUBMIT → APPROVAL → RECONCILE**.
+Luồng: **NHẬP OT → NGÀY → TUẦN → THÁNG → NĂM → SUBMIT → APPROVAL → THEO DÕI**.
 
 1. Chọn ngày, loại OT và số giờ.
 2. Hệ thống kiểm tra giới hạn ngày.
@@ -77,7 +77,7 @@ Luồng: **NHẬP OT → NGÀY → TUẦN → THÁNG → NĂM → SUBMIT → APP
 4. Kiểm tra hạn mức tháng; mặc định hiện tại 40 giờ/tháng nếu chưa có rule riêng.
 5. Kiểm tra hạn mức năm; mặc định 200 giờ/năm và ngưỡng tối đa hiện tại 300 giờ/năm.
 6. Nếu vượt ngưỡng năm tiêu chuẩn, hệ thống yêu cầu xử lý theo policy đặc biệt; không được vượt ngưỡng tối đa.
-7. Submit và theo dõi Approval/đối soát.
+7. Submit và theo dõi tiến trình Approval.
 
 Trên Workspace, OT cá nhân hiển thị **tuần / tháng / năm** dưới dạng đã dùng so với hạn mức. Hạn mức tuần chỉ hiển thị khi có Weekly rule.
 
