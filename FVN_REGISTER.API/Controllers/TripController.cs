@@ -1,3 +1,4 @@
+using FVN_REGISTER.Contract.Requests.Approvals;
 using AppAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using FVN_REGISTER.Application.Interfaces.Trips;
 using FVN_REGISTER.Application.Interfaces.Users;
@@ -58,7 +59,7 @@ public sealed class TripController : ControllerBase
     public async Task<ActionResult<TripRequestDto>> Submit(int id, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.TripEdit, ct)) return Forbid();
-        return Ok(await _service.SubmitAsync(id, ct));
+        return Ok(await _service.SubmitAsync(id, approvalSelections, ct));
     }
 
     [HttpGet("{id:int}")]
