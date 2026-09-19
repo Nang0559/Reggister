@@ -95,12 +95,12 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                     positionCode: user.PositionCode ?? "",
                     totalOTHours: totalHours,
                     otTypeCode: model.OTTypeCode);
-                try { await Workflow.InitApprovalAsync(entity.Id, context, ct); }
-                catch (Exception ex)
+                var approvalResult = await Workflow.InitApprovalAsync(entity.Id, context, ct);
+                if (!approvalResult.IsSuccess)
                 {
-                    Logger.LogError(ex, "[{Component}] InitApproval failed, rolling back CreateId={Id}", ComponentName, entity.Id);
                     await tx.RollbackAsync(ct);
-                    return ServiceResult<int>.Fail("Không thể khởi tạo luồng duyệt cho đơn.");
+                    return ServiceResult<int>.Fail(
+                        approvalResult.Message ?? "Không thể khởi tạo luồng duyệt cho đơn OT.");
                 }
 
                 await tx.CommitAsync(ct);
