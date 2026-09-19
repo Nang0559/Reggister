@@ -1,6 +1,6 @@
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.HrmSync;
-using FVN_REGISTER.Application.Interfaces.Security;
+using AppAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Logging;
 using Microsoft.AspNetCore.Authorization;
@@ -16,7 +16,7 @@ namespace FVN_REGISTER.API.Controllers;
 public sealed class HrmSyncReviewController : BaseApiController
 {
     private readonly IHrmSyncReviewQueryService _review;
-    private readonly IAuthorizationService _authorization;
+    private readonly AppAuthorizationService _authorization;
 
     public HrmSyncReviewController(
         IHrmSyncReviewQueryService review,
@@ -24,7 +24,7 @@ public sealed class HrmSyncReviewController : BaseApiController
         IUserLogService userLog,
         ILogger<HrmSyncReviewController> logger,
         IOptionsMonitor<AuthDebugOptions> options,
-        IAuthorizationService authorization)
+        AppAuthorizationService authorization)
         : base(currentUser, userLog, logger, options)
     {
         _review = review;
