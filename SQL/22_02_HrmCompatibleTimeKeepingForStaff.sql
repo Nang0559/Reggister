@@ -890,7 +890,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 		  )
 			BEGIN
 				SELECT @TGDenT=BCTGDen, @TGVeT=BCTGVe, @Cuaden=BCCuaDen, @CuaVe=BCCuaVe 
-				FROM tblBaoCao WHERE BCMaNV=@StaffID AND BCNgay=@D
+				FROM #tblBaoCao WHERE BCMaNV=@StaffID AND BCNgay=@D
 
 				SELECT @TGLTToiDa=ISNULL(#tblBaoCao.BCTGLTToiDa,0),@TGLTToiDaTC=ISNULL(#tblBaoCao.BCTGLTToiDaTC,0) 
 				FROM #tblBaoCao WHERE BCMaNV=@StaffID AND BCNgay=@D
