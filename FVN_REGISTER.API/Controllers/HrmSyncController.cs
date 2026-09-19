@@ -59,6 +59,21 @@ public sealed class HrmSyncController : BaseApiController
         return HandleResult(result);
     }
 
+    [HttpPost("security/reconcile")]
+    public async Task<IActionResult> ReconcileSecurity(CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.HrmSyncSync, ct))
+            return Forbid();
+
+        var user = UserInfo;
+        var result = await _sync.ReconcileSecurityAsync(
+            user?.EmployeeCode ?? User.Identity?.Name ?? "ADMIN",
+            ct);
+
+        await LogActionAsync("HRM security provisioning: users + approvers");
+        return HandleResult(result);
+    }
+
     [HttpPost("run/{entityType}")]
     public async Task<IActionResult> RunEntity(string entityType, CancellationToken ct)
     {
