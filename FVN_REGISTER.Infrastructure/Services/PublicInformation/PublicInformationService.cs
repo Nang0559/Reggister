@@ -17,14 +17,16 @@ public sealed class PublicInformationService : IPublicInformationService
     public async Task<List<PublicInformationDto>> GetPublishedAsync(CancellationToken ct = default)
         => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking()
             .Where(x => x.Status == "Published" && (!x.EffectiveFrom.HasValue || x.EffectiveFrom <= DateTime.Now) && (!x.EffectiveTo.HasValue || x.EffectiveTo >= DateTime.Now))
-            .OrderByDescending(x => x.IsImportant).ThenByDescending(x => x.PublishedAt).Select(Map).ToListAsync(ct);
+            .OrderByDescending(x => x.IsImportant).ThenByDescending(x => x.PublishedAt).ToListAsync(ct)
+            .ContinueWith(t => t.Result.Select(MapEntity).ToList(), ct);
 
     public async Task<List<PublicInformationDto>> GetManageListAsync(CancellationToken ct = default)
         => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking()
-            .OrderByDescending(x => x.CreatedAt).Select(Map).ToListAsync(ct);
+            .OrderByDescending(x => x.CreatedAt).ToListAsync(ct)
+            .ContinueWith(t => t.Result.Select(MapEntity).ToList(), ct);
 
     public async Task<PublicInformationDto?> GetAsync(int id, CancellationToken ct = default)
-        => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking().Where(x => x.Id == id).Select(Map).FirstOrDefaultAsync(ct);
+        => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking().Where(x => x.Id == id).Select(x => new PublicInformationDto { Id=x.Id, Type=x.Type, Title=x.Title, Summary=x.Summary, Content=x.Content, Status=x.Status, EffectiveFrom=x.EffectiveFrom, EffectiveTo=x.EffectiveTo, IsImportant=x.IsImportant, AttachmentUrl=x.AttachmentUrl, PublishedAt=x.PublishedAt }).FirstOrDefaultAsync(ct);
 
     public async Task<ServiceResult<PublicInformationDto>> CreateAsync(SavePublicInformationRequest request, int actorUserId, CancellationToken ct = default)
     {
