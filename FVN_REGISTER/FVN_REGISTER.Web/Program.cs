@@ -56,6 +56,7 @@ builder.Services.AddScoped<IEmailQueueClientService, EmailQueueClientService>();
 builder.Services.AddScoped<IEmployeeManagementClientService, EmployeeManagementClientService>();
 builder.Services.AddScoped<IDepartmentManagementClientService, DepartmentManagementClientService>();
 builder.Services.AddScoped<ILeaveTypeClientService, LeaveTypeClientService>();
+builder.Services.AddScoped<ILeaveEntitlementClientService, LeaveEntitlementClientService>();
 builder.Services.AddScoped<ITripClientService, TripClientService>(); builder.Services.AddScoped<IWorkCalendarClientService, WorkCalendarClientService>();
 builder.Services.AddScoped<FVN_REGISTER.Shared.Services.Equipment.IEquipmentClientService, FVN_REGISTER.Shared.Services.Equipment.EquipmentClientService>();
 builder.Services.AddServerSideBlazor().AddCircuitOptions(options => options.DetailedErrors = true);
