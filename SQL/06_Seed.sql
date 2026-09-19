@@ -38,6 +38,38 @@ FROM (VALUES
 ) AS v(PositionCode,PositionName,IsApprove,IsAllowApprove,DefaultApproveLevel)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Positions x WHERE x.PositionCode=v.PositionCode);
 
+/*
+    Approval capability is defined on the HRM Position master itself.
+    PositionCode remains the only position identity used by approval routing.
+    These flags are local approval metadata; HRM employee PositionCode is
+    never translated to EMP/SL/CHIEF/MGR/GM.
+*/
+UPDATE p
+SET
+    p.IsApprove = CASE WHEN p.PositionCode IN
+        (N'0001',N'0002',N'0004',N'0005',N'0006',N'0009',N'0010',N'0011')
+        THEN 1 ELSE 0 END,
+    p.IsAllowApprove = CASE WHEN p.PositionCode IN
+        (N'0001',N'0002',N'0004',N'0005',N'0006',N'0009',N'0010',N'0011')
+        THEN 1 ELSE 0 END,
+    p.DefaultApproveLevel = CASE p.PositionCode
+        WHEN N'0001' THEN 4
+        WHEN N'0002' THEN 1
+        WHEN N'0004' THEN 2
+        WHEN N'0005' THEN 3
+        WHEN N'0006' THEN 1
+        WHEN N'0009' THEN 3
+        WHEN N'0010' THEN 2
+        WHEN N'0011' THEN 3
+        ELSE NULL
+    END
+FROM dbo.F03Positions p
+WHERE p.PositionCode IN
+(
+    N'0001',N'0002',N'0003',N'0004',N'0005',N'0006',
+    N'0007',N'0008',N'0009',N'0010',N'0011',N'0012'
+);
+
 INSERT dbo.F03Genders(IsActive,CreatedBy,GenderCode,GenderName)
 SELECT 1,0,v.GenderCode,v.GenderName FROM (VALUES
 (N'M',N'Male'),(N'F',N'Female'),(N'O',N'Other'),(N'U',N'Unknown'),(N'N',N'Not specified')
@@ -220,9 +252,9 @@ INSERT dbo.F03Approvers(IsActive,CreatedBy,UserId,RequestType,ApproverCode,Posit
 SELECT 1,0,u.Id,N'Leave',v.Code,v.Position,v.Name,v.Email,v.Dept,d.DeptName,v.ForDept,d2.DeptName,v.Level,v.RoleName
 FROM (VALUES
 (N'E0002',N'0002',N'Tran Thi Binh',N'e0002@test.local',N'IT',N'IT',N'IT',1,N'Lead/Sub Lead'),
-(N'E0003',N'0004',N'Le Van Cuong',N'e0003@test.local',N'PROD',N'PROD',N'PROD',2,N'Chief/A Chief'),
-(N'E0004',N'0005',N'Pham Thi Dung',N'e0004@test.local',N'HR',N'HR',N'HR',3,N'Manager/A Manager'),
-(N'E0005',N'0001',N'Hoang Van Em',N'e0005@test.local',N'PROD',N'PROD',N'PROD',4,N'General Manager'),
+(N'E0003',N'0004',N'Le Van Cuong',N'e0003@test.local',N'PROD',N'PROD',N'IT',2,N'Chief/A Chief'),
+(N'E0004',N'0005',N'Pham Thi Dung',N'e0004@test.local',N'HR',N'HR',N'IT',3,N'Manager/A Manager'),
+(N'E0005',N'0001',N'Hoang Van Em',N'e0005@test.local',N'PROD',N'PROD',N'IT',4,N'General Manager'),
 (N'E0003',N'0004',N'Le Van Cuong',N'e0003@test.local',N'PROD',N'PRODUCTION',N'PROD',1,N'Lead/Sub Lead')
 ) AS v(Code,Position,Name,Email,Dept,DeptName,ForDept,Level,RoleName)
 JOIN dbo.F03Users u ON u.EmployeeCode=v.Code
