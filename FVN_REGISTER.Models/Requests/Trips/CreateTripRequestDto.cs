@@ -1,3 +1,4 @@
+using FVN_REGISTER.Contract.Requests.Approvals;
 using System.ComponentModel.DataAnnotations;
 
 namespace FVN_REGISTER.Contract.Dtos.Trips;
@@ -33,4 +34,6 @@ public sealed class CreateTripRequestDto
 
     [StringLength(1000)]
     public string? Note { get; set; }
+        public List<undefined> undefined { get; set; } = new();
+
 }
