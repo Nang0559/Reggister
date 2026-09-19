@@ -75,3 +75,11 @@ SELECT
 
 PRINT N'12_Verify: PASS';
 GO
+
+
+/* Approval Route v2 verification (run after SQL/17_ApprovalRouteSelection.sql) */
+IF OBJECT_ID(N'dbo.F03ApprovalPolicies',N'U') IS NULL
+    THROW 51230, 'Missing F03ApprovalPolicies. Run SQL/17_ApprovalRouteSelection.sql.', 1;
+IF OBJECT_ID(N'dbo.F03ApprovalSelections',N'U') IS NULL
+    THROW 51231, 'Missing F03ApprovalSelections. Run SQL/17_ApprovalRouteSelection.sql.', 1;
+GO
