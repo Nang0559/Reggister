@@ -63,7 +63,11 @@ IMPORTANT:
 :r 19_WorkCalendar.sql
 :r 20_Reports.sql
 :r 21_Verify_Reports.sql
-:r 22_HrmCompatibleAttendance.sql
+:r 22_00_HrmAttendanceTables.sql
+:r 22_01_InterSectionTime3.sql
+:r 22_02_HrmCompatibleTimeKeepingForStaff.sql
+:r 22_03_CalculateHrmAttendance.sql
+:r 22_04_GetHrmAttendanceCalculation.sql
 :r 23_LeaveBalanceUpgrade.sql
 :r 24_WorkYearUpgrade.sql
 :r 25_RemoveLegacyOTSync.sql
