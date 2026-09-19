@@ -84,19 +84,13 @@ GO
 /*
     Default position -> required approval levels.
 
-    Position codes follow CvCodeRules:
-      0001 GM
-      0002 SubLeader
-      0003 Worker
-      0004 Chief
-      0005 Manager
-      0006 Leader
-      0007 Technician
-      0008 Staff
-      0009 Senior Manager
-      0010 Assistant Chief
-      0011 Assistant Manager
-      0012 Employee
+    Requester position codes must match F03Employees/F03Users.Cvcode.
+    The current application seed uses:
+      EMP    Employee
+      SL     Sub Leader
+      CHIEF  Chief
+      MGR    Manager
+      GM     General Manager
 
     The requester NEVER chooses Level.
     The policy below determines the levels automatically.
@@ -245,6 +239,67 @@ WHERE NOT EXISTS
       AND x.RequesterPositionCode = p.RequesterPositionCode
       AND x.Level = p.Level
 );
+
+GO
+
+/*
+    Compatibility projection for the canonical application position codes.
+
+    Earlier versions of this script used numeric CvCodeRules codes (0002..0012),
+    while the actual F03Employees/F03Users seed uses EMP/SL/CHIEF/MGR/GM.
+    ApprovalRouteService queries RequesterPositionCode using the employee's
+    actual Cvcode, so create the same policies under the canonical codes.
+*/
+INSERT dbo.F03ApprovalPolicies
+(
+    IsActive, CreatedBy, RequestType, RequesterPositionCode,
+    Level, Sequence, LevelName, RoleName, Required
+)
+SELECT
+    1, 0,
+    p.RequestType,
+    CASE p.RequesterPositionCode
+        WHEN N'0002' THEN N'SL'
+        WHEN N'0003' THEN N'EMP'
+        WHEN N'0004' THEN N'CHIEF'
+        WHEN N'0005' THEN N'MGR'
+        WHEN N'0006' THEN N'SL'
+        WHEN N'0007' THEN N'EMP'
+        WHEN N'0008' THEN N'EMP'
+        WHEN N'0009' THEN N'GM'
+        WHEN N'0010' THEN N'CHIEF'
+        WHEN N'0011' THEN N'MGR'
+        WHEN N'0012' THEN N'EMP'
+    END,
+    p.Level,
+    p.Sequence,
+    p.LevelName,
+    p.RoleName,
+    1
+FROM @Policies p
+WHERE p.RequesterPositionCode IN
+    (N'0002',N'0003',N'0004',N'0005',N'0006',N'0007',N'0008',N'0009',N'0010',N'0011',N'0012')
+  AND NOT EXISTS
+  (
+      SELECT 1
+      FROM dbo.F03ApprovalPolicies x
+      WHERE x.RequestType = p.RequestType
+        AND x.RequesterPositionCode =
+            CASE p.RequesterPositionCode
+                WHEN N'0002' THEN N'SL'
+                WHEN N'0003' THEN N'EMP'
+                WHEN N'0004' THEN N'CHIEF'
+                WHEN N'0005' THEN N'MGR'
+                WHEN N'0006' THEN N'SL'
+                WHEN N'0007' THEN N'EMP'
+                WHEN N'0008' THEN N'EMP'
+                WHEN N'0009' THEN N'GM'
+                WHEN N'0010' THEN N'CHIEF'
+                WHEN N'0011' THEN N'MGR'
+                WHEN N'0012' THEN N'EMP'
+            END
+        AND x.Level = p.Level
+  );
 
 GO
 
