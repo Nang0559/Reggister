@@ -12,6 +12,7 @@
 
         public DateTime EndDate { get; set; }
 
-        public bool IsActive { get; set; } // Xác định năm hiện hành để áp dụng các chính sách nghỉ phép/OT
+        public bool IsActive { get; set; }
+        public string? Remark { get; set; }
     }
 }

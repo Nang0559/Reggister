@@ -97,6 +97,8 @@ builder.Services.AddScoped<INetworkService, NetworkService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IWorkingDayService, WorkingDayService>();
 builder.Services.AddScoped<IWorkCalendarService, WorkCalendarService>();
+builder.Services.AddScoped<IWorkYearManagementService, WorkYearManagementService>();
+builder.Services.AddScoped<ICompanyHolidayManagementService, CompanyHolidayManagementService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
 builder.Services.AddScoped<IDepartmentLookupService, DepartmentLookupService>();
 builder.Services.AddScoped<IDepartmentManagementService, DepartmentManagementService>();

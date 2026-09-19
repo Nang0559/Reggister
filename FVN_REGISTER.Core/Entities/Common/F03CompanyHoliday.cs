@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace FVN_REGISTER.Core.Entities.Common;
 
-[Table("F03CompanyHoliday")]
+[Table("F03CompanyHolidays")]
 public partial class F03CompanyHoliday : BaseAuditEntity
 {
     [Required]

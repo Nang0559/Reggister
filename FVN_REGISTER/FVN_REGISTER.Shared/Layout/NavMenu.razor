@@ -101,6 +101,10 @@
             }
             <MudNavLink href="/admin/email-templates" Icon="@Icons.Material.Filled.Email">Email mẫu</MudNavLink>
             <MudNavLink href="/admin/email-queue" Icon="@Icons.Material.Filled.MarkEmailRead">Email chờ gửi</MudNavLink>
+            @if (Can(SecurityFunctionCodes.SecurityView))
+            {
+                <MudNavLink href="/admin/work-calendar" Icon="@Icons.Material.Filled.CalendarMonth">Năm & ngày nghỉ</MudNavLink>
+            }
         </MudNavGroup>
     }
 </MudNavMenu>
