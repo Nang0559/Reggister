@@ -26,6 +26,112 @@ public sealed class HrmSyncService : IHrmSyncService
         _uow = uow;
     }
 
+    public async Task<ServiceResult<HrmSyncRunResultDto>> ReconcileSecurityAsync(
+        string? triggeredBy = null,
+        CancellationToken ct = default)
+    {
+        if (!await Gate.WaitAsync(0, ct))
+            return ServiceResult<HrmSyncRunResultDto>.Fail("Đang có một phiên đồng bộ HRM khác chạy. Vui lòng chờ phiên hiện tại hoàn tất.");
+
+        var run = new HrmSyncRunResultDto
+        {
+            RunId = Guid.NewGuid(),
+            Manual = true,
+            Running = true,
+            StartedAt = DateTime.Now,
+            TriggeredBy = string.IsNullOrWhiteSpace(triggeredBy) ? "SYSTEM" : triggeredBy
+        };
+        SetRunning(run);
+
+        try
+        {
+            var beforeUsers = await _uow.SqlQueryRawAsync<MissingCount>(
+                """
+                SELECT COUNT(*) AS Value
+                FROM dbo.F03Employees e
+                LEFT JOIN dbo.F03Users u ON u.EmployeeCode=e.EmployeeCode
+                WHERE e.IsActive=1 AND u.Id IS NULL;
+                """, ct);
+
+            var beforeApprovers = await _uow.SqlQueryRawAsync<MissingCount>(
+                """
+                SELECT COUNT(*) AS Value
+                FROM dbo.F03Employees e
+                INNER JOIN dbo.F03Positions p
+                    ON p.PositionCode=e.PositionCode
+                   AND p.IsActive=1 AND p.IsApprove=1 AND p.IsAllowApprove=1
+                LEFT JOIN dbo.F03Approvers a
+                    ON a.ApproverCode=e.EmployeeCode AND a.IsActive=1
+                WHERE e.IsActive=1 AND a.Id IS NULL;
+                """, ct);
+
+            await _uow.SqlQueryRawAsync<SecurityReconcileRow>(
+                """
+                EXEC dbo.usp_ReconcileHrmSecurity
+                    @EmployeeCode=NULL,
+                    @CreatedBy=@CreatedBy;
+                """,
+                ct,
+                new Microsoft.Data.SqlClient.SqlParameter("@CreatedBy", 0));
+
+            var afterUsers = await _uow.SqlQueryRawAsync<MissingCount>(
+                """
+                SELECT COUNT(*) AS Value
+                FROM dbo.F03Employees e
+                LEFT JOIN dbo.F03Users u ON u.EmployeeCode=e.EmployeeCode
+                WHERE e.IsActive=1 AND u.Id IS NULL;
+                """, ct);
+
+            var afterApprovers = await _uow.SqlQueryRawAsync<MissingCount>(
+                """
+                SELECT COUNT(*) AS Value
+                FROM dbo.F03Employees e
+                INNER JOIN dbo.F03Positions p
+                    ON p.PositionCode=e.PositionCode
+                   AND p.IsActive=1 AND p.IsApprove=1 AND p.IsAllowApprove=1
+                LEFT JOIN dbo.F03Approvers a
+                    ON a.ApproverCode=e.EmployeeCode AND a.IsActive=1
+                WHERE e.IsActive=1 AND a.Id IS NULL;
+                """, ct);
+
+            var usersFixed = Math.Max(0, (beforeUsers.FirstOrDefault()?.Value ?? 0) - (afterUsers.FirstOrDefault()?.Value ?? 0));
+            var approversFixed = Math.Max(0, (beforeApprovers.FirstOrDefault()?.Value ?? 0) - (afterApprovers.FirstOrDefault()?.Value ?? 0));
+
+            run.Jobs.Add(new HrmSyncJobRunDto
+            {
+                EntityType = "SecurityProvisioning",
+                SyncOrder = 99,
+                IsBlockingDependency = true,
+                Success = true,
+                Added = usersFixed,
+                Updated = 0,
+                TotalSource = (beforeUsers.FirstOrDefault()?.Value ?? 0) + (beforeApprovers.FirstOrDefault()?.Value ?? 0),
+                Summary = $"Provision HRM Security hoàn tất: User sửa thiếu={usersFixed}, Approver sửa thiếu={approversFixed}; còn thiếu User={afterUsers.FirstOrDefault()?.Value ?? 0}, Approver={afterApprovers.FirstOrDefault()?.Value ?? 0}."
+            });
+
+            run.Success = true;
+            run.Running = false;
+            run.FinishedAt = DateTime.Now;
+            run.Summary = "Đã reconcile F03Users và F03Approvers từ dữ liệu Employee/Position hiện tại.";
+            SetFinished(run);
+            return ServiceResult<HrmSyncRunResultDto>.Ok(run);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "[HRM-SYNC] Security provisioning failed.");
+            run.Success = false;
+            run.Running = false;
+            run.FinishedAt = DateTime.Now;
+            run.Summary = $"Provision User/Approver thất bại: {ex.Message}";
+            SetFinished(run);
+            return ServiceResult<HrmSyncRunResultDto>.Ok(run);
+        }
+        finally
+        {
+            Gate.Release();
+        }
+    }
+
     public HrmSyncRuntimeStatusDto GetRuntimeStatus()
     {
         lock (StateLock) return CloneStatus(_status);
@@ -122,6 +228,9 @@ public sealed class HrmSyncService : IHrmSyncService
         }
         finally { Gate.Release(); }
     }
+
+    private sealed class MissingCount { public int Value { get; set; } }
+    private sealed class SecurityReconcileRow { public string? AffectedEmployee { get; set; } public int ActiveUsers { get; set; } public int ActiveApprovers { get; set; } }
 
     private sealed class ShiftSyncSummary
     {
