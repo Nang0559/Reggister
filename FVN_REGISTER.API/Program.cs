@@ -128,8 +128,6 @@ builder.Services.AddScoped<OTQueryService>();
 builder.Services.AddScoped<IOTQueryService, OTQueryService>();
 builder.Services.AddScoped<IOTValidator, OTValidator>();
 builder.Services.AddScoped<IOTService, OTService>();
-builder.Services.AddScoped<IOTAttendanceStagingService, OTAttendanceStagingService>();
-builder.Services.AddScoped<IOTAttendanceReconciliationService, OTAttendanceReconciliationService>();
 builder.Services.AddScoped<IDepartmentStatusService, DepartmentStatusService>();
 builder.Services.AddScoped<IOTTypeManagementService, OTTypeManagementService>();
 builder.Services.AddScoped<IOTEscalationService, OTEscalationService>();
