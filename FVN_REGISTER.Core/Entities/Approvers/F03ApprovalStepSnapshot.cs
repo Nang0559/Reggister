@@ -5,9 +5,8 @@ using System.ComponentModel.DataAnnotations.Schema;
 namespace FVN_REGISTER.Core.Entities.Approvers
 {
     [Table("F03ApprovalStepSnapshots")]
-    public sealed class F03ApprovalStepSnapshot
+    public sealed class F03ApprovalStepSnapshot : BaseAuditEntity
     {
-        public int Id { get; set; }
         public int SnapshotId { get; init; } // Khóa ngoại liên kết ngược lại với Snapshot
         public int Level { get; init; }
 
