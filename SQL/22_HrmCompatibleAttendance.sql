@@ -28,7 +28,7 @@ BEGIN
   HrmBCGhiChu nvarchar(50) NULL, HrmBCLyDoNghi nvarchar(20) NULL, HrmBCNghiTotal decimal(9,2) NULL,
   HrmBCNghiPhep decimal(9,2) NULL, HrmBCNghiH100 decimal(9,2) NULL, HrmBCNghiH70 decimal(9,2) NULL, HrmBCNghiKL decimal(9,2) NULL,
   HrmBCNghiBH100 decimal(9,2) NULL, HrmBCNghiBH70 decimal(9,2) NULL, HrmBCNghiCongTac decimal(9,2) NULL, HrmBCNghiBu decimal(9,2) NULL, HrmBCNghiKhac decimal(9,2) NULL,
-  HrmBCDaXacNhanLamThem bit NULL, HrmBCLoaiLamThem bit NULL, HrmBCTinhLamThem bit NULL, HrmBCNgayLe int NULL, HrmBCNgayLeNV int NULL,
+  HrmBCDaXacNhanLamThem bit NULL, HrmBCLoaiLamThem bit NULL, HrmBCTinhLamThem bit NULL, HrmBCNgayLe int NULL, HrmBCNgayLeNV int NULL, HrmShiftDayType smallint NULL,
   AttendanceDisplayValue nvarchar(50) NULL, OtDisplayValue nvarchar(50) NULL,
   CalculatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03HrmAttendanceCalculated_CalculatedAt DEFAULT GETDATE(),
   CalculatedBy nvarchar(100) NULL, SourceSystem nvarchar(20) NOT NULL CONSTRAINT DF_F03HrmAttendanceCalculated_SourceSystem DEFAULT N'HRM',
@@ -53,6 +53,7 @@ IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'HrmBCLoaiLamThem') IS NULL ALT
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'HrmBCTinhLamThem') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD HrmBCTinhLamThem bit NULL;
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'HrmBCNgayLe') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD HrmBCNgayLe int NULL;
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'HrmBCNgayLeNV') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD HrmBCNgayLeNV int NULL;
+IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'HrmShiftDayType') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD HrmShiftDayType smallint NULL;
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'AttendanceDisplayValue') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD AttendanceDisplayValue nvarchar(50) NULL;
 IF COL_LENGTH(N'dbo.F03HrmAttendanceCalculated',N'OtDisplayValue') IS NULL ALTER TABLE dbo.F03HrmAttendanceCalculated ADD OtDisplayValue nvarchar(50) NULL;
 GO
@@ -3703,16 +3704,16 @@ BEGIN
     EarlyLeaveMinutesDay,EarlyLeaveMinutesNight,RequiredMinutes,LeaveTotal,LeaveAnnual,Leave100,Leave70,LeaveUnpaid,LeaveBH100,LeaveBH70,LeaveBusinessTrip,
     LeaveCompensatory,LeaveOther,LeaveTypeCode,LeaveReason,Note,HrmType,HrmHoliday,HrmEmployeeHoliday,IsLocked,
     HrmBCGhiChu,HrmBCLyDoNghi,HrmBCNghiTotal,HrmBCNghiPhep,HrmBCNghiH100,HrmBCNghiH70,HrmBCNghiKL,HrmBCNghiBH100,HrmBCNghiBH70,HrmBCNghiCongTac,HrmBCNghiBu,HrmBCNghiKhac,
-    HrmBCDaXacNhanLamThem,HrmBCLoaiLamThem,HrmBCTinhLamThem,HrmBCNgayLe,HrmBCNgayLeNV,AttendanceDisplayValue,OtDisplayValue,CalculatedAt,CalculatedBy)
+    HrmBCDaXacNhanLamThem,HrmBCLoaiLamThem,HrmBCTinhLamThem,HrmBCNgayLe,HrmBCNgayLeNV,HrmShiftDayType,AttendanceDisplayValue,OtDisplayValue,CalculatedAt,CalculatedBy)
    SELECT @BatchId,@CalculationVersion,CAST(r.BCNgay AS date),r.BCMaNV,RTRIM(nv.NVMaNV),RTRIM(nv.NVHoTen),r.BCMaBP,CONVERT(nvarchar(20),r.BCMaBP),r.BCMaCV,r.BCMaCa,ca.CVietTat,
-    r.BCCuaDen,r.BCTGDen,r.BCCuaVe,r.BCTGVe,r.BCCuaRa,r.BCTGRa,r.BCCuaVao,r.BCTGVao,ISNULL(r.BCTGLamNgay,0),ISNULL(r.BCTGLamToi,0),
+    r.BCCuaDen,CASE WHEN r.BCTGDen <= '19000101' THEN NULL ELSE r.BCTGDen END,r.BCCuaVe,CASE WHEN r.BCTGVe <= '19000101' THEN NULL ELSE r.BCTGVe END,r.BCCuaRa,CASE WHEN r.BCTGRa <= '19000101' THEN NULL ELSE r.BCTGRa END,r.BCCuaVao,CASE WHEN r.BCTGVao <= '19000101' THEN NULL ELSE r.BCTGVao END,ISNULL(r.BCTGLamNgay,0),ISNULL(r.BCTGLamToi,0),
     ISNULL(r.BCTGQuaGioNgay,0),ISNULL(r.BCTGQuaGioToi,0),ISNULL(r.BCTGQuaGioNgayTC,0),ISNULL(r.BCTGQuaGioToiTC,0),ISNULL(r.BCTGThemNgay,0),ISNULL(r.BCTGThemToi,0),
     ISNULL(r.BCTGDiMuonNgay,0),ISNULL(r.BCTGDiMuonToi,0),ISNULL(r.BCTGVeSomNgay,0),ISNULL(r.BCTGVeSomToi,0),ISNULL(r.BCTGQuyDinh,0),
     r.BCNghiPhep+r.BCNghiH100+r.BCNghiH70+r.BCNghiKL+r.BCNghiBH100+r.BCNghiBH70+r.BCNghiCongTac+r.BCNghiBu+r.BCNghiKhac,
     r.BCNghiPhep,r.BCNghiH100,r.BCNghiH70,r.BCNghiKL,r.BCNghiBH100,r.BCNghiBH70,r.BCNghiCongTac,r.BCNghiBu,r.BCNghiKhac,
     r.BCLydonghi,r.BCLydonghi,r.BCGhiChu,r.BCLoai,CASE WHEN ISNULL(r.BCNgayLe,0)<>0 THEN 1 ELSE 0 END,CASE WHEN ISNULL(r.BCNgayLeNV,0)<>0 THEN 1 ELSE 0 END,r.DLocked,
     r.BCGhiChu,r.BCLydonghi,ISNULL(r.BCTGNghi,0),r.BCNghiPhep,r.BCNghiH100,r.BCNghiH70,r.BCNghiKL,r.BCNghiBH100,r.BCNghiBH70,r.BCNghiCongTac,r.BCNghiBu,r.BCNghiKhac,
-    r.BCDaXacNhanLamThem,r.BCLoaiLamThem,r.BCTinhLamThem,r.BCNgayLe,r.BCNgayLeNV,NULL,NULL,GETDATE(),@TriggeredBy
+    r.BCDaXacNhanLamThem,r.BCLoaiLamThem,r.BCTinhLamThem,r.BCNgayLe,r.BCNgayLeNV,ca.CNgaynghi,NULL,NULL,GETDATE(),@TriggeredBy
    FROM #Result r INNER JOIN HRM.dbo.tblNhanVien nv ON nv.NVMa=r.BCMaNV
    LEFT JOIN HRM.dbo.tblCa ca ON CONVERT(nvarchar(20),ca.CMa)=CONVERT(nvarchar(20),r.BCMaCa)
    WHERE r.BCMaNV=@StaffID AND CAST(r.BCNgay AS date)=@D;
@@ -3725,12 +3726,14 @@ BEGIN
        ELSE CONVERT(nvarchar(50),CONVERT(float,(ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0))/60.0)) END,
        OtDisplayValue=CASE
        WHEN ISNULL(a.HrmBCDaXacNhanLamThem,0)=0 THEN N''
-       WHEN ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)<=0 THEN N''
-       WHEN ISNULL(a.HrmBCNgayLe,0)<>0 OR ISNULL(a.HrmBCNgayLeNV,0)<>0 THEN
+       WHEN ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)<=0
+            THEN CASE WHEN ISNULL(a.HrmHoliday,0)<>0 OR ISNULL(a.HrmEmployeeHoliday,0)<>0 THEN N'L' ELSE N'' END
+       WHEN ISNULL(a.HrmHoliday,0)<>0 OR ISNULL(a.HrmEmployeeHoliday,0)<>0 THEN
             CASE WHEN ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)>=480
                  THEN N'NL'+COALESCE(NULLIF(LTRIM(RTRIM(a.ShiftAbbr)),N''),N'')+CONVERT(nvarchar(20),CONVERT(float,(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0))
                  ELSE N'NL'+LEFT(COALESCE(NULLIF(LTRIM(RTRIM(a.ShiftAbbr)),N''),N'C'),1)+CONVERT(nvarchar(20),ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)) END
-       WHEN ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0)>=480 THEN N'CN'+CONVERT(nvarchar(20),CONVERT(float,(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0))
+       WHEN ISNULL(a.HrmShiftDayType,0) IN (2,3) THEN
+            N'CN'+CONVERT(nvarchar(20),CONVERT(float,(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0))
        ELSE CONVERT(nvarchar(20),CONVERT(float,(ISNULL(a.OTRecognizedMinutesDay,0)+ISNULL(a.OTRecognizedMinutesNight,0))/60.0)) END
    FROM dbo.F03HrmAttendanceCalculated a WHERE a.CalculationBatchId=@BatchId AND a.WorkDate=@D AND a.HrmEmployeeId=@StaffID;
    FETCH NEXT FROM staff_cur INTO @StaffID;
