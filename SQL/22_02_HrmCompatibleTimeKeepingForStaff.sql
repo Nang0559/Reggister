@@ -371,10 +371,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 		--SET @TypeCalculator=CONVERT(int,@SQL)
 	
 		-- Lay bang RecordData thang may
-		--SET @RecordData = case when LEN(Month(@D))=2 
-		--						then 'RecordData' + CONVERT(nvarchar,YEAR(@D))  +'_'+  CONVERT(nvarchar,Month(@D))
-		--						else 'RecordData'  + CONVERT(nvarchar,YEAR(@D)) + '_0' +  CONVERT(nvarchar,Month(@D)) 
-		--				   end
+		--SET @RecordData = 'HRM.dbo.RecordDataNew'
 						   
 		SET @RecordData = 'HRM.dbo.RecordDataNew'
 	
@@ -765,12 +762,6 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 		set @TGBDNghi3=@TGBDCa + @TGBDNghi3
 		set @TGKTNghi3=@TGBDCa + @TGKTNghi3
 		set @TGKTCa=@TGBDCa + @TGKTCa
-
-		SET @TGBDTinhDM=convert(varchar,@TGBDCa,23) + @TGBDTinhDM
-		SET @TGBDTinhVS=convert(varchar,@TGKTCa,23) + @TGBDTinhVS
-
-		SET @TGDM = DATEDIFF(MINUTE, @TGBDCa, @TGBDTinhDM)
-		SET @TGVS = DATEDIFF(MINUTE, @TGKTCa, @TGBDTinhVS)
 				
 		set @TGLayDLDau= DateAdd(minute, -@QuetTruocCa, @TGBDCa)     -- Nguong nay de xac dinh lay gio vao hay gio ra
 		set @TGLayDLCuoi=DateAdd(minute, @QuetSauCa, @TGKTCa)			-- Nguong nay de xac dinh lay gio vao hay gio ra 
@@ -792,12 +783,10 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 				SET @TGKTNghi1 = @TGBDCa
 				SET @TGBDNghi2 = @TGBDCa
 				SET @TGKTnghi2 = @TGBDCa
-				--SET @TGBatDauLTTC = DateAdd(minute, -@PhutBatDauLTTC, @TGBDCa)
 				SET @TGBatDauLTTC = @TGBDCa
-				SET @TGBatDauLT = DateAdd(minute, @PhutBatDauLT, @TGKTCa)
-				--SET @TGBDTinhDM = DateAdd(minute, @TGDM, @TGBDCa)
+				SET @TGBatDauLT = @TGKTCa
 				SET @TGBDTinhDM = @TGBDCa
-				SET @TGBDTinhVS = DateAdd(minute, -@TGUD4, @TGBDTinhVS)
+				SET @TGBDTinhVS = @TGKTCa
 				SET @TGQD = @TGQDC - @TGUD3 - @TGUD4
 			END
 		ELSE If @LoaiNghi = 3 --DKNLoai = 3  DK nghi nua ca sau
@@ -816,11 +805,9 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 				SET @TGKTnghi2 = @TGKTCa
 				SET @TGBDnghi3 = @TGKTCa
 				SET @TGKTNghi3 = @TGKTCa
-				SET @TGBatDauLTTC = DateAdd(minute, -@PhutBatDauLTTC, @TGBDCa)
-				--SET @TGBatDauLT = DateAdd(minute, @PhutBatDauLT, @TGKTCa)
+				SET @TGBatDauLTTC = @TGBDCa
 				SET @TGBatDauLT = @TGKTCa
-				SET @TGBDTinhDM = DateAdd(minute, @TGUD1, @TGBDTinhDM)
-				--SET @TGBDTinhVS = DateAdd(minute, @TGVS, @TGKTCa)
+				SET @TGBDTinhDM = @TGBDCa
 				SET @TGBDTinhVS = @TGKTCa
 				SET @TGQD = @TGQDD - @TGUD1 - @TGUD2
     		END
@@ -845,1917 +832,138 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 				SET @TGBDNghi2 = DateAdd(minute, -@TGUD2, @TGBDNghi2)
 				SET @TGKTNghi2 = DateAdd(minute, @TGUD3, @TGKTNghi2)
 				SET @TGKTCa = DateAdd(minute, -@TGUD4, @TGKTCa)
-				SET @TGBatDauLTTC = DateAdd(minute, -@PhutBatDauLTTC, @TGBDCa)
-				SET @TGBatDauLT = DateAdd(minute, @PhutBatDauLT, @TGKTCa)
-				SET @TGBDTinhDM=DateAdd(minute, @TGUD1, @TGBDTinhDM)
-				SET @TGBDTinhVS=DateAdd(minute, -@TGUD4, @TGBDTinhVS)
+				SET @TGBatDauLTTC = @TGBDCa
+				SET @TGBatDauLT = @TGKTCa
+				SET @TGBDTinhDM = @TGBDCa
+				SET @TGBDTinhVS = @TGKTCa
 				SET @TGQD = @TGQDD + @TGQDC - @TGUD1 - @TGUD2 - @TGUD3 - @TGUD4
 			END
 --------------------------------------------------------------------------------------------------------------------------------------------
 
-		CREATE TABLE [dbo].[#tblLocdulieutam]
-						([RowID] [int] IDENTITY(1, 1),[IDM] [tinyint],[IDCard] [nvarchar](14),
-						[ThoiGian] [datetime],[Status] [bit],[HandData] [bit],[Pass] [bit])
-		SET @sLocDuLieu=
-						'INSERT INTO #tblLocdulieutam(IDM,IDCard,ThoiGian,Status,HandData,Pass) 
-						SELECT DISTINCT IDM,IDCard,ThoiGian,Status,HandData,Pass FROM ' + @RecordData +
-						' RecordData LEFT JOIN HRM.dbo.tblDauDoc ON  RecordData.IDM = HRM.dbo.tblDauDoc.DDMa 
-						WHERE (ISNULL(HRM.dbo.tblDauDoc.DDloaiChamCong,'''')='''') AND (ThoiGian BETWEEN '+ '''' + convert(varchar,@TGLayDLDau,121) 
-						+ '''' + ' AND '+ '''' + convert(varchar,@TGLayDLCuoi,121) + ''''+ ')  
-						and  IDCard=' + '''' + convert(varchar,@MaThe) + ''''+ '  ORDER BY ThoiGian'
-		EXEC(@sLocDuLieu)
-
-		SELECT @NumberRecords = COUNT(*)  FROM #tblLocdulieutam
-		SET @RowCount = 1
-
-		SELECT @recordCount = COUNT(*)  FROM #tblLocdulieutam
-
-		IF @recordCount = 0
-			BEGIN
-    			GOTO EndThisSub
-			END
-
-	------------------------------------------them 10/04/2018 tao bao cao quet the nhieu lan-----------------------------------------------------
-
-		WHILE @RowCount <= @NumberRecords
-			BEGIN
-				SELECT @IDM=IDM,@IDCard=IDCard,@ThoiGian=ThoiGian,@Status=Status,@HandData=HandData,@Pass=Pass
-				FROM #tblLocdulieutam
-				WHERE RowID = @RowCount
-
-				SET @SQL='UPDATE '+@tblBaocao+' SET TG'+CONVERT(varchar(10),@RowCount)+'='+ '''' + CONVERT(nvarchar(30),@ThoiGian) + ''''+' WHERE (BCMaNV=' +  CONVERT(nvarchar(30),@StaffID) + ') AND (BCNgay='+ '''' + CONVERT(nvarchar(30),@D) + '''' + ')'
-				EXEC(@SQL)
-				SET @RowCount = @RowCount + 1
-			END
-	------------------------------------------------------------------------------------------------------------------------------------------------
-		
 		-- Khai bao RS DKN theo gio
 		CREATE TABLE [dbo].#tblDangkynghitheogioTam ([RowID] [int] IDENTITY(1, 1),[Ngay] [datetime],[TGNghi] [datetime], [Sophut] [int],[MaLyDo] [varchar](10))  ON [PRIMARY]
 		
 		SET @SQL='Insert into #tblDangkynghitheogioTam(Ngay,TGNghi,Sophut,MaLyDo) SELECT Ngay,TGNghi,Sophut,MaLyDo FROM '+ @tblDangkynghitheogio+ ' WHERE (MaNV=' + CONVERT(nvarchar(30),@StaffID) + ') AND (' + ''''  + CONVERT(nvarchar(30),@D) + '''' + '=Ngay) '
 		EXEC (@SQL)
 
-		SELECT @NumberRecords = COUNT(*)  FROM #tblDangkynghitheogioTam
+		SELECT @NumberRecords = COUNT(*) FROM #tblDangkynghitheogioTam
 		SET @RowCount = 1
 
 ------------------------------------------------------------------------------------------------------------------------------------------------
 
-		-- Loc du lieu
-		IF (@OriginalStatus <> 0) -- Neu la trang thai dau doc
+		DECLARE	@TGDenT Datetime
+		DECLARE	@TGVeT Datetime
+		DECLARE	@TGBD smallint
+		DECLARE	@TGKT smallint
+		DECLARE @TGLTToiDa int 
+		DECLARE @TGLTToiDaTC int
+		DECLARE	@nRan smallint
+		DECLARE @LamBu DATETIME
+		DECLARE @NgayNghiLe Datetime
+		DECLARE @NgayNghiLeNV Datetime
+		
+		SET @nRan=0
+		SET @TGBD=0
+		SET @TGKT=0
+		SET	@NgayNghiLe ='1900-01-01 00:00:00.000'
+		SET @NgayNghiLeNV ='1900-01-01 00:00:00.000'
+		SET	@LamBu ='1900-01-01 00:00:00.000'
+
+		SELECT @LamBu=NBNgayLamBu FROM tblDangKyNghiBu WHERE NBMaNV=@StaffID and @D = NBNgayLamBu
+		SELECT @NgayNghiLe=NNLNgay FROM HRM.dbo.tblNgayNghiLe WHERE CONVERT(VARCHAR,@D,103) = CONVERT(VARCHAR,NNLNgay,103)
+		SELECT @NgayNghiLeNV=NLNVNgay FROM HRM.dbo.tblNgayNghiLeNhanVien WHERE NLNVMaNV=@StaffID and @D = NLNVNgay
+
+		IF(
+			(
+				DATEPART(DW,@D) <> 1
+				OR(DATEPART(DW,@D) = 1 AND @LamBu=@D)
+			)
+			AND (
+					CONVERT(VARCHAR,@D,103) <> CONVERT(VARCHAR,@NgayNghiLe,103)
+					OR(CONVERT(VARCHAR,@D,103) = CONVERT(VARCHAR,@NgayNghiLe,103) AND @LamBu = @D)
+				)
+			AND (
+					@D <> @NgayNghiLeNV
+					OR(@D = @NgayNghiLeNV AND @LamBu=@D)
+				)
+			AND @LoaiNghi <> 1
+		  )
 			BEGIN
-				IF (@TypeCalculator = 2) -- Neu la quet dau tien va quet cuoi cung
+				SELECT @TGDenT=BCTGDen, @TGVeT=BCTGVe, @Cuaden=BCCuaDen, @CuaVe=BCCuaVe 
+				FROM tblBaoCao WHERE BCMaNV=@StaffID AND BCNgay=@D
+
+				SELECT @TGLTToiDa=ISNULL(#tblBaoCao.BCTGLTToiDa,0),@TGLTToiDaTC=ISNULL(#tblBaoCao.BCTGLTToiDaTC,0) 
+				FROM #tblBaoCao WHERE BCMaNV=@StaffID AND BCNgay=@D
+
+				WHILE @RowCount <= @NumberRecords
 					BEGIN
-						SELECT TOP 1 @TGDen=ThoiGian, @Cuaden=IDM FROM #tblLocdulieutam INNER JOIN HRM.dbo.tblDauDoc ON #tblLocdulieutam.IDM=HRM.dbo.tblDauDoc.DDMa WHERE HRM.dbo.tblDauDoc.DDChinhVao=1 ORDER BY ThoiGian
-						SELECT TOP 1 @TGVe=ThoiGian, @CuaVe=IDM FROM #tblLocdulieutam INNER JOIN HRM.dbo.tblDauDoc ON #tblLocdulieutam.IDM=HRM.dbo.tblDauDoc.DDMa WHERE HRM.dbo.tblDauDoc.DDChinhVao=0 ORDER BY ThoiGian DESC
-					END
-				ELSE -- Neu la tat ca cap vao ra
-					BEGIN
-						IF(@LoaiNghi=0)
+						SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+						FROM #tblDangkynghitheogioTam 
+						WHERE RowID = @RowCount
+
+						SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+						SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+				
+						IF(@TGBDCa BETWEEN @DKNTGTugio AND @DKNTGDengio)
 							BEGIN
-								IF(@NumberRecords>=1)
-									BEGIN
-										WHILE @RowCount <= @NumberRecords
-											BEGIN
-												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-												FROM #tblDangkynghitheogioTam 
-												WHERE RowID = @RowCount
+								SET @TGBD=@TGBD+(DATEDIFF(MINUTE,@TGBDCa,@DKNTGDengio))
+							END
 
-												SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-												SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-												
-												IF(@TGBDCa BETWEEN @DKNTGTugio AND @DKNTGDengio)
-													BEGIN
-														SET @TGBDCa_Loc = @DKNTGDengio
-													END
+						IF(@TGKTCa BETWEEN @DKNTGTugio AND @DKNTGDengio)
+							BEGIN
+								SET @TGKT=@TGKT+(DATEDIFF(MINUTE,@DKNTGTugio,@TGKTCa))
+							END
 
-												IF(@TGBDNghi2 BETWEEN @DKNTGTugio AND @DKNTGDengio)
-													BEGIN
-														SET @TGBDNCa_Loc = @DKNTGTugio
-													END
+						SET @RowCount = @RowCount + 1
+					END
 
-												IF(@TGKTNghi2 BETWEEN @DKNTGTugio AND @DKNTGDengio)
-													BEGIN
-														SET @TGKTNCa_Loc = @DKNTGDengio
-													END
+				While(1=1)
+					BEGIN
+						Set @nRan = ROUND(RAND() * 10,0)
+						IF (@nRan<>0) BREAK;
+					END 
 
-												IF(@TGKTCa BETWEEN @DKNTGTugio AND @DKNTGDengio)
-													BEGIN
-														SET @TGKTCa_Loc = @DKNTGTugio
-													END
+				IF(@TGBD>0)
+					BEGIN
+						SET @TGLTToiDaTC=0
+					END
+				IF(@TGKT>0)
+					BEGIN
+						SET @TGLTToiDa=0
+					END
 
-												SET @RowCount = @RowCount + 1
-											END
-									END
-								ELSE
-									BEGIN
-										SET @TGBDCa_Loc = @TGBDCa
-										SET @TGBDNCa_Loc = @TGBDNghi2
-										SET @TGKTNCa_Loc = @TGKTNghi2
-										SET @TGKTCa_Loc = @TGKTCa
-									END
-
-								IF(@TGBDCa_Loc>@TGKTNghi2 OR @TGKTCa_Loc<@TGBDNghi2)
-									BEGIN
-										SELECT TOP 1 @TGDen=ThoiGian, @Cuaden=IDM 
-										FROM #tblLocdulieutam 
-										INNER JOIN HRM.dbo.tblDauDoc ON #tblLocdulieutam.IDM=HRM.dbo.tblDauDoc.DDMa 
-										WHERE HRM.dbo.tblDauDoc.DDChinhVao=1 
-												AND ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGKTCa_Loc)/2.0),@TGBDCa_Loc) 
-										ORDER BY ThoiGian
-
-										SELECT TOP 1 @TGVe=ThoiGian, @CuaVe=IDM 
-										FROM #tblLocdulieutam 
-										INNER JOIN HRM.dbo.tblDauDoc ON #tblLocdulieutam.IDM=HRM.dbo.tblDauDoc.DDMa 
-										WHERE HRM.dbo.tblDauDoc.DDChinhVao=0 
-												AND ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGKTCa_Loc)/2.0),@TGBDCa_Loc) 
-										ORDER BY ThoiGian DESC
-									END
-								ELSE
-									BEGIN
-										SELECT TOP 1 @TGDen=ThoiGian, @Cuaden=IDM 
-										FROM #tblLocdulieutam 
-										INNER JOIN HRM.dbo.tblDauDoc ON #tblLocdulieutam.IDM=HRM.dbo.tblDauDoc.DDMa 
-										WHERE HRM.dbo.tblDauDoc.DDChinhVao=1 
-												AND ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGBDNCa_Loc)/2.0),@TGBDCa_Loc) 
-										ORDER BY ThoiGian
-
-										SELECT TOP 1 @TGRa=ThoiGian, @CuaRa=IDM 
-										FROM #tblLocdulieutam 
-										INNER JOIN HRM.dbo.tblDauDoc ON #tblLocdulieutam.IDM=HRM.dbo.tblDauDoc.DDMa 
-										WHERE HRM.dbo.tblDauDoc.DDChinhVao=0 
-												AND ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGBDNCa_Loc)/2.0),@TGBDCa_Loc) 
-												AND ThoiGian<=@TGKTNghi2
-										ORDER BY ThoiGian DESC
-
-										SELECT TOP 1 @TGVao=ThoiGian, @CuaVao=IDM 
-										FROM #tblLocdulieutam 
-										INNER JOIN HRM.dbo.tblDauDoc ON #tblLocdulieutam.IDM=HRM.dbo.tblDauDoc.DDMa 
-										WHERE HRM.dbo.tblDauDoc.DDChinhVao=1 
-												AND ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGKTNCa_Loc,@TGKTCa_Loc)/2.0),@TGKTNCa_Loc) 
-												AND ThoiGian>=@TGBDNghi2
-										ORDER BY ThoiGian
-
-										SELECT TOP 1 @TGVe=ThoiGian, @CuaVe=IDM 
-										FROM #tblLocdulieutam 
-										INNER JOIN HRM.dbo.tblDauDoc ON #tblLocdulieutam.IDM=HRM.dbo.tblDauDoc.DDMa 
-										WHERE HRM.dbo.tblDauDoc.DDChinhVao=0 
-												AND ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGKTNCa_Loc,@TGKTCa_Loc)/2.0),@TGKTNCa_Loc) 
-										ORDER BY ThoiGian DESC
-									END
+				IF(@TGDenT <> '1900-01-01 00:00:00.000')
+					BEGIN
+						IF(DATEDIFF(MINUTE,@TGDenT,(DATEADD(MINUTE,@TGBD-@TGLTToiDaTC,@TGBDCa)))>=15)
+							BEGIN
+								SET @TGDen=DATEADD(MINUTE,@TGBD-@nRan-@TGLTToiDaTC,@TGBDCa)
 							END
 						ELSE
 							BEGIN
-								SELECT TOP 1 @TGDen=ThoiGian, @Cuaden=IDM FROM #tblLocdulieutam INNER JOIN HRM.dbo.tblDauDoc ON #tblLocdulieutam.IDM=HRM.dbo.tblDauDoc.DDMa WHERE HRM.dbo.tblDauDoc.DDChinhVao=1 ORDER BY ThoiGian
-								SELECT TOP 1 @TGVe=ThoiGian, @CuaVe=IDM FROM #tblLocdulieutam INNER JOIN HRM.dbo.tblDauDoc ON #tblLocdulieutam.IDM=HRM.dbo.tblDauDoc.DDMa WHERE HRM.dbo.tblDauDoc.DDChinhVao=0 ORDER BY ThoiGian DESC
+								SET @TGDen=@TGDenT
 							END
 					END
-			END
-		ELSE -- Neu la trang thai xen ke
-			BEGIN
-				IF (@TypeCalculator = 2) -- Neu la quet dau tien va quet cuoi cung
+
+				IF(@TGVeT <> '1900-01-01 00:00:00.000')
 					BEGIN
-						IF(@recordCount=1)
+						IF(DATEDIFF(MINUTE,(DATEADD(MINUTE,@TGLTToiDa-@TGKT,@TGKTCa)),@TGVeT)>=15)
 							BEGIN
-								IF(@NumberRecords>=1)
-									BEGIN
-										WHILE @RowCount <= @NumberRecords
-											BEGIN
-												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-												FROM #tblDangkynghitheogioTam 
-												WHERE RowID = @RowCount
-
-												SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-												SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-												
-												IF(@TGBDCa BETWEEN @DKNTGTugio AND @DKNTGDengio)
-													BEGIN
-														SET @TGBDCa_Loc = @DKNTGDengio
-													END
-
-												IF(@TGKTCa BETWEEN @DKNTGTugio AND @DKNTGDengio)
-													BEGIN
-														SET @TGKTCa_Loc = @DKNTGTugio
-													END
-
-												SET @RowCount = @RowCount + 1
-											END
-									END
-								ELSE
-									BEGIN
-										SET @TGBDCa_Loc = @TGBDCa
-										SET @TGKTCa_Loc = @TGKTCa
-									END
-
-								SELECT TOP 1 @TGDen=ThoiGian, @Cuaden=IDM 
-								FROM #tblLocdulieutam 
-								WHERE ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGKTCa_Loc)/2.0),@TGBDCa_Loc) 
-								ORDER BY ThoiGian
-
-								SELECT TOP 1 @TGVe=ThoiGian, @CuaVe=IDM 
-								FROM #tblLocdulieutam 
-								WHERE ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGKTCa_Loc)/2.0),@TGBDCa_Loc) 
-								ORDER BY ThoiGian DESC
-							END
-
-						IF(@recordCount>1)
-							BEGIN
-								SELECT TOP 1 @TGDen=ThoiGian, @Cuaden=IDM FROM #tblLocdulieutam WHERE RowID IN (SELECT MIN(RowID) FROM #tblLocdulieutam)
-								SELECT TOP 1 @TGVe=ThoiGian, @CuaVe=IDM FROM #tblLocdulieutam WHERE RowID IN (SELECT MAX(RowID) FROM #tblLocdulieutam)
-							END
-					END
-				ELSE -- Neu la tat ca cap vao ra
-					BEGIN
-						IF(@LoaiNghi=0)
-							BEGIN
-								IF(@NumberRecords>=1)
-									BEGIN
-										WHILE @RowCount <= @NumberRecords
-											BEGIN
-												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-												FROM #tblDangkynghitheogioTam 
-												WHERE RowID = @RowCount
-
-												SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-												SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-												
-												IF(@TGBDCa BETWEEN @DKNTGTugio AND @DKNTGDengio)
-													BEGIN
-														SET @TGBDCa_Loc = @DKNTGDengio
-													END
-
-												IF(@TGBDNghi2 BETWEEN @DKNTGTugio AND @DKNTGDengio)
-													BEGIN
-														SET @TGBDNCa_Loc = @DKNTGTugio
-													END
-
-												IF(@TGKTNghi2 BETWEEN @DKNTGTugio AND @DKNTGDengio)
-													BEGIN
-														SET @TGKTNCa_Loc = @DKNTGDengio
-													END
-
-												IF(@TGKTCa BETWEEN @DKNTGTugio AND @DKNTGDengio)
-													BEGIN
-														SET @TGKTCa_Loc = @DKNTGTugio
-													END
-
-												SET @RowCount = @RowCount + 1
-											END
-									END
-								ELSE
-									BEGIN
-										SET @TGBDCa_Loc = @TGBDCa
-										SET @TGBDNCa_Loc = @TGBDNghi2
-										SET @TGKTNCa_Loc = @TGKTNghi2
-										SET @TGKTCa_Loc = @TGKTCa
-									END
-
-								IF(@TGBDCa_Loc>@TGKTNghi2 OR @TGKTCa_Loc<@TGBDNghi2)
-									BEGIN
-										SELECT TOP 1 @TGDen=ThoiGian, @Cuaden=IDM 
-										FROM #tblLocdulieutam 
-										WHERE ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGKTCa_Loc)/2.0),@TGBDCa_Loc) 
-										ORDER BY ThoiGian
-
-										SELECT TOP 1 @TGVe=ThoiGian, @CuaVe=IDM 
-										FROM #tblLocdulieutam 
-										WHERE ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGKTCa_Loc)/2.0),@TGBDCa_Loc) 
-										ORDER BY ThoiGian DESC
-									END
-								ELSE
-									BEGIN
-										SELECT TOP 1 @TGDen=ThoiGian, @Cuaden=IDM 
-										FROM #tblLocdulieutam 
-										WHERE ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGBDNCa_Loc)/2.0),@TGBDCa_Loc) 
-										ORDER BY ThoiGian
-
-										SELECT TOP 1 @TGVe=ThoiGian, @CuaVe=IDM 
-										FROM #tblLocdulieutam 
-										WHERE ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGKTNCa_Loc,@TGKTCa_Loc)/2.0),@TGKTNCa_Loc) 
-										ORDER BY ThoiGian DESC
-
-										SELECT @Count = COUNT(*) FROM #tblLocdulieutam 
-										WHERE ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGBDNCa_Loc)/2.0),@TGBDCa_Loc)
-												AND ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGKTNCa_Loc,@TGKTCa_Loc)/2.0),@TGKTNCa_Loc)
-												AND ThoiGian<>@TGDen
-												AND ThoiGian<>@TGVe
-
-										IF(@Count=1)
-											BEGIN
-												SELECT TOP 1 @TGRa=ThoiGian, @CuaRa=IDM 
-												FROM #tblLocdulieutam 
-												WHERE ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGBDNCa_Loc)/2.0),@TGBDCa_Loc) 
-														AND ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDNCa_Loc,@TGKTNCa_Loc)/2.0),@TGBDNCa_Loc)
-														AND ThoiGian<>@TGDen
-
-												SELECT TOP 1 @TGVao=ThoiGian, @CuaVao=IDM 
-												FROM #tblLocdulieutam 
-												WHERE ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGKTNCa_Loc,@TGKTCa_Loc)/2.0),@TGKTNCa_Loc) 
-														AND ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDNCa_Loc,@TGKTNCa_Loc)/2.0),@TGBDNCa_Loc)
-														AND ThoiGian<>@TGVe
-											END
-										ELSE IF(@Count=2)
-											BEGIN
-												SELECT TOP 1 @TGRa=ThoiGian, @CuaRa=IDM 
-												FROM #tblLocdulieutam 
-												WHERE ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGBDNCa_Loc)/2.0),@TGBDCa_Loc)
-														AND ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGKTNCa_Loc,@TGKTCa_Loc)/2.0),@TGKTNCa_Loc)
-														AND ThoiGian<>@TGDen
-												ORDER BY ThoiGian
-
-												SELECT TOP 1 @TGVao=ThoiGian, @CuaVao=IDM 
-												FROM #tblLocdulieutam 
-												WHERE ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGBDNCa_Loc)/2.0),@TGBDCa_Loc)
-														AND ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGKTNCa_Loc,@TGKTCa_Loc)/2.0),@TGKTNCa_Loc)
-														AND ThoiGian<>@TGVe
-												ORDER BY ThoiGian DESC
-											END
-										ELSE  IF(@Count>2)
-											BEGIN
-												SELECT @Count = COUNT(*) FROM #tblLocdulieutam 
-												WHERE ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGBDNCa_Loc)/2.0),@TGBDCa_Loc) 
-														AND ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDNCa_Loc,@TGKTNCa_Loc)/2.0),@TGBDNCa_Loc)
-														AND ThoiGian<>@TGDen
-
-												IF(@Count>0)
-													BEGIN
-														SELECT @Count = COUNT(*) FROM #tblLocdulieutam 
-														WHERE ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGKTNCa_Loc,@TGKTCa_Loc)/2.0),@TGKTNCa_Loc) 
-																AND ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDNCa_Loc,@TGKTNCa_Loc)/2.0),@TGBDNCa_Loc)
-																AND ThoiGian<>@TGVe
-
-														IF(@Count>0)
-															BEGIN
-																SELECT TOP 1 @TGRa=ThoiGian, @CuaRa=IDM 
-																FROM #tblLocdulieutam 
-																WHERE ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGBDNCa_Loc)/2.0),@TGBDCa_Loc) 
-																		AND ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDNCa_Loc,@TGKTNCa_Loc)/2.0),@TGBDNCa_Loc)
-																		AND ThoiGian<>@TGDen
-																ORDER BY ThoiGian DESC
-
-																SELECT TOP 1 @TGVao=ThoiGian, @CuaVao=IDM 
-																FROM #tblLocdulieutam 
-																WHERE ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGKTNCa_Loc,@TGKTCa_Loc)/2.0),@TGKTNCa_Loc) 
-																		AND ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDNCa_Loc,@TGKTNCa_Loc)/2.0),@TGBDNCa_Loc)
-																		AND ThoiGian<>@TGVe
-																ORDER BY ThoiGian
-															END
-														ELSE
-															BEGIN
-																SELECT @Count = COUNT(*) FROM #tblLocdulieutam 
-																WHERE ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGBDNCa_Loc)/2.0),@TGBDCa_Loc) 
-																		AND ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDNCa_Loc,@TGKTNCa_Loc)/2.0),@TGBDNCa_Loc)
-																		AND ThoiGian<>@TGDen
-
-																IF(@Count=1)
-																	BEGIN
-																		SELECT TOP 1 @TGRa=ThoiGian, @CuaRa=IDM 
-																		FROM #tblLocdulieutam 
-																		WHERE ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGBDNCa_Loc)/2.0),@TGBDCa_Loc) 
-																				AND ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDNCa_Loc,@TGKTNCa_Loc)/2.0),@TGBDNCa_Loc)
-																				AND ThoiGian<>@TGDen
-																	END
-																ELSE  IF(@Count>1)
-																	BEGIN
-																		SELECT TOP 1 @TGVao=ThoiGian, @CuaVao=IDM 
-																		FROM #tblLocdulieutam 
-																		WHERE ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGBDNCa_Loc)/2.0),@TGBDCa_Loc) 
-																				AND ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDNCa_Loc,@TGKTNCa_Loc)/2.0),@TGBDNCa_Loc)
-																				AND ThoiGian<>@TGDen
-																		ORDER BY ThoiGian DESC
-
-																		SELECT TOP 1 @TGRa=ThoiGian, @CuaRa=IDM 
-																		FROM #tblLocdulieutam 
-																		WHERE ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGBDNCa_Loc)/2.0),@TGBDCa_Loc) 
-																				AND ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDNCa_Loc,@TGKTNCa_Loc)/2.0),@TGBDNCa_Loc)
-																				AND ThoiGian<>@TGDen
-																				AND ThoiGian<>@TGVao
-																		ORDER BY ThoiGian DESC
-																	END
-															END
-													END
-												ELSE
-													BEGIN
-														SELECT @Count = COUNT(*) FROM #tblLocdulieutam 
-														WHERE ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGKTNCa_Loc,@TGKTCa_Loc)/2.0),@TGKTNCa_Loc) 
-																AND ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDNCa_Loc,@TGKTNCa_Loc)/2.0),@TGBDNCa_Loc)
-																AND ThoiGian<>@TGVe
-
-														IF(@Count=1)
-															BEGIN
-																SELECT TOP 1 @TGVao=ThoiGian, @CuaVao=IDM 
-																FROM #tblLocdulieutam 
-																WHERE ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGKTNCa_Loc,@TGKTCa_Loc)/2.0),@TGKTNCa_Loc) 
-																		AND ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDNCa_Loc,@TGKTNCa_Loc)/2.0),@TGBDNCa_Loc)
-																		AND ThoiGian<>@TGVe
-															END
-														ELSE  IF(@Count>1)
-															BEGIN
-																SELECT TOP 1 @TGRa=ThoiGian, @CuaRa=IDM 
-																FROM #tblLocdulieutam 
-																WHERE ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGKTNCa_Loc,@TGKTCa_Loc)/2.0),@TGKTNCa_Loc) 
-																		AND ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDNCa_Loc,@TGKTNCa_Loc)/2.0),@TGBDNCa_Loc)
-																		AND ThoiGian<>@TGVe
-																ORDER BY ThoiGian
-
-																SELECT TOP 1 @TGVao=ThoiGian, @CuaVao=IDM 
-																FROM #tblLocdulieutam 
-																WHERE ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGKTNCa_Loc,@TGKTCa_Loc)/2.0),@TGKTNCa_Loc) 
-																		AND ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDNCa_Loc,@TGKTNCa_Loc)/2.0),@TGBDNCa_Loc)
-																		AND ThoiGian<>@TGRa
-																		AND ThoiGian<>@TGVe
-																ORDER BY ThoiGian
-															END
-													END
-											END
-									END
+								SET @TGVe=DATEADD(MINUTE,@nRan+@TGLTToiDa-@TGKT,@TGKTCa)
 							END
 						ELSE
 							BEGIN
-								IF(@recordCount=1)
-									BEGIN
-										IF(@NumberRecords>=1)
-											BEGIN
-												WHILE @RowCount <= @NumberRecords
-													BEGIN
-														SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-														FROM #tblDangkynghitheogioTam 
-														WHERE RowID = @RowCount
-
-														SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-														SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-												
-														IF(@TGBDCa BETWEEN @DKNTGTugio AND @DKNTGDengio)
-															BEGIN
-																SET @TGBDCa_Loc = @DKNTGDengio
-															END
-
-														IF(@TGKTCa BETWEEN @DKNTGTugio AND @DKNTGDengio)
-															BEGIN
-																SET @TGKTCa_Loc = @DKNTGTugio
-															END
-
-														SET @RowCount = @RowCount + 1
-													END
-											END
-										ELSE
-											BEGIN
-												SET @TGBDCa_Loc = @TGBDCa
-												SET @TGKTCa_Loc = @TGKTCa
-											END
-
-										SELECT TOP 1 @TGDen=ThoiGian, @Cuaden=IDM 
-										FROM #tblLocdulieutam 
-										WHERE ThoiGian<=DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGKTCa_Loc)/2.0),@TGBDCa_Loc) 
-										ORDER BY ThoiGian
-
-										SELECT TOP 1 @TGVe=ThoiGian, @CuaVe=IDM 
-										FROM #tblLocdulieutam 
-										WHERE ThoiGian>DATEADD(MINUTE,(DATEDIFF(MINUTE,@TGBDCa_Loc,@TGKTCa_Loc)/2.0),@TGBDCa_Loc) 
-										ORDER BY ThoiGian DESC
-									END
-
-								IF(@recordCount>1)
-									BEGIN
-										SELECT TOP 1 @TGDen=ThoiGian, @Cuaden=IDM FROM #tblLocdulieutam WHERE RowID IN (SELECT MIN(RowID) FROM #tblLocdulieutam)
-										SELECT TOP 1 @TGVe=ThoiGian, @CuaVe=IDM FROM #tblLocdulieutam WHERE RowID IN (SELECT MAX(RowID) FROM #tblLocdulieutam)
-									END
+								SET @TGVe=@TGVeT
 							END
 					END
-			END
 
 -------------------------------------------------Tinh thoi gian lam, di muon, ve som, lam them-----------------------------------------------------------
 
-		SET @RowCount = 1
-
-		IF (@TypeCalculator = 2)
-			BEGIN
-				-- Neu la thoi gian den
-				IF (@TGDen <> '1900-01-01 00:00:00.000' AND @TGVe = '1900-01-01 00:00:00.000')
+				IF (@TypeCalculator = 2)
 					BEGIN
-						IF @LoaiNghi = 2 --DKNLoai = 2  DK nghi nua ca dau
+						-- Neu la thoi gian den
+						IF (@TGDen <> '1900-01-01 00:00:00.000' AND @TGVe = '1900-01-01 00:00:00.000')
 							BEGIN
-								WHILE @RowCount <= @NumberRecords
-									BEGIN
-										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-										FROM #tblDangkynghitheogioTam 
-										WHERE RowID = @RowCount
-
-										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-
-										------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
-
-										SET @RowCount = @RowCount + 1
-									END
-
-								SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3)
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
-
-								SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
-
-								IF(@TGDen<@TGBatDauLTTC)
-									BEGIN
-										SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-
-										SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC) 
-																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-									END
-
-								------------di muon, ve som, lam them cuoi cung-----------------
-								SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
-								SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
-
-								IF(@TGMuonN+@TGMuonD<=@NguongDiMuon)
-									BEGIN
-										SET @TGMuonN=0
-										SET @TGMuonD=0
-									END
-							END
-						ELSE IF @LoaiNghi = 3 --DKNLoai = 3  DK nghi nua ca sau
-    						BEGIN
-								IF(@TGDen>@TGBatDauLTTC)
-									BEGIN
-										SET @TGOTTrongTC=@TGDen
-									END
-								ELSE
-									BEGIN
-										SET @TGOTTrongTC=@TGBatDauLTTC
-									END
-
-								WHILE @RowCount <= @NumberRecords
-									BEGIN
-										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-										FROM #tblDangkynghitheogioTam 
-										WHERE RowID = @RowCount
-
-										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-										------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
-
-										-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-										SET @DKNTGTrongCaNTC = @DKNTGTrongCaNTC + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-										SET @DKNTGTrongCaDTC = @DKNTGTrongCaDTC + @DKNTGLamTam
-
-										SET @RowCount = @RowCount + 1
-									END
-
-								SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa)
-
-								SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa)
-
-								IF(@TGDen<@TGBatDauLTTC)
-									BEGIN
-										SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-
-										SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC) 
-																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-									END
-
-								---------------------------------------------------------ot trong ca------------------------------------------------------------------
-								SET    @TGOTTrongCaNTC = @TGOTTrongCaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen, @TGBDCa, @TGBatDauLTTC, @TGBDCa)
-																			+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGBDCa, @TGBatDauLTTC, @TGBDCa)
-								SET    @TGOTTrongCaDTC = @TGOTTrongCaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGBDCa, @TGBatDauLTTC, @TGBDCa) 
-																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGBDCa, @TGBatDauLTTC, @TGBDCa)
-								---------------------------------------------------------------------------------------------------------------------------------------
-
-								------------di muon, ve som, lam them cuoi cung-----------------
-								SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
-								SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
-
-								SET @TGOTTrongCaNTC=@TGOTTrongCaNTC-@DKNTGTrongCaNTC
-								SET @TGOTTrongCaDTC=@TGOTTrongCaDTC-@DKNTGTrongCaDTC
-
-								IF(@TGMuonN+@TGMuonD<=@NguongDiMuon)
-									BEGIN
-										SET @TGMuonN=0
-										SET @TGMuonD=0
-									END
-							END
-						ELSE -- khong nghi
-							BEGIN
-								IF(@TGDen>@TGBatDauLTTC)
-									BEGIN
-										SET @TGOTTrongTC=@TGDen
-									END
-								ELSE
-									BEGIN
-										SET @TGOTTrongTC=@TGBatDauLTTC
-									END
-
-								WHILE @RowCount <= @NumberRecords
-									BEGIN
-										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-										FROM #tblDangkynghitheogioTam 
-										WHERE RowID = @RowCount
-
-										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-										------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
-
-										-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-										SET @DKNTGTrongCaNTC = @DKNTGTrongCaNTC + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-										SET @DKNTGTrongCaDTC = @DKNTGTrongCaDTC + @DKNTGLamTam
-
-										SET @RowCount = @RowCount + 1
-									END
-
-								SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
-
-								SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
-
-								IF(@TGDen<@TGBatDauLTTC)
-									BEGIN
-										SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-
-										SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC) 
-																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-									END
-
-								---------------------------------------------------------ot trong ca------------------------------------------------------------------
-								SET    @TGOTTrongCaNTC = @TGOTTrongCaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen, @TGBDCa, @TGBatDauLTTC, @TGBDCa)
-																			+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGBDCa, @TGBatDauLTTC, @TGBDCa)
-								SET    @TGOTTrongCaDTC = @TGOTTrongCaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGBDCa, @TGBatDauLTTC, @TGBDCa) 
-																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGBDCa, @TGBatDauLTTC, @TGBDCa)
-								---------------------------------------------------------------------------------------------------------------------------------------
-
-								------------di muon, ve som, lam them cuoi cung-----------------
-								SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
-								SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
-
-								SET @TGOTTrongCaNTC=@TGOTTrongCaNTC-@DKNTGTrongCaNTC
-								SET @TGOTTrongCaDTC=@TGOTTrongCaDTC-@DKNTGTrongCaDTC
-
-								IF(@TGMuonN+@TGMuonD<=@NguongDiMuon)
-									BEGIN
-										SET @TGMuonN=0
-										SET @TGMuonD=0
-									END
-							END
-					END
-
-				-- Neu la thoi gian ve
-				IF (@TGDen = '1900-01-01 00:00:00.000' AND @TGVe <> '1900-01-01 00:00:00.000')
-					BEGIN
-						IF @LoaiNghi = 2 --DKNLoai = 2  DK nghi nua ca dau
-							BEGIN
-								IF(@TGVe<@TGBatDauLT)
-									BEGIN
-										SET @TGOTTrongSC=@TGVe
-									END
-								ELSE
-									BEGIN
-										SET @TGOTTrongSC=@TGBatDauLT
-									END
-
-								WHILE @RowCount <= @NumberRecords
-									BEGIN
-										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-										FROM #tblDangkynghitheogioTam 
-										WHERE RowID = @RowCount
-
-										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-										-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
-
-										-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-										SET @DKNTGTrongCaNSC = @DKNTGTrongCaNSC + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-										SET @DKNTGTrongCaDSC = @DKNTGTrongCaDSC + @DKNTGLamTam
-
-										SET @RowCount = @RowCount + 1
-									END
-
-								SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3)
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
-
-								SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3)
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
-					
-
-								IF(@TGVe>@TGBatDauLT)
-									BEGIN
-										SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-
-										SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-									END
-
-								---------------------------------------------------------ot trong ca------------------------------------------------------------------
-								SET @TGOTTrongCaN = @TGOTTrongCaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGKTCa, @TGVe, @TGKTCa, @TGBatDauLT)
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGKTCa, @TGVe, @TGKTCa, @TGBatDauLT)
-								SET @TGOTTrongCaD = @TGOTTrongCaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGKTCa, @TGVe, @TGKTCa, @TGBatDauLT)
-								---------------------------------------------------------------------------------------------------------------------------------------
-
-								------------di muon, ve som, lam them cuoi cung-----------------
-								SET @TGSomN=@TGSomN-@DKNTGVeSomN
-								SET @TGSomD=@TGSomD-@DKNTGVeSomD
-
-								SET @TGOTTrongCaN=@TGOTTrongCaN-@DKNTGTrongCaNSC
-								SET @TGOTTrongCaD=@TGOTTrongCaD-@DKNTGTrongCaDSC
-
-								IF(@TGSomN+@TGSomD<=@NguongVeSom)
-									BEGIN
-										SET @TGSomN=0
-										SET @TGSomD=0
-									END
-							END
-						ELSE IF @LoaiNghi = 3 --DKNLoai = 3  DK nghi nua ca sau
-    						BEGIN
-								WHILE @RowCount <= @NumberRecords
-									BEGIN
-										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-										FROM #tblDangkynghitheogioTam 
-										WHERE RowID = @RowCount
-
-										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-										-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
-
-										SET @RowCount = @RowCount + 1
-									END
-
-								SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS)
-
-								SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS)
-					
-
-								IF(@TGVe>@TGBatDauLT)
-									BEGIN
-										SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-
-										SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-									END
-
-								------------di muon, ve som, lam them cuoi cung-----------------
-								SET @TGSomN=@TGSomN-@DKNTGVeSomN
-								SET @TGSomD=@TGSomD-@DKNTGVeSomD
-
-								IF(@TGSomN+@TGSomD<=@NguongVeSom)
-									BEGIN
-										SET @TGSomN=0
-										SET @TGSomD=0
-									END
-							END
-						ELSE -- khong nghi
-							BEGIN
-								IF(@TGVe<@TGBatDauLT)
-									BEGIN
-										SET @TGOTTrongSC=@TGVe
-									END
-								ELSE
-									BEGIN
-										SET @TGOTTrongSC=@TGBatDauLT
-									END
-
-								WHILE @RowCount <= @NumberRecords
-									BEGIN
-										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-										FROM #tblDangkynghitheogioTam 
-										WHERE RowID = @RowCount
-
-										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-										-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
-
-										-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-										SET @DKNTGTrongCaNSC = @DKNTGTrongCaNSC + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-										SET @DKNTGTrongCaDSC = @DKNTGTrongCaDSC + @DKNTGLamTam
-
-										SET @RowCount = @RowCount + 1
-									END
-
-								SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
-
-								SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
-					
-
-								IF(@TGVe>@TGBatDauLT)
-									BEGIN
-										SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-
-										SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-									END
-
-								---------------------------------------------------------ot trong ca------------------------------------------------------------------
-								SET @TGOTTrongCaN = @TGOTTrongCaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGKTCa, @TGVe, @TGKTCa, @TGBatDauLT)
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGKTCa, @TGVe, @TGKTCa, @TGBatDauLT)
-								SET @TGOTTrongCaD = @TGOTTrongCaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGKTCa, @TGVe, @TGKTCa, @TGBatDauLT)
-								---------------------------------------------------------------------------------------------------------------------------------------
-
-								------------di muon, ve som, lam them cuoi cung-----------------
-								SET @TGSomN=@TGSomN-@DKNTGVeSomN
-								SET @TGSomD=@TGSomD-@DKNTGVeSomD
-
-								SET @TGOTTrongCaN=@TGOTTrongCaN-@DKNTGTrongCaNSC
-								SET @TGOTTrongCaD=@TGOTTrongCaD-@DKNTGTrongCaDSC
-
-								IF(@TGSomN+@TGSomD<=@NguongVeSom)
-									BEGIN
-										SET @TGSomN=0
-										SET @TGSomD=0
-									END
-							END
-					END
-
-				-- Neu la thoi gian den va ve
-				IF (@TGDen <> '1900-01-01 00:00:00.000' AND @TGVe <> '1900-01-01 00:00:00.000')
-					BEGIN
-						IF @LoaiNghi = 2 --DKNLoai = 2  DK nghi nua ca dau
-							BEGIN
-								IF(@TGVe<@TGBatDauLT)
-									BEGIN
-										SET @TGOTTrongSC=@TGVe
-									END
-								ELSE
-									BEGIN
-										SET @TGOTTrongSC=@TGBatDauLT
-									END
-
-								WHILE @RowCount <= @NumberRecords
-									BEGIN
-										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-										FROM #tblDangkynghitheogioTam 
-										WHERE RowID = @RowCount
-
-										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-										-----------------------------------------------------------TG lam giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDnghi3) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDnghi3)
-															+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa)
-
-															+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
-										SET @DKNTGLamN = @DKNTGLamN + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDnghi3) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDnghi3)
-															+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa)
-
-															+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
-										SET @DKNTGLamD = @DKNTGLamD + @DKNTGLamTam
-										-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
-
-										------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
-
-										-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-										SET @DKNTGTrongCaNSC = @DKNTGTrongCaNSC + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-										SET @DKNTGTrongCaDSC = @DKNTGTrongCaDSC + @DKNTGLamTam
-
-										SET @RowCount = @RowCount + 1
-									END
-
-								SET @TGLamN = @TGLamN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBDCa, @TGBDNghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBDCa, @TGBDNghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGKTNghi3, @TGKTCa)
-
-								SET @TGLamD = @TGLamD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGBDCa, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBDCa, @TGBDnghi3)
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGKTNghi3, @TGKTCa)
-
-								SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3)
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
-
-								SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
-
-								SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3)
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
-
-								SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3)
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
-					
-
-								SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-								SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi) 
-	                
-								SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
-																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
-								SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC) 
-																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
-
-								---------------------------------------------------------ot trong ca------------------------------------------------------------------
-								SET @TGOTTrongCaN = @TGOTTrongCaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGKTCa, @TGBatDauLT)
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGKTCa, @TGBatDauLT)
-								SET @TGOTTrongCaD = @TGOTTrongCaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGKTCa, @TGBatDauLT)
-								---------------------------------------------------------------------------------------------------------------------------------------
-
-								------------di muon, ve som, lam them cuoi cung-----------------
-								SET @TGLamN=@TGLamN-@DKNTGLamN+@DKNTGVeSomN+@DKNTGDiMuonN+@DKNTGTrongCaNSC
-								SET @TGLamD=@TGLamD-@DKNTGLamD+@DKNTGVeSomD+@DKNTGDiMuonD+@DKNTGTrongCaDSC
-
-								SET @TGSomN=@TGSomN-@DKNTGVeSomN
-								SET @TGSomD=@TGSomD-@DKNTGVeSomD
-
-								SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
-								SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
-
-								SET @TGOTTrongCaN=@TGOTTrongCaN-@DKNTGTrongCaNSC
-								SET @TGOTTrongCaD=@TGOTTrongCaD-@DKNTGTrongCaDSC
-							END
-						ELSE IF @LoaiNghi = 3 --DKNLoai = 2  DK nghi nua ca sau
-							BEGIN
-								IF(@TGDen>@TGBatDauLTTC)
-									BEGIN
-										SET @TGOTTrongTC=@TGDen
-									END
-								ELSE
-									BEGIN
-										SET @TGOTTrongTC=@TGBatDauLTTC
-									END
-
-								WHILE @RowCount <= @NumberRecords
-									BEGIN
-										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-										FROM #tblDangkynghitheogioTam 
-										WHERE RowID = @RowCount
-
-										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-										-----------------------------------------------------------TG lam giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
-															+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGKTCa) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGKTCa)
-
-															+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
-										SET @DKNTGLamN = @DKNTGLamN + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
-															+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGKTCa) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGKTCa)
-
-															+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
-										SET @DKNTGLamD = @DKNTGLamD + @DKNTGLamTam
-										-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
-
-										------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
-
-										-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-										SET @DKNTGTrongCaNTC = @DKNTGTrongCaNTC + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-										SET @DKNTGTrongCaDTC = @DKNTGTrongCaDTC + @DKNTGLamTam
-
-										SET @RowCount = @RowCount + 1
-									END
-
-								SET @TGLamN = @TGLamN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGKTNghi1, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGKTNghi1, @TGKTCa)
-
-								SET @TGLamD = @TGLamD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGKTNghi1, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGKTNghi1, @TGKTCa)
-
-								SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa)
-
-								SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa)
-
-								SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS)
-
-								SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS)
-					
-
-								SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-								SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi) 
-	                
-								SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
-																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
-								SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC) 
-																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
-
-								---------------------------------------------------------ot trong ca------------------------------------------------------------------
-								SET    @TGOTTrongCaNTC = @TGOTTrongCaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen, @TGVe, @TGBatDauLTTC, @TGBDCa)
-																			+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLTTC, @TGBDCa)
-								SET    @TGOTTrongCaDTC = @TGOTTrongCaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGBatDauLTTC, @TGBDCa) 
-																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLTTC, @TGBDCa)
-								---------------------------------------------------------------------------------------------------------------------------------------
-
-								------------di muon, ve som, lam them cuoi cung-----------------
-								SET @TGLamN=@TGLamN-@DKNTGLamN+@DKNTGVeSomN+@DKNTGDiMuonN+@DKNTGTrongCaNTC
-								SET @TGLamD=@TGLamD-@DKNTGLamD+@DKNTGVeSomD+@DKNTGDiMuonD+@DKNTGTrongCaDTC
-
-								SET @TGSomN=@TGSomN-@DKNTGVeSomN
-								SET @TGSomD=@TGSomD-@DKNTGVeSomD
-
-								SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
-								SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
-
-								SET @TGOTTrongCaNTC=@TGOTTrongCaNTC-@DKNTGTrongCaNTC
-								SET @TGOTTrongCaDTC=@TGOTTrongCaDTC-@DKNTGTrongCaDTC
-							END
-						ELSE -- khong nghi
-							BEGIN
-								IF(@TGDen>@TGBatDauLTTC)
-									BEGIN
-										SET @TGOTTrongTC=@TGDen
-									END
-								ELSE
-									BEGIN
-										SET @TGOTTrongTC=@TGBatDauLTTC
-									END
-
-								IF(@TGVe<@TGBatDauLT)
-									BEGIN
-										SET @TGOTTrongSC=@TGVe
-									END
-								ELSE
-									BEGIN
-										SET @TGOTTrongSC=@TGBatDauLT
-									END
-										
-								WHILE @RowCount <= @NumberRecords
-									BEGIN
-										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-										FROM #tblDangkynghitheogioTam 
-										WHERE RowID = @RowCount
-
-										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-										-----------------------------------------------------------TG lam giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
-															+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGBDNghi2) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGBDNghi2) 
-															+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTnghi2, @TGBDnghi3) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTnghi2, @TGBDnghi3) 
-															+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa)
-
-															+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
-															+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
-										SET @DKNTGLamN = @DKNTGLamN + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
-															+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGBDNghi2) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGBDNghi2) 
-															+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTnghi2, @TGBDnghi3) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTnghi2, @TGBDnghi3) 
-															+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa)
-
-															+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
-															+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
-										SET @DKNTGLamD = @DKNTGLamD + @DKNTGLamTam
-										-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
-
-										------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
-
-										-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-										SET @DKNTGTrongCaNTC = @DKNTGTrongCaNTC + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-										SET @DKNTGTrongCaDTC = @DKNTGTrongCaDTC + @DKNTGLamTam
-
-										-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-										SET @DKNTGTrongCaNSC = @DKNTGTrongCaNSC + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-										SET @DKNTGTrongCaDSC = @DKNTGTrongCaDSC + @DKNTGLamTam
-
-										SET @RowCount = @RowCount + 1
-									END
-
-								SET @TGLamN = @TGLamN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGKTNghi3, @TGKTCa)
-
-								SET @TGLamD = @TGLamD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGKTNghi3, @TGKTCa)
-
-								SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
-
-								SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
-
-								SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
-
-								SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
-					
-
-								SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-								SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi) 
-	                
-								SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
-																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
-								SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC) 
-																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
-								---------------------------------------------------------ot trong ca------------------------------------------------------------------
-								SET @TGOTTrongCaN = @TGOTTrongCaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGKTCa, @TGBatDauLT)
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGKTCa, @TGBatDauLT)
-								SET @TGOTTrongCaD = @TGOTTrongCaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGKTCa, @TGBatDauLT)
-
-								SET    @TGOTTrongCaNTC = @TGOTTrongCaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen, @TGVe, @TGBatDauLTTC, @TGBDCa)
-																			+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLTTC, @TGBDCa)
-								SET    @TGOTTrongCaDTC = @TGOTTrongCaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGBatDauLTTC, @TGBDCa) 
-																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLTTC, @TGBDCa)
-								---------------------------------------------------------------------------------------------------------------------------------------
-
-								------------di muon, ve som, lam them cuoi cung-----------------
-								SET @TGLamN=@TGLamN-@DKNTGLamN+@DKNTGVeSomN+@DKNTGDiMuonN+@DKNTGTrongCaNTC+@DKNTGTrongCaNSC
-								SET @TGLamD=@TGLamD-@DKNTGLamD+@DKNTGVeSomD+@DKNTGDiMuonD+@DKNTGTrongCaDTC+@DKNTGTrongCaDSC
-
-								SET @TGSomN=@TGSomN-@DKNTGVeSomN
-								SET @TGSomD=@TGSomD-@DKNTGVeSomD
-
-								SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
-								SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
-
-								SET @TGOTTrongCaNTC=@TGOTTrongCaNTC-@DKNTGTrongCaNTC
-								SET @TGOTTrongCaDTC=@TGOTTrongCaDTC-@DKNTGTrongCaDTC
-
-								SET @TGOTTrongCaN=@TGOTTrongCaN-@DKNTGTrongCaNSC
-								SET @TGOTTrongCaD=@TGOTTrongCaD-@DKNTGTrongCaDSC
-							END
-					END
-			END
-		ELSE
-			BEGIN
-				-- Neu la thoi gian den
-				IF (
-						@TGDen <> '1900-01-01 00:00:00.000' AND @TGRa = '1900-01-01 00:00:00.000'
-						AND @TGVao = '1900-01-01 00:00:00.000' AND @TGVe = '1900-01-01 00:00:00.000'
-					)
-					BEGIN
-						IF @LoaiNghi = 2 --DKNLoai = 2  DK nghi nua ca dau
-							BEGIN
-								WHILE @RowCount <= @NumberRecords
-									BEGIN
-										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-										FROM #tblDangkynghitheogioTam 
-										WHERE RowID = @RowCount
-
-										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-
-										------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
-
-										SET @RowCount = @RowCount + 1
-									END
-
-								SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3)
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
-
-								SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
-
-								IF(@TGDen<@TGBatDauLTTC)
-									BEGIN
-										SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-
-										SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC) 
-																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-									END
-
-								------------di muon, ve som, lam them cuoi cung-----------------
-								SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
-								SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
-
-								IF(@TGMuonN+@TGMuonD<=@NguongDiMuon)
-									BEGIN
-										SET @TGMuonN=0
-										SET @TGMuonD=0
-									END
-							END
-						ELSE IF @LoaiNghi = 3 --DKNLoai = 3  DK nghi nua ca sau
-    						BEGIN
-								IF(@TGDen>@TGBatDauLTTC)
-									BEGIN
-										SET @TGOTTrongTC=@TGDen
-									END
-								ELSE
-									BEGIN
-										SET @TGOTTrongTC=@TGBatDauLTTC
-									END
-
-								WHILE @RowCount <= @NumberRecords
-									BEGIN
-										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-										FROM #tblDangkynghitheogioTam 
-										WHERE RowID = @RowCount
-
-										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-										------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
-
-										-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-										SET @DKNTGTrongCaNTC = @DKNTGTrongCaNTC + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-										SET @DKNTGTrongCaDTC = @DKNTGTrongCaDTC + @DKNTGLamTam
-
-										SET @RowCount = @RowCount + 1
-									END
-
-								SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa)
-
-								SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa)
-
-								IF(@TGDen<@TGBatDauLTTC)
-									BEGIN
-										SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-
-										SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC) 
-																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-									END
-
-								---------------------------------------------------------ot trong ca------------------------------------------------------------------
-								SET    @TGOTTrongCaNTC = @TGOTTrongCaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen, @TGBDCa, @TGBatDauLTTC, @TGBDCa)
-																			+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGBDCa, @TGBatDauLTTC, @TGBDCa)
-								SET    @TGOTTrongCaDTC = @TGOTTrongCaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGBDCa, @TGBatDauLTTC, @TGBDCa) 
-																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGBDCa, @TGBatDauLTTC, @TGBDCa)
-								---------------------------------------------------------------------------------------------------------------------------------------
-
-								------------di muon, ve som, lam them cuoi cung-----------------
-								SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
-								SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
-
-								SET @TGOTTrongCaNTC=@TGOTTrongCaNTC-@DKNTGTrongCaNTC
-								SET @TGOTTrongCaDTC=@TGOTTrongCaDTC-@DKNTGTrongCaDTC
-
-								IF(@TGMuonN+@TGMuonD<=@NguongDiMuon)
-									BEGIN
-										SET @TGMuonN=0
-										SET @TGMuonD=0
-									END
-							END
-						ELSE -- khong nghi
-							BEGIN
-								IF(@TGDen>@TGBatDauLTTC)
-									BEGIN
-										SET @TGOTTrongTC=@TGDen
-									END
-								ELSE
-									BEGIN
-										SET @TGOTTrongTC=@TGBatDauLTTC
-									END
-
-								WHILE @RowCount <= @NumberRecords
-									BEGIN
-										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-										FROM #tblDangkynghitheogioTam 
-										WHERE RowID = @RowCount
-
-										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-										------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
-										SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
-
-										-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-										SET @DKNTGTrongCaNTC = @DKNTGTrongCaNTC + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-										SET @DKNTGTrongCaDTC = @DKNTGTrongCaDTC + @DKNTGLamTam
-
-										SET @RowCount = @RowCount + 1
-									END
-
-								SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
-
-								SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
-
-								IF(@TGDen<@TGBatDauLTTC)
-									BEGIN
-										SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-
-										SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC) 
-																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
-									END
-
-								---------------------------------------------------------ot trong ca------------------------------------------------------------------
-								SET    @TGOTTrongCaNTC = @TGOTTrongCaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen, @TGBDCa, @TGBatDauLTTC, @TGBDCa)
-																			+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGBDCa, @TGBatDauLTTC, @TGBDCa)
-								SET    @TGOTTrongCaDTC = @TGOTTrongCaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGBDCa, @TGBatDauLTTC, @TGBDCa) 
-																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGBDCa, @TGBatDauLTTC, @TGBDCa)
-								---------------------------------------------------------------------------------------------------------------------------------------
-
-								------------di muon, ve som, lam them cuoi cung-----------------
-								SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
-								SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
-
-								SET @TGOTTrongCaNTC=@TGOTTrongCaNTC-@DKNTGTrongCaNTC
-								SET @TGOTTrongCaDTC=@TGOTTrongCaDTC-@DKNTGTrongCaDTC
-
-								IF(@TGMuonN+@TGMuonD<=@NguongDiMuon)
-									BEGIN
-										SET @TGMuonN=0
-										SET @TGMuonD=0
-									END
-							END
-					END
-
-				-- Neu la thoi gian ra
-				ELSE IF (
-							@TGDen = '1900-01-01 00:00:00.000' AND @TGRa <> '1900-01-01 00:00:00.000'
-							AND @TGVao = '1900-01-01 00:00:00.000' AND @TGVe = '1900-01-01 00:00:00.000'
-						)
-					BEGIN
-						WHILE @RowCount <= @NumberRecords
-							BEGIN
-								SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-								FROM #tblDangkynghitheogioTam 
-								WHERE RowID = @RowCount
-
-								SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-								SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-								-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
-								SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGRa, @TGBDNghi2) 
-													+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGRa, @TGBDNghi2)
-								SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
-
-								SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGRa, @TGBDNghi2) 
-													+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGRa, @TGBDNghi2)
-								SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
-
-								SET @RowCount = @RowCount + 1
-							END
-
-						SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGRa, @TGBDNghi2, @TGBDCa, @TGBDNghi1) 
-												+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGRa, @TGBDNghi2, @TGBDCa, @TGBDNghi1)
-												+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGRa, @TGBDNghi2, @TGKTNghi1, @TGBDNghi2) 
-												+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGRa, @TGBDNghi2, @TGKTNghi1, @TGBDNghi2)
-
-						SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGRa, @TGBDNghi2, @TGBDCa, @TGBDNghi1) 
-												+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGRa, @TGBDNghi2, @TGBDCa, @TGBDNghi1)
-												+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGRa, @TGBDNghi2, @TGKTNghi1, @TGBDNghi2) 
-												+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGRa, @TGBDNghi2, @TGKTNghi1, @TGBDNghi2)
-					
-						------------di muon, ve som, lam them cuoi cung-----------------
-						SET @TGSomN=@TGSomN-@DKNTGVeSomN
-						SET @TGSomD=@TGSomD-@DKNTGVeSomD
-
-						IF(@TGSomN+@TGSomD<=@NguongVeSom)
-							BEGIN
-								SET @TGSomN=0
-								SET @TGSomD=0
-							END
-					END
-
-				-- Neu la thoi gian vao
-				ELSE IF (
-							@TGDen = '1900-01-01 00:00:00.000' AND @TGRa = '1900-01-01 00:00:00.000'
-							AND @TGVao <> '1900-01-01 00:00:00.000' AND @TGVe = '1900-01-01 00:00:00.000'
-						)
-					BEGIN
-						WHILE @RowCount <= @NumberRecords
-							BEGIN
-								SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-								FROM #tblDangkynghitheogioTam 
-								WHERE RowID = @RowCount
-
-								SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-								SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-								------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
-								SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi2, @TGVao) 
-													+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi2, @TGVao)
-								SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
-
-								SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi2, @TGVao) 
-													+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi2, @TGVao)
-								SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
-
-								SET @RowCount = @RowCount + 1
-							END
-
-						SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGKTnghi2, @TGVao, @TGKTnghi2, @TGBDnghi3) 
-												+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGKTnghi2, @TGVao, @TGKTnghi2, @TGBDnghi3) 
-												+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGKTnghi2, @TGVao, @TGKTNghi3, @TGKTCa) 
-												+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGKTnghi2, @TGVao, @TGKTNghi3, @TGKTCa)
-
-						SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGKTnghi2, @TGVao, @TGKTnghi2, @TGBDnghi3) 
-												+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGKTnghi2, @TGVao, @TGKTnghi2, @TGBDnghi3) 
-												+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGKTnghi2, @TGVao, @TGKTNghi3, @TGKTCa) 
-												+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGKTnghi2, @TGVao, @TGKTNghi3, @TGKTCa)
-
-						------------di muon, ve som, lam them cuoi cung-----------------
-						SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
-						SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
-
-						IF(@TGMuonN+@TGMuonD<=@NguongDiMuon)
-							BEGIN
-								SET @TGMuonN=0
-								SET @TGMuonD=0
-							END
-					END
-
-				-- Neu la thoi gian ve
-				ELSE IF (
-							@TGDen = '1900-01-01 00:00:00.000' AND @TGRa = '1900-01-01 00:00:00.000'
-							AND @TGVao = '1900-01-01 00:00:00.000' AND @TGVe <> '1900-01-01 00:00:00.000'
-						)
-					BEGIN
-						IF @LoaiNghi = 2 --DKNLoai = 2  DK nghi nua ca dau
-							BEGIN
-								IF(@TGVe<@TGBatDauLT)
-									BEGIN
-										SET @TGOTTrongSC=@TGVe
-									END
-								ELSE
-									BEGIN
-										SET @TGOTTrongSC=@TGBatDauLT
-									END
-
-								WHILE @RowCount <= @NumberRecords
-									BEGIN
-										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-										FROM #tblDangkynghitheogioTam 
-										WHERE RowID = @RowCount
-
-										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-										-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
-
-										-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-										SET @DKNTGTrongCaNSC = @DKNTGTrongCaNSC + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-										SET @DKNTGTrongCaDSC = @DKNTGTrongCaDSC + @DKNTGLamTam
-
-										SET @RowCount = @RowCount + 1
-									END
-
-								SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3)
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
-
-								SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3)
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
-					
-
-								IF(@TGVe>@TGBatDauLT)
-									BEGIN
-										SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-
-										SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-									END
-
-								---------------------------------------------------------ot trong ca------------------------------------------------------------------
-								SET @TGOTTrongCaN = @TGOTTrongCaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGKTCa, @TGVe, @TGKTCa, @TGBatDauLT)
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGKTCa, @TGVe, @TGKTCa, @TGBatDauLT)
-								SET @TGOTTrongCaD = @TGOTTrongCaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGKTCa, @TGVe, @TGKTCa, @TGBatDauLT)
-								---------------------------------------------------------------------------------------------------------------------------------------
-
-								------------di muon, ve som, lam them cuoi cung-----------------
-								SET @TGSomN=@TGSomN-@DKNTGVeSomN
-								SET @TGSomD=@TGSomD-@DKNTGVeSomD
-
-								SET @TGOTTrongCaN=@TGOTTrongCaN-@DKNTGTrongCaNSC
-								SET @TGOTTrongCaD=@TGOTTrongCaD-@DKNTGTrongCaDSC
-
-								IF(@TGSomN+@TGSomD<=@NguongVeSom)
-									BEGIN
-										SET @TGSomN=0
-										SET @TGSomD=0
-									END
-							END
-						ELSE IF @LoaiNghi = 3 --DKNLoai = 3  DK nghi nua ca sau
-    						BEGIN
-								WHILE @RowCount <= @NumberRecords
-									BEGIN
-										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-										FROM #tblDangkynghitheogioTam 
-										WHERE RowID = @RowCount
-
-										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-										-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
-
-										SET @RowCount = @RowCount + 1
-									END
-
-								SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS)
-
-								SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS)
-					
-
-								IF(@TGVe>@TGBatDauLT)
-									BEGIN
-										SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-
-										SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-									END
-
-								------------di muon, ve som, lam them cuoi cung-----------------
-								SET @TGSomN=@TGSomN-@DKNTGVeSomN
-								SET @TGSomD=@TGSomD-@DKNTGVeSomD
-
-								IF(@TGSomN+@TGSomD<=@NguongVeSom)
-									BEGIN
-										SET @TGSomN=0
-										SET @TGSomD=0
-									END
-							END
-						ELSE -- khong nghi
-							BEGIN
-								IF(@TGVe<@TGBatDauLT)
-									BEGIN
-										SET @TGOTTrongSC=@TGVe
-									END
-								ELSE
-									BEGIN
-										SET @TGOTTrongSC=@TGBatDauLT
-									END
-
-								WHILE @RowCount <= @NumberRecords
-									BEGIN
-										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-										FROM #tblDangkynghitheogioTam 
-										WHERE RowID = @RowCount
-
-										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-										-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
-										SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
-
-										-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-										SET @DKNTGTrongCaNSC = @DKNTGTrongCaNSC + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-										SET @DKNTGTrongCaDSC = @DKNTGTrongCaDSC + @DKNTGLamTam
-
-										SET @RowCount = @RowCount + 1
-									END
-
-								SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
-
-								SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
-					
-
-								IF(@TGVe>@TGBatDauLT)
-									BEGIN
-										SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-
-										SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
-									END
-
-								---------------------------------------------------------ot trong ca------------------------------------------------------------------
-								SET @TGOTTrongCaN = @TGOTTrongCaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGKTCa, @TGVe, @TGKTCa, @TGBatDauLT)
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGKTCa, @TGVe, @TGKTCa, @TGBatDauLT)
-								SET @TGOTTrongCaD = @TGOTTrongCaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGKTCa, @TGVe, @TGKTCa, @TGBatDauLT)
-								---------------------------------------------------------------------------------------------------------------------------------------
-
-								------------di muon, ve som, lam them cuoi cung-----------------
-								SET @TGSomN=@TGSomN-@DKNTGVeSomN
-								SET @TGSomD=@TGSomD-@DKNTGVeSomD
-
-								SET @TGOTTrongCaN=@TGOTTrongCaN-@DKNTGTrongCaNSC
-								SET @TGOTTrongCaD=@TGOTTrongCaD-@DKNTGTrongCaDSC
-
-								IF(@TGSomN+@TGSomD<=@NguongVeSom)
-									BEGIN
-										SET @TGSomN=0
-										SET @TGSomD=0
-									END
-							END
-					END
-
-				-- Neu lon hon 2 du lieu (tat ca cap vao ra)
-				ELSE
-					BEGIN
-						IF(@LoaiNghi=0)
-							BEGIN
-								IF(@NumberRecords>=1)
+								IF @LoaiNghi = 2 --DKNLoai = 2  DK nghi nua ca dau
 									BEGIN
 										WHILE @RowCount <= @NumberRecords
 											BEGIN
@@ -2765,385 +973,335 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 
 												SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
 												SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-												
-												IF(@TGBDCa BETWEEN @DKNTGTugio AND @DKNTGDengio)
-													BEGIN
-														SET @TGBDCa_Loc = @DKNTGDengio
-													END
 
-												IF(@TGBDNghi2 BETWEEN @DKNTGTugio AND @DKNTGDengio)
-													BEGIN
-														SET @TGBDNCa_Loc = @DKNTGTugio
-													END
+												------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+												SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
 
-												IF(@TGKTNghi2 BETWEEN @DKNTGTugio AND @DKNTGDengio)
-													BEGIN
-														SET @TGKTNCa_Loc = @DKNTGDengio
-													END
-
-												IF(@TGKTCa BETWEEN @DKNTGTugio AND @DKNTGDengio)
-													BEGIN
-														SET @TGKTCa_Loc = @DKNTGTugio
-													END
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+												SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
 
 												SET @RowCount = @RowCount + 1
 											END
-									END
-								ELSE
-									BEGIN
-										SET @TGBDCa_Loc = @TGBDTinhDM
-										SET @TGBDNCa_Loc = @TGBDNghi2
-										SET @TGKTNCa_Loc = @TGKTNghi2
-										SET @TGKTCa_Loc = @TGBDTinhVS
-									END
 
-								-------------------------------------
-								IF(@TGDen='1900-01-01 00:00:00.000')
-									BEGIN
-										IF(@TGRa='1900-01-01 00:00:00.000')
-											BEGIN
-												SET @TGDen_Temp=@TGBDNCa_Loc
-											END
-										ELSE IF(@TGRa<@TGBDNCa_Loc AND @TGRa<>'1900-01-01 00:00:00.000')
-											BEGIN
-												SET @TGDen_Temp=@TGRa
-											END
-										ELSE
-											BEGIN
-												SET @TGDen_Temp=@TGBDNCa_Loc
-											END
-									END
-								ELSE
-									BEGIN
-										SET @TGDen_Temp=@TGDen
-									END
+										SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3)
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
 
-								IF(@TGRa='1900-01-01 00:00:00.000')
-									BEGIN
-										IF(@TGDen='1900-01-01 00:00:00.000')
+										SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
+
+										IF(@TGDen<@TGBatDauLTTC)
 											BEGIN
-												SET @TGRa_Temp=@TGBDNCa_Loc
+												SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
+																				+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
+
+												SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC) 
+																				+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
 											END
-										ELSE IF(@TGDen>@TGBDCa_Loc)
+
+										------------di muon, ve som, lam them cuoi cung-----------------
+										SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
+										SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
+
+										IF(@TGMuonN+@TGMuonD<=@NguongDiMuon)
 											BEGIN
-												SET @TGRa_Temp=@TGDen
-											END
-										ELSE
-											BEGIN
-												SET @TGRa_Temp=@TGBDCa_Loc
+												SET @TGMuonN=0
+												SET @TGMuonD=0
 											END
 									END
-								ELSE
-									BEGIN
-										SET @TGRa_Temp=@TGRa
-									END
-
-								IF(@TGVao='1900-01-01 00:00:00.000')
-									BEGIN
-										IF(@TGVe='1900-01-01 00:00:00.000')
+								ELSE IF @LoaiNghi = 3 --DKNLoai = 3  DK nghi nua ca sau
+    								BEGIN
+										WHILE @RowCount <= @NumberRecords
 											BEGIN
-												SET @TGVao_Temp=@TGKTNCa_Loc
+												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+												FROM #tblDangkynghitheogioTam 
+												WHERE RowID = @RowCount
+
+												SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+												SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+												------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+												SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
+
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+												SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
+
+												SET @RowCount = @RowCount + 1
 											END
-										ELSE IF(@TGVe<@TGKTCa_Loc AND @TGVe<>'1900-01-01 00:00:00.000')
+
+										SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa)
+
+										SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa)
+
+										IF(@TGDen<@TGBatDauLTTC)
 											BEGIN
-												SET @TGVao_Temp=@TGVe
+												SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
+																				+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
+
+												SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC) 
+																				+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
 											END
-										ELSE
+
+										
+										------------di muon, ve som, lam them cuoi cung-----------------
+										SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
+										SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
+
+										IF(@TGMuonN+@TGMuonD<=@NguongDiMuon)
 											BEGIN
-												SET @TGVao_Temp=@TGKTCa_Loc
+												SET @TGMuonN=0
+												SET @TGMuonD=0
 											END
 									END
-								ELSE
+								ELSE -- khong nghi
 									BEGIN
-										SET @TGVao_Temp=@TGVao
-									END
-
-								IF(@TGVe='1900-01-01 00:00:00.000')
-									BEGIN
-										IF(@TGVao='1900-01-01 00:00:00.000')
+										WHILE @RowCount <= @NumberRecords
 											BEGIN
-												SET @TGVe_Temp=@TGKTNCa_Loc
+												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+												FROM #tblDangkynghitheogioTam 
+												WHERE RowID = @RowCount
+
+												SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+												SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+												------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+												SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
+
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+												SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
+
+												SET @RowCount = @RowCount + 1
 											END
-										ELSE IF(@TGVao>@TGKTNCa_Loc)
+
+										SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
+
+										SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
+
+										IF(@TGDen<@TGBatDauLTTC)
 											BEGIN
-												SET @TGVe_Temp=@TGVao
+												SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
+																				+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
+
+												SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC) 
+																				+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
 											END
-										ELSE
+
+										
+										------------di muon, ve som, lam them cuoi cung-----------------
+										SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
+										SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
+
+										IF(@TGMuonN+@TGMuonD<=@NguongDiMuon)
 											BEGIN
-												SET @TGVe_Temp=@TGKTNCa_Loc
+												SET @TGMuonN=0
+												SET @TGMuonD=0
 											END
 									END
-								ELSE
-									BEGIN
-										SET @TGVe_Temp=@TGVe
-									END
-
-								--------------------------------------
-
-								IF(@TGDen>@TGBatDauLTTC)
-									BEGIN
-										SET @TGOTTrongTC=@TGDen
-									END
-								ELSE
-									BEGIN
-										SET @TGOTTrongTC=@TGBatDauLTTC
-									END
-
-								IF(@TGVe<@TGBatDauLT)
-									BEGIN
-										SET @TGOTTrongSC=@TGVe
-									END
-								ELSE
-									BEGIN
-										SET @TGOTTrongSC=@TGBatDauLT
-									END
-
-								----------------------------------------
-
-								WHILE @RowCount <= @NumberRecords
-									BEGIN
-										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
-										FROM #tblDangkynghitheogioTam 
-										WHERE RowID = @RowCount
-
-										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
-										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
-										-----------------------------------------------------------TG lam giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
-															+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGBDNghi2) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGBDNghi2) 
-															+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTnghi2, @TGBDnghi3) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTnghi2, @TGBDnghi3) 
-															+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa)
-
-															+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
-															+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
-										SET @DKNTGLamN = @DKNTGLamN + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
-															+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGBDNghi2) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGBDNghi2) 
-															+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTnghi2, @TGBDnghi3) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTnghi2, @TGBDnghi3) 
-															+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa)
-
-															+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
-															+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
-										SET @DKNTGLamD = @DKNTGLamD + @DKNTGLamTam
-										-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe_Temp, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe_Temp, @TGBDTinhVS)
-															+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGRa_Temp, @TGBDNghi2) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGRa_Temp, @TGBDNghi2)
-										SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe_Temp, @TGBDTinhVS) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe_Temp, @TGBDTinhVS)
-															+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGRa_Temp, @TGBDNghi2) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGRa_Temp, @TGBDNghi2)
-										SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
-
-										------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen_Temp) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen_Temp)
-															+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi2, @TGVao_Temp) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi2, @TGVao_Temp)
-										SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
-
-										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen_Temp) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen_Temp)
-															+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi2, @TGVao_Temp) 
-															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi2, @TGVao_Temp)
-										SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
-
-										-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-										SET @DKNTGTrongCaNTC = @DKNTGTrongCaNTC + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-										SET @DKNTGTrongCaDTC = @DKNTGTrongCaDTC + @DKNTGLamTam
-
-										-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC) 
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-										SET @DKNTGTrongCaNSC = @DKNTGTrongCaNSC + @DKNTGLamTam
-
-										SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-										SET @DKNTGTrongCaDSC = @DKNTGTrongCaDSC + @DKNTGLamTam
-
-										SET @RowCount = @RowCount + 1
-									END
-								---------------------------------------------------------thoi gian den - ra-------------------------------------------
-								SET @TGLamN = @TGLamN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen_Temp, @TGRa_Temp, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen_Temp, @TGRa_Temp, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen_Temp, @TGRa_Temp, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen_Temp, @TGRa_Temp, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen_Temp, @TGRa_Temp, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen_Temp, @TGRa_Temp, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen_Temp, @TGRa_Temp, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen_Temp, @TGRa_Temp, @TGKTNghi3, @TGKTCa)
-
-								SET @TGLamD = @TGLamD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen_Temp, @TGRa_Temp, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen_Temp, @TGRa_Temp, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen_Temp, @TGRa_Temp, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen_Temp, @TGRa_Temp, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen_Temp, @TGRa_Temp, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen_Temp, @TGRa_Temp, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen_Temp, @TGRa_Temp, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen_Temp, @TGRa_Temp, @TGKTNghi3, @TGKTCa)
-
-								SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen_Temp, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen_Temp, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen_Temp, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen_Temp, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen_Temp, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen_Temp, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen_Temp, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen_Temp, @TGKTNghi3, @TGBDTinhVS)
-
-								SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen_Temp, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen_Temp, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen_Temp, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen_Temp, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen_Temp, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen_Temp, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen_Temp, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen_Temp, @TGKTNghi3, @TGBDTinhVS)
-
-								SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGRa_Temp, @TGBDNghi2, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGRa_Temp, @TGBDNghi2, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGRa_Temp, @TGBDNghi2, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGRa_Temp, @TGBDNghi2, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGRa_Temp, @TGBDNghi2, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGRa_Temp, @TGBDNghi2, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGRa_Temp, @TGBDNghi2, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGRa_Temp, @TGBDNghi2, @TGKTNghi3, @TGBDTinhVS)
-
-								SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGRa_Temp, @TGBDNghi2, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGRa_Temp, @TGBDNghi2, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGRa_Temp, @TGBDNghi2, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGRa_Temp, @TGBDNghi2, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGRa_Temp, @TGBDNghi2, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGRa_Temp, @TGBDNghi2, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGRa_Temp, @TGBDNghi2, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGRa_Temp, @TGBDNghi2, @TGKTNghi3, @TGBDTinhVS)
-								---------------------------------------------------------------------------------------------------------------------------
-
-								---------------------------------------------------------thoi gian vao - ve-------------------------------------------
-								SET @TGLamN = @TGLamN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVao_Temp, @TGVe_Temp, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVao_Temp, @TGVe_Temp, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVao_Temp, @TGVe_Temp, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVao_Temp, @TGVe_Temp, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVao_Temp, @TGVe_Temp, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVao_Temp, @TGVe_Temp, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVao_Temp, @TGVe_Temp, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVao_Temp, @TGVe_Temp, @TGKTNghi3, @TGKTCa)
-
-								SET @TGLamD = @TGLamD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVao_Temp, @TGVe_Temp, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVao_Temp, @TGVe_Temp, @TGBDCa, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVao_Temp, @TGVe_Temp, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVao_Temp, @TGVe_Temp, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVao_Temp, @TGVe_Temp, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVao_Temp, @TGVe_Temp, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVao_Temp, @TGVe_Temp, @TGKTNghi3, @TGKTCa) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVao_Temp, @TGVe_Temp, @TGKTNghi3, @TGKTCa)
-
-								SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGKTnghi2, @TGVao_Temp, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGKTnghi2, @TGVao_Temp, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGKTnghi2, @TGVao_Temp, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGKTnghi2, @TGVao_Temp, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGKTnghi2, @TGVao_Temp, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGKTnghi2, @TGVao_Temp, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGKTnghi2, @TGVao_Temp, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGKTnghi2, @TGVao_Temp, @TGKTNghi3, @TGBDTinhVS)
-
-								SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGKTnghi2, @TGVao_Temp, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGKTnghi2, @TGVao_Temp, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGKTnghi2, @TGVao_Temp, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGKTnghi2, @TGVao_Temp, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGKTnghi2, @TGVao_Temp, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGKTnghi2, @TGVao_Temp, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGKTnghi2, @TGVao_Temp, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGKTnghi2, @TGVao_Temp, @TGKTNghi3, @TGBDTinhVS)
-
-								SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe_Temp, @TGBDTinhVS, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe_Temp, @TGBDTinhVS, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe_Temp, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe_Temp, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe_Temp, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe_Temp, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe_Temp, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe_Temp, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
-
-								SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe_Temp, @TGBDTinhVS, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe_Temp, @TGBDTinhVS, @TGBDTinhDM, @TGBDNghi1) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe_Temp, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe_Temp, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe_Temp, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe_Temp, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
-														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe_Temp, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
-														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe_Temp, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
-								---------------------------------------------------------------------------------------------------------------------------
-					
-
-								SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen_Temp, @TGVe_Temp, @TGBatDauLT, @TGLayDLCuoi)
-															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen_Temp, @TGVe_Temp, @TGBatDauLT, @TGLayDLCuoi)
-								SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen_Temp, @TGVe_Temp, @TGBatDauLT, @TGLayDLCuoi) 
-	                
-								SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen_Temp, @TGVe_Temp, @TGLayDLDau, @TGBatDauLTTC)
-																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen_Temp, @TGVe_Temp, @TGLayDLDau, @TGBatDauLTTC)
-								SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen_Temp, @TGVe_Temp, @TGLayDLDau, @TGBatDauLTTC) 
-																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen_Temp, @TGVe_Temp, @TGLayDLDau, @TGBatDauLTTC)
-
-								---------------------------------------------------------ot trong ca------------------------------------------------------------------
-								SET @TGOTTrongCaN = @TGOTTrongCaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen_Temp, @TGVe_Temp, @TGKTCa, @TGBatDauLT)
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen_Temp, @TGVe_Temp, @TGKTCa, @TGBatDauLT)
-								SET @TGOTTrongCaD = @TGOTTrongCaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen_Temp, @TGVe_Temp, @TGKTCa, @TGBatDauLT)
-
-								SET    @TGOTTrongCaNTC = @TGOTTrongCaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen_Temp, @TGVe_Temp, @TGBatDauLTTC, @TGBDCa)
-																			+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen_Temp, @TGVe_Temp, @TGBatDauLTTC, @TGBDCa)
-								SET    @TGOTTrongCaDTC = @TGOTTrongCaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen_Temp, @TGVe_Temp, @TGBatDauLTTC, @TGBDCa) 
-																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen_Temp, @TGVe_Temp, @TGBatDauLTTC, @TGBDCa)
-								---------------------------------------------------------------------------------------------------------------------------------------
-
-								------------di muon, ve som, lam them cuoi cung-----------------
-								SET @TGLamN=@TGLamN-@DKNTGLamN+@DKNTGVeSomN+@DKNTGDiMuonN+@DKNTGTrongCaNTC+@DKNTGTrongCaNSC
-								SET @TGLamD=@TGLamD-@DKNTGLamD+@DKNTGVeSomD+@DKNTGDiMuonD+@DKNTGTrongCaDTC+@DKNTGTrongCaDSC
-
-								SET @TGSomN=@TGSomN-@DKNTGVeSomN
-								SET @TGSomD=@TGSomD-@DKNTGVeSomD
-
-								SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
-								SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
-
-								SET @TGOTTrongCaNTC=@TGOTTrongCaNTC-@DKNTGTrongCaNTC
-								SET @TGOTTrongCaDTC=@TGOTTrongCaDTC-@DKNTGTrongCaDTC
-
-								SET @TGOTTrongCaN=@TGOTTrongCaN-@DKNTGTrongCaNSC
-								SET @TGOTTrongCaD=@TGOTTrongCaD-@DKNTGTrongCaDSC
 							END
-						ELSE
+
+						-- Neu la thoi gian ve
+						IF (@TGDen = '1900-01-01 00:00:00.000' AND @TGVe <> '1900-01-01 00:00:00.000')
 							BEGIN
 								IF @LoaiNghi = 2 --DKNLoai = 2  DK nghi nua ca dau
 									BEGIN
-										IF(@TGVe<@TGBatDauLT)
+										WHILE @RowCount <= @NumberRecords
 											BEGIN
-												SET @TGOTTrongSC=@TGVe
-											END
-										ELSE
-											BEGIN
-												SET @TGOTTrongSC=@TGBatDauLT
+												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+												FROM #tblDangkynghitheogioTam 
+												WHERE RowID = @RowCount
+
+												SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+												SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+												-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+												SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
+
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+												SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
+
+												SET @RowCount = @RowCount + 1
 											END
 
+										SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3)
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
+
+										SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3)
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
+					
+
+										IF(@TGVe>@TGBatDauLT)
+											BEGIN
+												SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+
+												SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+											END
+
+										
+										------------di muon, ve som, lam them cuoi cung-----------------
+										SET @TGSomN=@TGSomN-@DKNTGVeSomN
+										SET @TGSomD=@TGSomD-@DKNTGVeSomD
+
+										IF(@TGSomN+@TGSomD<=@NguongVeSom)
+											BEGIN
+												SET @TGSomN=0
+												SET @TGSomD=0
+											END
+									END
+								ELSE IF @LoaiNghi = 3 --DKNLoai = 3  DK nghi nua ca sau
+    								BEGIN
+										WHILE @RowCount <= @NumberRecords
+											BEGIN
+												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+												FROM #tblDangkynghitheogioTam 
+												WHERE RowID = @RowCount
+
+												SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+												SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+												-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+												SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
+
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+												SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
+
+												SET @RowCount = @RowCount + 1
+											END
+
+										SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS)
+
+										SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS)
+					
+
+										IF(@TGVe>@TGBatDauLT)
+											BEGIN
+												SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+
+												SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+											END
+
+										------------di muon, ve som, lam them cuoi cung-----------------
+										SET @TGSomN=@TGSomN-@DKNTGVeSomN
+										SET @TGSomD=@TGSomD-@DKNTGVeSomD
+
+										IF(@TGSomN+@TGSomD<=@NguongVeSom)
+											BEGIN
+												SET @TGSomN=0
+												SET @TGSomD=0
+											END
+									END
+								ELSE -- khong nghi
+									BEGIN
+										WHILE @RowCount <= @NumberRecords
+											BEGIN
+												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+												FROM #tblDangkynghitheogioTam 
+												WHERE RowID = @RowCount
+
+												SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+												SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+												-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+												SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
+
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+												SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
+
+												SET @RowCount = @RowCount + 1
+											END
+
+										SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
+
+										SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
+					
+
+										IF(@TGVe>@TGBatDauLT)
+											BEGIN
+												SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+
+												SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+											END
+
+										
+										------------di muon, ve som, lam them cuoi cung-----------------
+										SET @TGSomN=@TGSomN-@DKNTGVeSomN
+										SET @TGSomD=@TGSomD-@DKNTGVeSomD
+
+										IF(@TGSomN+@TGSomD<=@NguongVeSom)
+											BEGIN
+												SET @TGSomN=0
+												SET @TGSomD=0
+											END
+									END
+							END
+
+						-- Neu la thoi gian den va ve
+						IF (@TGDen <> '1900-01-01 00:00:00.000' AND @TGVe <> '1900-01-01 00:00:00.000')
+							BEGIN
+								IF @LoaiNghi = 2 --DKNLoai = 2  DK nghi nua ca dau
+									BEGIN
 										WHILE @RowCount <= @NumberRecords
 											BEGIN
 												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
@@ -3188,14 +1346,6 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
 												SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
 
-												-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-												SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC) 
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-												SET @DKNTGTrongCaNSC = @DKNTGTrongCaNSC + @DKNTGLamTam
-
-												SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-												SET @DKNTGTrongCaDSC = @DKNTGTrongCaDSC + @DKNTGLamTam
-
 												SET @RowCount = @RowCount + 1
 											END
 
@@ -3239,36 +1389,19 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 										SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC) 
 																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
 
-										---------------------------------------------------------ot trong ca------------------------------------------------------------------
-										SET @TGOTTrongCaN = @TGOTTrongCaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGKTCa, @TGBatDauLT)
-																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGKTCa, @TGBatDauLT)
-										SET @TGOTTrongCaD = @TGOTTrongCaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGKTCa, @TGBatDauLT)
-										---------------------------------------------------------------------------------------------------------------------------------------
-
+										
 										------------di muon, ve som, lam them cuoi cung-----------------
-										SET @TGLamN=@TGLamN-@DKNTGLamN+@DKNTGVeSomN+@DKNTGDiMuonN+@DKNTGTrongCaNSC
-										SET @TGLamD=@TGLamD-@DKNTGLamD+@DKNTGVeSomD+@DKNTGDiMuonD+@DKNTGTrongCaDSC
+										SET @TGLamN=@TGLamN-@DKNTGLamN+@DKNTGVeSomN+@DKNTGDiMuonN
+										SET @TGLamD=@TGLamD-@DKNTGLamD+@DKNTGVeSomD+@DKNTGDiMuonD
 
 										SET @TGSomN=@TGSomN-@DKNTGVeSomN
 										SET @TGSomD=@TGSomD-@DKNTGVeSomD
 
 										SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
 										SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
-
-										SET @TGOTTrongCaN=@TGOTTrongCaN-@DKNTGTrongCaNSC
-										SET @TGOTTrongCaD=@TGOTTrongCaD-@DKNTGTrongCaDSC
 									END
 								ELSE IF @LoaiNghi = 3 --DKNLoai = 2  DK nghi nua ca sau
 									BEGIN
-										IF(@TGDen>@TGBatDauLTTC)
-											BEGIN
-												SET @TGOTTrongTC=@TGDen
-											END
-										ELSE
-											BEGIN
-												SET @TGOTTrongTC=@TGBatDauLTTC
-											END
-
 										WHILE @RowCount <= @NumberRecords
 											BEGIN
 												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
@@ -3313,14 +1446,6 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
 												SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
 
-												-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-												SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa) 
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-												SET @DKNTGTrongCaNTC = @DKNTGTrongCaNTC + @DKNTGLamTam
-
-												SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-												SET @DKNTGTrongCaDTC = @DKNTGTrongCaDTC + @DKNTGLamTam
-
 												SET @RowCount = @RowCount + 1
 											END
 
@@ -3364,46 +1489,19 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 										SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC) 
 																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
 
-										---------------------------------------------------------ot trong ca------------------------------------------------------------------
-										SET    @TGOTTrongCaNTC = @TGOTTrongCaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen, @TGVe, @TGBatDauLTTC, @TGBDCa)
-																					+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLTTC, @TGBDCa)
-										SET    @TGOTTrongCaDTC = @TGOTTrongCaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGBatDauLTTC, @TGBDCa) 
-																					+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLTTC, @TGBDCa)
-										---------------------------------------------------------------------------------------------------------------------------------------
-
+										
 										------------di muon, ve som, lam them cuoi cung-----------------
-										SET @TGLamN=@TGLamN-@DKNTGLamN+@DKNTGVeSomN+@DKNTGDiMuonN+@DKNTGTrongCaNTC
-										SET @TGLamD=@TGLamD-@DKNTGLamD+@DKNTGVeSomD+@DKNTGDiMuonD+@DKNTGTrongCaDTC
+										SET @TGLamN=@TGLamN-@DKNTGLamN+@DKNTGVeSomN+@DKNTGDiMuonN
+										SET @TGLamD=@TGLamD-@DKNTGLamD+@DKNTGVeSomD+@DKNTGDiMuonD
 
 										SET @TGSomN=@TGSomN-@DKNTGVeSomN
 										SET @TGSomD=@TGSomD-@DKNTGVeSomD
 
 										SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
 										SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
-
-										SET @TGOTTrongCaNTC=@TGOTTrongCaNTC-@DKNTGTrongCaNTC
-										SET @TGOTTrongCaDTC=@TGOTTrongCaDTC-@DKNTGTrongCaDTC
 									END
 								ELSE -- khong nghi
 									BEGIN
-										IF(@TGDen>@TGBatDauLTTC)
-											BEGIN
-												SET @TGOTTrongTC=@TGDen
-											END
-										ELSE
-											BEGIN
-												SET @TGOTTrongTC=@TGBatDauLTTC
-											END
-
-										IF(@TGVe<@TGBatDauLT)
-											BEGIN
-												SET @TGOTTrongSC=@TGVe
-											END
-										ELSE
-											BEGIN
-												SET @TGOTTrongSC=@TGBatDauLT
-											END
-										
 										WHILE @RowCount <= @NumberRecords
 											BEGIN
 												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
@@ -3459,22 +1557,6 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
 																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
 												SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
-
-												-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-												SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa) 
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-												SET @DKNTGTrongCaNTC = @DKNTGTrongCaNTC + @DKNTGLamTam
-
-												SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGOTTrongTC, @TGBDCa)
-												SET @DKNTGTrongCaDTC = @DKNTGTrongCaDTC + @DKNTGLamTam
-
-												-----------------------------------------------------------Lam them trong ca giao dk nghi--------------------------------------------------------------
-												SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC) 
-																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-												SET @DKNTGTrongCaNSC = @DKNTGTrongCaNSC + @DKNTGLamTam
-
-												SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGOTTrongSC)
-												SET @DKNTGTrongCaDSC = @DKNTGTrongCaDSC + @DKNTGLamTam
 
 												SET @RowCount = @RowCount + 1
 											END
@@ -3542,102 +1624,1183 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
 										SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC) 
 																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
-										---------------------------------------------------------ot trong ca------------------------------------------------------------------
-										SET @TGOTTrongCaN = @TGOTTrongCaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGKTCa, @TGBatDauLT)
-																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGKTCa, @TGBatDauLT)
-										SET @TGOTTrongCaD = @TGOTTrongCaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGKTCa, @TGBatDauLT)
-
-										SET    @TGOTTrongCaNTC = @TGOTTrongCaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen, @TGVe, @TGBatDauLTTC, @TGBDCa)
-																					+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLTTC, @TGBDCa)
-										SET    @TGOTTrongCaDTC = @TGOTTrongCaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGBatDauLTTC, @TGBDCa) 
-																					+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLTTC, @TGBDCa)
-										---------------------------------------------------------------------------------------------------------------------------------------
-
+										
 										------------di muon, ve som, lam them cuoi cung-----------------
-										SET @TGLamN=@TGLamN-@DKNTGLamN+@DKNTGVeSomN+@DKNTGDiMuonN+@DKNTGTrongCaNTC+@DKNTGTrongCaNSC
-										SET @TGLamD=@TGLamD-@DKNTGLamD+@DKNTGVeSomD+@DKNTGDiMuonD+@DKNTGTrongCaDTC+@DKNTGTrongCaDSC
+										SET @TGLamN=@TGLamN-@DKNTGLamN+@DKNTGVeSomN+@DKNTGDiMuonN
+										SET @TGLamD=@TGLamD-@DKNTGLamD+@DKNTGVeSomD+@DKNTGDiMuonD
 
 										SET @TGSomN=@TGSomN-@DKNTGVeSomN
 										SET @TGSomD=@TGSomD-@DKNTGVeSomD
 
 										SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
 										SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
-
-										SET @TGOTTrongCaNTC=@TGOTTrongCaNTC-@DKNTGTrongCaNTC
-										SET @TGOTTrongCaDTC=@TGOTTrongCaDTC-@DKNTGTrongCaDTC
-
-										SET @TGOTTrongCaN=@TGOTTrongCaN-@DKNTGTrongCaNSC
-										SET @TGOTTrongCaD=@TGOTTrongCaD-@DKNTGTrongCaDSC
 									END
 							END
 					END
-			END
+				ELSE
+					BEGIN
+						-- Neu la thoi gian den
+						IF (
+								@TGDen <> '1900-01-01 00:00:00.000' AND @TGRa = '1900-01-01 00:00:00.000'
+								AND @TGVao = '1900-01-01 00:00:00.000' AND @TGVe = '1900-01-01 00:00:00.000'
+							)
+							BEGIN
+								IF @LoaiNghi = 2 --DKNLoai = 2  DK nghi nua ca dau
+									BEGIN
+										WHILE @RowCount <= @NumberRecords
+											BEGIN
+												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+												FROM #tblDangkynghitheogioTam 
+												WHERE RowID = @RowCount
 
-		DROP TABLE #tblDangkynghitheogioTam
-		DROP TABLE #tblLocdulieutam
-	----------------------------------------------cac dieu kien chon rieng--------------------------------------------------
-		IF(ISNULL(@CongNghiGiuaCa,0)=1 AND (@TGLamN+@TGLamD)>0)
-			BEGIN
-				SET @TGNghiTruaN = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDNghi2, @TGKTNghi2, @TGBDNghi2, @TGKTNghi2) 
-									+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDNghi2, @TGKTNghi2, @TGBDNghi2, @TGKTNghi2)
+												SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+												SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
 
-				SET @TGNghiTruaD = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDNghi2, @TGKTNghi2, @TGBDNghi2, @TGKTNghi2)
+												------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+												SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
 
-				SET @TGLamN = @TGLamN + @TGNghiTruaN
-				SET @TGLamD = @TGLamD + @TGNghiTruaD
-			END
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+												SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
 
-		IF(@TGMuonN+@TGMuonD<=@NguongDiMuon AND (@TGLamN+@TGLamD)>0)
-			BEGIN
-				SET @TGLamN = @TGLamN + @TGMuonN
-				SET @TGLamD = @TGLamD + @TGMuonD
-				SET @TGMuonN=0
-				SET @TGMuonD=0
-			END
+												SET @RowCount = @RowCount + 1
+											END
 
-		IF(@TGSomN+@TGSomD<=@NguongVeSom AND (@TGLamN+@TGLamD)>0)
-			BEGIN
-				SET @TGLamN = @TGLamN + @TGSomN
-				SET @TGLamD = @TGLamD + @TGSomD
-				SET @TGSomN=0
-				SET @TGSomD=0
-			END
+										SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3)
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
 
-		IF(@TGQuaNTC+@TGQuaDTC<=@NguongLamThemTC)
-			BEGIN
-				SET @TGQuaNTC=0
-				SET @TGQuaDTC=0
-			END
+										SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
 
-		IF(@TGQuaN+@TGQuaD<=@NguongLamThem)
-			BEGIN
-				SET @TGQuaN=0
-				SET @TGQuaD=0
-			END
+										IF(@TGDen<@TGBatDauLTTC)
+											BEGIN
+												SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
+																				+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
+
+												SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC) 
+																				+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
+											END
+
+										------------di muon, ve som, lam them cuoi cung-----------------
+										SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
+										SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
+
+										IF(@TGMuonN+@TGMuonD<=@NguongDiMuon)
+											BEGIN
+												SET @TGMuonN=0
+												SET @TGMuonD=0
+											END
+									END
+								ELSE IF @LoaiNghi = 3 --DKNLoai = 3  DK nghi nua ca sau
+    								BEGIN
+										WHILE @RowCount <= @NumberRecords
+											BEGIN
+												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+												FROM #tblDangkynghitheogioTam 
+												WHERE RowID = @RowCount
+
+												SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+												SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+												------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+												SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
+
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+												SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
+
+												SET @RowCount = @RowCount + 1
+											END
+
+										SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa)
+
+										SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa)
+
+										IF(@TGDen<@TGBatDauLTTC)
+											BEGIN
+												SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
+																				+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
+
+												SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC) 
+																				+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
+											END
+
+										
+										------------di muon, ve som, lam them cuoi cung-----------------
+										SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
+										SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
+
+										IF(@TGMuonN+@TGMuonD<=@NguongDiMuon)
+											BEGIN
+												SET @TGMuonN=0
+												SET @TGMuonD=0
+											END
+									END
+								ELSE -- khong nghi
+									BEGIN
+										WHILE @RowCount <= @NumberRecords
+											BEGIN
+												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+												FROM #tblDangkynghitheogioTam 
+												WHERE RowID = @RowCount
+
+												SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+												SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+												------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+												SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
+
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+												SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
+
+												SET @RowCount = @RowCount + 1
+											END
+
+										SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
+
+										SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
+
+										IF(@TGDen<@TGBatDauLTTC)
+											BEGIN
+												SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
+																				+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
+
+												SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC) 
+																				+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGLayDLDau, @TGBatDauLTTC, @TGDen, @TGBatDauLTTC)
+											END
+
+										
+										------------di muon, ve som, lam them cuoi cung-----------------
+										SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
+										SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
+
+										IF(@TGMuonN+@TGMuonD<=@NguongDiMuon)
+											BEGIN
+												SET @TGMuonN=0
+												SET @TGMuonD=0
+											END
+									END
+							END
+
+						-- Neu la thoi gian ra
+						ELSE IF (
+									@TGDen = '1900-01-01 00:00:00.000' AND @TGRa <> '1900-01-01 00:00:00.000'
+									AND @TGVao = '1900-01-01 00:00:00.000' AND @TGVe = '1900-01-01 00:00:00.000'
+								)
+							BEGIN
+								WHILE @RowCount <= @NumberRecords
+									BEGIN
+										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+										FROM #tblDangkynghitheogioTam 
+										WHERE RowID = @RowCount
+
+										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+										-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
+										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGRa, @TGBDNghi2) 
+															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGRa, @TGBDNghi2)
+										SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
+
+										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGRa, @TGBDNghi2) 
+															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGRa, @TGBDNghi2)
+										SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
+
+										SET @RowCount = @RowCount + 1
+									END
+
+								SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGRa, @TGBDNghi2, @TGBDCa, @TGBDNghi1) 
+														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGRa, @TGBDNghi2, @TGBDCa, @TGBDNghi1)
+														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGRa, @TGBDNghi2, @TGKTNghi1, @TGBDNghi2) 
+														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGRa, @TGBDNghi2, @TGKTNghi1, @TGBDNghi2)
+
+								SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGRa, @TGBDNghi2, @TGBDCa, @TGBDNghi1) 
+														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGRa, @TGBDNghi2, @TGBDCa, @TGBDNghi1)
+														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGRa, @TGBDNghi2, @TGKTNghi1, @TGBDNghi2) 
+														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGRa, @TGBDNghi2, @TGKTNghi1, @TGBDNghi2)
+					
+								------------di muon, ve som, lam them cuoi cung-----------------
+								SET @TGSomN=@TGSomN-@DKNTGVeSomN
+								SET @TGSomD=@TGSomD-@DKNTGVeSomD
+
+								IF(@TGSomN+@TGSomD<=@NguongVeSom)
+									BEGIN
+										SET @TGSomN=0
+										SET @TGSomD=0
+									END
+							END
+
+						-- Neu la thoi gian vao
+						ELSE IF (
+									@TGDen = '1900-01-01 00:00:00.000' AND @TGRa = '1900-01-01 00:00:00.000'
+									AND @TGVao <> '1900-01-01 00:00:00.000' AND @TGVe = '1900-01-01 00:00:00.000'
+								)
+							BEGIN
+								WHILE @RowCount <= @NumberRecords
+									BEGIN
+										SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+										FROM #tblDangkynghitheogioTam 
+										WHERE RowID = @RowCount
+
+										SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+										SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+										------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
+										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi2, @TGVao) 
+															+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi2, @TGVao)
+										SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
+
+										SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi2, @TGVao) 
+															+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi2, @TGVao)
+										SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
+
+										SET @RowCount = @RowCount + 1
+									END
+
+								SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGKTnghi2, @TGVao, @TGKTnghi2, @TGBDnghi3) 
+														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGKTnghi2, @TGVao, @TGKTnghi2, @TGBDnghi3) 
+														+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGKTnghi2, @TGVao, @TGKTNghi3, @TGKTCa) 
+														+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGKTnghi2, @TGVao, @TGKTNghi3, @TGKTCa)
+
+								SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGKTnghi2, @TGVao, @TGKTnghi2, @TGBDnghi3) 
+														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGKTnghi2, @TGVao, @TGKTnghi2, @TGBDnghi3) 
+														+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGKTnghi2, @TGVao, @TGKTNghi3, @TGKTCa) 
+														+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGKTnghi2, @TGVao, @TGKTNghi3, @TGKTCa)
+
+								------------di muon, ve som, lam them cuoi cung-----------------
+								SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
+								SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
+
+								IF(@TGMuonN+@TGMuonD<=@NguongDiMuon)
+									BEGIN
+										SET @TGMuonN=0
+										SET @TGMuonD=0
+									END
+							END
+
+						-- Neu la thoi gian ve
+						ELSE IF (
+									@TGDen = '1900-01-01 00:00:00.000' AND @TGRa = '1900-01-01 00:00:00.000'
+									AND @TGVao = '1900-01-01 00:00:00.000' AND @TGVe <> '1900-01-01 00:00:00.000'
+								)
+							BEGIN
+								IF @LoaiNghi = 2 --DKNLoai = 2  DK nghi nua ca dau
+									BEGIN
+										WHILE @RowCount <= @NumberRecords
+											BEGIN
+												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+												FROM #tblDangkynghitheogioTam 
+												WHERE RowID = @RowCount
+
+												SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+												SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+												-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+												SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
+
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+												SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
+
+												SET @RowCount = @RowCount + 1
+											END
+
+										SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3)
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
+
+										SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3)
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
+					
+
+										IF(@TGVe>@TGBatDauLT)
+											BEGIN
+												SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+
+												SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+											END
+
+										
+										------------di muon, ve som, lam them cuoi cung-----------------
+										SET @TGSomN=@TGSomN-@DKNTGVeSomN
+										SET @TGSomD=@TGSomD-@DKNTGVeSomD
+
+										IF(@TGSomN+@TGSomD<=@NguongVeSom)
+											BEGIN
+												SET @TGSomN=0
+												SET @TGSomD=0
+											END
+									END
+								ELSE IF @LoaiNghi = 3 --DKNLoai = 3  DK nghi nua ca sau
+    								BEGIN
+										WHILE @RowCount <= @NumberRecords
+											BEGIN
+												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+												FROM #tblDangkynghitheogioTam 
+												WHERE RowID = @RowCount
+
+												SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+												SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+												-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+												SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
+
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+												SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
+
+												SET @RowCount = @RowCount + 1
+											END
+
+										SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS)
+
+										SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS)
+					
+
+										IF(@TGVe>@TGBatDauLT)
+											BEGIN
+												SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+
+												SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+											END
+
+										------------di muon, ve som, lam them cuoi cung-----------------
+										SET @TGSomN=@TGSomN-@DKNTGVeSomN
+										SET @TGSomD=@TGSomD-@DKNTGVeSomD
+
+										IF(@TGSomN+@TGSomD<=@NguongVeSom)
+											BEGIN
+												SET @TGSomN=0
+												SET @TGSomD=0
+											END
+									END
+								ELSE -- khong nghi
+									BEGIN
+										WHILE @RowCount <= @NumberRecords
+											BEGIN
+												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+												FROM #tblDangkynghitheogioTam 
+												WHERE RowID = @RowCount
+
+												SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+												SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+												-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+												SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
+
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+												SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
+
+												SET @RowCount = @RowCount + 1
+											END
+
+										SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
+
+										SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
+					
+
+										IF(@TGVe>@TGBatDauLT)
+											BEGIN
+												SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+
+												SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+											END
+
+										
+										------------di muon, ve som, lam them cuoi cung-----------------
+										SET @TGSomN=@TGSomN-@DKNTGVeSomN
+										SET @TGSomD=@TGSomD-@DKNTGVeSomD
+
+										IF(@TGSomN+@TGSomD<=@NguongVeSom)
+											BEGIN
+												SET @TGSomN=0
+												SET @TGSomD=0
+											END
+									END
+							END
+
+						-- Neu lon hon 2 du lieu (tat ca cap vao ra)
+						ELSE
+							BEGIN
+								IF(@LoaiNghi=0)
+									BEGIN
+										IF(@NumberRecords>=1)
+											BEGIN
+												WHILE @RowCount <= @NumberRecords
+													BEGIN
+														SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+														FROM #tblDangkynghitheogioTam 
+														WHERE RowID = @RowCount
+
+														SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+														SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+												
+														IF(@TGBDCa BETWEEN @DKNTGTugio AND @DKNTGDengio)
+															BEGIN
+																SET @TGBDCa_Loc = @DKNTGDengio
+															END
+
+														IF(@TGBDNghi2 BETWEEN @DKNTGTugio AND @DKNTGDengio)
+															BEGIN
+																SET @TGBDNCa_Loc = @DKNTGTugio
+															END
+
+														IF(@TGKTNghi2 BETWEEN @DKNTGTugio AND @DKNTGDengio)
+															BEGIN
+																SET @TGKTNCa_Loc = @DKNTGDengio
+															END
+
+														IF(@TGKTCa BETWEEN @DKNTGTugio AND @DKNTGDengio)
+															BEGIN
+																SET @TGKTCa_Loc = @DKNTGTugio
+															END
+
+														SET @RowCount = @RowCount + 1
+													END
+											END
+										ELSE
+											BEGIN
+												SET @TGBDCa_Loc = @TGBDTinhDM
+												SET @TGBDNCa_Loc = @TGBDNghi2
+												SET @TGKTNCa_Loc = @TGKTNghi2
+												SET @TGKTCa_Loc = @TGBDTinhVS
+											END
+
+										-------------------------------------
+										IF(@TGDen='1900-01-01 00:00:00.000')
+											BEGIN
+												IF(@TGRa='1900-01-01 00:00:00.000')
+													BEGIN
+														SET @TGDen_Temp=@TGBDNCa_Loc
+													END
+												ELSE IF(@TGRa<@TGBDNCa_Loc AND @TGRa<>'1900-01-01 00:00:00.000')
+													BEGIN
+														SET @TGDen_Temp=@TGRa
+													END
+												ELSE
+													BEGIN
+														SET @TGDen_Temp=@TGBDNCa_Loc
+													END
+											END
+										ELSE
+											BEGIN
+												SET @TGDen_Temp=@TGDen
+											END
+
+										IF(@TGRa='1900-01-01 00:00:00.000')
+											BEGIN
+												IF(@TGDen='1900-01-01 00:00:00.000')
+													BEGIN
+														SET @TGRa_Temp=@TGBDNCa_Loc
+													END
+												ELSE IF(@TGDen>@TGBDCa_Loc)
+													BEGIN
+														SET @TGRa_Temp=@TGDen
+													END
+												ELSE
+													BEGIN
+														SET @TGRa_Temp=@TGBDCa_Loc
+													END
+											END
+										ELSE
+											BEGIN
+												SET @TGRa_Temp=@TGRa
+											END
+
+										IF(@TGVao='1900-01-01 00:00:00.000')
+											BEGIN
+												IF(@TGVe='1900-01-01 00:00:00.000')
+													BEGIN
+														SET @TGVao_Temp=@TGKTNCa_Loc
+													END
+												ELSE IF(@TGVe<@TGKTCa_Loc AND @TGVe<>'1900-01-01 00:00:00.000')
+													BEGIN
+														SET @TGVao_Temp=@TGVe
+													END
+												ELSE
+													BEGIN
+														SET @TGVao_Temp=@TGKTCa_Loc
+													END
+											END
+										ELSE
+											BEGIN
+												SET @TGVao_Temp=@TGVao
+											END
+
+										IF(@TGVe='1900-01-01 00:00:00.000')
+											BEGIN
+												IF(@TGVao='1900-01-01 00:00:00.000')
+													BEGIN
+														SET @TGVe_Temp=@TGKTNCa_Loc
+													END
+												ELSE IF(@TGVao>@TGKTNCa_Loc)
+													BEGIN
+														SET @TGVe_Temp=@TGVao
+													END
+												ELSE
+													BEGIN
+														SET @TGVe_Temp=@TGKTNCa_Loc
+													END
+											END
+										ELSE
+											BEGIN
+												SET @TGVe_Temp=@TGVe
+											END
+
+										----------------------------------------
+
+										WHILE @RowCount <= @NumberRecords
+											BEGIN
+												SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+												FROM #tblDangkynghitheogioTam 
+												WHERE RowID = @RowCount
+
+												SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+												SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+												-----------------------------------------------------------TG lam giao dk nghi--------------------------------------------------------------
+												SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
+																	+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGBDNghi2) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGBDNghi2) 
+																	+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTnghi2, @TGBDnghi3) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTnghi2, @TGBDnghi3) 
+																	+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa)
+
+																	+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
+																	+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
+												SET @DKNTGLamN = @DKNTGLamN + @DKNTGLamTam
+
+												SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
+																	+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGBDNghi2) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGBDNghi2) 
+																	+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTnghi2, @TGBDnghi3) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTnghi2, @TGBDnghi3) 
+																	+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa)
+
+																	+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
+																	+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
+												SET @DKNTGLamD = @DKNTGLamD + @DKNTGLamTam
+												-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe_Temp, @TGBDTinhVS) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe_Temp, @TGBDTinhVS)
+																	+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGRa_Temp, @TGBDNghi2) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGRa_Temp, @TGBDNghi2)
+												SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
+
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe_Temp, @TGBDTinhVS) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe_Temp, @TGBDTinhVS)
+																	+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGRa_Temp, @TGBDNghi2) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGRa_Temp, @TGBDNghi2)
+												SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
+
+												------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen_Temp) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen_Temp)
+																	+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi2, @TGVao_Temp) 
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi2, @TGVao_Temp)
+												SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
+
+												SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen_Temp) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen_Temp)
+																	+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi2, @TGVao_Temp) 
+																	+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi2, @TGVao_Temp)
+												SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
+
+												SET @RowCount = @RowCount + 1
+											END
+										---------------------------------------------------------thoi gian den - ra-------------------------------------------
+										SET @TGLamN = @TGLamN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen_Temp, @TGRa_Temp, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen_Temp, @TGRa_Temp, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen_Temp, @TGRa_Temp, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen_Temp, @TGRa_Temp, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen_Temp, @TGRa_Temp, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen_Temp, @TGRa_Temp, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen_Temp, @TGRa_Temp, @TGKTNghi3, @TGKTCa) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen_Temp, @TGRa_Temp, @TGKTNghi3, @TGKTCa)
+
+										SET @TGLamD = @TGLamD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen_Temp, @TGRa_Temp, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen_Temp, @TGRa_Temp, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen_Temp, @TGRa_Temp, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen_Temp, @TGRa_Temp, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen_Temp, @TGRa_Temp, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen_Temp, @TGRa_Temp, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen_Temp, @TGRa_Temp, @TGKTNghi3, @TGKTCa) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen_Temp, @TGRa_Temp, @TGKTNghi3, @TGKTCa)
+
+										SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen_Temp, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen_Temp, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen_Temp, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen_Temp, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen_Temp, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen_Temp, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen_Temp, @TGKTNghi3, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen_Temp, @TGKTNghi3, @TGBDTinhVS)
+
+										SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen_Temp, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen_Temp, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen_Temp, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen_Temp, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen_Temp, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen_Temp, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen_Temp, @TGKTNghi3, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen_Temp, @TGKTNghi3, @TGBDTinhVS)
+
+										SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGRa_Temp, @TGBDNghi2, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGRa_Temp, @TGBDNghi2, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGRa_Temp, @TGBDNghi2, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGRa_Temp, @TGBDNghi2, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGRa_Temp, @TGBDNghi2, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGRa_Temp, @TGBDNghi2, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGRa_Temp, @TGBDNghi2, @TGKTNghi3, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGRa_Temp, @TGBDNghi2, @TGKTNghi3, @TGBDTinhVS)
+
+										SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGRa_Temp, @TGBDNghi2, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGRa_Temp, @TGBDNghi2, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGRa_Temp, @TGBDNghi2, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGRa_Temp, @TGBDNghi2, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGRa_Temp, @TGBDNghi2, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGRa_Temp, @TGBDNghi2, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGRa_Temp, @TGBDNghi2, @TGKTNghi3, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGRa_Temp, @TGBDNghi2, @TGKTNghi3, @TGBDTinhVS)
+										---------------------------------------------------------------------------------------------------------------------------
+
+										---------------------------------------------------------thoi gian vao - ve-------------------------------------------
+										SET @TGLamN = @TGLamN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVao_Temp, @TGVe_Temp, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVao_Temp, @TGVe_Temp, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVao_Temp, @TGVe_Temp, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVao_Temp, @TGVe_Temp, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVao_Temp, @TGVe_Temp, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVao_Temp, @TGVe_Temp, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVao_Temp, @TGVe_Temp, @TGKTNghi3, @TGKTCa) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVao_Temp, @TGVe_Temp, @TGKTNghi3, @TGKTCa)
+
+										SET @TGLamD = @TGLamD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVao_Temp, @TGVe_Temp, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVao_Temp, @TGVe_Temp, @TGBDCa, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVao_Temp, @TGVe_Temp, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVao_Temp, @TGVe_Temp, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVao_Temp, @TGVe_Temp, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVao_Temp, @TGVe_Temp, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVao_Temp, @TGVe_Temp, @TGKTNghi3, @TGKTCa) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVao_Temp, @TGVe_Temp, @TGKTNghi3, @TGKTCa)
+
+										SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGKTnghi2, @TGVao_Temp, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGKTnghi2, @TGVao_Temp, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGKTnghi2, @TGVao_Temp, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGKTnghi2, @TGVao_Temp, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGKTnghi2, @TGVao_Temp, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGKTnghi2, @TGVao_Temp, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGKTnghi2, @TGVao_Temp, @TGKTNghi3, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGKTnghi2, @TGVao_Temp, @TGKTNghi3, @TGBDTinhVS)
+
+										SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGKTnghi2, @TGVao_Temp, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGKTnghi2, @TGVao_Temp, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGKTnghi2, @TGVao_Temp, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGKTnghi2, @TGVao_Temp, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGKTnghi2, @TGVao_Temp, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGKTnghi2, @TGVao_Temp, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGKTnghi2, @TGVao_Temp, @TGKTNghi3, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGKTnghi2, @TGVao_Temp, @TGKTNghi3, @TGBDTinhVS)
+
+										SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe_Temp, @TGBDTinhVS, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe_Temp, @TGBDTinhVS, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe_Temp, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe_Temp, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe_Temp, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe_Temp, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe_Temp, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe_Temp, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
+
+										SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe_Temp, @TGBDTinhVS, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe_Temp, @TGBDTinhVS, @TGBDTinhDM, @TGBDNghi1) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe_Temp, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe_Temp, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe_Temp, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe_Temp, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
+																+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe_Temp, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
+																+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe_Temp, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
+										---------------------------------------------------------------------------------------------------------------------------
+					
+
+										SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen_Temp, @TGVe_Temp, @TGBatDauLT, @TGLayDLCuoi)
+																	+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen_Temp, @TGVe_Temp, @TGBatDauLT, @TGLayDLCuoi)
+										SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen_Temp, @TGVe_Temp, @TGBatDauLT, @TGLayDLCuoi) 
+	                
+										SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen_Temp, @TGVe_Temp, @TGLayDLDau, @TGBatDauLTTC)
+																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen_Temp, @TGVe_Temp, @TGLayDLDau, @TGBatDauLTTC)
+										SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen_Temp, @TGVe_Temp, @TGLayDLDau, @TGBatDauLTTC) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen_Temp, @TGVe_Temp, @TGLayDLDau, @TGBatDauLTTC)
+
+										
+										------------di muon, ve som, lam them cuoi cung-----------------
+										SET @TGLamN=@TGLamN-@DKNTGLamN+@DKNTGVeSomN+@DKNTGDiMuonN
+										SET @TGLamD=@TGLamD-@DKNTGLamD+@DKNTGVeSomD+@DKNTGDiMuonD
+
+										SET @TGSomN=@TGSomN-@DKNTGVeSomN
+										SET @TGSomD=@TGSomD-@DKNTGVeSomD
+
+										SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
+										SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
+									END
+								ELSE
+									BEGIN
+										IF @LoaiNghi = 2 --DKNLoai = 2  DK nghi nua ca dau
+											BEGIN
+												WHILE @RowCount <= @NumberRecords
+													BEGIN
+														SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+														FROM #tblDangkynghitheogioTam 
+														WHERE RowID = @RowCount
+
+														SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+														SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+														-----------------------------------------------------------TG lam giao dk nghi--------------------------------------------------------------
+														SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDnghi3) 
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDnghi3)
+																			+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa) 
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa)
+
+																			+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
+														SET @DKNTGLamN = @DKNTGLamN + @DKNTGLamTam
+
+														SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDnghi3) 
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDnghi3)
+																			+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa) 
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa)
+
+																			+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
+														SET @DKNTGLamD = @DKNTGLamD + @DKNTGLamTam
+														-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
+														SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+														SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
+
+														SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+														SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
+
+														------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
+														SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+														SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
+
+														SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+														SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
+
+														SET @RowCount = @RowCount + 1
+													END
+
+												SET @TGLamN = @TGLamN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBDCa, @TGBDNghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBDCa, @TGBDNghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGKTNghi3, @TGKTCa) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGKTNghi3, @TGKTCa)
+
+												SET @TGLamD = @TGLamD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGBDCa, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBDCa, @TGBDnghi3)
+																		+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGKTNghi3, @TGKTCa) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGKTNghi3, @TGKTCa)
+
+												SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3)
+																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
+
+												SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
+
+												SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3)
+																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
+
+												SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDnghi3)
+																		+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
+					
+
+												SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+												SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi) 
+	                
+												SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
+																				+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
+												SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC) 
+																				+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
+
+												
+												------------di muon, ve som, lam them cuoi cung-----------------
+												SET @TGLamN=@TGLamN-@DKNTGLamN+@DKNTGVeSomN+@DKNTGDiMuonN
+												SET @TGLamD=@TGLamD-@DKNTGLamD+@DKNTGVeSomD+@DKNTGDiMuonD
+
+												SET @TGSomN=@TGSomN-@DKNTGVeSomN
+												SET @TGSomD=@TGSomD-@DKNTGVeSomD
+
+												SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
+												SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
+											END
+										ELSE IF @LoaiNghi = 3 --DKNLoai = 2  DK nghi nua ca sau
+											BEGIN
+												WHILE @RowCount <= @NumberRecords
+													BEGIN
+														SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+														FROM #tblDangkynghitheogioTam 
+														WHERE RowID = @RowCount
+
+														SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+														SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+														-----------------------------------------------------------TG lam giao dk nghi--------------------------------------------------------------
+														SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
+																			+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGKTCa) 
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGKTCa)
+
+																			+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
+														SET @DKNTGLamN = @DKNTGLamN + @DKNTGLamTam
+
+														SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
+																			+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGKTCa) 
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGKTCa)
+
+																			+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
+														SET @DKNTGLamD = @DKNTGLamD + @DKNTGLamTam
+														-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
+														SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+														SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
+
+														SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+														SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
+
+														------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
+														SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+														SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
+
+														SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+														SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
+
+														SET @RowCount = @RowCount + 1
+													END
+
+												SET @TGLamN = @TGLamN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBDCa, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBDCa, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGKTNghi1, @TGKTCa) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGKTNghi1, @TGKTCa)
+
+												SET @TGLamD = @TGLamD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGBDCa, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBDCa, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGKTNghi1, @TGKTCa) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGKTNghi1, @TGKTCa)
+
+												SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa)
+
+												SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGKTCa)
+
+												SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS)
+
+												SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDTinhVS)
+					
+
+												SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+												SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi) 
+	                
+												SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
+																				+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
+												SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC) 
+																				+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
+
+												
+												------------di muon, ve som, lam them cuoi cung-----------------
+												SET @TGLamN=@TGLamN-@DKNTGLamN+@DKNTGVeSomN+@DKNTGDiMuonN
+												SET @TGLamD=@TGLamD-@DKNTGLamD+@DKNTGVeSomD+@DKNTGDiMuonD
+
+												SET @TGSomN=@TGSomN-@DKNTGVeSomN
+												SET @TGSomD=@TGSomD-@DKNTGVeSomD
+
+												SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
+												SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
+											END
+										ELSE -- khong nghi
+											BEGIN
+												WHILE @RowCount <= @NumberRecords
+													BEGIN
+														SELECT @DKNTGNgay=Ngay, @DKNTGGio=TGNghi, @DKNTGSophut=Sophut, @MaLyDoNghi=MaLyDo
+														FROM #tblDangkynghitheogioTam 
+														WHERE RowID = @RowCount
+
+														SET @DKNTGTugio=@DKNTGNgay + @DKNTGGio
+														SET @DKNTGDengio=DATEADD(minute,@DKNTGSophut,@DKNTGTugio)
+														-----------------------------------------------------------TG lam giao dk nghi--------------------------------------------------------------
+														SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
+																			+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGBDNghi2) 
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGBDNghi2) 
+																			+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTnghi2, @TGBDnghi3) 
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTnghi2, @TGBDnghi3) 
+																			+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa) 
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa)
+
+																			+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
+																			+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
+														SET @DKNTGLamN = @DKNTGLamN + @DKNTGLamTam
+
+														SET @DKNTGLamTam = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDCa, @TGBDNghi1) 
+																			+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGBDNghi2) 
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi1, @TGBDNghi2) 
+																			+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTnghi2, @TGBDnghi3) 
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTnghi2, @TGBDnghi3) 
+																			+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa) 
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTNghi3, @TGKTCa)
+
+																			+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGBDCa)
+																			+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGKTCa, @TGBDTinhVS)
+														SET @DKNTGLamD = @DKNTGLamD + @DKNTGLamTam
+														-----------------------------------------------------------Ve som giao dk nghi--------------------------------------------------------------
+														SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+														SET @DKNTGVeSomN = @DKNTGVeSomN + @DKNTGLamTam
+
+														SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS) 
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGVe, @TGBDTinhVS)
+														SET @DKNTGVeSomD = @DKNTGVeSomD + @DKNTGLamTam
+
+														------------------------------------------------------------Di muon giao dk nghi-------------------------------------------------------------
+														SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+														SET @DKNTGDiMuonN = @DKNTGDiMuonN + @DKNTGLamTam
+
+														SET @DKNTGLamTam  = dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen) 
+																			+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @DKNTGTugio, @DKNTGDengio, @TGBDTinhDM, @TGDen)
+														SET @DKNTGDiMuonD = @DKNTGDiMuonD + @DKNTGLamTam
+
+														SET @RowCount = @RowCount + 1
+													END
+
+												SET @TGLamN = @TGLamN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBDCa, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBDCa, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGKTNghi1, @TGBDNghi2) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGKTNghi1, @TGBDNghi2) 
+																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGKTnghi2, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGKTnghi2, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGKTNghi3, @TGKTCa) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGKTNghi3, @TGKTCa)
+
+												SET @TGLamD = @TGLamD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGBDCa, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBDCa, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGKTNghi1, @TGBDNghi2) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGKTNghi1, @TGBDNghi2) 
+																		+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGKTnghi2, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGKTnghi2, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGKTNghi3, @TGKTCa) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGKTNghi3, @TGKTCa)
+
+												SET @TGMuonN = @TGMuonN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
+																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
+
+												SET @TGMuonD = @TGMuonD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGBDTinhDM, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi1, @TGBDNghi2) 
+																		+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTnghi2, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDTinhDM, @TGDen, @TGKTNghi3, @TGKTCa)
+
+												SET @TGSomN = @TGSomN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
+																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
+																		+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
+
+												SET @TGSomD = @TGSomD + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGBDCa, @TGBDNghi1) 
+																		+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi1, @TGBDNghi2) 
+																		+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTnghi2, @TGBDnghi3) 
+																		+ dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS) 
+																		+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGVe, @TGBDTinhVS, @TGKTNghi3, @TGBDTinhVS)
+					
+
+												SET    @TGQuaN = @TGQuaN + dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+																			+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi)
+												SET    @TGQuaD = @TGQuaD + dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGBatDauLT, @TGLayDLCuoi) 
+	                
+												SET    @TGQuaNTC = @TGQuaNTC + dbo.InterSectionTime3(@ThresholdDay1, @ThresholdNight1, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
+																				+ dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
+												SET    @TGQuaDTC = @TGQuaDTC + dbo.InterSectionTime3(@ThresholdNight1, @ThresholdDay2, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC) 
+																				+ dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGDen, @TGVe, @TGLayDLDau, @TGBatDauLTTC)
+												
+												------------di muon, ve som, lam them cuoi cung-----------------
+												SET @TGLamN=@TGLamN-@DKNTGLamN+@DKNTGVeSomN+@DKNTGDiMuonN
+												SET @TGLamD=@TGLamD-@DKNTGLamD+@DKNTGVeSomD+@DKNTGDiMuonD
+
+												SET @TGSomN=@TGSomN-@DKNTGVeSomN
+												SET @TGSomD=@TGSomD-@DKNTGVeSomD
+
+												SET @TGMuonN=@TGMuonN-@DKNTGDiMuonN
+												SET @TGMuonD=@TGMuonD-@DKNTGDiMuonD
+											END
+									END
+							END
+					END
+
+				DROP TABLE #tblDangkynghitheogioTam
+			----------------------------------------------cac dieu kien chon rieng--------------------------------------------------
+				IF(ISNULL(@CongNghiGiuaCa,0)=1 AND (@TGLamN+@TGLamD)>0)
+					BEGIN
+						SET @TGNghiTruaN = dbo.InterSectionTime3(@ThresholdDay2, @ThresholdNight2, @TGBDNghi2, @TGKTNghi2, @TGBDNghi2, @TGKTNghi2) 
+											+ dbo.InterSectionTime3(@ThresholdDay3, @ThresholdNight3, @TGBDNghi2, @TGKTNghi2, @TGBDNghi2, @TGKTNghi2)
+
+						SET @TGNghiTruaD = dbo.InterSectionTime3(@ThresholdNight2, @ThresholdDay3, @TGBDNghi2, @TGKTNghi2, @TGBDNghi2, @TGKTNghi2)
+
+						SET @TGLamN = @TGLamN + @TGNghiTruaN
+						SET @TGLamD = @TGLamD + @TGNghiTruaD
+					END
+
+				IF(@TGMuonN+@TGMuonD<=@NguongDiMuon AND (@TGLamN+@TGLamD)>0)
+					BEGIN
+						SET @TGLamN = @TGLamN + @TGMuonN
+						SET @TGLamD = @TGLamD + @TGMuonD
+						SET @TGMuonN=0
+						SET @TGMuonD=0
+					END
+
+				IF(@TGSomN+@TGSomD<=@NguongVeSom AND (@TGLamN+@TGLamD)>0)
+					BEGIN
+						SET @TGLamN = @TGLamN + @TGSomN
+						SET @TGLamD = @TGLamD + @TGSomD
+						SET @TGSomN=0
+						SET @TGSomD=0
+					END
+
+				IF(@TGQuaNTC+@TGQuaDTC<=@NguongLamThemTC)
+					BEGIN
+						SET @TGQuaNTC=0
+						SET @TGQuaDTC=0
+					END
+
+				IF(@TGQuaN+@TGQuaD<=@NguongLamThem)
+					BEGIN
+						SET @TGQuaN=0
+						SET @TGQuaD=0
+					END
 	--------------------------------------------------------------------------------------------------------------------------------------------
 		
-		SET @TGThemN = @TGQuaNTC + @TGQuaN
-		SET @TGThemD = @TGQuaDTC + @TGQuaD
+				SET @TGThemN = @TGQuaNTC + @TGQuaN
+				SET @TGThemD = @TGQuaDTC + @TGQuaD
 
-		--SET @TGLamN = Round(@TGLamN / @DonViChamCong,0) * @DonViChamCong
-		--SET @TGLamD = Round(@TGLamD / @DonViChamCong,0) * @DonViChamCong
-		SET @TGLamN = ceiling(Round(@TGLamN / CONVERT(FLOAT,@DonViChamCong),1)) * @DonViChamCong
-		SET @TGLamD = ceiling(Round(@TGLamD / CONVERT(FLOAT,@DonViChamCong),1)) * @DonViChamCong
+				--SET @TGLamN = Round(@TGLamN / @DonViChamCong,0) * @DonViChamCong
+				--SET @TGLamD = Round(@TGLamD / @DonViChamCong,0) * @DonViChamCong
+				SET @TGLamN = ceiling(Round(@TGLamN / CONVERT(FLOAT,@DonViChamCong),1)) * @DonViChamCong
+				SET @TGLamD = ceiling(Round(@TGLamD / CONVERT(FLOAT,@DonViChamCong),1)) * @DonViChamCong
 
-		--SET @TGThemN = Round(@TGThemN / @DonViLamThem,0) * @DonViLamThem
-		--SET @TGThemD = Round(@TGThemD / @DonViLamThem,0) * @DonViLamThem
-		SET @TGThemN = ceiling(Round(@TGThemN / CONVERT(FLOAT,@DonViLamThem),1)) * @DonViLamThem
-		SET @TGThemD = ceiling(Round(@TGThemD / CONVERT(FLOAT,@DonViLamThem),1)) * @DonViLamThem
-
-		--SET @OTTrongNTC = Round(@OTTrongNTC / @DonViLamThem,0) * @DonViLamThem
-		--SET @OTTrongDTC = Round(@OTTrongDTC / @DonViLamThem,0) * @DonViLamThem
-		SET @TGOTTrongCaNTC = ceiling(Round(@TGOTTrongCaNTC / CONVERT(FLOAT,@DonViLamThem),1)) * @DonViLamThem
-		SET @TGOTTrongCaDTC = ceiling(Round(@TGOTTrongCaDTC / CONVERT(FLOAT,@DonViLamThem),1)) * @DonViLamThem
-
-		--SET @OTTrongNSC = Round(@OTTrongNSC / @DonViLamThem,0) * @DonViLamThem
-		--SET @OTTrongDSC = Round(@OTTrongDSC / @DonViLamThem,0) * @DonViLamThem
-		SET @TGOTTrongCaN = ceiling(Round(@TGOTTrongCaN / CONVERT(FLOAT,@DonViLamThem),1)) * @DonViLamThem
-		SET @TGOTTrongCaD = ceiling(Round(@TGOTTrongCaD / CONVERT(FLOAT,@DonViLamThem),1)) * @DonViLamThem
+				--SET @TGThemN = Round(@TGThemN / @DonViLamThem,0) * @DonViLamThem
+				--SET @TGThemD = Round(@TGThemD / @DonViLamThem,0) * @DonViLamThem
+				SET @TGThemN = ceiling(Round(@TGThemN / CONVERT(FLOAT,@DonViLamThem),1)) * @DonViLamThem
+				SET @TGThemD = ceiling(Round(@TGThemD / CONVERT(FLOAT,@DonViLamThem),1)) * @DonViLamThem
+			END
 --------------------------------------------------------------------------------------------------------------------------------------------
 
 		EndThisSub:
@@ -3654,18 +2817,14 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 			,BCCuaVao=@CuaVao 
 			,BCTGLamNgay=@TGLamN
 			,BCTGLamToi=@TGLamD
-			,OTTrongNTC=@TGOTTrongCaNTC
-			,OTTrongDTC=@TGOTTrongCaDTC
-			,OTTrongNSC=@TGOTTrongCaN
-			,OTTrongDSC=@TGOTTrongCaD
 			,BCTGQuaGioNgay=@TGQuaN
 			,BCTGQuaGioToi=@TGQuaD
 			,BCTGQuaGioNgayTC=@TGQuaNTC
 			,BCTGQuaGioToiTC=@TGQuaDTC
 			,BCTGThemNgay=@TGThemN
 			,BCTGThemToi=@TGThemD
-			,BCTGThemNgayTamTinh=@TGThemN
-			,BCTGThemToiTamTinh=@TGThemD
+			--,BCTGThemNgayTamTinh=@TGThemN
+			--,BCTGThemToiTamTinh=@TGThemD
 			,BCTGDiMuonNgay=@TGMuonN
 			,BCTGDiMuonToi=@TGMuonD
 			,BCTGVeSomNgay=@TGSomN
@@ -3679,20 +2838,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 			,BCMaCa=@Maca
 			,BCTGUuDaiN=@TGUuDaiN
 			,BCTGUuDaiD=@TGUuDaiD
-		WHERE BCMaNV=@StaffID AND BCNgay=@D;
-
-		-- Return the HRM-compatible report row.  Keep this as a separate
-		-- statement so the UPDATE terminator cannot be parsed as part of
-		-- the SELECT when the procedure is generated/deployed.
-		SELECT [BCNgay],[BCMaNV],[BCMaBP],[BCMaCV],[BCMaCa],[BCCuaDen],[BCTGDen],[BCCuaVe],[BCTGVe],[BCCuaRa],[BCTGRa],[BCCuaVao],[BCTGVao],[BCTGLamNgay],[BCTGLamToi],[BCTGQuaGioNgay],[BCTGQuaGioToi],[BCTGQuaGioNgayTC],[BCTGQuaGioToiTC],[BCTGThemNgay],[BCTGThemToi],[BCTGRaNgoaiNgay],[BCTGRaNgoaiToi],[BCTGDiMuonNgay],[BCTGDiMuonToi],[BCTGVeSomNgay],[BCTGVeSomToi],[BCTGQuyDinh],[BCGhiChu],[BCLoai],[BCLoaiLamThem],[BCTinhLamThem],[BCNghiBuChoNgay],[BCNghiPhep],[BCNghiH100],[BCNghiH70],[BCNghiKL],[BCNghiBH100],[BCNghiBH70],[BCNghiCongTac],[BCNghiBu],[BCNghiKhac],[BCLoaiNgayNghi],[BCLydonghi],[BCTGNghi],[BCTGDKNTheogio],[BCLoaiDKN],[BCDangKyLTN],[BCDangKyLTD],[BCTGUuDaiN],[BCTGUuDaiD],[BCNgayLe],[BCNgayLeNV],[BCDaXacNhanLamThem],[DLocked]
-		FROM #tblBaoCao
-		WHERE BCMaNV=@StaffID AND BCNgay=@D;
-
+			--,BCDaXacNhanLamThem=1
+		WHERE (BCMaNV=@StaffID  AND (BCNgay= @D))
 END
-
-GO
-/*
-  Single entry point for HRM-compatible attendance calculation.
-  It also synchronizes ActualHours for approved OT rows in the same calculation run.
-  OT has no separate sync/reconciliation command.
-*/
+
