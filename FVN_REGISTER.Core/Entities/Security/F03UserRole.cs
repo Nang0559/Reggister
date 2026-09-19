@@ -12,6 +12,6 @@ public sealed class F03UserRole
     public int CreatedBy { get; set; }
     public DateTime? ModifiedAt { get; set; }
     public int? ModifiedBy { get; set; }
-    public virtual F03User User { get; set; } = null!;
-    public virtual F03Role Role { get; set; } = null!;
+    public  F03User User { get; set; } = null!;
+    public  F03Role Role { get; set; } = null!;
 }

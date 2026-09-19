@@ -1,4 +1,4 @@
-using FVN_REGISTER.Contract.Dtos.PublicInformation;
+
 using FVN_REGISTER.Contract.Utils;
 
 namespace FVN_REGISTER.Application.Interfaces.PublicInformation;

@@ -9,6 +9,6 @@ public sealed class F03RoleFunction
     public int IdFunction { get; set; }
     public DateTime CreatedAt { get; set; }
     public int CreatedBy { get; set; }
-    public virtual F03Role Role { get; set; } = null!;
-    public virtual F03Function Function { get; set; } = null!;
+    public  F03Role Role { get; set; } = null!;
+    public  F03Function Function { get; set; } = null!;
 }

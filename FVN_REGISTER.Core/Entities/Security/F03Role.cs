@@ -19,6 +19,6 @@ public sealed class F03Role
     public int CreatedBy { get; set; }
     public DateTime? ModifiedAt { get; set; }
     public int? ModifiedBy { get; set; }
-    public virtual ICollection<F03RoleFunction> RoleFunctions { get; set; } = new List<F03RoleFunction>();
-    public virtual ICollection<F03UserRole> UserRoles { get; set; } = new List<F03UserRole>();
+    public  ICollection<F03RoleFunction> RoleFunctions { get; set; } = new List<F03RoleFunction>();
+    public  ICollection<F03UserRole> UserRoles { get; set; } = new List<F03UserRole>();
 }
