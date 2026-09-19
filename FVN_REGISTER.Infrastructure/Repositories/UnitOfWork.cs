@@ -73,6 +73,10 @@ namespace FVN_REGISTER.Infrastructure.Repositories
                 .ToListAsync(ct);
         }
 
+        public async Task<int> ExecuteSqlRawAsync(
+            string sql, CancellationToken ct = default, params object[] parameters)
+            => await _context.Database.ExecuteSqlRawAsync(sql, parameters, ct);
+
         public void SetCommandTimeout(int seconds)
             => _context.Database.SetCommandTimeout(seconds);
 
