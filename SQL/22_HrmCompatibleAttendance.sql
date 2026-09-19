@@ -767,8 +767,8 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 					SET @HrmFindShiftType=N'TTDD';
 
 				SET @ScheduleColumn=N'Ngay'+RIGHT(N'00'+CONVERT(varchar(2),DATEPART(weekday,@D)),2);
-				SET @SQL=N'SELECT @OutSchedule=ISNULL('+QUOTENAME(@ScheduleColumn)+N',N'''')
-					FROM HRM.dbo.CC_LichTrinhCa WHERE Ma=@ScheduleCode;';
+				SET @SQL=N'SELECT @OutSchedule=' + QUOTENAME(@ScheduleColumn)
+					+ N' FROM HRM.dbo.CC_LichTrinhCa WHERE Ma=@ScheduleCode;';
 
 				EXEC sys.sp_executesql
 					@SQL,
