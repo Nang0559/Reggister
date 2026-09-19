@@ -2,6 +2,7 @@
 using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using Microsoft.Extensions.Options;
 using FVN_REGISTER.Contract.Responses;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using Microsoft.Extensions.Logging;
@@ -34,36 +35,68 @@ namespace FVN_REGISTER.Application.Orchestrators
         }
 
         // ================= INIT (gọi ngay sau khi entity gốc đã có Id) =================
-        public async Task InitApprovalAsync(int requestId, ApprovalBuildContext ctx, CancellationToken ct)
+        public async Task<ServiceResult> InitApprovalAsync(
+            int requestId,
+            ApprovalBuildContext ctx,
+            CancellationToken ct)
         {
             try
             {
-                Logger.LogDebugIf(Debug, "[APPROVAL-WF] InitApproval start: {Type} RequestId={Id}",
-                    _provider.RequestType, requestId);
+                Logger.LogDebugIf(
+                    Debug,
+                    "[APPROVAL-WF] InitApproval start: {Type} RequestId={Id}",
+                    _provider.RequestType,
+                    requestId);
 
                 var subject = await _provider.GetSubjectAsync(requestId, ct);
                 if (subject == null)
                 {
-                    Logger.LogWarnIf(Debug, "[APPROVAL-WF] Subject not found: RequestId={Id}", requestId);
-                    throw new InvalidOperationException(
-                        $"Không tìm thấy subject cho RequestId={requestId} ({_provider.RequestType}).");
+                    var message =
+                        $"Không tìm thấy dữ liệu yêu cầu {requestId} ({_provider.RequestType}).";
+
+                    Logger.LogWarnIf(
+                        Debug,
+                        "[APPROVAL-WF] Subject not found: RequestId={Id}",
+                        requestId);
+
+                    return ServiceResult.Fail(message);
                 }
 
-                var snapshot = await _provider.BuildSnapshotAsync(subject, ctx, ct);
-                await _engine.InitializeStepsAsync(requestId, snapshot, ct);
+                var snapshotResult =
+                    await _provider.BuildSnapshotResultAsync(subject, ctx, ct);
 
-                Logger.LogInfoIf(Debug, "[APPROVAL-WF] Steps initialized: RequestId={Id}", requestId);
+                if (!snapshotResult.Success || snapshotResult.Data == null)
+                {
+                    Logger.LogWarnIf(
+                        Debug,
+                        "[APPROVAL-WF] Snapshot build failed: RequestId={Id}, Message={Message}",
+                        requestId,
+                        snapshotResult.Message);
+
+                    return ServiceResult.Fail(
+                        snapshotResult.Message ??
+                        $"Không thể khởi tạo luồng duyệt cho {_provider.RequestType}.");
+                }
+
+                await _engine.InitializeStepsAsync(
+                    requestId,
+                    snapshotResult.Data,
+                    ct);
+
+                Logger.LogInfoIf(
+                    Debug,
+                    "[APPROVAL-WF] Steps initialized: RequestId={Id}",
+                    requestId);
 
                 var nextStep = await _engine.GetNextStepAsync(requestId, ct);
                 if (nextStep != null)
                 {
                     var creatorName = subject.EmployeeName ?? subject.EmployeeCode;
 
-                    // Kênh 1: Email
                     if (!string.IsNullOrEmpty(nextStep.ApproverEmail))
                     {
                         await SafeNotifyAsync(() => _notification.NotifyNewRequestAsync(
-                            approverCode: nextStep.ApproverCode ?? "",   // SỬA: tham số mới bắt buộc
+                            approverCode: nextStep.ApproverCode ?? "",
                             approverEmail: nextStep.ApproverEmail!,
                             approverName: nextStep.ApproverName ?? nextStep.LevelLabel,
                             requestId: requestId,
@@ -73,8 +106,6 @@ namespace FVN_REGISTER.Application.Orchestrators
                             ct: ct));
                     }
 
-                    // Kênh 2: In-app + realtime — gọi RIÊNG NotifyApproverInAppAsync,
-                    // tự resolve ApproverCode -> UserId nội bộ qua IEmployeeUserResolver
                     if (!string.IsNullOrEmpty(nextStep.ApproverCode))
                     {
                         await SafeNotifyAsync(() => _notification.NotifyApproverInAppAsync(
@@ -86,11 +117,18 @@ namespace FVN_REGISTER.Application.Orchestrators
                             ct: ct));
                     }
                 }
+
+                return ServiceResult.Ok("Đã khởi tạo luồng phê duyệt.");
             }
             catch (Exception ex)
             {
-                Logger.LogError(ex, "[APPROVAL-WF] InitApproval error: RequestId={Id}", requestId);
-                throw;
+                Logger.LogError(
+                    ex,
+                    "[APPROVAL-WF] InitApproval error: RequestId={Id}",
+                    requestId);
+
+                return ServiceResult.Fail(
+                    $"Không thể khởi tạo luồng phê duyệt {_provider.RequestType}.");
             }
         }
 
