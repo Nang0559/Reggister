@@ -28,7 +28,7 @@ namespace FVN_REGISTER.Application.Orchestrators
     ///   2) IOTService                                     - đọc/ghi thực thể OTRequest
     ///   3) IOTQueryService                                - query tổng hợp phục vụ UI (balance, history...)
     ///   4) IApprovalWorkflowOrchestrator&lt;OTRequestSubject&gt; - khởi tạo luồng duyệt (InitApprovalAsync)
-    ///   5) IOTSyncService                                 - đồng bộ đơn đã duyệt sang HRM/chấm công
+    ///   5) HRM attendance synchronization                                 - đồng bộ đơn đã duyệt sang HRM/chấm công
     ///
     /// Approve/Reject/Pending-list KHÔNG nằm ở đây — dùng chung IApprovalWorkflowOrchestrator&lt;TSubject&gt;
     /// qua orchestrator/controller Approval riêng.
@@ -37,17 +37,10 @@ namespace FVN_REGISTER.Application.Orchestrators
     {
         private readonly IOTService _otService;
         private readonly IOTQueryService _query;
-        private readonly IOTValidator _validator;
-      
-        // SỬA: bỏ IOTSyncService — thay bằng service của domain Reconciliation riêng
-        private readonly IOTAttendanceReconciliationService _reconciliation;
-
-        public OTOrchestrator(
+        private readonly IOTValidator _validator;public OTOrchestrator(
             IOTService otService,
             IOTQueryService query,
             IOTValidator validator,
-            
-            IOTAttendanceReconciliationService reconciliation,
             ILogger<OTOrchestrator> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(logger, options)
@@ -55,9 +48,7 @@ namespace FVN_REGISTER.Application.Orchestrators
             _otService = otService;
             _query = query;
             _validator = validator;
-         
-            _reconciliation = reconciliation;
-        }
+}
 
         // ================= CREATE =================
         public async Task<ServiceResult<OTRequestDto>> CreateAsync(
@@ -242,36 +233,6 @@ namespace FVN_REGISTER.Application.Orchestrators
             catch (Exception ex)
             {
                 return InternalError<PaginationResult<OTSummaryDto>>(ex, "Lỗi hệ thống khi lấy danh sách đơn tăng ca.");
-            }
-        }
-
-        // ================= ATTENDANCE RECONCILIATION =================
-        // SỬA: thay hoàn toàn SyncApprovedAsync (IOTSyncService) bằng ReconcileActualHoursAsync
-        // (IOTAttendanceReconciliationService) — đây là COMMAND-WITH-RESULT, KHÔNG PHẢI QUERY:
-        // mỗi lần gọi sẽ UPDATE F03OTEmployee.ActualHours/ActualStartTime/ActualEndTime.
-        //
-        // ⚠️ Bên UI (OTAttendanceReconcilePage.razor) CHỈ được gọi hàm này khi Admin bấm nút
-        // "Đối chiếu ngay" — TUYỆT ĐỐI KHÔNG gọi trong OnInitializedAsync hay bất kỳ
-        // auto-refresh/timer nào. Orchestrator không tự chặn được việc này ở tầng service,
-        // trách nhiệm nằm ở tầng gọi (Controller/Blazor Page).
-        public async Task<ServiceResult<OTReconciliationResultDto>> ReconcileActualHoursAsync(
-            DateTime date, string? deptCode, CancellationToken ct = default)
-        {
-            try
-            {
-                Logger.LogDebugIf(Debug,
-                    "[ORCH][OT] Reconcile start: Date={Date} Dept={Dept}", date, deptCode ?? "ALL");
-
-                var result = await _reconciliation.ReconcileActualHoursAsync(date, deptCode, ct);
-
-                Logger.LogInfoIf(Debug,
-                    "[ORCH][OT] Reconcile completed: Date={Date} Dept={Dept}", date, deptCode ?? "ALL");
-
-                return ServiceResult<OTReconciliationResultDto>.Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return InternalError<OTReconciliationResultDto>(ex, "Lỗi hệ thống khi đối chiếu chấm công OT.");
             }
         }
     }
