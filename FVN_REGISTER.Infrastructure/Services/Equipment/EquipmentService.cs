@@ -115,7 +115,6 @@ public sealed class EquipmentService : IEquipmentService
         await EnsureScopeAsync(user, SecurityFunctionCodes.EquipmentRepair, user.EmployeeCode, asset.DeptCode, ct);
         return asset;
     }
-    private async Task ValidateSelectedApproverAsync(string? deptCode, string code, CancellationToken ct) { if (string.IsNullOrWhiteSpace(deptCode) || string.IsNullOrWhiteSpace(code)) throw new ArgumentException("Bộ phận và người phê duyệt là bắt buộc."); var ok = await _uow.Repository<F03Approver>().Query().AsNoTracking().AnyAsync(x => x.RequestType == RequestModule.Equipment && x.IsActive == true && x.ApproverCode == code && (x.ApproveForDeptCode == deptCode || x.ApproveForDeptCode == ApproveForDept.All), ct); if (!ok) throw new InvalidOperationException("Người phê duyệt không thuộc ma trận Equipment của bộ phận."); }
     private async Task EnsureScopeAsync(UserIdentityDto user, int functionCode, string? employeeCode, string? deptCode, CancellationToken ct)
     {
         if (!await _authorization.CanAccessAsync(user, functionCode, employeeCode, deptCode, ct))
