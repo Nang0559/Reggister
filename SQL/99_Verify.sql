@@ -39,7 +39,7 @@ IF OBJECT_ID(N'dbo.F03OTApprover',N'U') IS NOT NULL
     THROW 50025,'Legacy F03OTApprover table must not exist; use F03Approvers + approval workflow.',1;
 
 IF OBJECT_ID(N'dbo.F03AttendanceStaging',N'U') IS NULL
-    THROW 50026,'F03AttendanceStaging is required by the OT attendance pipeline.',1;
+    THROW 50026,'F03AttendanceStaging is required by the attendance projection layer.',1;
 
 IF COL_LENGTH(N'dbo.F03AttendanceStaging',N'ShiftCategory') IS NULL
     THROW 50027,'F03AttendanceStaging must expose ShiftCategory.',1;
