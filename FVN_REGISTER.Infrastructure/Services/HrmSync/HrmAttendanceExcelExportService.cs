@@ -36,7 +36,7 @@ public sealed class HrmAttendanceExcelExportService : IHrmAttendanceExcelExportS
             if (ot)
             {
                 var rows = await _uow.SqlQueryRawAsync<OtRow>(@"
-SELECT WorkDate,EmployeeCode,FullName,DeptCode,
+SELECT WorkDate,EmployeeCode,FullName,DeptCode,ShiftAbbr,
        OTRecognizedMinutesDay,OTRecognizedMinutesNight,
        OTMinutesDay,OTMinutesNight,HrmHoliday,HrmEmployeeHoliday
 FROM dbo.F03HrmAttendanceCalculated
@@ -173,16 +173,41 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
         return string.Empty;
     }
 
-    private static object GetOtValue(OtRow? row)
+    private static string GetOtValue(OtRow? row)
     {
         if (row is null) return string.Empty;
-        if (row.HrmHoliday == true || row.HrmEmployeeHoliday == true) return "L";
 
+        // HRM's OT report uses the recognized OT time. Do not return "L"
+        // before checking OT: an OT record on a holiday must still appear
+        // as NL... (for example NLHC8 / NLC111), not be hidden as a holiday.
         var minutes = row.OTRecognizedMinutesDay + row.OTRecognizedMinutesNight;
         if (minutes <= 0)
             minutes = row.OTMinutesDay + row.OTMinutesNight;
 
-        return minutes <= 0 ? string.Empty : Math.Round(minutes / 60d, 2);
+        if (minutes <= 0)
+            return (row.HrmHoliday == true || row.HrmEmployeeHoliday == true) ? "L" : string.Empty;
+
+        var hours = FormatOtHours(minutes);
+
+        // The supplied HRM "OT - GA.xls" template uses:
+        //   CN<hours>     for Sunday OT
+        //   NL<shift><hours> for holiday OT (e.g. NLHC8 / NLC111)
+        if (row.HrmHoliday == true || row.HrmEmployeeHoliday == true)
+            return $"NL{row.ShiftAbbr?.Trim()}{hours}";
+
+        if (row.WorkDate.DayOfWeek == DayOfWeek.Sunday)
+            return $"CN{hours}";
+
+        // Keep non-Sunday/non-holiday OT as the calculated number of hours.
+        // The current HRM template contains no authoritative prefix example
+        // for those days, so we must not invent one.
+        return hours;
+    }
+
+    private static string FormatOtHours(int minutes)
+    {
+        var hours = Math.Round(minutes / 60d, 2, MidpointRounding.AwayFromZero);
+        return hours.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private static string FirstNonEmpty(params string?[] values)
@@ -300,6 +325,7 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
         public string? EmployeeCode { get; set; }
         public string? FullName { get; set; }
         public string? DeptCode { get; set; }
+        public string? ShiftAbbr { get; set; }
         public int OTRecognizedMinutesDay { get; set; }
         public int OTRecognizedMinutesNight { get; set; }
         public int OTMinutesDay { get; set; }
