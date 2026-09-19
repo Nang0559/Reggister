@@ -11,7 +11,7 @@
 
 Người đăng ký **không được chọn cấp phê duyệt**.
 
-Hệ thống tự xác định các cấp phải duyệt từ `RequesterPositionCode`. Sau đó hệ thống tải **tất cả approver hợp lệ của từng cấp** theo ` F03Approvers `.
+Hệ thống tự xác định các cấp phải duyệt từ `F03Employee.PositionCode`, là mã chức vụ HRM chuẩn (`0001`...`0016`). Sau đó hệ thống tải **tất cả approver hợp lệ của từng cấp** theo ` F03Approvers `.
 
 Người đăng ký chỉ được chọn **một người cụ thể trong từng cấp**.
 
@@ -59,7 +59,7 @@ Xác định **cấp nào phải duyệt** theo chức vụ người đăng ký.
 | Field | Ý nghĩa |
 |---|---|
 | RequestType | Leave / OT / Trip / Equipment |
-| RequesterPositionCode | Chức vụ người đăng ký |
+| PositionCode | Mã chức vụ HRM của người đăng ký |
 | Level | Cấp duyệt nghiệp vụ |
 | Sequence | Thứ tự |
 | LevelName | Tên hiển thị |
@@ -218,9 +218,11 @@ Chạy riêng:
 
 Script tạo:
 
-- ` F03ApprovalPolicies `
+- ` F03ApprovalPolicies ` với `PositionCode` trực tiếp từ HRM
 - ` F03ApprovalSelections `
 - unique indexes
-- policy mặc định theo CVCode
+- policy mặc định theo từng `F03Positions.PositionCode`
+
+Không sử dụng và không tạo `F03ApprovalPositionGroups`. Các mã `EMP`, `SL`, `CHIEF`, `MGR`, `GM` là dữ liệu seed legacy và không phải HRM PositionCode.
 
 Sau đó Admin phải bảo đảm ` F03Approvers ` có đủ candidate thực tế cho từng Level/Department.
