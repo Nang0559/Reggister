@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Notifications
 @using FVN_REGISTER.Shared.Handlers
+@using FVN_REGISTER.Shared.Components
 @using FVN_REGISTER.Shared.Services.Notifications
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
@@ -59,7 +60,7 @@
             }
             @foreach (var n in _model.Notifications)
             {
-                <MudListItem OnClick="@(() => OpenNotification(n))" Icon="@(n.IsRead ? Icons.Material.Filled.MarkEmailRead : Icons.Material.Filled.MarkEmailUnread)">
+                <MudListItem T="string" OnClick="@(() => OpenNotification(n))" Icon="@(n.IsRead ? Icons.Material.Filled.MarkEmailRead : Icons.Material.Filled.MarkEmailUnread)">
                     <MudText Typo="Typo.subtitle2">@n.Title</MudText>
                     <MudText Typo="Typo.body2">@n.Body</MudText>
                     <MudText Typo="Typo.caption" Class="mud-text-secondary">@n.CreatedAt.ToString("dd/MM/yyyy HH:mm")</MudText>
