@@ -38,7 +38,8 @@ public sealed class HrmAttendanceExcelExportService : IHrmAttendanceExcelExportS
                 var rows = await _uow.SqlQueryRawAsync<OtRow>(@"
 SELECT WorkDate,EmployeeCode,FullName,DeptCode,ShiftAbbr,
        OTRecognizedMinutesDay,OTRecognizedMinutesNight,
-       OTMinutesDay,OTMinutesNight,HrmHoliday,HrmEmployeeHoliday
+       OTMinutesDay,OTMinutesNight,HrmHoliday,HrmEmployeeHoliday,
+       OtDisplayValue
 FROM dbo.F03HrmAttendanceCalculated
 WHERE CalculationBatchId=@BatchId
 ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
@@ -54,7 +55,8 @@ SELECT WorkDate,EmployeeCode,FullName,DeptCode,ShiftAbbr,
        WorkMinutesDay,WorkMinutesNight,
        CheckInTime,CheckOutTime,
        LeaveTotal,LeaveTypeCode,LeaveReason,
-       HrmHoliday,HrmEmployeeHoliday,IsLocked
+       HrmHoliday,HrmEmployeeHoliday,IsLocked,
+       AttendanceDisplayValue
 FROM dbo.F03HrmAttendanceCalculated
 WHERE CalculationBatchId=@BatchId
 ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
@@ -161,45 +163,15 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
 
     private static string GetAttendanceMark(AttendanceRow? row)
     {
-        if (row is null) return string.Empty;
-        if (row.HrmHoliday == true || row.HrmEmployeeHoliday == true) return "L";
-        if ((row.LeaveTotal ?? 0) > 0)
-            return FirstNonEmpty(row.LeaveReason, row.LeaveTypeCode, "K");
-        if ((row.WorkMinutesDay + row.WorkMinutesNight) > 0)
-            return string.IsNullOrWhiteSpace(row.ShiftAbbr) ? "HC" : row.ShiftAbbr.Trim();
-        if (row.CheckInTime.HasValue ^ row.CheckOutTime.HasValue) return "?";
-        return string.Empty;
+        // The calculation SQL owns HRM display semantics. The exporter only renders it.
+        return row?.AttendanceDisplayValue?.Trim() ?? string.Empty;
     }
 
     private static string GetOtValue(OtRow? row)
     {
-        if (row is null) return string.Empty;
-
-        // HRM's OT report uses the recognized OT time. Do not return "L"
-        // before checking OT: an OT record on a holiday must still appear
-        // as NL... (for example NLHC8 / NLC111), not be hidden as a holiday.
-        var minutes = row.OTRecognizedMinutesDay + row.OTRecognizedMinutesNight;
-        if (minutes <= 0)
-            minutes = row.OTMinutesDay + row.OTMinutesNight;
-
-        if (minutes <= 0)
-            return (row.HrmHoliday == true || row.HrmEmployeeHoliday == true) ? "L" : string.Empty;
-
-        var hours = FormatOtHours(minutes);
-
-        // The supplied HRM "OT - GA.xls" template uses:
-        //   CN<hours>     for Sunday OT
-        //   NL<shift><hours> for holiday OT (e.g. NLHC8 / NLC111)
-        if (row.HrmHoliday == true || row.HrmEmployeeHoliday == true)
-            return $"NL{row.ShiftAbbr?.Trim()}{hours}";
-
-        if (row.WorkDate.DayOfWeek == DayOfWeek.Sunday)
-            return $"CN{hours}";
-
-        // Keep non-Sunday/non-holiday OT as the calculated number of hours.
-        // The current HRM template contains no authoritative prefix example
-        // for those days, so we must not invent one.
-        return hours;
+        // Never infer OT meaning from weekday/holiday in the Excel layer.
+        // HRM-compatible calculation persists the display value explicitly.
+        return row?.OtDisplayValue?.Trim() ?? string.Empty;
     }
 
     private static string FormatOtHours(int minutes)
@@ -315,6 +287,7 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
         public bool? HrmHoliday { get; set; }
         public bool? HrmEmployeeHoliday { get; set; }
         public bool? IsLocked { get; set; }
+        public string? AttendanceDisplayValue { get; set; }
     }
 
     private sealed class OtRow
@@ -330,5 +303,6 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
         public int OTMinutesNight { get; set; }
         public bool? HrmHoliday { get; set; }
         public bool? HrmEmployeeHoliday { get; set; }
+        public string? OtDisplayValue { get; set; }
     }
 }
