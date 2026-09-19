@@ -157,7 +157,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
 
                 // ═══════════ 5. APPROVER — build hierarchy thật ═══════════
                 var ctx = ApprovalBuildContext.ForLeave(
-                    user.EmployeeCode ?? "", emp.DeptCode ?? "", emp.PositionCode ?? "");
+                    requestId: 0,
+                    employeeCode: user.EmployeeCode ?? "",
+                    deptCode: emp.DeptCode ?? "",
+                    positionCode: emp.PositionCode ?? "",
+                    year: model.WorkYear,
+                    leaveTypeCode: model.LeaveTypeCode);
 
                 var hierarchy = await _approvalProvider.BuildHierarchyAsync(ctx, ct);
 
