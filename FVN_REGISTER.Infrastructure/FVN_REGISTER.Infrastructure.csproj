@@ -21,8 +21,8 @@
 
   <ItemGroup><FrameworkReference Include="Microsoft.AspNetCore.App" /></ItemGroup>
   <ItemGroup>
-    <None Include="..SQLHRMGA.xls" Link="TemplatesHRMGA.xls" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="..SQLHRMOT - GA.xls" Link="TemplatesHRMOT - GA.xls" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\SQL\HRM\GA.xls" Link="Templates\HRM\GA.xls" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\SQL\HRM\OT - GA.xls" Link="Templates\HRM\OT - GA.xls" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Application\FVN_REGISTER.Application.csproj" />
