@@ -1,26 +1,21 @@
-﻿
-using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using FVN_REGISTER.Core.Entities;
 
 namespace FVN_REGISTER.Core.Entities.Security;
 
 [Table("F03UserFunctions")]
-public partial class F03UserFunction
+public partial class F03UserFunction : BaseAuditEntity
 {
-    [Key]
-    public int Id { get; set; }
-
     public int IdUser { get; set; }
     public int IdPermission { get; set; }
     public int IdFunction { get; set; }
 
-    // Navigation Properties
-    [ForeignKey("IdUser")]
+    [ForeignKey(nameof(IdUser))]
     public virtual F03User User { get; set; } = null!;
 
-    [ForeignKey("IdPermission")]
+    [ForeignKey(nameof(IdPermission))]
     public virtual F03Permission Permission { get; set; } = null!;
 
-    [ForeignKey("IdFunction")]
-    public virtual F03Function Function { get; set; } = null!; // Đã cập nhật kết nối này
+    [ForeignKey(nameof(IdFunction))]
+    public virtual F03Function Function { get; set; } = null!;
 }
