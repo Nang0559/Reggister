@@ -94,19 +94,43 @@ IF OBJECT_ID(N'dbo.F03UserRoles', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.F03UserRoles
     (
+        Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03UserRoles PRIMARY KEY,
+        IsActive bit NULL CONSTRAINT DF_F03UserRoles_IsActive DEFAULT(1),
+        CreatedBy int NOT NULL CONSTRAINT DF_F03UserRoles_CreatedBy DEFAULT(0),
+        LastModifiedSource nvarchar(50) NULL,
+        CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03UserRoles_CreatedAt DEFAULT(GETDATE()),
+        ModifiedBy int NULL,
+        ModifiedAt datetime2(0) NULL,
         IdUser int NOT NULL,
         IdRole int NOT NULL,
         IsPrimary bit NOT NULL CONSTRAINT DF_F03UserRoles_IsPrimary DEFAULT(0),
-        CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03UserRoles_CreatedAt DEFAULT(GETDATE()),
-        CreatedBy int NOT NULL CONSTRAINT DF_F03UserRoles_CreatedBy DEFAULT(0),
-        ModifiedAt datetime2(0) NULL,
-        ModifiedBy int NULL,
-        CONSTRAINT PK_F03UserRoles PRIMARY KEY(IdUser,IdRole),
         CONSTRAINT FK_F03UserRoles_User FOREIGN KEY(IdUser) REFERENCES dbo.F03Users(Id),
         CONSTRAINT FK_F03UserRoles_Role FOREIGN KEY(IdRole) REFERENCES dbo.F03Roles(Id)
     );
 END;
 GO
+
+/* Upgrade legacy UserRole composite-key table to BaseAuditEntity.Id. */
+IF OBJECT_ID(N'dbo.F03UserRoles',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03UserRoles',N'Id') IS NULL
+    BEGIN
+        ALTER TABLE dbo.F03UserRoles ADD Id int IDENTITY(1,1) NOT NULL;
+        DECLARE @pkUserRole sysname;
+        SELECT @pkUserRole = kc.name
+        FROM sys.key_constraints kc
+        WHERE kc.parent_object_id = OBJECT_ID(N'dbo.F03UserRoles') AND kc.type = 'PK';
+        IF @pkUserRole IS NOT NULL EXEC(N'ALTER TABLE dbo.F03UserRoles DROP CONSTRAINT [' + @pkUserRole + N']');
+        ALTER TABLE dbo.F03UserRoles ADD CONSTRAINT PK_F03UserRoles PRIMARY KEY(Id);
+    END;
+    IF COL_LENGTH(N'dbo.F03UserRoles',N'IsActive') IS NULL ALTER TABLE dbo.F03UserRoles ADD IsActive bit NULL CONSTRAINT DF_F03UserRoles_IsActive DEFAULT 1;
+    IF COL_LENGTH(N'dbo.F03UserRoles',N'CreatedBy') IS NULL ALTER TABLE dbo.F03UserRoles ADD CreatedBy int NOT NULL CONSTRAINT DF_F03UserRoles_CreatedBy DEFAULT 0;
+    IF COL_LENGTH(N'dbo.F03UserRoles',N'LastModifiedSource') IS NULL ALTER TABLE dbo.F03UserRoles ADD LastModifiedSource nvarchar(50) NULL;
+    IF COL_LENGTH(N'dbo.F03UserRoles',N'ModifiedBy') IS NULL ALTER TABLE dbo.F03UserRoles ADD ModifiedBy int NULL;
+    IF COL_LENGTH(N'dbo.F03UserRoles',N'ModifiedAt') IS NULL ALTER TABLE dbo.F03UserRoles ADD ModifiedAt datetime2(0) NULL;
+END;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03UserRoles_User_Role' AND object_id=OBJECT_ID(N'dbo.F03UserRoles'))
+    CREATE UNIQUE INDEX UX_F03UserRoles_User_Role ON dbo.F03UserRoles(IdUser,IdRole);
 
 /* Upgrade legacy RoleFunction composite-key table to BaseAuditEntity.Id. */
 IF OBJECT_ID(N'dbo.F03RoleFunctions',N'U') IS NOT NULL
