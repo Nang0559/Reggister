@@ -39,6 +39,44 @@ IF COL_LENGTH(N'dbo.F03OTEmployees',N'OTRateMultiplier') IS NOT NULL
 IF COL_LENGTH(N'dbo.F03StagingOTType',N'RateMultiplier') IS NOT NULL
     ALTER TABLE dbo.F03StagingOTType ALTER COLUMN RateMultiplier decimal(5,2) NULL;
 
+/* Normalize common entities that now inherit BaseAuditEntity. */
+IF OBJECT_ID(N'dbo.F03Attachment',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03Attachment',N'Id') IS NULL AND COL_LENGTH(N'dbo.F03Attachment',N'FileId') IS NOT NULL
+    BEGIN
+        EXEC sp_rename N'dbo.F03Attachment.FileId', N'Id', N'COLUMN';
+    END;
+    IF COL_LENGTH(N'dbo.F03Attachment',N'IsActive') IS NULL ALTER TABLE dbo.F03Attachment ADD IsActive bit NULL CONSTRAINT DF_F03Attachment_IsActive DEFAULT 1;
+    IF COL_LENGTH(N'dbo.F03Attachment',N'CreatedBy') IS NULL ALTER TABLE dbo.F03Attachment ADD CreatedBy int NOT NULL CONSTRAINT DF_F03Attachment_CreatedBy DEFAULT 0;
+    IF COL_LENGTH(N'dbo.F03Attachment',N'LastModifiedSource') IS NULL ALTER TABLE dbo.F03Attachment ADD LastModifiedSource nvarchar(50) NULL;
+    IF COL_LENGTH(N'dbo.F03Attachment',N'CreatedAt') IS NULL ALTER TABLE dbo.F03Attachment ADD CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03Attachment_CreatedAt DEFAULT GETDATE();
+    IF COL_LENGTH(N'dbo.F03Attachment',N'ModifiedBy') IS NULL ALTER TABLE dbo.F03Attachment ADD ModifiedBy int NULL;
+    IF COL_LENGTH(N'dbo.F03Attachment',N'ModifiedAt') IS NULL ALTER TABLE dbo.F03Attachment ADD ModifiedAt datetime2(0) NULL;
+    UPDATE dbo.F03Attachment SET CreatedBy=ISNULL(CreatedBy,0), CreatedAt=ISNULL(CreatedAt,GETDATE());
+    ALTER TABLE dbo.F03Attachment ALTER COLUMN CreatedBy int NOT NULL;
+    ALTER TABLE dbo.F03Attachment ALTER COLUMN CreatedAt datetime2(0) NOT NULL;
+END;
+
+IF OBJECT_ID(N'dbo.F03EmailLogs',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03EmailLogs',N'IsActive') IS NULL ALTER TABLE dbo.F03EmailLogs ADD IsActive bit NULL CONSTRAINT DF_F03EmailLogs_IsActive DEFAULT 1;
+    IF COL_LENGTH(N'dbo.F03EmailLogs',N'CreatedBy') IS NULL ALTER TABLE dbo.F03EmailLogs ADD CreatedBy int NOT NULL CONSTRAINT DF_F03EmailLogs_CreatedBy DEFAULT 0;
+    IF COL_LENGTH(N'dbo.F03EmailLogs',N'LastModifiedSource') IS NULL ALTER TABLE dbo.F03EmailLogs ADD LastModifiedSource nvarchar(50) NULL;
+    IF COL_LENGTH(N'dbo.F03EmailLogs',N'CreatedAt') IS NULL ALTER TABLE dbo.F03EmailLogs ADD CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03EmailLogs_CreatedAt DEFAULT GETDATE();
+    IF COL_LENGTH(N'dbo.F03EmailLogs',N'ModifiedBy') IS NULL ALTER TABLE dbo.F03EmailLogs ADD ModifiedBy int NULL;
+    IF COL_LENGTH(N'dbo.F03EmailLogs',N'ModifiedAt') IS NULL ALTER TABLE dbo.F03EmailLogs ADD ModifiedAt datetime2(0) NULL;
+END;
+
+IF OBJECT_ID(N'dbo.F03UserLogs',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03UserLogs',N'IsActive') IS NULL ALTER TABLE dbo.F03UserLogs ADD IsActive bit NULL CONSTRAINT DF_F03UserLogs_IsActive DEFAULT 1;
+    IF COL_LENGTH(N'dbo.F03UserLogs',N'CreatedBy') IS NULL ALTER TABLE dbo.F03UserLogs ADD CreatedBy int NOT NULL CONSTRAINT DF_F03UserLogs_CreatedBy DEFAULT 0;
+    IF COL_LENGTH(N'dbo.F03UserLogs',N'LastModifiedSource') IS NULL ALTER TABLE dbo.F03UserLogs ADD LastModifiedSource nvarchar(50) NULL;
+    IF COL_LENGTH(N'dbo.F03UserLogs',N'CreatedAt') IS NULL ALTER TABLE dbo.F03UserLogs ADD CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03UserLogs_CreatedAt DEFAULT GETDATE();
+    IF COL_LENGTH(N'dbo.F03UserLogs',N'ModifiedBy') IS NULL ALTER TABLE dbo.F03UserLogs ADD ModifiedBy int NULL;
+    IF COL_LENGTH(N'dbo.F03UserLogs',N'ModifiedAt') IS NULL ALTER TABLE dbo.F03UserLogs ADD ModifiedAt datetime2(0) NULL;
+END;
+
 /* Canonical BaseAuditEntity PK: Id is the single inherited identity key.
    Never drop Id from BaseAuditEntity-backed security tables. */
 IF OBJECT_ID('dbo.F03HrmUserRoleRules','U') IS NULL CREATE TABLE dbo.F03HrmUserRoleRules(
@@ -125,17 +163,17 @@ IF OBJECT_ID('dbo.F03ApprovalStepSnapshots','U') IS NULL CREATE TABLE dbo.F03App
 IF OBJECT_ID('dbo.ApprovalHistories','U') IS NULL CREATE TABLE dbo.ApprovalHistories(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,RequestType int NOT NULL,RequestId int NOT NULL,StepId int NOT NULL,IsOverriddenByAdmin bit NOT NULL DEFAULT 0,ApproverCode nvarchar(50) NOT NULL,ApproverName nvarchar(100) NOT NULL,OverriddenByCode nvarchar(50) NULL,OverriddenByName nvarchar(100) NULL,OverriddenAt datetime2(0) NULL,Decision int NOT NULL,Comment nvarchar(max) NULL,ActionAt datetime2(0) NOT NULL);
 IF OBJECT_ID('dbo.F03ApprovalReminderLog','U') IS NULL CREATE TABLE dbo.F03ApprovalReminderLog(Id int IDENTITY PRIMARY KEY,RequestType int NOT NULL,RequestId int NOT NULL,Level int NOT NULL,SentAt datetime2(0) NOT NULL DEFAULT GETDATE());
 
-IF OBJECT_ID('dbo.F03Attachment','U') IS NULL CREATE TABLE dbo.F03Attachment(FileId int IDENTITY PRIMARY KEY,Module int NOT NULL,RequestId int NOT NULL,FileName nvarchar(200) NOT NULL,FilePath nvarchar(255) NOT NULL,FileExtension nvarchar(10) NULL,FileSize bigint NOT NULL DEFAULT 0,IsActive bit NULL DEFAULT 1,CreatedBy int NULL,CreatedAt datetime2(0) NULL);
+IF OBJECT_ID('dbo.F03Attachment','U') IS NULL CREATE TABLE dbo.F03Attachment(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50) NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,Module int NOT NULL,RequestId int NOT NULL,FileName nvarchar(200) NOT NULL,FilePath nvarchar(255) NOT NULL,FileExtension nvarchar(10) NULL,FileSize bigint NOT NULL DEFAULT 0);
 IF OBJECT_ID('dbo.F03AppNotifications','U') IS NULL CREATE TABLE dbo.F03AppNotifications(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,UserId int NOT NULL,EmployeeCode nvarchar(50) NULL,RequestModule nvarchar(20) NOT NULL,Action nvarchar(20) NOT NULL,Title nvarchar(200) NOT NULL,Body nvarchar(1000) NULL,ActionUrl nvarchar(500) NULL,RelatedLeaveId int NULL,RelatedOTId int NULL,ApprovalLevel int NULL,IsHighPriority bit NOT NULL DEFAULT 0,Metadata nvarchar(2000) NULL,IsRead bit NOT NULL DEFAULT 0,ReadAt datetime2(0) NULL);
 IF OBJECT_ID('dbo.F03EmailQueues','U') IS NULL CREATE TABLE dbo.F03EmailQueues(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,ToEmail nvarchar(255) NOT NULL,Subject nvarchar(255) NOT NULL,Body nvarchar(max) NOT NULL,TemplateCode nvarchar(50) NULL,Payload nvarchar(max) NULL,Status nvarchar(20) NOT NULL DEFAULT 'Pending',RetryCount int NOT NULL DEFAULT 0,MaxRetry int NOT NULL DEFAULT 3,ErrorMessage nvarchar(1000) NULL,SentAt datetime2(0) NULL);
-IF OBJECT_ID('dbo.F03EmailLogs','U') IS NULL CREATE TABLE dbo.F03EmailLogs(Id int IDENTITY PRIMARY KEY,QueueId int NULL,ToEmail nvarchar(255) NOT NULL,Subject nvarchar(255) NOT NULL,Status nvarchar(20) NOT NULL,SentAt datetime2(0) NOT NULL DEFAULT GETDATE(),ErrorMessage nvarchar(1000) NULL);
+IF OBJECT_ID('dbo.F03EmailLogs','U') IS NULL CREATE TABLE dbo.F03EmailLogs(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50) NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,QueueId int NULL,ToEmail nvarchar(255) NOT NULL,Subject nvarchar(255) NOT NULL,Status nvarchar(20) NOT NULL,SentAt datetime2(0) NOT NULL DEFAULT GETDATE(),ErrorMessage nvarchar(1000) NULL);
 IF OBJECT_ID('dbo.F03EmailTemplates','U') IS NULL CREATE TABLE dbo.F03EmailTemplates(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,Code nvarchar(50) NOT NULL,Subject nvarchar(255) NOT NULL,Body nvarchar(max) NOT NULL,Description nvarchar(500) NULL);
 IF OBJECT_ID('dbo.F03EmailProfiles','U') IS NULL CREATE TABLE dbo.F03EmailProfiles(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,ParentId int NOT NULL,IsGroup bit NOT NULL,Code nvarchar(20) NOT NULL,Name nvarchar(100) NOT NULL,NameEn nvarchar(100) NULL,EmailServerName nvarchar(100) NOT NULL,EmailServerType nvarchar(20) NOT NULL,EmailServerPort int NOT NULL,EmailServerEnableSsl bit NOT NULL,EmailAccountName nvarchar(100) NOT NULL,EmailAddress nvarchar(100) NOT NULL,EmailPassword nvarchar(255) NULL,SiteUrl nvarchar(255) NULL,Timestamp rowversion NOT NULL);
 IF OBJECT_ID('dbo.F03BusinessRules','U') IS NULL CREATE TABLE dbo.F03BusinessRules(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,Module nvarchar(20) NOT NULL,Code nvarchar(50) NOT NULL,Name nvarchar(100) NOT NULL,ConfigJson nvarchar(max) NULL,HrmCode nvarchar(50) NULL);
 IF OBJECT_ID('dbo.F03EscalationRules','U') IS NULL CREATE TABLE dbo.F03EscalationRules(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,RequestModule nvarchar(20) NOT NULL,Level int NOT NULL,DeptCode nvarchar(20) NULL,WarningHours decimal(5,2) NOT NULL,EscalateHours decimal(5,2) NOT NULL,DeadlineHour int NOT NULL);
 IF OBJECT_ID('dbo.F03EscalationLogs','U') IS NULL CREATE TABLE dbo.F03EscalationLogs(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,RequestId int NOT NULL,RequestModule nvarchar(20) NOT NULL,Level int NOT NULL,Action nvarchar(50) NULL);
 IF OBJECT_ID('dbo.F03AuditLogs','U') IS NULL CREATE TABLE dbo.F03AuditLogs(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,UserId int NULL,UserName nvarchar(100) NULL,Action nvarchar(100) NOT NULL,Description nvarchar(2000) NULL,IpAddress nvarchar(50) NULL,UserAgent nvarchar(255) NULL);
-IF OBJECT_ID('dbo.F03UserLogs','U') IS NULL CREATE TABLE dbo.F03UserLogs(Id int IDENTITY PRIMARY KEY,UserId int NOT NULL,LastSeen nvarchar(255) NOT NULL,LastSeenUrl nvarchar(500) NOT NULL,ApplicationName nvarchar(100) NOT NULL,ApplicationVersion nvarchar(20) NOT NULL,WorkstationName nvarchar(100) NOT NULL,WorkstationUser nvarchar(100) NOT NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE());
+IF OBJECT_ID('dbo.F03UserLogs','U') IS NULL CREATE TABLE dbo.F03UserLogs(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50) NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,UserId int NOT NULL,LastSeen nvarchar(255) NOT NULL,LastSeenUrl nvarchar(500) NOT NULL,ApplicationName nvarchar(100) NOT NULL,ApplicationVersion nvarchar(20) NOT NULL,WorkstationName nvarchar(100) NOT NULL,WorkstationUser nvarchar(100) NOT NULL);
 
 IF OBJECT_ID('dbo.F03StagingDepartment','U') IS NULL CREATE TABLE dbo.F03StagingDepartment(Id int IDENTITY PRIMARY KEY,EntityKey nvarchar(255) NOT NULL,Action int NOT NULL,IsProcessed bit NOT NULL DEFAULT 0,ErrorMessage nvarchar(1000) NULL,CreatedAt datetime2(0) NOT NULL,CreatedBy nvarchar(100) NULL,DeptName nvarchar(255) NOT NULL,ParentDeptCode nvarchar(50) NULL,DisplayPriority int NULL,ShowInReport bit NOT NULL DEFAULT 1);
 IF OBJECT_ID('dbo.F03StagingEmployee','U') IS NULL CREATE TABLE dbo.F03StagingEmployee(Id int IDENTITY PRIMARY KEY,EntityKey nvarchar(255) NOT NULL,Action int NOT NULL,IsProcessed bit NOT NULL DEFAULT 0,ErrorMessage nvarchar(1000) NULL,CreatedAt datetime2(0) NOT NULL,CreatedBy nvarchar(100) NULL,EmployeeName nvarchar(255) NOT NULL,DeptCode nvarchar(20) NULL,PositionCode nvarchar(20) NULL,EmailAddress nvarchar(100) NOT NULL,PhoneNumber nvarchar(20) NULL,BirthDate datetime2(0) NULL,GenderCode int NULL,FirstWorkingDate datetime2(0) NULL,EndWorkingDate datetime2(0) NULL,TotalLeaveDays decimal(5,2) NULL,EmployeeNo int NULL);
