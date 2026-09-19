@@ -807,8 +807,8 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 					BEGIN
 						SELECT TOP (1) @ShiftID2=CMa
 						FROM #HrmShiftCandidates
-						CROSS APPLY (SELECT @D+CTGBatDau AS ShiftStart) s
-						CROSS APPLY (SELECT s.ShiftStart+CTGKetThuc AS ShiftEnd) e
+						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
+						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGKetThuc),s.ShiftStart) AS ShiftEnd) e
 						WHERE @TGDen BETWEEN DATEADD(minute,-ISNULL(CQuetTruocCa,0),s.ShiftStart)
 						                  AND DATEADD(minute,60,s.ShiftStart)
 						  AND @TGVe BETWEEN DATEADD(minute,-60,e.ShiftEnd)
@@ -817,8 +817,8 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 
 						SELECT TOP (1) @ShiftID1=CMa
 						FROM #HrmShiftCandidates
-						CROSS APPLY (SELECT @D+CTGBatDau AS ShiftStart) s
-						CROSS APPLY (SELECT s.ShiftStart+CTGKetThuc AS ShiftEnd) e
+						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
+						CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGKetThuc),s.ShiftStart) AS ShiftEnd) e
 						WHERE @TGDen BETWEEN DATEADD(minute,-ISNULL(CQuetTruocCa,0),s.ShiftStart)
 						                  AND DATEADD(minute,60,s.ShiftStart)
 						   OR @TGVe BETWEEN DATEADD(minute,-60,e.ShiftEnd)
@@ -827,13 +827,12 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 					END
 					ELSE
 					BEGIN
-						/* TTXK: same candidate rules as HRM. */
 						IF (SELECT COUNT(*) FROM #tblRecordDataRaw)>1
 						BEGIN
 							SELECT TOP (1) @ShiftID2=CMa
 							FROM #HrmShiftCandidates
-							CROSS APPLY (SELECT @D+CTGBatDau AS ShiftStart) s
-							CROSS APPLY (SELECT s.ShiftStart+CTGKetThuc AS ShiftEnd) e
+							CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
+							CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGKetThuc),s.ShiftStart) AS ShiftEnd) e
 							WHERE @TGDen BETWEEN DATEADD(minute,-ISNULL(CQuetTruocCa,0),s.ShiftStart)
 							                  AND DATEADD(minute,60,s.ShiftStart)
 							  AND @TGVe BETWEEN DATEADD(minute,-60,e.ShiftEnd)
@@ -844,18 +843,13 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 						BEGIN
 							SELECT TOP (1) @ShiftID1=CMa
 							FROM #HrmShiftCandidates
-							CROSS APPLY (SELECT @D+CTGBatDau AS ShiftStart) s
+							CROSS APPLY (SELECT DATEADD(minute,DATEDIFF(minute,CONVERT(datetime,'19000101'),CTGBatDau),CONVERT(datetime,@D)) AS ShiftStart) s
 							WHERE @TGDen BETWEEN DATEADD(minute,-ISNULL(CQuetTruocCa,0),s.ShiftStart)
 							                  AND DATEADD(minute,60,s.ShiftStart)
 							  AND CONVERT(date,@TGDen)=CONVERT(date,@D)
 							ORDER BY CTGBatDau DESC, CMa DESC;
 						END
 					END;
-
-					IF @ShiftID1>0 AND @ShiftID2>0 SET @Maca=@ShiftID2;
-					ELSE IF @ShiftID1>0 SET @Maca=@ShiftID1;
-					ELSE IF @ShiftID2>0 SET @Maca=@ShiftID2;
-
 					DROP TABLE #HrmShiftCandidates;
 				END
 			END
