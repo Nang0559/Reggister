@@ -34,7 +34,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             var repo = _uow.Repository<F03UserSession>();
 
             var others = await repo.Query()
-                .Where(x => x.UserId == userId && x.DeviceType == deviceType && x.IsActive)
+                .Where(x => x.UserId == userId && x.DeviceType == deviceType && x.IsActive==true)
                 .ToListAsync(ct);
 
             var kickedConnectionIds = others
@@ -81,7 +81,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             var session = await _uow.Repository<F03UserSession>().Query()
                 .FirstOrDefaultAsync(x => x.JwtToken == hash, ct);
 
-            if (session == null || !session.IsActive)
+            if (session == null || !session.IsActive == true)
                 return null;
 
             if (session.ExpiresAt.HasValue && session.ExpiresAt.Value < DateTime.Now)
@@ -106,7 +106,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             var hash = HashToken(refreshTokenRaw);
 
             var session = await _uow.Repository<F03UserSession>().Query()
-                .FirstOrDefaultAsync(x => x.JwtToken == hash && x.IsActive, ct);
+                .FirstOrDefaultAsync(x => x.JwtToken == hash && x.IsActive == true, ct);
 
             if (session == null)
                 return;
@@ -119,7 +119,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
         public async Task RevokeAllAsync(int userId, CancellationToken ct = default)
         {
             var sessions = await _uow.Repository<F03UserSession>().Query()
-                .Where(x => x.UserId == userId && x.IsActive)
+                .Where(x => x.UserId == userId && x.IsActive == true)
                 .ToListAsync(ct);
 
             foreach (var session in sessions)
@@ -142,7 +142,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
 
             return await _uow.Repository<F03UserSession>().Query()
                 .AsNoTracking()
-                .Where(x => x.UserId == userId && x.IsActive)
+                .Where(x => x.UserId == userId && x.IsActive == true)
                 .OrderByDescending(x => x.LastSeenAt)
                 .Select(x => new SessionDto(
                     x.Id,
@@ -163,7 +163,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 .FirstOrDefaultAsync(x =>
                     x.Id == sessionId &&
                     x.UserId == userId &&
-                    x.IsActive,
+                    x.IsActive == true,
                     ct);
 
             if (session == null)
