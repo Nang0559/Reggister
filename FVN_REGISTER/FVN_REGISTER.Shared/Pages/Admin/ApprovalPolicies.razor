@@ -95,44 +95,157 @@
     </MudStack>
 </MudPaper>
 
-<MudTable Items="_policies" Dense="true" Hover="true" Striped="true" Loading="_loading">
-    <HeaderContent>
-        <MudTh>RequestType</MudTh>
-        <MudTh>Position</MudTh>
-        <MudTh>Level</MudTh>
-        <MudTh>Sequence</MudTh>
-        <MudTh>LevelName</MudTh>
-        <MudTh>Role</MudTh>
-        <MudTh>Bắt buộc</MudTh>
-        <MudTh>Active</MudTh>
-        <MudTh />
-    </HeaderContent>
-    <RowTemplate>
-        <MudTd><b>@context.RequestTypeName</b></MudTd>
-        <MudTd>@context.PositionCode — @context.PositionName</MudTd>
-        <MudTd>@context.Level</MudTd>
-        <MudTd>@context.Sequence</MudTd>
-        <MudTd>@context.LevelName</MudTd>
-        <MudTd>@context.RoleName</MudTd>
-        <MudTd>@(context.Required ? "Có" : "Không")</MudTd>
-        <MudTd>@(context.IsActive ? "Có" : "Không")</MudTd>
-        <MudTd>
-            <MudStack Row="true" Spacing="1">
-                <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary"
-                               OnClick="@(() => Edit(context))" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
-                               OnClick="@(() => DeleteAsync(context))" />
-            </MudStack>
-        </MudTd>
-    </RowTemplate>
-</MudTable>
+<MudPaper Class="pa-4 mb-4" Elevation="1" Style="border-radius:12px">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudText Typo="Typo.subtitle1"><b>Nhóm Approval Policy</b></MudText>
+        <MudSelect T="PolicyGroupMode" @bind-Value="_groupMode" Label="Nhóm theo"
+                   Variant="Variant.Outlined" Dense="true" Style="min-width:220px">
+            <MudSelectItem Value="@PolicyGroupMode.Position">Vị trí / Position</MudSelectItem>
+            <MudSelectItem Value="@PolicyGroupMode.RequestType">Loại yêu cầu / RequestType</MudSelectItem>
+            <MudSelectItem Value="@PolicyGroupMode.Role">Vai trò / Role</MudSelectItem>
+        </MudSelect>
+        <MudSpacer />
+        <MudTextField @bind-Value="_searchText"
+                      Placeholder="Tìm Position, RequestType, Role..."
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Search"
+                      Variant="Variant.Outlined"
+                      Clearable="true"
+                      Immediate="true"
+                      Style="max-width:360px" />
+    </MudStack>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Class="mb-2" />
+}
+else if (!FilteredPolicies.Any())
+{
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+        Không có Approval Policy phù hợp bộ lọc hiện tại.
+    </MudAlert>
+}
+else
+{
+    <MudExpansionPanels MultiExpansion="true" Class="mb-4">
+        @foreach (var group in GroupedPolicies)
+        {
+            <MudExpansionPanel Text="@group.Key">
+                <TitleContent>
+                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                        <MudText Typo="Typo.subtitle1"><b>@group.Key</b></MudText>
+                        <MudChip Size="Size.Small" Variant="Variant.Outlined">
+                            @group.Items.Count policy
+                        </MudChip>
+                    </MudStack>
+                </TitleContent>
+
+                <ChildContent>
+                    <MudTable Items="group.Items" Dense="true" Hover="true" Striped="true">
+                        <HeaderContent>
+                            <MudTh>RequestType</MudTh>
+                            <MudTh>Position</MudTh>
+                            <MudTh>Level</MudTh>
+                            <MudTh>Sequence</MudTh>
+                            <MudTh>LevelName</MudTh>
+                            <MudTh>Role</MudTh>
+                            <MudTh>Bắt buộc</MudTh>
+                            <MudTh>Active</MudTh>
+                            <MudTh />
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd><b>@context.RequestTypeName</b></MudTd>
+                            <MudTd>@context.PositionCode — @context.PositionName</MudTd>
+                            <MudTd>
+                                <MudChip Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">
+                                    Level @context.Level
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>@context.Sequence</MudTd>
+                            <MudTd>@context.LevelName</MudTd>
+                            <MudTd>@context.RoleName</MudTd>
+                            <MudTd>@(context.Required ? "Có" : "Không")</MudTd>
+                            <MudTd>
+                                <MudChip Size="Size.Small"
+                                         Color="@(context.IsActive ? Color.Success : Color.Default)"
+                                         Variant="Variant.Outlined">
+                                    @(context.IsActive ? "Active" : "Inactive")
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>
+                                <MudStack Row="true" Spacing="1">
+                                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                                   Color="Color.Primary"
+                                                   OnClick="@(() => Edit(context))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                                   Color="Color.Error"
+                                                   OnClick="@(() => DeleteAsync(context))" />
+                                </MudStack>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </ChildContent>
+            </MudExpansionPanel>
+        }
+    </MudExpansionPanels>
+}
+
+
 
 @code {
+    private enum PolicyGroupMode
+    {
+        Position,
+        RequestType,
+        Role
+    }
+
+
     private List<ApprovalPolicyDto> _policies = new();
     private List<ApprovalPolicyPositionDto> _positions = new();
     private ApprovalPolicyRequest _form = NewForm();
     private int? _editingId;
     private bool _loading;
+    private PolicyGroupMode _groupMode = PolicyGroupMode.Position;
+    private string _searchText = string.Empty;
+
+    private IEnumerable<ApprovalPolicyDto> FilteredPolicies =>
+        _policies.Where(MatchesSearch);
+
+    private IEnumerable<PolicyGroup> GroupedPolicies =>
+        _groupMode switch
+        {
+            PolicyGroupMode.RequestType => FilteredPolicies
+                .GroupBy(x => x.RequestTypeName)
+                .OrderBy(x => x.Key)
+                .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.PositionCode).ThenBy(p => p.Level).ThenBy(p => p.Sequence).ToList())),
+            PolicyGroupMode.Role => FilteredPolicies
+                .GroupBy(x => string.IsNullOrWhiteSpace(x.RoleName) ? "(Chưa cấu hình Role)" : x.RoleName)
+                .OrderBy(x => x.Key)
+                .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.PositionCode).ThenBy(p => p.RequestTypeName).ThenBy(p => p.Level).ToList())),
+            _ => FilteredPolicies
+                .GroupBy(x => string.IsNullOrWhiteSpace(x.PositionCode)
+                    ? "(Chưa có PositionCode)"
+                    : $"{x.PositionCode} — {x.PositionName}")
+                .OrderBy(x => x.Key)
+                .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.RequestTypeName).ThenBy(p => p.Level).ThenBy(p => p.Sequence).ToList()))
+        };
+
+    private bool MatchesSearch(ApprovalPolicyDto x)
+    {
+        if (string.IsNullOrWhiteSpace(_searchText))
+            return true;
+
+        var q = _searchText.Trim();
+        return (x.PositionCode?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+            || (x.PositionName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+            || (x.RequestTypeName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+            || (x.RoleName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+            || (x.LevelName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true);
+    }
+
+    private sealed record PolicyGroup(string Key, List<ApprovalPolicyDto> Items);
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
