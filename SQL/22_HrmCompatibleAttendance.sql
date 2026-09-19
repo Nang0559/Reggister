@@ -803,7 +803,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 					  ShiftID2 = IN and OUT both fit.
 					  ShiftID1 = either IN or OUT fits.
 					*/
-					IF @HrmFindShiftType=N'TTDD'
+					IF ISNULL(@HrmFindShiftType,N'TTDD') = N'TTDD'
 					BEGIN
 						SELECT TOP (1) @ShiftID2=CMa
 						FROM #HrmShiftCandidates
