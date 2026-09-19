@@ -140,3 +140,31 @@ END;
 IF OBJECT_ID(N'dbo.F03ApprovalSnapshots',N'U') IS NOT NULL AND COL_LENGTH(N'dbo.F03ApprovalSnapshots',N'CreatedBy') IS NULL THROW 51020,'F03ApprovalSnapshots must expose BaseAudit fields.',1;
 IF OBJECT_ID(N'dbo.F03ApprovalStepSnapshots',N'U') IS NOT NULL AND COL_LENGTH(N'dbo.F03ApprovalStepSnapshots',N'CreatedBy') IS NULL THROW 51021,'F03ApprovalStepSnapshots must expose BaseAudit fields.',1;
 IF OBJECT_ID(N'dbo.F03ApprovalReminderLog',N'U') IS NOT NULL AND COL_LENGTH(N'dbo.F03ApprovalReminderLog',N'CreatedBy') IS NULL THROW 51022,'F03ApprovalReminderLog must expose BaseAudit fields.',1;
+
+
+/* ===========================================================================
+   WORK CALENDAR / ANNUAL LEAVE VERIFICATION
+   =========================================================================== */
+IF OBJECT_ID(N'dbo.F03WorkYear',N'U') IS NULL
+    THROW 50991, 'Missing canonical table dbo.F03WorkYear.', 1;
+
+IF OBJECT_ID(N'dbo.F03CompanyHoliday',N'U') IS NULL
+    THROW 50992, 'Missing canonical table dbo.F03CompanyHoliday.', 1;
+
+IF COL_LENGTH(N'dbo.F03CompanyHoliday',N'TinhPhep') IS NULL
+    THROW 50993, 'Missing dbo.F03CompanyHoliday.TinhPhep.', 1;
+
+IF COL_LENGTH(N'dbo.F03LeaveBalances',N'BaseLeaveDays') IS NULL
+    THROW 50994, 'Missing dbo.F03LeaveBalances.BaseLeaveDays.', 1;
+
+IF COL_LENGTH(N'dbo.F03LeaveBalances',N'SeniorityLeaveDays') IS NULL
+    THROW 50995, 'Missing dbo.F03LeaveBalances.SeniorityLeaveDays.', 1;
+
+IF COL_LENGTH(N'dbo.F03LeaveBalances',N'YearsOfService') IS NULL
+    THROW 50996, 'Missing dbo.F03LeaveBalances.YearsOfService.', 1;
+
+IF COL_LENGTH(N'dbo.F03LeaveBalances',N'CalculatedAt') IS NULL
+    THROW 50997, 'Missing dbo.F03LeaveBalances.CalculatedAt.', 1;
+
+PRINT N'Work Calendar / Annual Leave verification passed.';
+GO
