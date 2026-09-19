@@ -14,7 +14,16 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals;
 public sealed class EquipmentApprovalProvider : BaseApprovalProvider<EquipmentRequestSubject, EquipmentApprovalProvider>, IApprovalProvider<EquipmentRequestSubject>
 {
     public override RequestModule RequestType => RequestModule.Equipment;
-    public EquipmentApprovalProvider(IUnitOfWork uow, IEmailService email, IApprovalNotificationService notification, IEmployeeUserResolver userResolver, ILogger<EquipmentApprovalProvider> logger, IOptionsMonitor<AuthDebugOptions> options) : base(uow, email, notification, userResolver, logger, options) { }
+    public EquipmentApprovalProvider(
+        IUnitOfWork uow,
+        IEmailService email,
+        IApprovalNotificationService notification,
+        IEmployeeUserResolver userResolver,
+        IApprovalRouteService routeService,
+        IApprovalSelectionService selectionService,
+        ILogger<EquipmentApprovalProvider> logger,
+        IOptionsMonitor<AuthDebugOptions> options)
+        : base(uow, email, notification, userResolver, routeService, selectionService, logger, options) { }
     public override async Task<EquipmentRequestSubject?> GetSubjectAsync(int requestId, CancellationToken ct)
     {
         var x = await _uow.Repository<F03EquipmentRequest>().Query().AsNoTracking().FirstOrDefaultAsync(r => r.Id == requestId && r.IsActive == true, ct); if (x == null) return null;
