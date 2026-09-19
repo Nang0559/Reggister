@@ -1,0 +1,103 @@
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Contract.Requests.Approvals
+@using MudBlazor
+
+@if (_route != null)
+{
+    <MudCard Class="mt-3 pa-3" Elevation="1">
+        <MudText Typo="Typo.subtitle1" Class="mb-2">
+            Người phê duyệt
+        </MudText>
+
+        @foreach (var level in _route.Levels.OrderBy(x => x.Sequence))
+        {
+            <MudStack Class="mb-3">
+                <MudText Typo="Typo.body2">
+                    <b>Cấp @level.Level</b> — @level.LevelName
+                </MudText>
+
+                @if (level.Candidates.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Error" Dense="true">
+                        Chưa có người phê duyệt phù hợp cho cấp này.
+                    </MudAlert>
+                }
+                else if (level.Candidates.Count == 1)
+                {
+                    <MudText Typo="Typo.body2">
+                        @level.Candidates[0].ApproverName
+                        (@level.Candidates[0].ApproverCode)
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @level.Candidates[0].PositionName
+                    </MudText>
+                }
+                else
+                {
+                    <MudSelect T="string"
+                               Value="@GetSelected(level)"
+                               ValueChanged="@(value => SetSelected(level, value))"
+                               Label="Chọn người phê duyệt *"
+                               Variant="Variant.Outlined"
+                               Dense="true">
+                        @foreach (var candidate in level.Candidates)
+                        {
+                            <MudSelectItem Value="@candidate.ApproverCode">
+                                @candidate.ApproverName (@candidate.ApproverCode)
+                                @if (!string.IsNullOrWhiteSpace(candidate.PositionName))
+                                {
+                                    <text> — @candidate.PositionName</text>
+                                }
+                            </MudSelectItem>
+                        }
+                    </MudSelect>
+                }
+            </MudStack>
+        }
+    </MudCard>
+}
+
+@code {
+    [Parameter, EditorRequired] public ApprovalRoutePreviewDto? Route { get; set; }
+    [Parameter] public EventCallback<List<ApprovalSelectionDto>> SelectionsChanged { get; set; }
+
+    private ApprovalRoutePreviewDto? _route => Route;
+
+    private readonly Dictionary<int, string> _selected = new();
+
+    protected override void OnParametersSet()
+    {
+        if (_route == null) return;
+
+        foreach (var level in _route.Levels)
+        {
+            if (_selected.ContainsKey(level.Level)) continue;
+            if (level.Candidates.Count == 1)
+                _selected[level.Level] = level.Candidates[0].ApproverCode;
+        }
+    }
+
+    private string? GetSelected(ApprovalRouteLevelDto level)
+        => _selected.TryGetValue(level.Level, out var code) ? code : null;
+
+    private async Task SetSelected(ApprovalRouteLevelDto level, string value)
+    {
+        _selected[level.Level] = value;
+        await SelectionsChanged.InvokeAsync(
+            _selected.Select(x => new ApprovalSelectionDto
+            {
+                Level = x.Key,
+                ApproverCode = x.Value
+            }).ToList());
+    }
+
+    public List<ApprovalSelectionDto> GetSelections()
+        => _route?.Levels
+            .Where(x => x.Required)
+            .Select(x => new ApprovalSelectionDto
+            {
+                Level = x.Level,
+                ApproverCode = GetSelected(x) ?? string.Empty
+            })
+            .ToList() ?? new();
+}
