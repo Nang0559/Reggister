@@ -56,6 +56,29 @@ IF OBJECT_ID('dbo.F03HrmUserRoleRules','U') IS NULL CREATE TABLE dbo.F03HrmUserR
     Note nvarchar(500) NULL
 );
 
+/* Upgrade existing BaseAudit-backed security tables. */
+IF OBJECT_ID(N'dbo.F03UserFunctions',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03UserFunctions',N'Id') IS NULL AND COL_LENGTH(N'dbo.F03UserFunctions',N'IdUserFunction') IS NOT NULL
+        EXEC sp_rename N'dbo.F03UserFunctions.IdUserFunction', N'Id', N'COLUMN';
+    IF COL_LENGTH(N'dbo.F03UserFunctions',N'IsActive') IS NULL ALTER TABLE dbo.F03UserFunctions ADD IsActive bit NULL CONSTRAINT DF_F03UserFunctions_IsActive DEFAULT 1;
+    IF COL_LENGTH(N'dbo.F03UserFunctions',N'CreatedBy') IS NULL ALTER TABLE dbo.F03UserFunctions ADD CreatedBy int NOT NULL CONSTRAINT DF_F03UserFunctions_CreatedBy DEFAULT 0;
+    IF COL_LENGTH(N'dbo.F03UserFunctions',N'LastModifiedSource') IS NULL ALTER TABLE dbo.F03UserFunctions ADD LastModifiedSource nvarchar(50) NULL;
+    IF COL_LENGTH(N'dbo.F03UserFunctions',N'CreatedAt') IS NULL ALTER TABLE dbo.F03UserFunctions ADD CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03UserFunctions_CreatedAt DEFAULT GETDATE();
+    IF COL_LENGTH(N'dbo.F03UserFunctions',N'ModifiedBy') IS NULL ALTER TABLE dbo.F03UserFunctions ADD ModifiedBy int NULL;
+    IF COL_LENGTH(N'dbo.F03UserFunctions',N'ModifiedAt') IS NULL ALTER TABLE dbo.F03UserFunctions ADD ModifiedAt datetime2(0) NULL;
+END;
+
+IF OBJECT_ID(N'dbo.F03UserSessions',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03UserSessions',N'IsActive') IS NULL ALTER TABLE dbo.F03UserSessions ADD IsActive bit NULL CONSTRAINT DF_F03UserSessions_IsActive DEFAULT 1;
+    IF COL_LENGTH(N'dbo.F03UserSessions',N'CreatedBy') IS NULL ALTER TABLE dbo.F03UserSessions ADD CreatedBy int NOT NULL CONSTRAINT DF_F03UserSessions_CreatedBy DEFAULT 0;
+    IF COL_LENGTH(N'dbo.F03UserSessions',N'LastModifiedSource') IS NULL ALTER TABLE dbo.F03UserSessions ADD LastModifiedSource nvarchar(50) NULL;
+    IF COL_LENGTH(N'dbo.F03UserSessions',N'CreatedAt') IS NULL ALTER TABLE dbo.F03UserSessions ADD CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03UserSessions_CreatedAt DEFAULT GETUTCDATE();
+    IF COL_LENGTH(N'dbo.F03UserSessions',N'ModifiedBy') IS NULL ALTER TABLE dbo.F03UserSessions ADD ModifiedBy int NULL;
+    IF COL_LENGTH(N'dbo.F03UserSessions',N'ModifiedAt') IS NULL ALTER TABLE dbo.F03UserSessions ADD ModifiedAt datetime2(0) NULL;
+END;
+
 IF OBJECT_ID('dbo.F03UserFunctions','U') IS NULL CREATE TABLE dbo.F03UserFunctions(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50) NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,IdUser int NOT NULL,IdPermission int NOT NULL,IdFunction int NOT NULL);
 IF OBJECT_ID('dbo.F03UserSessions','U') IS NULL CREATE TABLE dbo.F03UserSessions(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50) NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETUTCDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,UserId int NOT NULL,DeviceType nvarchar(10) NOT NULL,DeviceId nvarchar(100) NOT NULL,DeviceName nvarchar(100) NULL,JwtToken nvarchar(max) NULL,ExpiresAt datetime2(0) NULL,SignalRConnectionId nvarchar(100) NULL,IsActive bit NOT NULL DEFAULT 1,CreatedAt datetime2(0) NOT NULL DEFAULT GETUTCDATE(),LastSeenAt datetime2(0) NULL,RevokedAt datetime2(0) NULL,RememberMe bit NOT NULL DEFAULT 0);
 
