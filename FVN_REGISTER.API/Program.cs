@@ -153,6 +153,7 @@ builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
 builder.Services.AddScoped<IPublicInformationService, PublicInformationService>();
 builder.Services.AddScoped<IApproverManagementService, ApproverManagementService>();
+builder.Services.AddScoped<IApprovalPolicyService, ApprovalPolicyService>();
 builder.Services.AddScoped<IApprovalRouteService, ApprovalRouteService>();
 builder.Services.AddScoped<IApprovalSelectionService, ApprovalSelectionService>();
 builder.Services.AddScoped<IEmployeeManagementService, EmployeeManagementService>();
