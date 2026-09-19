@@ -1,3 +1,4 @@
+using FVN_REGISTER.Application.Interfaces.Approvals;
 ﻿
 
 using FVN_REGISTER.Application.Interfaces.Leaves;
