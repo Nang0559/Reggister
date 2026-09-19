@@ -13,7 +13,7 @@
                     ▼
   [D4] Notification Pipeline ──► đẩy realtime cho approver/employee
                     │
-  [D3] OT Attendance Reconciliation ──► ĐỌC F03OTRequest/F03OTEmployee
+  [D3 — HRM Attendance Calculation: HrmAttendanceCalculationController → usp_CalculateHrmAttendance → F03HrmAttendanceCalculated/F03HrmOTActual → cập nhật ActualHours OT Approved
        (chỉ chạy khi Admin bấm nút, KHÔNG tự động)   đã Approved, GHI ĐÈ
                                                        ActualHours
                     │
@@ -172,7 +172,7 @@ IApprovalActionHandler [Application/Interfaces/Approvals]
 
 
 ═══════════════════════════════════════════════════════════════════════════
- [D3] OT ATTENDANCE RECONCILIATION
+ [D3 — HRM Attendance Calculation: HrmAttendanceCalculationController → usp_CalculateHrmAttendance → F03HrmAttendanceCalculated/F03HrmOTActual → cập nhật ActualHours OT Approved
 ═══════════════════════════════════════════════════════════════════════════
 
 HRM DB (chỉ cung cấp dữ liệu chấm công gốc) ──► FVN_REGISTER.usp_SyncAttendanceStaging ──► F03AttendanceStaging
@@ -186,7 +186,7 @@ HRM DB (chỉ cung cấp dữ liệu chấm công gốc) ──► FVN_REGISTER.
         └─ IOTAttendanceReconciliationService [Application/Interfaces/OT]
               — COMMAND-WITH-RESULT (không phải Query thuần)
               implement: OTAttendanceReconciliationService
-              ReconcileActualHoursAsync(date,deptCode,ct):
+              THEO DÕIActualHoursAsync(date,deptCode,ct):
                 1. tự gọi Staging.IsStagingReadyAsync — self-healing nếu
                    chưa sẵn sàng, tự SyncAttendanceStagingAsync trước
                 2. EXEC usp_SyncOTActualHours
@@ -198,10 +198,10 @@ HRM DB (chỉ cung cấp dữ liệu chấm công gốc) ──► FVN_REGISTER.
                      OTHourValidationStatus) }
         │
         ▼
-OTOrchestrator.ReconcileActualHoursAsync(date,deptCode,ct)
+OTOrchestrator.THEO DÕIActualHoursAsync(date,deptCode,ct)
         │  bọc ServiceResult<OTReconciliationResultDto>, KHÔNG thêm logic
         ▼
-OTAttendanceReconcilePage.razor
+OTAttendanceTHEO DÕIPage.razor
         ⚠️ CHỈ gọi khi Admin bấm "Đối chiếu ngay" — TUYỆT ĐỐI KHÔNG trong
            OnInitializedAsync/timer — mỗi lần gọi ĐỀU GHI dữ liệu
 
@@ -210,7 +210,7 @@ OTAttendanceStagingWorker [Infrastructure/Jobs] — BackgroundService riêng,
     tự động gọi Reconciliation (đúng nguyên tắc "chủ động, không tự động")
 
   ĐÃ XÓA (dead code, thay thế bởi 2 service trên):
-    IOTSyncService / OTSyncService (gộp lẫn Ghi+Đọc, vi phạm CQRS)
+    IHrmAttendanceCalculationService / HrmAttendanceCalculationService (gộp lẫn Ghi+Đọc, vi phạm CQRS)
     OTUnconfirmedDto / OTUnconfirmedResult (trùng OTReconciliationItemDto)
     OtHoursCheckStatus / OtSyncSituation (trùng OTHourValidationStatus/
                                             OTReconciliationStatus)

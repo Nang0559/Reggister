@@ -224,7 +224,7 @@ END;
 GO
 
 /*
-  Pipeline B — HRM attendance -> local staging -> OT reconciliation.
+  Pipeline B — HRM attendance -> local staging read model. OT actual synchronization is owned by usp_CalculateHrmAttendance.
 
   ARCHITECTURE RULE:
   HRM is a SOURCE ONLY. FVN_REGISTER owns attendance pairing,
@@ -239,7 +239,7 @@ GO
 */
 
 /*
-  Pipeline B — local shift master + HRM attendance -> F03AttendanceStaging.
+  Pipeline B — local shift master + HRM attendance -> F03AttendanceStaging (attendance read model).
   HRM is READ ONLY. Shift configuration is first synchronized by
   usp_SyncHrmShiftMaster; attendance uses only the local F03* shift tables.
 */
@@ -529,116 +529,7 @@ BEGIN
 END;
 GO
 
-/*
-  RequestStatus is an INT enum:
-  Draft=0, Pending=1, InProgress=2, Approved=3,
-  Rejected=4, Cancelled=5, Escalated=6, NeedsRevision=7.
-*/
-CREATE OR ALTER PROCEDURE dbo.usp_SyncOTActualHours
-    @OTDate date=NULL,
-    @DeptCode nvarchar(30)=NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-    SET @OTDate=COALESCE(@OTDate,CAST(GETDATE()-1 AS date));
 
-    UPDATE emp
-    SET emp.ActualStartTime=stg.CheckInDateTime,
-        emp.ActualEndTime=stg.CheckOutDateTime,
-        emp.ActualHours=CAST(ISNULL(stg.OTHours,0) AS decimal(5,2)),
-        emp.ValidationStatus=
-            CASE WHEN stg.CheckInDateTime IS NOT NULL AND stg.CheckOutDateTime IS NOT NULL THEN 1 ELSE 0 END,
-        emp.ValidationMessage=
-            CASE WHEN stg.CheckInDateTime IS NOT NULL AND stg.CheckOutDateTime IS NOT NULL
-                 THEN NULL ELSE N'Chưa đủ dữ liệu CheckIn/CheckOut từ HRM.' END,
-        emp.ModifiedAt=GETDATE(),
-        emp.ModifiedBy=0
-    FROM dbo.F03OTEmployees emp
-    INNER JOIN dbo.F03OTRequests ot
-      ON ot.Id=emp.OTRequestId
-     AND ot.IsActive=1
-     AND CAST(ot.OTDate AS date)=@OTDate
-     AND ot.RequestStatus=3
-     AND (@DeptCode IS NULL OR ot.DeptCode=@DeptCode)
-    CROSS APPLY
-    (
-        SELECT TOP(1)
-            s.Id,s.CheckInDateTime,s.CheckOutDateTime,s.OTHours
-        FROM dbo.F03AttendanceStaging s
-        WHERE s.EmployeeCode=emp.EmployeeCode
-          AND s.WorkDate >= @OTDate
-          AND s.WorkDate < DATEADD(day,1,@OTDate)
-          AND ISNULL(s.OTHours,0)>0
-        ORDER BY s.SyncedAt DESC,s.Id DESC
-    ) stg
-    WHERE emp.IsActive=1;
-
-    SELECT
-        CAST(stg.WorkDate AS datetime2(0)) AS WorkDate,
-        COALESCE(stg.FullName,emp.EmployeeName,e.EmployeeName,N'') AS FullName,
-        stg.EmployeeCode,
-        CAST(COALESCE(ot.DeptCode,stg.DeptCode,N'') AS nvarchar(30)) AS DeptCode,
-        CAST(COALESCE(d_ot.DeptName,stg.DeptName,N'') AS nvarchar(100)) AS DeptName,
-        stg.CheckInText,stg.CheckOutText,
-        CAST(ISNULL(stg.OTHours,0) AS decimal(5,2)) AS OTHoursActual,
-        CAST(ISNULL(ot.PlannedHours,0) AS decimal(5,2)) AS OTHoursPlanned,
-        CAST(ISNULL(ot.PlannedHours,0) AS decimal(5,2)) AS OTHoursRequest,
-        CAST(ISNULL(stg.IsHoliday,0) AS bit) AS IsHoliday,
-        CAST(ISNULL(stg.HolidayType,N'') AS nvarchar(50)) AS HolidayType,
-        CAST(ISNULL(stg.ShiftType,N'') AS nvarchar(20)) AS ShiftType,
-        CAST(ISNULL(stg.ShiftCode,N'') AS nvarchar(20)) AS ShiftCode,
-        CAST(ISNULL(stg.ShiftName,N'') AS nvarchar(100)) AS ShiftName,
-        CAST(emp.OTRequestId AS int) AS OTRequestId,
-        CAST(ISNULL(ot.OTCode,N'') AS nvarchar(20)) AS OTCode,
-        CAST(CASE WHEN ot.Id IS NULL THEN N'' ELSE CONVERT(nvarchar(20),ot.RequestStatus) END AS nvarchar(20)) AS RequestStatus,
-        CAST(CASE
-            WHEN emp.OTRequestId IS NULL THEN N'Warning'
-            WHEN ot.RequestStatus<>3 THEN N'Warning'
-            WHEN ABS(ISNULL(stg.OTHours,0)-ISNULL(ot.PlannedHours,0))>1.0 THEN N'Warning'
-            ELSE N'Valid' END AS nvarchar(20)) AS ValidationStatus,
-        CAST(CASE
-            WHEN emp.OTRequestId IS NULL THEN N'Chưa có đơn OT'
-            WHEN ot.RequestStatus<>3 THEN N'Đơn chưa được duyệt'
-            WHEN ABS(ISNULL(stg.OTHours,0)-ISNULL(ot.PlannedHours,0))>1.0
-                THEN N'Giờ OT thực tế lệch > 1h so với kế hoạch'
-            ELSE N'OK' END AS nvarchar(200)) AS ValidationMessage,
-        CAST(CASE
-            WHEN emp.OTRequestId IS NULL THEN N'CHUA_CO_DON'
-            WHEN ot.RequestStatus<>3 THEN N'DON_CHUA_DUYET'
-            WHEN emp.ActualHours IS NULL THEN N'CHUA_CONFIRM'
-            ELSE N'DA_XU_LY' END AS nvarchar(20)) AS TinhHuong
-    FROM dbo.F03AttendanceStaging stg
-    OUTER APPLY
-    (
-        SELECT TOP(1) r.Id,r.DeptCode,r.PlannedHours,r.OTCode,r.RequestStatus
-        FROM dbo.F03OTRequests r
-        INNER JOIN dbo.F03OTEmployees oe
-          ON oe.OTRequestId=r.Id
-         AND oe.EmployeeCode=stg.EmployeeCode
-         AND oe.IsActive=1
-        WHERE r.IsActive=1
-          AND CAST(r.OTDate AS date)=@OTDate
-          AND (@DeptCode IS NULL OR r.DeptCode=@DeptCode)
-        ORDER BY CASE WHEN r.RequestStatus=3 THEN 0 ELSE 1 END,
-                 r.CreatedAt DESC,r.Id DESC
-    ) ot
-    OUTER APPLY
-    (
-        SELECT TOP(1) oe.OTRequestId,oe.EmployeeName,oe.ActualHours
-        FROM dbo.F03OTEmployees oe
-        WHERE oe.OTRequestId=ot.Id
-          AND oe.EmployeeCode=stg.EmployeeCode
-          AND oe.IsActive=1
-        ORDER BY oe.Id DESC
-    ) emp
-    LEFT JOIN dbo.F03Employees e ON e.EmployeeCode=stg.EmployeeCode
-    LEFT JOIN dbo.F03Departments d_ot ON d_ot.DeptCode=ot.DeptCode AND d_ot.IsActive=1
-    WHERE CAST(stg.WorkDate AS date)=@OTDate
-      AND ISNULL(stg.OTHours,0)>0
-    ORDER BY COALESCE(ot.DeptCode,stg.DeptCode),stg.FullName,stg.EmployeeCode;
-END;
-GO
 
 CREATE OR ALTER PROCEDURE dbo.usp_DequeueEmail @BatchSize int=20 AS
 BEGIN

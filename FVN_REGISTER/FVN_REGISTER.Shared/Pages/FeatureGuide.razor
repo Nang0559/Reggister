@@ -124,8 +124,8 @@
             case "OT":
                 Title = "Đăng ký OT";
                 Summary = "Đăng ký OT với kiểm tra hạn mức ngày, tuần, tháng và năm trước khi Submit.";
-                Flow = "NHẬP OT → NGÀY → TUẦN → THÁNG → NĂM → SUBMIT → APPROVAL → RECONCILE";
-                Steps = new[] { "Chọn ngày, loại OT và số giờ.", "Kiểm tra giới hạn ngày.", "Kiểm tra tuần Thứ 2 → Chủ nhật nếu Weekly rule được cấu hình.", "Kiểm tra hạn mức tháng và năm.", "Xử lý policy đặc biệt nếu vượt ngưỡng năm tiêu chuẩn.", "Submit và theo dõi duyệt/đối soát." };
+                Flow = "NHẬP OT → NGÀY → TUẦN → THÁNG → NĂM → SUBMIT → APPROVAL → THEO DÕI";
+                Steps = new[] { "Chọn ngày, loại OT và số giờ.", "Kiểm tra giới hạn ngày.", "Kiểm tra tuần Thứ 2 → Chủ nhật nếu Weekly rule được cấu hình.", "Kiểm tra hạn mức tháng và năm.", "Xử lý policy đặc biệt nếu vượt ngưỡng năm tiêu chuẩn.", "Submit và theo dõi tiến trình phê duyệt." };
                 Example = "Dashboard cho biết OT đã Approved của tuần, tháng, năm; khi đăng ký, request chưa bị Reject/Cancel vẫn được tính để tránh đăng ký chồng.";
                 Security = "Server là nơi quyết định giới hạn. Rule được resolve theo Dept + Position > Dept > Position > toàn công ty; OTCreate/OTEdit/OTApprove là các capability độc lập.";
                 break;

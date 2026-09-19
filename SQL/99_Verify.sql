@@ -5,7 +5,7 @@ SELECT DB_NAME() AS DatabaseName;
 SELECT name,type_desc FROM sys.tables WHERE name LIKE N'F03%' OR name LIKE N'Approval%' OR name LIKE N'Hrm%' ORDER BY name;
 SELECT TABLE_SCHEMA,TABLE_NAME,COLUMN_NAME,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=N'dbo' AND (TABLE_NAME LIKE N'F03%' OR TABLE_NAME LIKE N'Approval%' OR TABLE_NAME LIKE N'Hrm%') ORDER BY TABLE_NAME,ORDINAL_POSITION;
 SELECT name,type_desc FROM sys.views WHERE name IN(N'vEmployeeApprover',N'vF03Employee',N'vF03leaveType',N'vF03LeaveRequest',N'vF03LeaveRequestDetail',N'vF03LeaveBalance',N'vF03OTRequest',N'vF03OTRequestDetail',N'vF03OTSummary',N'vF03Users',N'vw_CurrentlyPresentEmployees',N'vF03EmployeeAttendance',N'VwShiftCheckInOut');
-SELECT name,type_desc FROM sys.procedures WHERE name IN(N'usp_GetPendingApproval',N'usp_DecideApproval',N'usp_SyncAttendanceStaging',N'usp_SyncOTActualHours',N'usp_DequeueEmail',N'usp_ProcessApprovalEscalation',N'usp_WriteAuditLog',N'usp_WriteUserLog');
+SELECT name,type_desc FROM sys.procedures WHERE name IN(N'usp_GetPendingApproval',N'usp_DecideApproval',N'usp_SyncAttendanceStaging',N'usp_DequeueEmail',N'usp_ProcessApprovalEscalation',N'usp_WriteAuditLog',N'usp_WriteUserLog');
 SELECT fk.name,OBJECT_NAME(fk.parent_object_id) AS ParentTable,OBJECT_NAME(fk.referenced_object_id) AS ReferencedTable FROM sys.foreign_keys fk ORDER BY ParentTable,fk.name;
 GO
 
@@ -39,7 +39,7 @@ IF OBJECT_ID(N'dbo.F03OTApprover',N'U') IS NOT NULL
     THROW 50025,'Legacy F03OTApprover table must not exist; use F03Approvers + approval workflow.',1;
 
 IF OBJECT_ID(N'dbo.F03AttendanceStaging',N'U') IS NULL
-    THROW 50026,'F03AttendanceStaging is required by the OT attendance pipeline.',1;
+    THROW 50026,'F03AttendanceStaging is required by the attendance projection layer.',1;
 
 IF COL_LENGTH(N'dbo.F03AttendanceStaging',N'ShiftCategory') IS NULL
     THROW 50027,'F03AttendanceStaging must expose ShiftCategory.',1;
@@ -48,8 +48,9 @@ IF COL_LENGTH(N'dbo.F03AttendanceStaging',N'OtHours') IS NULL
 
 IF OBJECT_ID(N'dbo.usp_SyncAttendanceStaging',N'P') IS NULL
     THROW 50029,'usp_SyncAttendanceStaging is missing.',1;
-IF OBJECT_ID(N'dbo.usp_SyncOTActualHours',N'P') IS NULL
-    THROW 50030,'usp_SyncOTActualHours is missing.',1;
+/* Legacy OT sync must no longer exist; HRM attendance calculation owns actual OT synchronization. */
+IF OBJECT_ID(N'dbo.usp_SyncOTActualHours',N'P') IS NOT NULL
+    THROW 50030,'Legacy usp_SyncOTActualHours must not exist; use usp_CalculateHrmAttendance.',1;
 
 /* Raw result contract checks used by C# SqlQueryRaw<T>. */
 SELECT

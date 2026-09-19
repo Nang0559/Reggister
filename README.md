@@ -292,3 +292,8 @@ Company holidays are informational calendar data; final Leave/OT/Trip authorizat
 ## Reports & Statistics
 
 Trung tâm `/reports` cung cấp báo cáo Leave, OT, Trip, Equipment và Attendance theo capability + data scope. View và Export là hai quyền độc lập. SQL reporting read models nằm tại `SQL/20_Reports.sql`; kiểm tra bằng `SQL/21_Verify_Reports.sql`. Chi tiết: `MÔ HÌNH/19_REPORTS_STATISTICS.md`.
+
+
+## OT / Leave / Trip architecture
+
+OT, Leave và Trip là các request domain: đăng ký, danh sách, chi tiết và theo dõi tiến trình phê duyệt. Không có controller/client UI đồng bộ riêng cho OT. Dữ liệu chấm công và OT thực tế được tính tập trung bởi `HrmAttendanceCalculationController` → `IHrmAttendanceCalculationService` → `usp_CalculateHrmAttendance`; calculation batch đồng thời cập nhật actual OT cho các đơn đã Approved. Background worker chỉ gọi cùng pipeline này.
