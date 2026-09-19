@@ -69,6 +69,7 @@ using FVN_REGISTER.Infrastructure.Services.Departments;
 using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.API.Services.OT;
 using FVN_REGISTER.API.Services.Histories;
+using FVN_REGISTER.Contract.Responses;
 
 var builder = WebApplication.CreateBuilder(args);
 
