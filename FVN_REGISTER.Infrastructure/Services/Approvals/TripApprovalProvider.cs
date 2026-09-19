@@ -18,25 +18,16 @@ public sealed class TripApprovalProvider
 {
     public override RequestModule RequestType => RequestModule.Trip;
 
-    // Trip approval is intentionally configured through F03Approver. These are the
-    // canonical Trip levels; a missing approver makes that level non-required.
-    protected override IReadOnlyList<(int Level, string LevelName, string RoleName)> LevelDefs { get; } = new[]
-    {
-        (1, "Sub-leader/Leader", "SubLeader"),
-        (2, "Manager", "Manager"),
-        (3, "GM", "GM")
-    };
-
     public TripApprovalProvider(
         IUnitOfWork uow,
         IEmailService email,
         IApprovalNotificationService notification,
         IEmployeeUserResolver userResolver,
+        IApprovalRouteService routeService,
+        IApprovalSelectionService selectionService,
         ILogger<TripApprovalProvider> logger,
         IOptionsMonitor<AuthDebugOptions> options)
-        : base(uow, email, notification, userResolver, logger, options) { }
-
-    protected override bool? ResolveRequired(int level, ApprovalBuildContext ctx) => true;
+        : base(uow, email, notification, userResolver, routeService, selectionService, logger, options) { }
 
     public override async Task<TripRequestSubject?> GetSubjectAsync(int requestId, CancellationToken ct)
     {
