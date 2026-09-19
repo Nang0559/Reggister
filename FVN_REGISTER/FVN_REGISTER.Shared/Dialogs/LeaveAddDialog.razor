@@ -1,8 +1,11 @@
 @using FVN_REGISTER.Contract.Dtos.MasterData
 @using FVN_REGISTER.Contract.Requests.Leaves
 @using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Shared.Services.Approvals
 @using FVN_REGISTER.Shared.Services.Leaves
 @inject ILeaveCreateClientService LeaveService
+@inject IApprovalRouteClientService ApprovalRouteService
 @inject ISnackbar Snackbar
 
 <MudDialog>
@@ -51,15 +54,9 @@
                 </MudPaper>
             }
 
-            @if (Model.DefaultApprovalFlow.Any())
+            @if (_approvalRoute != null)
             {
-                <MudPaper Class="mt-3 pa-2" Elevation="0" Outlined="true">
-                    <MudText Typo="Typo.subtitle2">Quy trình phê duyệt dự kiến</MudText>
-                    @foreach (var step in Model.DefaultApprovalFlow.OrderBy(x => x.Level))
-                    {
-                        <MudText Typo="Typo.caption" Class="d-block">Cấp @step.Level — @step.RoleName — @(step.ApproverName ?? step.ApproverEmail ?? "Tự động xác định")</MudText>
-                    }
-                </MudPaper>
+                <ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" />
             }
         </MudForm>
     </DialogContent>
@@ -84,6 +81,8 @@
     private string _reason = string.Empty;
     private bool _saving;
     private readonly List<LeaveRequestDetailUpsertDto> _details = new();
+    private ApprovalRoutePreviewDto? _approvalRoute;
+    private ApprovalRouteSelector? _approvalSelector;
 
     protected override void OnInitialized()
     {
@@ -91,6 +90,7 @@
         if (DateTime.TryParse(DefaultEnd, out var end)) _endDate = end;
         else _endDate = _startDate;
         RebuildDetails();
+        _ = LoadApprovalRouteAsync();
     }
 
     private void RebuildDetails()
@@ -128,6 +128,13 @@
         if (string.IsNullOrWhiteSpace(_reason)) { Snackbar.Add("Vui lòng nhập lý do nghỉ.", Severity.Warning); return; }
         if (!_details.Any()) { Snackbar.Add("Khoảng ngày không có ngày làm việc hợp lệ.", Severity.Warning); return; }
 
+        var selections = _approvalSelector?.GetSelections() ?? new();
+        if (selections.Any(x => string.IsNullOrWhiteSpace(x.ApproverCode)))
+        {
+            Snackbar.Add("Vui lòng chọn người phê duyệt cho từng cấp.", Severity.Warning);
+            return;
+        }
+
         _saving = true;
         try
         {
@@ -137,7 +144,8 @@
                 EndDate = _endDate.Value.Date,
                 LeaveTypeCode = _details[0].LeaveTypeCode,
                 Reason = _reason.Trim(),
-                Details = _details.ToList()
+                Details = _details.ToList(),
+                ApprovalSelections = selections
             };
             var result = await LeaveService.CreateLeaveAsync(request);
             if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Gửi đơn nghỉ thất bại.", Severity.Error); return; }
@@ -146,6 +154,15 @@
             MudDialog.Close(DialogResult.Ok(true));
         }
         finally { _saving = false; }
+    }
+
+
+    private async Task LoadApprovalRouteAsync()
+    {
+        var result = await ApprovalRouteService.GetPreviewAsync(RequestModule.Leave);
+        if (result.IsSuccess) _approvalRoute = result.Data;
+        else Snackbar.Add(result.Message ?? "Không tải được luồng phê duyệt.", Severity.Warning);
+        await InvokeAsync(StateHasChanged);
     }
 
     private void Cancel() => MudDialog.Cancel();
