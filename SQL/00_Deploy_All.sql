@@ -27,6 +27,7 @@ Order:
   20 Reporting read models
   21 Reporting verification
   22 HRM-compatible attendance pipeline
+  23 Leave balance schema upgrade
   99 Final cross-layer/schema verification
 
 IMPORTANT:
@@ -58,10 +59,11 @@ IMPORTANT:
 :r 20_Reports.sql
 :r 21_Verify_Reports.sql
 :r 22_HrmCompatibleAttendance.sql
+:r 23_LeaveBalanceUpgrade.sql
 :r 99_Verify.sql
 
 PRINT N'============================================================';
-PRINT N'FVN_REGISTER SQL deployment 01..22 + 99 verification completed.';
+PRINT N'FVN_REGISTER SQL deployment 01..23 + 99 verification completed.';
 PRINT N'============================================================';
 GO
 
