@@ -68,11 +68,11 @@ SELECT 1,0,v.Code,v.Name,v.Description,v.SortNo FROM (VALUES
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03OTCodes x WHERE x.ReasonCode=v.Code);
 
 -- Work years / holidays
-IF NOT EXISTS(SELECT 1 FROM dbo.F03WorkYears WHERE WorkYear=YEAR(@Now))
-INSERT dbo.F03WorkYears(WorkYear,StartDate,EndDate,Remark,CreatedBy)
+IF NOT EXISTS(SELECT 1 FROM dbo.F03WorkYear WHERE WorkYear=YEAR(@Now))
+INSERT dbo.F03WorkYear(WorkYear,StartDate,EndDate,Remark,CreatedBy)
 VALUES(YEAR(@Now),DATEFROMPARTS(YEAR(@Now),1,1),DATEFROMPARTS(YEAR(@Now),12,31),N'Test work year',0);
 
-INSERT dbo.F03CompanyHolidays(IsActive,CreatedBy,HolidayDate,Description,Year,IsPaidLeave)
+INSERT dbo.F03CompanyHoliday(IsActive,CreatedBy,HolidayDate,Description,Year,TinhPhep)
 SELECT 1,0,v.HolidayDate,v.Description,YEAR(v.HolidayDate),1
 FROM (VALUES
 (DATEFROMPARTS(YEAR(@Now),1,1),N'New Year'),
@@ -81,7 +81,7 @@ FROM (VALUES
 (DATEFROMPARTS(YEAR(@Now),9,2),N'National Day'),
 (DATEADD(day,-1,DATEFROMPARTS(YEAR(@Now),9,2)),N'Test company holiday')
 ) AS v(HolidayDate,Description)
-WHERE NOT EXISTS(SELECT 1 FROM dbo.F03CompanyHolidays h WHERE h.HolidayDate=v.HolidayDate);
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03CompanyHoliday h WHERE h.HolidayDate=v.HolidayDate);
 
 -- Permissions required by F03Users.PermissionCode FK
 INSERT dbo.F03Permissions(IsActive,CreatedBy,PermissionCode,PermissionName,Detail)
@@ -152,11 +152,42 @@ SET u.Password=N'f925916e2754e5e03f75dd58a5733251'
 FROM dbo.F03Users u
 WHERE u.EmployeeCode IN (N'E0001',N'E0002',N'E0003',N'E0004',N'E0005');
 
-INSERT dbo.F03LeaveBalances(IsActive,CreatedBy,EmployeeCode,WorkYear,TotalDays)
-SELECT 1,0,v.Code,YEAR(@Now),v.Days FROM (VALUES
-(N'E0001',12.0),(N'E0002',14.0),(N'E0003',14.0),(N'E0004',16.0),(N'E0005',18.0)
-) AS v(Code,Days)
-WHERE NOT EXISTS(SELECT 1 FROM dbo.F03LeaveBalances b WHERE b.EmployeeCode=v.Code AND b.WorkYear=YEAR(@Now));
+DECLARE @SeedLeaveYear int = YEAR(@Now);
+DECLARE @SeedLeaveEnd date = DATEFROMPARTS(@SeedLeaveYear,12,31);
+
+INSERT dbo.F03LeaveBalances
+    (IsActive,CreatedBy,EmployeeCode,WorkYear,BaseLeaveDays,SeniorityLeaveDays,TotalDays,YearsOfService,CalculatedAt)
+SELECT
+    1,
+    0,
+    e.EmployeeCode,
+    @SeedLeaveYear,
+    12,
+    CAST(CASE
+        WHEN e.FirstWorkingDate IS NULL OR e.FirstWorkingDate > @SeedLeaveEnd THEN 0
+        ELSE
+            (DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd)
+             - CASE WHEN DATEADD(year,DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd),e.FirstWorkingDate) > @SeedLeaveEnd THEN 1 ELSE 0 END) / 5.0
+        END AS decimal(5,2)),
+    CAST(12 + CASE
+        WHEN e.FirstWorkingDate IS NULL OR e.FirstWorkingDate > @SeedLeaveEnd THEN 0
+        ELSE
+            (DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd)
+             - CASE WHEN DATEADD(year,DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd),e.FirstWorkingDate) > @SeedLeaveEnd THEN 1 ELSE 0 END) / 5
+        END AS decimal(5,2)),
+    CASE
+        WHEN e.FirstWorkingDate IS NULL OR e.FirstWorkingDate > @SeedLeaveEnd THEN 0
+        ELSE
+            DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd)
+            - CASE WHEN DATEADD(year,DATEDIFF(year,e.FirstWorkingDate,@SeedLeaveEnd),e.FirstWorkingDate) > @SeedLeaveEnd THEN 1 ELSE 0 END
+        END,
+    @Now
+FROM dbo.F03Employees e
+WHERE e.IsActive = 1
+  AND NOT EXISTS(
+      SELECT 1 FROM dbo.F03LeaveBalances b
+      WHERE b.EmployeeCode=e.EmployeeCode AND b.WorkYear=@SeedLeaveYear
+  );
 
 -- Functions required by F03UserFunctions mappings
 INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail)
