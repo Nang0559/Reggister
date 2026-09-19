@@ -185,7 +185,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.Syncs
                         user.IsActive = employee.IsActive;
                         user.LastModifiedSource = SyncSourceTags.Hrm;
 
-                        if (wasActive && employee.IsActive == false)
+                        if (wasActive && employee.IsActive != true)
                         {
                             user.LockoutEndDate = DateTime.Now;
 
