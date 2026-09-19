@@ -50,6 +50,14 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
     /// read-only screens such as calendars so missing approval configuration
     /// does not turn an otherwise valid query into HTTP 500.
     /// </summary>
+    // Backward-compatible interface implementation.
+    // Existing IApprovalProvider<T> consumers keep the original two-argument contract;
+    // command flows therefore remain strict by default.
+    public virtual Task<List<ApprovalStepSnapshotDto>> BuildHierarchyAsync(
+        ApprovalBuildContext ctx,
+        CancellationToken ct)
+        => BuildHierarchyAsync(ctx, ct, strict: true);
+
     public virtual async Task<List<ApprovalStepSnapshotDto>> BuildHierarchyAsync(
         ApprovalBuildContext ctx,
         CancellationToken ct,
