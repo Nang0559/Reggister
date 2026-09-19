@@ -77,6 +77,35 @@ BEGIN
     IF COL_LENGTH(N'dbo.F03UserLogs',N'ModifiedAt') IS NULL ALTER TABLE dbo.F03UserLogs ADD ModifiedAt datetime2(0) NULL;
 END;
 
+/* Normalize approval snapshot/reminder entities to BaseAuditEntity. */
+IF OBJECT_ID(N'dbo.F03ApprovalSnapshots',N'U') IS NOT NULL
+BEGIN
+ IF COL_LENGTH(N'dbo.F03ApprovalSnapshots',N'IsActive') IS NULL ALTER TABLE dbo.F03ApprovalSnapshots ADD IsActive bit NULL CONSTRAINT DF_F03ApprovalSnapshots_IsActive DEFAULT 1;
+ IF COL_LENGTH(N'dbo.F03ApprovalSnapshots',N'CreatedBy') IS NULL ALTER TABLE dbo.F03ApprovalSnapshots ADD CreatedBy int NOT NULL CONSTRAINT DF_F03ApprovalSnapshots_CreatedBy DEFAULT 0;
+ IF COL_LENGTH(N'dbo.F03ApprovalSnapshots',N'LastModifiedSource') IS NULL ALTER TABLE dbo.F03ApprovalSnapshots ADD LastModifiedSource nvarchar(50) NULL;
+ IF COL_LENGTH(N'dbo.F03ApprovalSnapshots',N'CreatedAt') IS NULL ALTER TABLE dbo.F03ApprovalSnapshots ADD CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03ApprovalSnapshots_CreatedAt DEFAULT GETUTCDATE();
+ IF COL_LENGTH(N'dbo.F03ApprovalSnapshots',N'ModifiedBy') IS NULL ALTER TABLE dbo.F03ApprovalSnapshots ADD ModifiedBy int NULL;
+ IF COL_LENGTH(N'dbo.F03ApprovalSnapshots',N'ModifiedAt') IS NULL ALTER TABLE dbo.F03ApprovalSnapshots ADD ModifiedAt datetime2(0) NULL;
+END;
+IF OBJECT_ID(N'dbo.F03ApprovalStepSnapshots',N'U') IS NOT NULL
+BEGIN
+ IF COL_LENGTH(N'dbo.F03ApprovalStepSnapshots',N'IsActive') IS NULL ALTER TABLE dbo.F03ApprovalStepSnapshots ADD IsActive bit NULL CONSTRAINT DF_F03ApprovalStepSnapshots_IsActive DEFAULT 1;
+ IF COL_LENGTH(N'dbo.F03ApprovalStepSnapshots',N'CreatedBy') IS NULL ALTER TABLE dbo.F03ApprovalStepSnapshots ADD CreatedBy int NOT NULL CONSTRAINT DF_F03ApprovalStepSnapshots_CreatedBy DEFAULT 0;
+ IF COL_LENGTH(N'dbo.F03ApprovalStepSnapshots',N'LastModifiedSource') IS NULL ALTER TABLE dbo.F03ApprovalStepSnapshots ADD LastModifiedSource nvarchar(50) NULL;
+ IF COL_LENGTH(N'dbo.F03ApprovalStepSnapshots',N'CreatedAt') IS NULL ALTER TABLE dbo.F03ApprovalStepSnapshots ADD CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03ApprovalStepSnapshots_CreatedAt DEFAULT GETUTCDATE();
+ IF COL_LENGTH(N'dbo.F03ApprovalStepSnapshots',N'ModifiedBy') IS NULL ALTER TABLE dbo.F03ApprovalStepSnapshots ADD ModifiedBy int NULL;
+ IF COL_LENGTH(N'dbo.F03ApprovalStepSnapshots',N'ModifiedAt') IS NULL ALTER TABLE dbo.F03ApprovalStepSnapshots ADD ModifiedAt datetime2(0) NULL;
+END;
+IF OBJECT_ID(N'dbo.F03ApprovalReminderLog',N'U') IS NOT NULL
+BEGIN
+ IF COL_LENGTH(N'dbo.F03ApprovalReminderLog',N'IsActive') IS NULL ALTER TABLE dbo.F03ApprovalReminderLog ADD IsActive bit NULL CONSTRAINT DF_F03ApprovalReminderLog_IsActive DEFAULT 1;
+ IF COL_LENGTH(N'dbo.F03ApprovalReminderLog',N'CreatedBy') IS NULL ALTER TABLE dbo.F03ApprovalReminderLog ADD CreatedBy int NOT NULL CONSTRAINT DF_F03ApprovalReminderLog_CreatedBy DEFAULT 0;
+ IF COL_LENGTH(N'dbo.F03ApprovalReminderLog',N'LastModifiedSource') IS NULL ALTER TABLE dbo.F03ApprovalReminderLog ADD LastModifiedSource nvarchar(50) NULL;
+ IF COL_LENGTH(N'dbo.F03ApprovalReminderLog',N'CreatedAt') IS NULL ALTER TABLE dbo.F03ApprovalReminderLog ADD CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03ApprovalReminderLog_CreatedAt DEFAULT GETUTCDATE();
+ IF COL_LENGTH(N'dbo.F03ApprovalReminderLog',N'ModifiedBy') IS NULL ALTER TABLE dbo.F03ApprovalReminderLog ADD ModifiedBy int NULL;
+ IF COL_LENGTH(N'dbo.F03ApprovalReminderLog',N'ModifiedAt') IS NULL ALTER TABLE dbo.F03ApprovalReminderLog ADD ModifiedAt datetime2(0) NULL;
+END;
+
 /* Canonical BaseAuditEntity PK: Id is the single inherited identity key.
    Never drop Id from BaseAuditEntity-backed security tables. */
 IF OBJECT_ID('dbo.F03HrmUserRoleRules','U') IS NULL CREATE TABLE dbo.F03HrmUserRoleRules(
@@ -158,10 +187,10 @@ IF OBJECT_ID('dbo.F03EquipmentRepairHistory','U') IS NULL CREATE TABLE dbo.F03Eq
 
 IF OBJECT_ID('dbo.F03Approvers','U') IS NULL CREATE TABLE dbo.F03Approvers(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,UserId int NULL,RequestType nvarchar(20) NOT NULL,ApproverCode nvarchar(50) NOT NULL,PositionCode nvarchar(20) NULL,ApproverName nvarchar(100) NOT NULL,ApproverEmail nvarchar(100) NOT NULL,ApproverDeptCode nvarchar(20) NOT NULL,ApproverDeptName nvarchar(100) NOT NULL,ApproveForDeptCode nvarchar(20) NOT NULL,ApproveForDeptName nvarchar(100) NOT NULL,Level int NOT NULL,RoleName nvarchar(50) NOT NULL);
 IF OBJECT_ID('dbo.F03ApprovalSteps','U') IS NULL CREATE TABLE dbo.F03ApprovalSteps(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,RequestType nvarchar(20) NOT NULL,RequestId int NOT NULL,Level int NOT NULL,LevelName nvarchar(50) NULL,RoleName nvarchar(50) NOT NULL,ApproverCode nvarchar(50) NULL,ApproverName nvarchar(100) NULL,ApproverEmail nvarchar(100) NULL,Required bit NOT NULL DEFAULT 1,Approved bit NULL,ApprovedAt datetime2(0) NULL,Comment nvarchar(500) NULL,ReminderSent bit NOT NULL DEFAULT 0,IsOverriddenByAdmin bit NOT NULL DEFAULT 0,OverriddenByCode nvarchar(50) NULL,OverriddenByName nvarchar(100) NULL,OverriddenAt datetime2(0) NULL);
-IF OBJECT_ID('dbo.F03ApprovalSnapshots','U') IS NULL CREATE TABLE dbo.F03ApprovalSnapshots(Id int IDENTITY PRIMARY KEY,RequestId int NOT NULL,RequestType int NOT NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETUTCDATE());
-IF OBJECT_ID('dbo.F03ApprovalStepSnapshots','U') IS NULL CREATE TABLE dbo.F03ApprovalStepSnapshots(Id int IDENTITY PRIMARY KEY,SnapshotId int NOT NULL,Level int NOT NULL,ApproverCode nvarchar(20) NOT NULL,ApproverName nvarchar(100) NOT NULL,ApproverEmail nvarchar(max) NOT NULL,RoleName nvarchar(100) NOT NULL,IsRequired bit NOT NULL);
+IF OBJECT_ID('dbo.F03ApprovalSnapshots','U') IS NULL CREATE TABLE dbo.F03ApprovalSnapshots(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50) NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETUTCDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,RequestId int NOT NULL,RequestType int NOT NULL);
+IF OBJECT_ID('dbo.F03ApprovalStepSnapshots','U') IS NULL CREATE TABLE dbo.F03ApprovalStepSnapshots(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50) NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETUTCDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,SnapshotId int NOT NULL,Level int NOT NULL,ApproverCode nvarchar(20) NOT NULL,ApproverName nvarchar(100) NOT NULL,ApproverEmail nvarchar(max) NOT NULL,RoleName nvarchar(100) NOT NULL,IsRequired bit NOT NULL);
 IF OBJECT_ID('dbo.ApprovalHistories','U') IS NULL CREATE TABLE dbo.ApprovalHistories(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,RequestType int NOT NULL,RequestId int NOT NULL,StepId int NOT NULL,IsOverriddenByAdmin bit NOT NULL DEFAULT 0,ApproverCode nvarchar(50) NOT NULL,ApproverName nvarchar(100) NOT NULL,OverriddenByCode nvarchar(50) NULL,OverriddenByName nvarchar(100) NULL,OverriddenAt datetime2(0) NULL,Decision int NOT NULL,Comment nvarchar(max) NULL,ActionAt datetime2(0) NOT NULL);
-IF OBJECT_ID('dbo.F03ApprovalReminderLog','U') IS NULL CREATE TABLE dbo.F03ApprovalReminderLog(Id int IDENTITY PRIMARY KEY,RequestType int NOT NULL,RequestId int NOT NULL,Level int NOT NULL,SentAt datetime2(0) NOT NULL DEFAULT GETDATE());
+IF OBJECT_ID('dbo.F03ApprovalReminderLog','U') IS NULL CREATE TABLE dbo.F03ApprovalReminderLog(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50) NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETUTCDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,RequestType int NOT NULL,RequestId int NOT NULL,Level int NOT NULL,SentAt datetime2(0) NOT NULL DEFAULT GETDATE());
 
 IF OBJECT_ID('dbo.F03Attachment','U') IS NULL CREATE TABLE dbo.F03Attachment(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50) NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,Module int NOT NULL,RequestId int NOT NULL,FileName nvarchar(200) NOT NULL,FilePath nvarchar(255) NOT NULL,FileExtension nvarchar(10) NULL,FileSize bigint NOT NULL DEFAULT 0);
 IF OBJECT_ID('dbo.F03AppNotifications','U') IS NULL CREATE TABLE dbo.F03AppNotifications(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,UserId int NOT NULL,EmployeeCode nvarchar(50) NULL,RequestModule nvarchar(20) NOT NULL,Action nvarchar(20) NOT NULL,Title nvarchar(200) NOT NULL,Body nvarchar(1000) NULL,ActionUrl nvarchar(500) NULL,RelatedLeaveId int NULL,RelatedOTId int NULL,ApprovalLevel int NULL,IsHighPriority bit NOT NULL DEFAULT 0,Metadata nvarchar(2000) NULL,IsRead bit NOT NULL DEFAULT 0,ReadAt datetime2(0) NULL);
