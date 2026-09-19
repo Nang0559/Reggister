@@ -2,6 +2,7 @@
 using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Responses;
+using FVN_REGISTER.Contract.Utils;
 
 
 namespace FVN_REGISTER.Application.Interfaces.Orchestrators
@@ -12,7 +13,7 @@ namespace FVN_REGISTER.Application.Interfaces.Orchestrators
         /// Build snapshot quy trình duyệt (dựa trên ApprovalBuildContext) và khởi tạo bước duyệt cho request vừa tạo.
         /// Gọi ngay sau khi entity gốc (F03LeaveDay/F03OTRequest) đã được lưu và có Id.
         /// </summary>
-        Task InitApprovalAsync(int requestId, ApprovalBuildContext ctx, CancellationToken ct);
+        Task<ServiceResult> InitApprovalAsync(int requestId, ApprovalBuildContext ctx, CancellationToken ct);
 
         Task<ApprovalActionResult> ApproveAsync(ApprovalActionDto action, CancellationToken ct);
 
