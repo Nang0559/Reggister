@@ -9,7 +9,6 @@ public sealed class F03PermissionConfiguration : IEntityTypeConfiguration<F03Per
     {
         entity.ToTable("F03Permissions");
         entity.HasKey(e => e.Id);
-        entity.Property(e => e.Id).HasColumnName("IdPermission");
 
         entity.HasIndex(e => e.PermissionCode, "IX_Permission_Code").IsUnique();
 
