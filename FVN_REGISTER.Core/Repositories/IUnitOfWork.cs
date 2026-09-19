@@ -15,6 +15,9 @@ namespace FVN_REGISTER.Core.Repositories
           string sql, CancellationToken ct = default, params object[] parameters)
           where TResult : class;
 
+        Task<int> ExecuteSqlRawAsync(
+            string sql, CancellationToken ct = default, params object[] parameters);
+
         void SetCommandTimeout(int seconds);
     }
     public interface IUowTransaction : IAsyncDisposable
