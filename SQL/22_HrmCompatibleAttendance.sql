@@ -3662,6 +3662,11 @@ SET QUOTED_IDENTIFIER ON
 GO
 
 GO
+/*
+  Single entry point for HRM-compatible attendance calculation.
+  It also synchronizes ActualHours for approved OT rows in the same calculation run.
+  OT has no separate sync/reconciliation command.
+*/
 CREATE OR ALTER PROCEDURE dbo.usp_CalculateHrmAttendance
  @DeptCode nvarchar(20)=NULL,@FromDate date,@ToDate date,@TriggeredBy nvarchar(100)=NULL,@CalculationVersion nvarchar(50)=N'HRM-PORT-1.0'
 AS
