@@ -380,17 +380,23 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
             and not RequestModule.Equipment)
             return ServiceResult.Fail("Loại yêu cầu không hợp lệ.");
 
-        var validLevel = model.RequestType switch
-        {
-            RequestModule.Leave => model.Level is 1 or 2 or 3,
-            RequestModule.Overtime => model.Level is 3 or 5 or 6 or 7,
-            RequestModule.Trip => model.Level is 1 or 2 or 3,
-            RequestModule.Equipment => model.Level is 1 or 2 or 3,
-            _ => false
-        };
+        if (model.Level < 0 || model.Level > 7)
+            return ServiceResult.Fail("Cấp duyệt không hợp lệ.");
 
-        if (!validLevel)
-            return ServiceResult.Fail($"Cấp duyệt {model.Level} không hợp lệ cho {model.RequestType}.");
+        if (model.Level > 0)
+        {
+            var validLevel = model.RequestType switch
+            {
+                RequestModule.Leave => model.Level is 1 or 2 or 3,
+                RequestModule.Overtime => model.Level is 3 or 5 or 6 or 7,
+                RequestModule.Trip => model.Level is 1 or 2 or 3,
+                RequestModule.Equipment => model.Level is 1 or 2 or 3,
+                _ => false
+            };
+
+            if (!validLevel)
+                return ServiceResult.Fail($"Cấp duyệt {model.Level} không hợp lệ cho {model.RequestType}.");
+        }
 
         if (string.IsNullOrWhiteSpace(model.ApproveForDeptCode))
             return ServiceResult.Fail("Chưa chọn phòng ban được duyệt.");
