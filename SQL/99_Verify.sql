@@ -135,3 +135,8 @@ IF OBJECT_ID(N'dbo.F03UserLogs',N'U') IS NOT NULL
 BEGIN
     IF COL_LENGTH(N'dbo.F03UserLogs',N'CreatedBy') IS NULL THROW 51019, 'F03UserLogs must expose BaseAudit CreatedBy.', 1;
 END;
+
+/* Approval BaseAudit checks */
+IF OBJECT_ID(N'dbo.F03ApprovalSnapshots',N'U') IS NOT NULL AND COL_LENGTH(N'dbo.F03ApprovalSnapshots',N'CreatedBy') IS NULL THROW 51020,'F03ApprovalSnapshots must expose BaseAudit fields.',1;
+IF OBJECT_ID(N'dbo.F03ApprovalStepSnapshots',N'U') IS NOT NULL AND COL_LENGTH(N'dbo.F03ApprovalStepSnapshots',N'CreatedBy') IS NULL THROW 51021,'F03ApprovalStepSnapshots must expose BaseAudit fields.',1;
+IF OBJECT_ID(N'dbo.F03ApprovalReminderLog',N'U') IS NOT NULL AND COL_LENGTH(N'dbo.F03ApprovalReminderLog',N'CreatedBy') IS NULL THROW 51022,'F03ApprovalReminderLog must expose BaseAudit fields.',1;
