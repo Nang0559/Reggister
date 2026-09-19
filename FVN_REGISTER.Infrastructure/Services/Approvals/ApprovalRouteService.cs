@@ -40,8 +40,10 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 .ToListAsync(ct);
 
         if (policies.Count == 0)
-            throw new InvalidOperationException(
+        {
+            return ServiceResult<ApprovalRoutePreviewDto>.Fail(
                 $"Chưa cấu hình luồng phê duyệt cho {requestType} / chức vụ {positionCode}.");
+        }
 
         var levels = new List<ApprovalRouteLevelDto>();
 

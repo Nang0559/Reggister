@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Approvals;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Enums;
 using Microsoft.AspNetCore.Authorization;
@@ -30,16 +31,19 @@ public sealed class ApprovalRouteController : ControllerBase
     }
 
     [HttpGet("preview")]
-    public async Task<ActionResult<ApprovalRoutePreviewDto>> Preview(
-        [FromQuery] RequestModule requestType,
-        CancellationToken ct)
+    public async Task<ActionResult<ServiceResult<ApprovalRoutePreviewDto>>> Preview(
+     [FromQuery] RequestModule requestType,
+     CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
+
         if (user == null)
             return Unauthorized();
 
         if (string.IsNullOrWhiteSpace(user.EmployeeCode))
-            return BadRequest("Tài khoản chưa có EmployeeCode.");
+            return BadRequest(
+                ServiceResult<ApprovalRoutePreviewDto>.Fail(
+                    "Tài khoản chưa có EmployeeCode."));
 
         var functionCode = requestType switch
         {
@@ -50,14 +54,15 @@ public sealed class ApprovalRouteController : ControllerBase
             _ => 0
         };
 
+        if (functionCode == 0)
+        {
+            return BadRequest(
+                ServiceResult<ApprovalRoutePreviewDto>.Fail(
+                    "Loại yêu cầu không hỗ trợ."));
+        }
+
         if (!await _authorization.HasAsync(user, functionCode, ct))
             return Forbid();
-
-        if (requestType is not RequestModule.Leave
-            and not RequestModule.Overtime
-            and not RequestModule.Trip
-            and not RequestModule.Equipment)
-            return BadRequest("Loại yêu cầu không hỗ trợ.");
 
         var result = await _routeService.GetPreviewAsync(
             requestType,
@@ -65,6 +70,9 @@ public sealed class ApprovalRouteController : ControllerBase
             user.DeptCode ?? string.Empty,
             user.PositionCode ?? string.Empty,
             ct);
+
+        if (!result.IsSuccess)
+            return UnprocessableEntity(result);
 
         return Ok(result);
     }
