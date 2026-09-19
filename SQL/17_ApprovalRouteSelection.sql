@@ -243,63 +243,80 @@ WHERE NOT EXISTS
 GO
 
 /*
-    Compatibility projection for the canonical application position codes.
+    Canonical application position codes.
 
-    Earlier versions of this script used numeric CvCodeRules codes (0002..0012),
-    while the actual F03Employees/F03Users seed uses EMP/SL/CHIEF/MGR/GM.
-    ApprovalRouteService queries RequesterPositionCode using the employee's
-    actual Cvcode, so create the same policies under the canonical codes.
+    These rows are explicit and intentionally do not depend on the legacy
+    numeric CvCodeRules values above. F03Employees/F03Users.Cvcode is the
+    runtime source used by ApprovalRouteService.
 */
 INSERT dbo.F03ApprovalPolicies
 (
     IsActive, CreatedBy, RequestType, RequesterPositionCode,
     Level, Sequence, LevelName, RoleName, Required
 )
-SELECT DISTINCT
-    1, 0,
-    p.RequestType,
-    CASE p.RequesterPositionCode
-        WHEN N'0002' THEN N'SL'
-        WHEN N'0003' THEN N'EMP'
-        WHEN N'0004' THEN N'CHIEF'
-        WHEN N'0005' THEN N'MGR'
-        WHEN N'0006' THEN N'SL'
-        WHEN N'0007' THEN N'EMP'
-        WHEN N'0008' THEN N'EMP'
-        WHEN N'0009' THEN N'GM'
-        WHEN N'0010' THEN N'CHIEF'
-        WHEN N'0011' THEN N'MGR'
-        WHEN N'0012' THEN N'EMP'
-    END,
-    p.Level,
-    p.Sequence,
-    p.LevelName,
-    p.RoleName,
-    1
-FROM @Policies p
-WHERE p.RequesterPositionCode IN
-    (N'0002',N'0003',N'0004',N'0005',N'0006',N'0007',N'0008',N'0009',N'0010',N'0011',N'0012')
-  AND NOT EXISTS
-  (
-      SELECT 1
-      FROM dbo.F03ApprovalPolicies x
-      WHERE x.RequestType = p.RequestType
-        AND x.RequesterPositionCode =
-            CASE p.RequesterPositionCode
-                WHEN N'0002' THEN N'SL'
-                WHEN N'0003' THEN N'EMP'
-                WHEN N'0004' THEN N'CHIEF'
-                WHEN N'0005' THEN N'MGR'
-                WHEN N'0006' THEN N'SL'
-                WHEN N'0007' THEN N'EMP'
-                WHEN N'0008' THEN N'EMP'
-                WHEN N'0009' THEN N'GM'
-                WHEN N'0010' THEN N'CHIEF'
-                WHEN N'0011' THEN N'MGR'
-                WHEN N'0012' THEN N'EMP'
-            END
-        AND x.Level = p.Level
-  );
+SELECT 1,0,v.RequestType,v.PositionCode,v.Level,v.Sequence,v.LevelName,v.RoleName,1
+FROM (VALUES
+    -- Leave: EMP -> SubLeader -> Manager -> GM
+    (0,N'EMP',1,1,N'Sub-leader / Leader',N'SubLeader'),
+    (0,N'EMP',2,2,N'Manager / Senior Manager',N'Manager'),
+    (0,N'EMP',3,3,N'Giám đốc (GM)',N'GM'),
+
+    -- Leave: SL / CHIEF -> Manager -> GM
+    (0,N'SL',2,1,N'Manager / Senior Manager',N'Manager'),
+    (0,N'SL',3,2,N'Giám đốc (GM)',N'GM'),
+    (0,N'CHIEF',2,1,N'Manager / Senior Manager',N'Manager'),
+    (0,N'CHIEF',3,2,N'Giám đốc (GM)',N'GM'),
+
+    -- Leave: MGR -> GM; GM has no higher approval level
+    (0,N'MGR',3,1,N'Giám đốc (GM)',N'GM'),
+
+    -- OT: EMP -> SubLeader -> Chief -> Manager -> GM
+    (1,N'EMP',3,1,N'Sub-leader / Leader',N'SubLeader'),
+    (1,N'EMP',5,2,N'Ast. Chief / Chief',N'Chief'),
+    (1,N'EMP',6,3,N'A.MG / MG',N'Manager'),
+    (1,N'EMP',7,4,N'Giám đốc (GM)',N'GM'),
+
+    -- OT: SL -> Chief -> Manager -> GM
+    (1,N'SL',5,1,N'Ast. Chief / Chief',N'Chief'),
+    (1,N'SL',6,2,N'A.MG / MG',N'Manager'),
+    (1,N'SL',7,3,N'Giám đốc (GM)',N'GM'),
+
+    -- OT: CHIEF -> Manager -> GM
+    (1,N'CHIEF',6,1,N'A.MG / MG',N'Manager'),
+    (1,N'CHIEF',7,2,N'Giám đốc (GM)',N'GM'),
+
+    -- OT: MGR -> GM
+    (1,N'MGR',7,1,N'Giám đốc (GM)',N'GM'),
+
+    -- Trip: same hierarchy as Leave
+    (2,N'EMP',1,1,N'Sub-leader / Leader',N'SubLeader'),
+    (2,N'EMP',2,2,N'Manager / Senior Manager',N'Manager'),
+    (2,N'EMP',3,3,N'Giám đốc (GM)',N'GM'),
+    (2,N'SL',2,1,N'Manager / Senior Manager',N'Manager'),
+    (2,N'SL',3,2,N'Giám đốc (GM)',N'GM'),
+    (2,N'CHIEF',2,1,N'Manager / Senior Manager',N'Manager'),
+    (2,N'CHIEF',3,2,N'Giám đốc (GM)',N'GM'),
+    (2,N'MGR',3,1,N'Giám đốc (GM)',N'GM'),
+
+    -- Equipment: EMP -> EquipmentApprover -> EquipmentManager -> GM
+    (3,N'EMP',1,1,N'Cấp 1 - Người phụ trách',N'EquipmentApprover'),
+    (3,N'EMP',2,2,N'Cấp 2 - Quản lý thiết bị',N'EquipmentManager'),
+    (3,N'EMP',3,3,N'Giám đốc (GM)',N'GM'),
+    (3,N'SL',2,1,N'Cấp 2 - Quản lý thiết bị',N'EquipmentManager'),
+    (3,N'SL',3,2,N'Giám đốc (GM)',N'GM'),
+    (3,N'CHIEF',2,1,N'Cấp 2 - Quản lý thiết bị',N'EquipmentManager'),
+    (3,N'CHIEF',3,2,N'Giám đốc (GM)',N'GM'),
+    (3,N'MGR',3,1,N'Giám đốc (GM)',N'GM')
+) AS v(RequestType,PositionCode,Level,Sequence,LevelName,RoleName)
+WHERE NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.F03ApprovalPolicies x
+    WHERE x.RequestType=v.RequestType
+      AND x.RequesterPositionCode=v.PositionCode
+      AND x.Level=v.Level
+);
+
 
 GO
 
