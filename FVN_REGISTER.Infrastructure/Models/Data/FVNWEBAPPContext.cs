@@ -35,6 +35,18 @@ public class FVNWEBAPPContext : DbContext
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
         modelBuilder.Entity<VwShiftCheckInOut>(entity => { entity.HasNoKey(); entity.ToView("VwShiftCheckInOut"); });
 
+        modelBuilder.Entity<F03ApprovalPolicy>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.RequestType, x.RequesterPositionCode, x.Level }).IsUnique();
+        });
+
+        modelBuilder.Entity<F03ApprovalSelection>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.RequestType, x.RequestId, x.Level }).IsUnique();
+        });
+
         modelBuilder.Entity<F03RoleFunction>(entity =>
         {
             entity.HasKey(x => x.Id);
