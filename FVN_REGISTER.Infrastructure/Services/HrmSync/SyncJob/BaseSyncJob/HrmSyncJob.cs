@@ -14,6 +14,8 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
         public List<TEntity> Added { get; } = new();
         public List<TEntity> Updated { get; } = new();
         public List<TEntity> Deleted { get; } = new();
+        public List<TEntity> Processed { get; } = new();
+        public List<string> ProvisioningErrors { get; } = new();
     }
 
     /// <summary>
@@ -91,6 +93,7 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
                     foreach (var staging in deleteItems)
                     {
                         staging.IsProcessed = true;
+                        batchContext.Processed.Add(entity);
                         staging.ErrorMessage = $"Delete guard: từ chối {deleteItems.Count} delete trên {activeCount} bản ghi active (>50%).";
                     }
 
@@ -181,6 +184,8 @@ namespace FVN_REGISTER.Infrastructure.Services.HrmSync.SyncJob.BaseSyncJob
 
                 // Persist security/review entities created by the post-save hook.
                 await Uow.SaveChangesAsync(ct);
+                if (batchContext.ProvisioningErrors.Count > 0)
+                    result.Errors.AddRange(batchContext.ProvisioningErrors);
 
                 await transaction.CommitAsync(ct);
                 return result;
