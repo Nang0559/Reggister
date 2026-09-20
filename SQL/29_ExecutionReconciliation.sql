@@ -256,6 +256,21 @@ BEGIN
 END;
 GO
 
+/* BaseAuditEntity.LastModifiedSource compatibility for existing installations. */
+IF OBJECT_ID(N'dbo.F03ExecutionPolicies',N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.F03ExecutionPolicies',N'LastModifiedSource') IS NULL
+    ALTER TABLE dbo.F03ExecutionPolicies ADD LastModifiedSource nvarchar(50) NULL;
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'LastModifiedSource') IS NULL
+    ALTER TABLE dbo.F03ExecutionReconciliations ADD LastModifiedSource nvarchar(50) NULL;
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'LastModifiedSource') IS NULL
+    ALTER TABLE dbo.F03ExecutionConfirmations ADD LastModifiedSource nvarchar(50) NULL;
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmationEvidence',N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.F03ExecutionConfirmationEvidence',N'LastModifiedSource') IS NULL
+    ALTER TABLE dbo.F03ExecutionConfirmationEvidence ADD LastModifiedSource nvarchar(50) NULL;
+GO
+
 /* Evidence uses the existing shared attachment/file store. */
 IF OBJECT_ID(N'dbo.F03ExecutionConfirmationEvidence',N'U') IS NOT NULL
 AND OBJECT_ID(N'dbo.F03Attachment',N'U') IS NOT NULL
