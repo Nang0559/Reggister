@@ -40,7 +40,9 @@ public sealed class ActionItemService : IActionItemService
             {
                 ActionId = x.ActionId,
                 ModuleCode = x.ModuleCode,
+                SourceType = x.SourceType,
                 SourceId = x.SourceId,
+                ParticipantId = x.ParticipantId,
                 EmployeeId = x.EmployeeId,
                 AssignedToEmployeeId = x.AssignedToEmployeeId,
                 WorkDate = x.WorkDate,
