@@ -104,8 +104,8 @@ Tạo một contract duy nhất cho toàn hệ thống. Không sửa business t�
 | P0-002 | SQL verification vẫn yêu cầu `usp_SyncOTActualHours` trong khi attendance calculation là canonical | `SQL/12_Verify.sql` | 🟢 |
 | P0-003 | Reconcile dashboard documentation với provider thực tế | `MÔ HÌNH/13_DASHBOARD_CAPABILITIES.md` | 🟢 |
 | P0-004 | Reconcile Approval DTO/selection/snapshot với docs | `MÔ HÌNH/20_...`, Application, UI | 🟠 |
-| P0-005 | Xác nhận Leave top-level `LeaveTypeCode` và detail cùng contract | Leave UI + DTO/service | 🟠 |
-| P0-006 | Xác nhận Trip/OT UI gọi route preview và render selector | UI | 🟠 |
+| P0-005 | Xác nhận Leave top-level `LeaveTypeCode` và detail cùng contract | Leave UI + DTO/service | 🟢 |
+| P0-006 | Xác nhận Trip/OT UI gọi route preview và render selector | UI | 🟢 |
 | P0-007 | Xác nhận guide không mô tả chức năng chưa expose ở UI | `MÔ HÌNH/16_USER_GUIDE.md` | 🟠 |
 | P0-008 | Xác nhận toàn bộ legacy approval objects/columns đã bị loại bỏ hoặc không còn được runtime sử dụng | SQL + code | 🟠 |
 
@@ -115,7 +115,7 @@ Tạo một contract duy nhất cho toàn hệ thống. Không sửa business t�
 - [x] Canonical SQL verification.
 - [x] Dashboard documentation reconciliation.
 - [ ] Approval contract reconciliation.
-- [ ] Leave/Trip/OT UI reconciliation.
+- [x] Leave/Trip/OT UI reconciliation.
 - [ ] User Guide reconciliation.
 - [ ] Cập nhật matrix sau mỗi fix.
 
@@ -673,6 +673,8 @@ Hệ thống chỉ được đánh dấu **PRODUCT READY** khi:
 | 2026-09-20 | 0 | Created Product Readiness master plan | `555d54d79b553f53ec34ade68ba53381893beda3` |
 | 2026-09-20 | 0 | Reconciled SQL verification contract | `5f5c39286697c97f0c41c03a556908523c6bd058` |
 | 2026-09-20 | 0 | Reconciled dashboard capability documentation | `e978d2aae5ce8d30ecadad2360203eb09fb282f4` |
+| 2026-09-20 | 0 | Fixed Leave type contract in create UI | `c00d6d8580f932b7d94a85ea471f58d85b9c8b7a` |
+| 2026-09-20 | 0 | Fixed Trip approval route loading and missing-route UX | `761e2ebf4ebc2a53a9e894dc7740158710b1d1b0`, `11367c22bc50117c7877d6bcfe7f3dc3b22a3548` |
 
 ---
 
