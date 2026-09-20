@@ -22,9 +22,7 @@ namespace FVN_REGISTER.Shared.Services.Leaves
 
         public async Task<ApiResponse<byte[]>> ExportExcelAsync(ReportQueryDto query, CancellationToken ct = default)
         {
-            // Chuyển đổi object query thành định dạng key=value đường dẫn url công nghiệp
-            var queryString = FormQueryString(query);
-            return await _http.GetFileAsync($"api/report/export/excel?{queryString}", ct);
+            return await _http.PostFileAsync("api/report/export/excel", query, ct);
         }
 
         // Hàm Helper để build tự động chuỗi URL query string tránh rác mã nguồn
