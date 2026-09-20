@@ -45,6 +45,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Notifications
                 RelatedOTId = dto.Module == RequestModule.Overtime ? dto.RelatedRequestId : null,
                 IsHighPriority = dto.IsHighPriority,
                 Metadata = dto.Metadata,
+                ActionId = dto.ActionId,
                 IsRead = false
             };
 
