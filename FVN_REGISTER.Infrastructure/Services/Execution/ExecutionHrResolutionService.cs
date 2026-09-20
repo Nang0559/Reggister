@@ -358,6 +358,9 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         if (calendar is not null)
             ApplyCalendarResolution(calendar, decision, calendarAction, reason, DateTime.Now);
 
+        await _db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
         await CreateUserNotificationAsync(
             reconciliation,
             employee.EmployeeCode,
@@ -365,9 +368,6 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             reason,
             resolution.Id,
             cancellationToken);
-
-        await _db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
 
         return new ExecutionHrResolutionDto(
             resolution.Id,
