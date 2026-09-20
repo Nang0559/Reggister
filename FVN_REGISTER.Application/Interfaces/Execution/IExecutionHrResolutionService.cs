@@ -11,6 +11,13 @@ public interface IExecutionHrResolutionService
         DateOnly? to,
         CancellationToken cancellationToken = default);
 
+    Task<ExecutionEvidenceDto> ReviewEvidenceAsync(
+        int userId,
+        string employeeCode,
+        long evidenceId,
+        ExecutionEvidenceReviewRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<ExecutionHrResolutionDto> ResolveAsync(
         int userId,
         string employeeCode,
