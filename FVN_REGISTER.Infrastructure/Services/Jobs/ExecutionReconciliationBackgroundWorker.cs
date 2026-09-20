@@ -257,6 +257,21 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                 try
                 {
                     var employeeId = await ResolveEmployeeIdAsync(db, row.EmployeeCode, ct);
+
+                    if (cancelled)
+                    {
+                        var existing = await db.ExecutionReconciliations.AsNoTracking()
+                            .AnyAsync(x => x.IsActive != false
+                                && x.ModuleCode == "LEAVE"
+                                && x.SourceType == "LEAVE_DAY"
+                                && x.SourceId == $"{row.Id}:{date:yyyyMMdd}"
+                                && x.EmployeeId == employeeId
+                                && x.WorkDate == date, ct);
+
+                        if (!existing)
+                            continue;
+                    }
+
                     var attendance = await db.VF03EmployeeAttendances.AsNoTracking()
                         .Where(x => x.EmployeeId == row.EmployeeCode && x.Date == date)
                         .Select(x => new { x.CheckInTime, x.CheckOutTime })
@@ -367,6 +382,21 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                 var workDate = plannedStart;
 
                 var cancelled = row.RequestStatus == ApprovalStatus.Cancelled;
+
+                if (cancelled)
+                {
+                    var existing = await db.ExecutionReconciliations.AsNoTracking()
+                        .AnyAsync(x => x.IsActive != false
+                            && x.ModuleCode == "TRIP"
+                            && x.SourceType == "TRIP_REQUEST"
+                            && x.SourceId == row.TripCode
+                            && x.EmployeeId == employeeId
+                            && x.WorkDate == workDate, ct);
+
+                    if (!existing)
+                        continue;
+                }
+
                 var hasActual = actual is not null;
                 var completed = hasActual && string.Equals(actual.Status, "Completed", StringComparison.OrdinalIgnoreCase);
                 var different = completed
