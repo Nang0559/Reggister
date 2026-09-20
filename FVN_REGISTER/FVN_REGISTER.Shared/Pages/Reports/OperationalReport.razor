@@ -44,7 +44,7 @@ else
                 <MudTabPanel Text="Chi tiết" />
             }
         </MudTabs>
-        <ReportBase @ref="_base" ReportType="_type" Query="_query">
+        <ReportBase @ref="_base" ReportType="_type" Query="_query" UsePayrollPeriod="@(ModuleKey == "attendance")">
             <AdditionalFilters>
                 <MudItem xs="12" sm="3">
                     <MudSelect T="string" Label="Phòng ban" @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
@@ -75,7 +75,7 @@ else
     private ReportBase? _base;
     private List<KeyValuePair<string,string>>? _departments;
     private KeyValuePair<string,string> _employee;
-    private ReportQueryDto _query=new(){FromDate=new DateTime(DateTime.Now.Year,1,1),ToDate=DateTime.Today,IncludeChart=true};
+    private ReportQueryDto _query=new(){IncludeChart=true};
 
     private bool CanTrip => _permission?.Has(SecurityFunctionCodes.TripView)==true;
     private bool CanEquipment => _permission?.Has(SecurityFunctionCodes.EquipmentView)==true;

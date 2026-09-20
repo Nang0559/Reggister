@@ -86,7 +86,10 @@ else if (_model != null)
             </MudItem>
         </MudGrid>
 
-        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+        <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight:750">Công & OT của tôi</MudText>
+        <WorkCalendar />
+
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3 mt-5">
             <MudText Typo="Typo.h6" Style="font-weight:750">Tổng quan cá nhân</MudText>
             <MudText Typo="Typo.caption" Class="mud-text-secondary">Cập nhật @_loadedAt?.ToString("dd/MM/yyyy HH:mm")</MudText>
         </MudStack>

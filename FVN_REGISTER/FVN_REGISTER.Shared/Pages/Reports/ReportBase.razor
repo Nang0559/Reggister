@@ -1,6 +1,7 @@
 @* FVN_REGISTER.Shared/Pages/Reports/ReportBase.razor *@
 @using FVN_REGISTER.Contract.Dtos.Reports
 @using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Core.Utils
 @using FVN_REGISTER.Shared.Services.Leaves
 @using FVN_REGISTER.Shared.Utils.Helpers
 @using Microsoft.JSInterop
@@ -94,10 +95,20 @@
     [Parameter] public RenderFragment? AdditionalFilters { get; set; }
     [Parameter] public ReportType ReportType { get; set; }
     [Parameter] public ReportQueryDto Query { get; set; } = new();
+    [Parameter] public bool UsePayrollPeriod { get; set; }
 
     protected ReportResultDto? _result;
     protected bool _loading;
     private MudBlazor.DateRange? _dateRange = new(new DateTime(DateTime.Now.Year, 1, 1), DateTime.Now);
+
+    protected override void OnInitialized()
+    {
+        if (UsePayrollPeriod)
+        {
+            var period = CompanyPayrollPeriod.For(DateTime.Today);
+            _dateRange = new MudBlazor.DateRange(period.From, period.To);
+        }
+    }
 
     private void OnDateRangeChanged(MudBlazor.DateRange range)
     {
@@ -119,6 +130,13 @@
             {
                 Query.FromDate = null;
                 Query.ToDate = null;
+            }
+            else if (UsePayrollPeriod)
+            {
+                var period = CompanyPayrollPeriod.For(DateTime.Today);
+                Query.FromDate = period.From;
+                Query.ToDate = period.To;
+                _dateRange = new MudBlazor.DateRange(period.From, period.To);
             }
             else
             {

@@ -3,6 +3,7 @@
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Reports
 @using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Core.Utils
 @using FVN_REGISTER.Shared.Pages.Reports
 @using FVN_REGISTER.Shared.Services.Leaves
 @using FVN_REGISTER.Shared.Utils.Helpers
@@ -23,7 +24,7 @@
     <MudTabPanel Text="Tích lũy giờ OT" />
 </MudTabs>
 
-<ReportBase @ref="_baseRef" ReportType="_currentType" Query="_query">
+<ReportBase @ref="_baseRef" ReportType="_currentType" Query="_query" UsePayrollPeriod="true">
     <AdditionalFilters>
         @if (_activeTab == 0 || _activeTab == 1 || _activeTab == 3)
         {

@@ -12,4 +12,16 @@ public sealed class WorkCalendarDayDto
     public bool CanRegisterOT { get; set; }
     public bool CanRegisterTrip { get; set; }
     public string? AvailabilityNote { get; set; }
+
+    // HRM-compatible attendance result for the logged-in employee.
+    public bool HasAttendance { get; set; }
+    public DateTime? ActualCheckIn { get; set; }
+    public DateTime? ActualCheckOut { get; set; }
+    public decimal ActualWorkHours { get; set; }
+    public decimal ActualOTHours { get; set; }
+
+    // Approved OT for the same date.
+    public decimal ApprovedOTHours { get; set; }
+    public string? AttendanceStatus { get; set; }
+    public string? AttendanceNote { get; set; }
 }

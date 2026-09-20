@@ -1,4 +1,5 @@
 @using FVN_REGISTER.Contract.Dtos.Calendar
+@using FVN_REGISTER.Core.Utils
 @using FVN_REGISTER.Shared.Services.Calendar
 @using FVN_REGISTER.Shared.Services.Users
 @inject IWorkCalendarClientService CalendarService
@@ -7,17 +8,28 @@
 @implements IAsyncDisposable
 
 <MudPaper Class="pa-2" Elevation="0">
-    <MudStack Row="true" Spacing="1" Class="mb-2 flex-wrap">
-        @foreach (var filter in Filters)
-        {
-            <MudChip T="string" Size="Size.Small"
-                     Variant="@(_moduleFilter == filter.Code ? Variant.Filled : Variant.Outlined)"
-                     Color="@(_moduleFilter == filter.Code ? Color.Primary : Color.Default)"
-                     OnClick="@(() => SetFilter(filter.Code))">
-                @filter.Name
-            </MudChip>
-        }
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-2 flex-wrap">
+        <MudStack Row="true" Spacing="1">
+            @foreach (var filter in Filters)
+            {
+                <MudChip T="string" Size="Size.Small"
+                         Variant="@(_moduleFilter == filter.Code ? Variant.Filled : Variant.Outlined)"
+                         Color="@(_moduleFilter == filter.Code ? Color.Primary : Color.Default)"
+                         OnClick="@(() => SetFilter(filter.Code))">
+                    @filter.Name
+                </MudChip>
+            }
+        </MudStack>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">
+            Kỳ công: @_period.Display
+        </MudText>
     </MudStack>
+
+    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Dense="true" Class="mb-2">
+        <b>Xanh:</b> OT thực tế khớp OT được duyệt.
+        <span class="ml-3"><b>Đỏ:</b> OT lệch giờ hoặc có OT thực tế nhưng chưa được duyệt.</span>
+    </MudAlert>
+
     <div @ref="_element" style="min-height:450px; touch-action:manipulation; user-select:none; -webkit-user-select:none;"></div>
 </MudPaper>
 
@@ -28,8 +40,8 @@
 
     private static readonly (string Code, string Name)[] Filters =
     [
-        ("ALL", "Tất cả"), ("COMPANY", "Công ty"), ("LEAVE", "Nghỉ phép"),
-        ("OT", "OT"), ("TRIP", "Công tác")
+        ("ALL", "Tất cả"), ("ATTENDANCE", "Công"), ("OT", "OT"),
+        ("COMPANY", "Công ty"), ("LEAVE", "Nghỉ phép"), ("TRIP", "Công tác")
     ];
 
     private ElementReference _element;
@@ -37,6 +49,7 @@
     private WorkCalendarDto _data = new();
     private string _moduleFilter = "ALL";
     private bool _initialized;
+    private CompanyPayrollPeriod _period = CompanyPayrollPeriod.For(DateTime.Today);
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
@@ -45,10 +58,10 @@
         if (!CurrentUser.IsLoggedIn)
             await CurrentUser.InitializeAsync();
 
-        // Context chỉ quyết định hành động khi click; không được tự động ẩn dữ liệu module khác.
+        _period = CompanyPayrollPeriod.For(DateTime.Today);
         _moduleFilter = "ALL";
 
-        await LoadAsync(DateTime.Today.AddMonths(-1).Date, DateTime.Today.AddMonths(2).Date);
+        await LoadAsync(_period.From, _period.To);
         _ref = DotNetObjectReference.Create(this);
 
         await JS.InvokeVoidAsync(
@@ -70,7 +83,7 @@
 
     private List<object> BuildEvents()
     {
-        var events = _data.Events
+        return _data.Events
             .Where(Visible)
             .Select(e => new
             {
@@ -81,15 +94,20 @@
                 moduleCode = e.ModuleCode,
                 status = e.Status,
                 requestId = e.RequestId,
+                allDay = e.AllDay,
+                color = e.Color,
+                backgroundColor = e.BackgroundColor,
+                borderColor = e.BorderColor,
                 display = e.ModuleCode == "COMPANY" ? "background" : "auto"
             })
             .ToList<object>();
-
-        return events;
     }
 
     private bool Visible(WorkCalendarEventDto e) =>
-        _moduleFilter == "ALL" || e.ModuleCode == "COMPANY" || e.ModuleCode == _moduleFilter;
+        _moduleFilter == "ALL"
+            || e.ModuleCode == "COMPANY"
+            || e.ModuleCode == _moduleFilter
+            || (e.ModuleCode == "ATTENDANCE_NOTE" && _moduleFilter == "ATTENDANCE");
 
     private async Task SetFilter(string code)
     {

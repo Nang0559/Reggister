@@ -2,6 +2,7 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @using FVN_REGISTER.Contract.Dtos.Depts
 @using FVN_REGISTER.Contract.Dtos.HrmSync
+@using FVN_REGISTER.Core.Utils
 @using FVN_REGISTER.Shared.Services.Departments
 @using FVN_REGISTER.Shared.Services.HrmSync
 @inject IJSRuntime JS
@@ -12,21 +13,38 @@
 
 <MudPaper Class="pa-6">
  <MudText Typo="Typo.h5">Tính giờ theo HRM</MudText>
- <MudText Typo="Typo.body2" Class="mb-4">FVN đọc dữ liệu HRM và lưu kết quả tính giờ vào database FVN.</MudText>
+ <MudText Typo="Typo.body2" Class="mb-4">
+     Kỳ công công ty: ngày 21 tháng trước đến ngày 20 tháng này. Dữ liệu Excel và màn hình cá nhân dùng cùng một kỳ.
+ </MudText>
  <MudGrid>
   <MudItem xs="12" md="4">
    <MudSelect T="string" Label="Bộ phận" @bind-Value="_deptCode" Variant="Variant.Outlined" Clearable="true">
     @foreach(var d in _departments){<MudSelectItem Value="@d.DeptCode">@d.DeptCode - @d.DeptName</MudSelectItem>}
    </MudSelect>
   </MudItem>
-  <MudItem xs="12" md="3"><MudDatePicker Label="Từ ngày" @bind-Date="_fromDate" Variant="Variant.Outlined"/></MudItem>
-  <MudItem xs="12" md="3"><MudDatePicker Label="Đến ngày" @bind-Date="_toDate" Variant="Variant.Outlined"/></MudItem>
-  <MudItem xs="12" md="2" Class="d-flex align-center"><MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_running" OnClick="CalculateAsync">Tính giờ</MudButton></MudItem>
+  <MudItem xs="12" md="3">
+      <MudDatePicker Label="Từ ngày" @bind-Date="_fromDate" Variant="Variant.Outlined"/>
+  </MudItem>
+  <MudItem xs="12" md="3">
+      <MudDatePicker Label="Đến ngày" @bind-Date="_toDate" Variant="Variant.Outlined"/>
+  </MudItem>
+  <MudItem xs="12" md="2" Class="d-flex align-center">
+      <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="_running" OnClick="CalculateAsync">Tính giờ</MudButton>
+  </MudItem>
  </MudGrid>
+
+ <MudText Typo="Typo.caption" Color="Color.Secondary" Class="mt-2">
+     Kỳ hiện tại: @_period.Display
+ </MudText>
+
  @if(_running){<MudProgressLinear Indeterminate="true" Class="mt-4"/>}
+
  @if(_result is not null)
-{
- <MudAlert Severity="Severity.Success" Class="mt-4">Batch @_result.CalculationBatchId — @_result.CalculatedRows dòng / @_result.EmployeeCount nhân viên.</MudAlert>
+ {
+ <MudAlert Severity="Severity.Success" Class="mt-4">
+     Batch @_result.CalculationBatchId — @_result.CalculatedRows dòng / @_result.EmployeeCount nhân viên —
+     @_result.FromDate:dd/MM/yyyy → @_result.ToDate:dd/MM/yyyy
+ </MudAlert>
  <MudStack Row="true" Spacing="2" Class="mt-3">
   <MudButton Variant="Variant.Outlined" Color="Color.Primary" Disabled="_exporting" OnClick="ExportAttendanceAsync">
    Xuất chấm công
@@ -35,22 +53,29 @@
    Xuất tính OT
   </MudButton>
  </MudStack>
-}
+ }
 </MudPaper>
 
 @code {
  private List<DepartmentDto> _departments=new();
  private string? _deptCode;
- private DateTime? _fromDate=DateTime.Today;
- private DateTime? _toDate=DateTime.Today;
+ private DateTime? _fromDate;
+ private DateTime? _toDate;
  private bool _running;
  private bool _exporting;
  private HrmAttendanceCalculationResultDto? _result;
+ private CompanyPayrollPeriod _period;
+
  protected override async Task OnInitializedAsync()
  {
+  _period = CompanyPayrollPeriod.For(DateTime.Today);
+  _fromDate = _period.From;
+  _toDate = _period.To;
+
   var r=await Departments.GetListAsync(true);
   if(r.IsSuccess&&r.Data is not null) _departments=r.Data;
  }
+
  private async Task ExportAttendanceAsync()
  {
   if (_result is null) return;
@@ -60,8 +85,9 @@
    var r = await Calculation.ExportAttendanceAsync(_result.CalculationBatchId);
    if (r.IsSuccess && r.Data is not null)
    {
-    await JS.InvokeVoidAsync("hrmAttendanceExport.download", r.Data, $"BangChamCong_{_result.FromDate:yyyyMMdd}_{_result.ToDate:yyyyMMdd}.xls");
-    Snackbar.Add("Đã xuất bảng chấm công.", Severity.Success);
+    await JS.InvokeVoidAsync("hrmAttendanceExport.download", r.Data,
+        $"BangChamCong_KyCong_{_result.FromDate:yyyyMMdd}_{_result.ToDate:yyyyMMdd}.xls");
+    Snackbar.Add("Đã xuất bảng chấm công theo đúng kỳ công.", Severity.Success);
    }
    else Snackbar.Add(r.Message ?? "Xuất chấm công thất bại.", Severity.Error);
   }
@@ -77,8 +103,9 @@
    var r = await Calculation.ExportOtAsync(_result.CalculationBatchId);
    if (r.IsSuccess && r.Data is not null)
    {
-    await JS.InvokeVoidAsync("hrmAttendanceExport.download", r.Data, $"BangLamThem_{_result.FromDate:yyyyMMdd}_{_result.ToDate:yyyyMMdd}.xls");
-    Snackbar.Add("Đã xuất bảng tính OT.", Severity.Success);
+    await JS.InvokeVoidAsync("hrmAttendanceExport.download", r.Data,
+        $"BangLamThem_KyCong_{_result.FromDate:yyyyMMdd}_{_result.ToDate:yyyyMMdd}.xls");
+    Snackbar.Add("Đã xuất OT theo đúng kỳ công.", Severity.Success);
    }
    else Snackbar.Add(r.Message ?? "Xuất OT thất bại.", Severity.Error);
   }
@@ -87,12 +114,27 @@
 
  private async Task CalculateAsync()
  {
-  if(_fromDate is null||_toDate is null||_fromDate>_toDate){Snackbar.Add("Khoảng ngày không hợp lệ.",Severity.Warning);return;}
+  if(_fromDate is null||_toDate is null||_fromDate>_toDate)
+  {
+      Snackbar.Add("Khoảng ngày không hợp lệ.",Severity.Warning);
+      return;
+  }
+
   _running=true; _result=null;
   try
   {
-   var r=await Calculation.CalculateAsync(new HrmAttendanceCalculationRequestDto{DeptCode=_deptCode,FromDate=_fromDate.Value,ToDate=_toDate.Value});
-   if(r.IsSuccess&&r.Data is not null){_result=r.Data;Snackbar.Add("Đã tính giờ xong.",Severity.Success);}
+   var r=await Calculation.CalculateAsync(new HrmAttendanceCalculationRequestDto
+   {
+       DeptCode=_deptCode,
+       FromDate=_fromDate.Value.Date,
+       ToDate=_toDate.Value.Date
+   });
+
+   if(r.IsSuccess&&r.Data is not null)
+   {
+       _result=r.Data;
+       Snackbar.Add("Đã tính giờ xong.",Severity.Success);
+   }
    else Snackbar.Add(r.Message??"Tính giờ thất bại.",Severity.Error);
   }
   finally{_running=false;}
