@@ -12,5 +12,8 @@ namespace FVN_REGISTER.Application.Interfaces.Statics
         Task<AbsenceWarningDto> GetAbsenceWarningAsync(string deptCode, CancellationToken ct = default);
         Task<List<WidgetCounterDto>> GetCompanyDashboardWidgetsAsync(CancellationToken ct = default);
         Task<List<WidgetCounterDto>> GetDeptDashboardWidgetsAsync(string deptCode, CancellationToken ct = default);
+        Task<List<LeaveStatisticsDto>> GetLeaveStatisticsAsync(
+            bool includeCompanyTotal = false,
+            CancellationToken ct = default);
     }
 }
