@@ -348,13 +348,13 @@ GO
 
 IF OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionEvidence_Confirmation')
-    ALTER TABLE dbo.F03ExecutionConfirmationEvidence ADD CONSTRAINT FK_F03ExecutionEvidence_Confirmation
+    ALTER TABLE dbo.F03ExecutionConfirmationEvidence WITH NOCHECK ADD CONSTRAINT FK_F03ExecutionEvidence_Confirmation
     FOREIGN KEY(ConfirmationId) REFERENCES dbo.F03ExecutionConfirmations(Id);
 GO
 /* Lifecycle integrity constraints. */
 IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionReconciliations_Confirmation')
-    ALTER TABLE dbo.F03ExecutionReconciliations
+    ALTER TABLE dbo.F03ExecutionReconciliations WITH NOCHECK
         ADD CONSTRAINT FK_F03ExecutionReconciliations_Confirmation
         FOREIGN KEY(ConfirmationId) REFERENCES dbo.F03ExecutionConfirmations(Id);
 GO
@@ -362,7 +362,7 @@ GO
 IF OBJECT_ID(N'dbo.F03ExecutionReconciliationHistory',N'U') IS NOT NULL
 AND OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionHistory_Reconciliation')
-    ALTER TABLE dbo.F03ExecutionReconciliationHistory
+    ALTER TABLE dbo.F03ExecutionReconciliationHistory WITH NOCHECK
         ADD CONSTRAINT FK_F03ExecutionHistory_Reconciliation
         FOREIGN KEY(ReconciliationId) REFERENCES dbo.F03ExecutionReconciliations(Id);
 GO
@@ -413,7 +413,7 @@ GO
 IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
 AND OBJECT_ID(N'dbo.F03ActionItems',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionReconciliations_Action')
-    ALTER TABLE dbo.F03ExecutionReconciliations
+    ALTER TABLE dbo.F03ExecutionReconciliations WITH NOCHECK
         ADD CONSTRAINT FK_F03ExecutionReconciliations_Action
         FOREIGN KEY(ActionId) REFERENCES dbo.F03ActionItems(ActionId);
 GO
@@ -489,6 +489,39 @@ BEGIN
     IF @InvalidEvidenceStatus > 0
         PRINT CONCAT(N'WARNING: ', @InvalidEvidenceStatus,
                      N' execution evidence row(s) have a legacy ReviewStatus. Clean them before trusting CK_F03ExecutionEvidence_ReviewStatus.');
+END;
+GO
+
+
+/* Legacy FK validation. New writes remain protected; existing orphan rows are reported. */
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliationHistory',N'U') IS NOT NULL
+AND OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
+BEGIN
+    DECLARE @OrphanHistory int =
+    (
+        SELECT COUNT(*)
+        FROM dbo.F03ExecutionReconciliationHistory h
+        LEFT JOIN dbo.F03ExecutionReconciliations r ON r.Id = h.ReconciliationId
+        WHERE r.Id IS NULL
+    );
+    IF @OrphanHistory > 0
+        PRINT CONCAT(N'WARNING: ', @OrphanHistory,
+                     N' execution history row(s) are orphaned. Clean them before trusting FK_F03ExecutionHistory_Reconciliation.');
+END;
+
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmationEvidence',N'U') IS NOT NULL
+AND OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NOT NULL
+BEGIN
+    DECLARE @OrphanEvidence int =
+    (
+        SELECT COUNT(*)
+        FROM dbo.F03ExecutionConfirmationEvidence e
+        LEFT JOIN dbo.F03ExecutionConfirmations c ON c.Id = e.ConfirmationId
+        WHERE c.Id IS NULL
+    );
+    IF @OrphanEvidence > 0
+        PRINT CONCAT(N'WARNING: ', @OrphanEvidence,
+                     N' execution evidence row(s) are orphaned. Clean them before trusting FK_F03ExecutionEvidence_Confirmation.');
 END;
 GO
 
