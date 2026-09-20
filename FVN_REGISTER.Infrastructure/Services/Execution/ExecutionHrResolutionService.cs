@@ -46,6 +46,16 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
     {
         await EnsureHrPermissionAsync(userId, requireAllScope: false, cancellationToken);
 
+        var actor = await _db.Users.AsNoTracking()
+            .Where(x => x.Id == userId && x.IsActive != false)
+            .Select(x => new { x.EmployeeCode, x.DeptCode })
+            .SingleAsync(cancellationToken);
+
+        var scope = await _authorization.GetScopeAsync(
+            userId,
+            HrExecutionReviewFunctionCode,
+            cancellationToken);
+
         var query = _db.ExecutionReconciliations.AsNoTracking()
             .Where(x => x.IsActive != false
                 && x.ReconciliationStatus != "Resolved"
@@ -65,7 +75,14 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         if (from.HasValue) query = query.Where(x => x.WorkDate >= from.Value);
         if (to.HasValue) query = query.Where(x => x.WorkDate <= to.Value);
 
-        return await query
+        if (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
+            query = query.Where(x => _db.Employees.Any(e =>
+                e.Id == x.EmployeeId && e.DeptCode == actor.DeptCode && e.IsActive != false));
+        else if (string.Equals(scope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase))
+            query = query.Where(x => _db.Employees.Any(e =>
+                e.Id == x.EmployeeId && e.EmployeeCode == actor.EmployeeCode && e.IsActive != false));
+
+        var result = await query
             .Join(_db.Employees.AsNoTracking(),
                 r => r.EmployeeId,
                 e => e.Id,
@@ -80,6 +97,33 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             .ThenBy(x => x.EmployeeCode)
             .Take(500)
             .ToListAsync(cancellationToken);
+
+        if (string.Equals(scope, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase))
+        {
+            var filtered = new List<ExecutionHrReviewItemDto>(result.Count);
+            foreach (var item in result)
+            {
+                if (await _authorization.CanAccessAsync(
+                        new UserIdentityDto
+                        {
+                            UserId = userId,
+                            EmployeeCode = actor.EmployeeCode,
+                            DeptCode = actor.DeptCode,
+                            IsLoggedIn = true
+                        },
+                        HrExecutionReviewFunctionCode,
+                        item.EmployeeCode,
+                        null,
+                        cancellationToken))
+                {
+                    filtered.Add(item);
+                }
+            }
+
+            return filtered;
+        }
+
+        return result;
     }
 
     public async Task<ExecutionReconciliationDetailDto?> GetDetailAsync(
