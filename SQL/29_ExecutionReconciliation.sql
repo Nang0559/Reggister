@@ -162,6 +162,35 @@ BEGIN
 END;
 GO
 
+/* Existing-installation compatibility MUST run before any index that references upgraded columns. */
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'SourceType') IS NULL
+        ALTER TABLE dbo.F03ExecutionReconciliations ADD SourceType nvarchar(50) NOT NULL CONSTRAINT DF_F03ExecutionReconciliations_SourceType DEFAULT N'MODULE' WITH VALUES;
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'ParticipantId') IS NULL
+        ALTER TABLE dbo.F03ExecutionReconciliations ADD ParticipantId nvarchar(100) NULL;
+END;
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'SourceType') IS NULL
+        ALTER TABLE dbo.F03ExecutionConfirmations ADD SourceType nvarchar(50) NOT NULL CONSTRAINT DF_F03ExecutionConfirmations_SourceType DEFAULT N'MODULE' WITH VALUES;
+    IF COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'ParticipantId') IS NULL
+        ALTER TABLE dbo.F03ExecutionConfirmations ADD ParticipantId nvarchar(100) NULL;
+END;
+IF OBJECT_ID(N'dbo.F03ExecutionPolicies',N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.F03ExecutionPolicies',N'LastModifiedSource') IS NULL
+    ALTER TABLE dbo.F03ExecutionPolicies ADD LastModifiedSource nvarchar(50) NULL;
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'LastModifiedSource') IS NULL
+    ALTER TABLE dbo.F03ExecutionReconciliations ADD LastModifiedSource nvarchar(50) NULL;
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'LastModifiedSource') IS NULL
+    ALTER TABLE dbo.F03ExecutionConfirmations ADD LastModifiedSource nvarchar(50) NULL;
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmationEvidence',N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.F03ExecutionConfirmationEvidence',N'LastModifiedSource') IS NULL
+    ALTER TABLE dbo.F03ExecutionConfirmationEvidence ADD LastModifiedSource nvarchar(50) NULL;
+GO
+
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03ExecutionPolicies_ModuleCode' AND object_id=OBJECT_ID(N'dbo.F03ExecutionPolicies'))
     CREATE UNIQUE INDEX UX_F03ExecutionPolicies_ModuleCode ON dbo.F03ExecutionPolicies(ModuleCode);
 GO
@@ -219,7 +248,34 @@ IF OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionEvidence_Confirmation')
     ALTER TABLE dbo.F03ExecutionConfirmationEvidence ADD CONSTRAINT FK_F03ExecutionEvidence_Confirmation
     FOREIGN KEY(ConfirmationId) REFERENCES dbo.F03ExecutionConfirmations(Id);
+GOGO
+
+/* Lifecycle integrity constraints. */
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionReconciliations_Confirmation')
+    ALTER TABLE dbo.F03ExecutionReconciliations
+        ADD CONSTRAINT FK_F03ExecutionReconciliations_Confirmation
+        FOREIGN KEY(ConfirmationId) REFERENCES dbo.F03ExecutionConfirmations(Id);
 GO
+
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03ExecutionReconciliations_Status')
+    ALTER TABLE dbo.F03ExecutionReconciliations ADD CONSTRAINT CK_F03ExecutionReconciliations_Status
+    CHECK (ReconciliationStatus IN (N'None',N'Matched',N'Mismatch',N'AwaitingConfirmation',N'Resolved'));
+GO
+
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03ExecutionConfirmations_Status')
+    ALTER TABLE dbo.F03ExecutionConfirmations ADD CONSTRAINT CK_F03ExecutionConfirmations_Status
+    CHECK (Status IN (N'Pending',N'Approved',N'Rejected',N'NeedMoreEvidence'));
+GO
+
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmationEvidence',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03ExecutionEvidence_ReviewStatus')
+    ALTER TABLE dbo.F03ExecutionConfirmationEvidence ADD CONSTRAINT CK_F03ExecutionEvidence_ReviewStatus
+    CHECK (ReviewStatus IN (N'Pending',N'Approved',N'Rejected',N'NeedMoreEvidence'));
+GO
+
 
 IF NOT EXISTS (SELECT 1 FROM dbo.F03ExecutionPolicies WHERE ModuleCode=N'OT')
     INSERT dbo.F03ExecutionPolicies(ModuleCode,ReconciliationMode,ConfirmationMode,EvidenceMode,ReviewMode,DueHours)
@@ -235,42 +291,6 @@ GO
 PRINT N'29_EXECUTION_RECONCILIATION schema completed.';
 GO
 
-/* Canonical source identity upgrade for existing installations. */
-IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
-BEGIN
-    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'SourceType') IS NULL
-        ALTER TABLE dbo.F03ExecutionReconciliations ADD SourceType nvarchar(50) NOT NULL
-            CONSTRAINT DF_F03ExecutionReconciliations_SourceType DEFAULT N'MODULE' WITH VALUES;
-    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'ParticipantId') IS NULL
-        ALTER TABLE dbo.F03ExecutionReconciliations ADD ParticipantId nvarchar(100) NULL;
-END;
-GO
-
-IF OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NOT NULL
-BEGIN
-    IF COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'SourceType') IS NULL
-        ALTER TABLE dbo.F03ExecutionConfirmations ADD SourceType nvarchar(50) NOT NULL
-            CONSTRAINT DF_F03ExecutionConfirmations_SourceType DEFAULT N'MODULE' WITH VALUES;
-    IF COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'ParticipantId') IS NULL
-        ALTER TABLE dbo.F03ExecutionConfirmations ADD ParticipantId nvarchar(100) NULL;
-END;
-GO
-
-/* BaseAuditEntity.LastModifiedSource compatibility for existing installations. */
-IF OBJECT_ID(N'dbo.F03ExecutionPolicies',N'U') IS NOT NULL
-AND COL_LENGTH(N'dbo.F03ExecutionPolicies',N'LastModifiedSource') IS NULL
-    ALTER TABLE dbo.F03ExecutionPolicies ADD LastModifiedSource nvarchar(50) NULL;
-IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
-AND COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'LastModifiedSource') IS NULL
-    ALTER TABLE dbo.F03ExecutionReconciliations ADD LastModifiedSource nvarchar(50) NULL;
-IF OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NOT NULL
-AND COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'LastModifiedSource') IS NULL
-    ALTER TABLE dbo.F03ExecutionConfirmations ADD LastModifiedSource nvarchar(50) NULL;
-IF OBJECT_ID(N'dbo.F03ExecutionConfirmationEvidence',N'U') IS NOT NULL
-AND COL_LENGTH(N'dbo.F03ExecutionConfirmationEvidence',N'LastModifiedSource') IS NULL
-    ALTER TABLE dbo.F03ExecutionConfirmationEvidence ADD LastModifiedSource nvarchar(50) NULL;
-GO
-
 /* Evidence uses the existing shared attachment/file store. */
 IF OBJECT_ID(N'dbo.F03ExecutionConfirmationEvidence',N'U') IS NOT NULL
 AND OBJECT_ID(N'dbo.F03Attachment',N'U') IS NOT NULL
@@ -278,15 +298,6 @@ AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionEvide
     ALTER TABLE dbo.F03ExecutionConfirmationEvidence
         ADD CONSTRAINT FK_F03ExecutionEvidence_Attachment
         FOREIGN KEY(FileId) REFERENCES dbo.F03Attachment(Id);
-GO
-
-/* History belongs to the reconciliation lifecycle. */
-IF OBJECT_ID(N'dbo.F03ExecutionReconciliationHistory',N'U') IS NOT NULL
-AND OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
-AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionHistory_Reconciliation')
-    ALTER TABLE dbo.F03ExecutionReconciliationHistory
-        ADD CONSTRAINT FK_F03ExecutionHistory_Reconciliation
-        FOREIGN KEY(ReconciliationId) REFERENCES dbo.F03ExecutionReconciliations(Id);
 GO
 
 /* Action is orchestration output; it never becomes business source-of-truth. */
