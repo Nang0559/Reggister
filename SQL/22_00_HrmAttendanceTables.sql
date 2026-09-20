@@ -167,3 +167,116 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03HrmO
     CREATE INDEX IX_F03HrmOTActual_DateDept
         ON dbo.F03HrmOTActual(WorkDate,DeptCode,HrmEmployeeId,Id);
 GO
+
+
+// ============================================================================
+// CURRENT-STATE STORAGE HARDENING
+//
+// F03HrmAttendanceCalculated / F03HrmOTActual are result tables, not an
+// append-only calculation log.  A calculation batch identifies the latest
+// calculation that produced a row, while the physical result store keeps only
+// one row per employee/date.  This prevents startup catch-up + daily reruns +
+// manual recalculation from multiplying the attendance volume.
+//
+// Historical/audit information is represented by CalculationBatchId on the
+// current row.  The calculation engine must replace the affected date/scope
+// atomically; see 22_03.
+// ============================================================================
+
+IF EXISTS
+(
+    SELECT 1
+    FROM sys.key_constraints
+    WHERE parent_object_id = OBJECT_ID(N'dbo.F03HrmAttendanceCalculated')
+      AND name = N'UQ_F03HrmAttendanceCalculated_Batch'
+)
+BEGIN
+    ALTER TABLE dbo.F03HrmAttendanceCalculated
+        DROP CONSTRAINT UQ_F03HrmAttendanceCalculated_Batch;
+END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.F03HrmAttendanceCalculated')
+      AND name = N'UQ_F03HrmAttendanceCalculated_Current'
+)
+BEGIN
+    ;WITH Duplicates AS
+    (
+        SELECT Id,
+               ROW_NUMBER() OVER
+               (
+                   PARTITION BY HrmEmployeeId, WorkDate
+                   ORDER BY CalculatedAt DESC, Id DESC
+               ) AS rn
+        FROM dbo.F03HrmAttendanceCalculated
+    )
+    DELETE FROM Duplicates WHERE rn > 1;
+
+    CREATE UNIQUE INDEX UQ_F03HrmAttendanceCalculated_Current
+        ON dbo.F03HrmAttendanceCalculated(HrmEmployeeId, WorkDate);
+END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.F03HrmAttendanceCalculated')
+      AND name = N'IX_F03HrmAttendanceCalculated_Batch'
+)
+    CREATE INDEX IX_F03HrmAttendanceCalculated_Batch
+        ON dbo.F03HrmAttendanceCalculated(CalculationBatchId, WorkDate, HrmEmployeeId, Id);
+GO
+
+IF EXISTS
+(
+    SELECT 1
+    FROM sys.key_constraints
+    WHERE parent_object_id = OBJECT_ID(N'dbo.F03HrmOTActual')
+      AND name = N'UQ_F03HrmOTActual_Batch'
+)
+BEGIN
+    ALTER TABLE dbo.F03HrmOTActual
+        DROP CONSTRAINT UQ_F03HrmOTActual_Batch;
+END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.F03HrmOTActual')
+      AND name = N'UQ_F03HrmOTActual_Current'
+)
+BEGIN
+    ;WITH Duplicates AS
+    (
+        SELECT Id,
+               ROW_NUMBER() OVER
+               (
+                   PARTITION BY HrmEmployeeId, WorkDate
+                   ORDER BY CalculatedAt DESC, Id DESC
+               ) AS rn
+        FROM dbo.F03HrmOTActual
+    )
+    DELETE FROM Duplicates WHERE rn > 1;
+
+    CREATE UNIQUE INDEX UQ_F03HrmOTActual_Current
+        ON dbo.F03HrmOTActual(HrmEmployeeId, WorkDate);
+END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE object_id = OBJECT_ID(N'dbo.F03HrmOTActual')
+      AND name = N'IX_F03HrmOTActual_Batch'
+)
+    CREATE INDEX IX_F03HrmOTActual_Batch
+        ON dbo.F03HrmOTActual(CalculationBatchId, WorkDate, HrmEmployeeId, Id);
+GO
