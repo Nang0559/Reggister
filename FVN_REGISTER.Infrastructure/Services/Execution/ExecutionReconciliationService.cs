@@ -126,6 +126,9 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         entity.RequiresEvidence = confirmationRequired
             && (entity.RequiresEvidence || (policy?.EvidenceMode ?? 0) != 0);
 
+        if (isNew)
+            await _db.SaveChangesAsync(cancellationToken);
+
         if (confirmationRequired && !string.Equals(entity.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
         {
             var dueAt = policy?.DueHours is > 0
