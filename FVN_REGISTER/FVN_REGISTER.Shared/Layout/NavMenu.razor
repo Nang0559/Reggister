@@ -10,6 +10,8 @@
 <MudNavMenu>
     <MudText Typo="Typo.subtitle2" Color="Color.Primary" Class="ml-4 my-3">DASHBOARD</MudText>
     <MudNavLink href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Trang chủ</MudNavLink>
+    <MudNavLink href="/execution" Icon="@Icons.Material.Filled.FactCheck">Đối soát thực tế</MudNavLink>
+    <MudNavLink href="/work/inbox" Icon="@Icons.Material.Filled.Inbox">Trung tâm công việc</MudNavLink>
 
     @if (CanAny(SecurityFunctionCodes.LeaveApprove, SecurityFunctionCodes.OTApprove, SecurityFunctionCodes.TripApprove, SecurityFunctionCodes.EquipmentApprove))
     {
