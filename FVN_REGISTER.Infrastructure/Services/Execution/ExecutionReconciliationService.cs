@@ -133,6 +133,10 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             throw new ArgumentException("Decision không được để trống.");
 
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
+
+        await using var transaction = await _db.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable, cancellationToken);
+
         var reconciliation = await _db.ExecutionReconciliations.FirstOrDefaultAsync(x =>
             x.Id == reconciliationId && x.IsActive != false && x.EmployeeId == employeeId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy reconciliation.");
@@ -171,6 +175,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         await _db.SaveChangesAsync(cancellationToken);
         reconciliation.ConfirmationId = confirmation.Id;
         await _db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return ToConfirmationDto(confirmation);
     }
