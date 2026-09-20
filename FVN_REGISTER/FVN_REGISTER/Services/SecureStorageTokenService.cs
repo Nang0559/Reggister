@@ -6,8 +6,6 @@ namespace FVN_REGISTER.Services;
 #pragma warning disable CA1416 // MAUI SecureStorage is supplied by the target platform; this service is registered only by the MAUI client.
 public sealed class SecureTokenService : ITokenStorage
 {
-    private const string RefreshTokenKey = "fvn.refresh_token";
-
     public Task SetTokenAsync(string token) =>
         SecureStorage.Default.SetAsync(AuthConstants.TokenKey, token);
 
@@ -15,10 +13,10 @@ public sealed class SecureTokenService : ITokenStorage
         SecureStorage.Default.GetAsync(AuthConstants.TokenKey);
 
     public Task SetRefreshTokenAsync(string refreshToken) =>
-        SecureStorage.Default.SetAsync(RefreshTokenKey, refreshToken);
+        SecureStorage.Default.SetAsync(AuthConstants.RefreshTokenKey, refreshToken);
 
     public Task<string?> GetRefreshTokenAsync() =>
-        SecureStorage.Default.GetAsync(RefreshTokenKey);
+        SecureStorage.Default.GetAsync(AuthConstants.RefreshTokenKey);
 
     public Task RemoveTokenAsync()
     {

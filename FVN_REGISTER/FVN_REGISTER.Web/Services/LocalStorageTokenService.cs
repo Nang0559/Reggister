@@ -15,8 +15,6 @@ public sealed class LocalStorageTokenService : ITokenStorage
     private string? _cachedToken;
     private string? _cachedRefreshToken;
 
-    private const string RefreshTokenKey = "fvn.refresh_token";
-
     public LocalStorageTokenService(
         IJSRuntime jsRuntime,
         ILogger<LocalStorageTokenService> logger,
@@ -72,7 +70,7 @@ public sealed class LocalStorageTokenService : ITokenStorage
         _cachedRefreshToken = refreshToken.Trim('"').Trim();
         try
         {
-            await _jsRuntime.InvokeVoidAsync("localStorage.setItem", RefreshTokenKey, _cachedRefreshToken);
+            await _jsRuntime.InvokeVoidAsync("localStorage.setItem", AuthConstants.RefreshTokenKey, _cachedRefreshToken);
         }
         catch (Exception ex) when (ex is InvalidOperationException or JSException)
         {
@@ -97,7 +95,7 @@ public sealed class LocalStorageTokenService : ITokenStorage
     public async Task RemoveRefreshTokenAsync()
     {
         _cachedRefreshToken = null;
-        try { await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", RefreshTokenKey); }
+        try { await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", AuthConstants.RefreshTokenKey); }
         catch (Exception ex) when (ex is InvalidOperationException or JSException) { if (_debug) _logger.LogDebug(ex, "[TokenStorage] Refresh token removal unavailable."); }
     }
 
