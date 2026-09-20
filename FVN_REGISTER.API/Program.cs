@@ -1,5 +1,6 @@
 using FVN_REGISTER.Application.Factories;
 using FVN_REGISTER.Application.Interfaces.Approvals;
+using FVN_REGISTER.Application.Interfaces.Actions;
 using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Application.Interfaces.Calendar;
@@ -31,6 +32,7 @@ using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Infrastructure.Hubs;
 using FVN_REGISTER.Infrastructure.Repositories;
 using FVN_REGISTER.Infrastructure.Services.Approvals;
+using FVN_REGISTER.Infrastructure.Services.Actions;
 using FVN_REGISTER.Infrastructure.Services.Auths;
 using FVN_REGISTER.Infrastructure.Services.Companies;
 using FVN_REGISTER.Infrastructure.Services.Calendar;
@@ -133,6 +135,15 @@ builder.Services.AddScoped<INetworkService, NetworkService>();
 builder.Services.AddScoped<IFileService, FileService>();
 builder.Services.AddScoped<IWorkingDayService, WorkingDayService>();
 builder.Services.AddScoped<IWorkCalendarService, WorkCalendarService>();
+builder.Services.AddScoped<ISharedWorkCalendarService, SharedWorkCalendarService>();
+builder.Services.AddScoped<ICalendarModuleRegistry, CalendarModuleRegistry>();
+builder.Services.AddScoped<ICalendarModuleProvider>(sp =>
+    new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "OT"));
+builder.Services.AddScoped<ICalendarModuleProvider>(sp =>
+    new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "LEAVE"));
+builder.Services.AddScoped<ICalendarModuleProvider>(sp =>
+    new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "TRIP"));
+builder.Services.AddScoped<IActionItemService, ActionItemService>();
 builder.Services.AddScoped<IWorkYearManagementService, WorkYearManagementService>();
 builder.Services.AddScoped<ICompanyHolidayManagementService, CompanyHolidayManagementService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
