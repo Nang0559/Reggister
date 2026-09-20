@@ -40,6 +40,7 @@ builder.Services.AddScoped<IReportClientService, ReportClientService>();
 builder.Services.AddScoped<INotificationClientService, NotificationClientService>();
 builder.Services.AddScoped<IDeptClientService, DeptClientService>();
 builder.Services.AddScoped<IOTClientService, OTClientService>();
+builder.Services.AddScoped<IOTLimitRuleManagementClientService, OTLimitRuleManagementClientService>();
 builder.Services.AddScoped<IHrmSyncReviewClientService, HrmSyncReviewClientService>();
 builder.Services.AddScoped<IHrmSyncClientService, HrmSyncClientService>();
 builder.Services.AddScoped<IHrmAttendanceCalculationClientService, HrmAttendanceCalculationClientService>();

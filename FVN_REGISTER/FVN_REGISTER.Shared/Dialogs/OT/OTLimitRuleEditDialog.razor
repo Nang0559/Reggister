@@ -1,0 +1,110 @@
+@using FVN_REGISTER.Contract.Dtos.LimitRuleDtos
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.OTs
+@inherits ComponentBase
+
+@inject IOTLimitRuleManagementClientService RuleService
+@inject MudBlazor.ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        <MudForm @ref="_form">
+            <MudGrid>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="OTLimitType" @bind-Value="Model.LimitType" Label="Loại giới hạn" Required="true" Variant="Variant.Outlined">
+                        <MudSelectItem Value="OTLimitType.Daily">Theo ngày</MudSelectItem>
+                        <MudSelectItem Value="OTLimitType.Weekly">Theo tuần</MudSelectItem>
+                        <MudSelectItem Value="OTLimitType.Monthly">Theo tháng</MudSelectItem>
+                        <MudSelectItem Value="OTLimitType.Yearly">Theo năm</MudSelectItem>
+                        <MudSelectItem Value="OTLimitType.Special">Đặc biệt</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudNumericField T="decimal" @bind-Value="Model.LimitHours" Label="Số giờ giới hạn" Required="true" Min="0.1m" Max="999m" Variant="Variant.Outlined" Adornment="Adornment.End" AdornmentText="giờ" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudSelect T="OTLimitScopeType" @bind-Value="Model.ScopeType" Label="Phạm vi áp dụng" Variant="Variant.Outlined">
+                        <MudSelectItem Value="OTLimitScopeType.Employee">Nhân viên / vị trí / phòng ban</MudSelectItem>
+                        <MudSelectItem Value="OTLimitScopeType.Department">Toàn phòng ban</MudSelectItem>
+                        <MudSelectItem Value="OTLimitScopeType.Block">Toàn khối</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+
+                @if (Model.ScopeType == OTLimitScopeType.Employee)
+                {
+                    <MudItem xs="12" sm="4">
+                        <MudTextField @bind-Value="Model.EmployeeCode" Label="Mã nhân viên" Variant="Variant.Outlined" HelperText="Để trống nếu áp dụng theo vị trí/phòng ban." />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField @bind-Value="Model.DeptCode" Label="Mã phòng ban" Variant="Variant.Outlined" />
+                    </MudItem>
+                    <MudItem xs="12" sm="4">
+                        <MudTextField @bind-Value="Model.PositionCode" Label="Mã vị trí" Variant="Variant.Outlined" />
+                    </MudItem>
+                }
+                else
+                {
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="Model.ScopeCode"
+                                      Label="Mã phạm vi"
+                                      Variant="Variant.Outlined"
+                                      HelperText="Phòng ban: DeptCode; Khối: BlockCode." />
+                    </MudItem>
+                }
+
+                <MudItem xs="12">
+                    <MudTextField @bind-Value="Model.Description" Label="Mô tả" Variant="Variant.Outlined" Lines="3" MaxLength="500" />
+                </MudItem>
+
+                <MudItem xs="12">
+                    <MudSwitch @bind-Value="Model.IsActive" Color="Color.Success">Áp dụng ngay</MudSwitch>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Hủy</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" Disabled="_saving" OnClick="Save">
+            @(_saving ? "Đang lưu..." : "Lưu")
+        </MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+    [Parameter] public OTLimitRuleUpsertDto Model { get; set; } = new();
+
+    private MudForm? _form;
+    private bool _saving;
+
+    private void Cancel() => MudDialog.Cancel();
+
+    private async Task Save()
+    {
+        if (_form != null)
+        {
+            await _form.Validate();
+            if (!_form.IsValid) return;
+        }
+
+        _saving = true;
+        try
+        {
+            var result = Model.Id == 0
+                ? await RuleService.CreateAsync(Model)
+                : await RuleService.UpdateAsync(Model.Id, Model);
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Đã lưu hạn mức OT.", Severity.Success);
+                MudDialog.Close(DialogResult.Ok(true));
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "Không thể lưu hạn mức OT.", Severity.Error);
+            }
+        }
+        finally { _saving = false; }
+    }
+}
