@@ -54,6 +54,34 @@ public sealed class ExecutionHrReviewController : BaseApiController
         }
     }
 
+    [HttpGet("reconciliations/{reconciliationId:long}/detail")]
+    public async Task<IActionResult> GetDetail(long reconciliationId, CancellationToken ct)
+    {
+        if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ."));
+
+        try
+        {
+            var result = await _service.GetDetailAsync(
+                userId,
+                UserInfo.EmployeeCode,
+                reconciliationId,
+                ct);
+
+            return result is null
+                ? NotFound(ApiResponse<object>.Fail("Không tìm thấy reconciliation."))
+                : Ok(ApiResponse<object>.Ok(result));
+        }
+        catch (ForbiddenAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<object>.Fail(ex.Message));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
+
     [HttpPost("evidence/{evidenceId:long}/review")]
     public async Task<IActionResult> ReviewEvidence(
         long evidenceId,
