@@ -45,11 +45,19 @@ public sealed class ActionItemWriter : IActionItemWriter
                 && x.ParticipantId == draft.ParticipantId
                 && x.ActionType == draft.ActionType
                 && x.AssignedToEmployeeId == draft.AssignedToEmployeeId
-                && (x.Status == ActionItemStatus.Open || x.Status == ActionItemStatus.InProgress),
+                && (x.Status == ActionItemStatus.Open
+                    || x.Status == ActionItemStatus.InProgress
+                    || x.Status == ActionItemStatus.Expired),
                 cancellationToken);
 
         if (existing is not null)
         {
+            if (existing.Status == ActionItemStatus.Expired)
+            {
+                existing.Status = ActionItemStatus.Open;
+                existing.ExpiredAt = null;
+            }
+
             existing.Title = title;
             existing.Summary = summary;
             existing.Severity = draft.Severity;
