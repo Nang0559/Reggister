@@ -304,6 +304,8 @@ builder.Services.AddAuthentication(options =>
     };
 });
 
+builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Execution.IExecutionHrResolutionService, FVN_REGISTER.Infrastructure.Services.Execution.ExecutionHrResolutionService>();
+
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddHostedService<EmailBackgroundWorker>();
@@ -350,4 +352,3 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notification");
 app.Run();
-builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Execution.IExecutionHrResolutionService, FVN_REGISTER.Infrastructure.Services.Execution.ExecutionHrResolutionService>();
