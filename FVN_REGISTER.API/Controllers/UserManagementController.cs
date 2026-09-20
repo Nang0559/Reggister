@@ -65,8 +65,11 @@ public class UserManagementController : BaseApiController
         if (!await CanAsync(SecurityFunctionCodes.UserManagementCreate, ct))
             return Forbid();
 
+        var user = UserInfo;
+        if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+
         return HandleResult(
-            await _userMgt.CreateAsync(request, UserInfo!.UserId, ct));
+            await _userMgt.CreateAsync(request, user.UserId, ct));
     }
 
     [HttpPut]
