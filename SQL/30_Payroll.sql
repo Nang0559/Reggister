@@ -33,7 +33,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03PayrollCalculationPe
  CREATE UNIQUE INDEX UX_F03PayrollCalculationPeriods_PeriodCode ON dbo.F03PayrollCalculationPeriods(PeriodCode);
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03PayrollCalculationPeriods_21_20')
- ALTER TABLE dbo.F03PayrollCalculationPeriods ADD CONSTRAINT CK_F03PayrollCalculationPeriods_21_20 CHECK (DAY(FromDate)=21 AND ToDate=DATEADD(DAY,-1,DATEADD(MONTH,1,FromDate)));
+ ALTER TABLE dbo.F03PayrollCalculationPeriods WITH NOCHECK ADD CONSTRAINT CK_F03PayrollCalculationPeriods_21_20 CHECK (DAY(FromDate)=21 AND ToDate=DATEADD(DAY,-1,DATEADD(MONTH,1,FromDate)));
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03PayrollCalculationPeriods_Status')
  ALTER TABLE dbo.F03PayrollCalculationPeriods ADD CONSTRAINT CK_F03PayrollCalculationPeriods_Status CHECK(Status IN(N'Open',N'Calculated',N'Locked',N'Exported'));
@@ -66,6 +66,33 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03PayrollInputs_P
 GO
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03PayrollInputs_Employee')
  ALTER TABLE dbo.F03PayrollInputs WITH NOCHECK ADD CONSTRAINT FK_F03PayrollInputs_Employee FOREIGN KEY(EmployeeId) REFERENCES dbo.F03Employees(Id);
+GO
+
+CREATE OR ALTER PROCEDURE dbo.usp_EnsurePayrollPeriod
+ @AsOfDate date,
+ @ActorUserId int = 0
+AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ DECLARE @FromDate date = CASE WHEN DAY(@AsOfDate)>=21
+     THEN DATEFROMPARTS(YEAR(@AsOfDate),MONTH(@AsOfDate),21)
+     ELSE DATEADD(MONTH,-1,DATEFROMPARTS(YEAR(@AsOfDate),MONTH(@AsOfDate),21)) END;
+ DECLARE @ToDate date = DATEADD(DAY,-1,DATEADD(MONTH,1,@FromDate));
+ DECLARE @PeriodCode nvarchar(20) = CONVERT(nvarchar(10),@FromDate,23)+N'_'+CONVERT(nvarchar(10),@ToDate,23);
+ BEGIN TRAN;
+ DECLARE @Id int;
+ SELECT @Id=Id FROM dbo.F03PayrollCalculationPeriods WITH (UPDLOCK,HOLDLOCK)
+ WHERE IsActive=1 AND FromDate=@FromDate AND ToDate=@ToDate;
+ IF @Id IS NULL
+ BEGIN
+   INSERT dbo.F03PayrollCalculationPeriods
+     (CreatedBy,PeriodCode,FromDate,ToDate,Status,LastModifiedSource)
+   VALUES(@ActorUserId,@PeriodCode,@FromDate,@ToDate,N'Open',N'PAYROLL_PERIOD_CREATE');
+   SET @Id=SCOPE_IDENTITY();
+ END;
+ COMMIT;
+ SELECT * FROM dbo.F03PayrollCalculationPeriods WHERE Id=@Id;
+END;
 GO
 
 CREATE OR ALTER PROCEDURE dbo.usp_PreparePayrollPeriod
