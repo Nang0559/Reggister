@@ -37,3 +37,17 @@ BEGIN
          N'EXECUTION', N'REVIEW', N'All', 2802, 1);
 END;
 GO
+GO
+/* Payroll security: view/prepare/lock/export are separate capabilities. */
+MERGE dbo.F03Functions AS T
+USING (VALUES
+ (2803,N'Payroll.View',N'Xem bảng công theo kỳ lương.',N'PAYROLL',N'VIEW',N'All',2803),
+ (2804,N'Payroll.Prepare',N'Chuẩn bị snapshot Payroll Input.',N'PAYROLL',N'PREPARE',N'All',2804),
+ (2805,N'Payroll.Lock',N'Khóa kỳ lương.',N'PAYROLL',N'LOCK',N'All',2805),
+ (2806,N'Payroll.Export',N'Xuất bảng công theo kỳ lương.',N'PAYROLL',N'EXPORT',N'All',2806)
+) AS S(FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+ON T.FunctionCode=S.FunctionCode
+WHEN MATCHED THEN UPDATE SET FunctionName=S.FunctionName,Detail=S.Detail,ModuleCode=S.ModuleCode,ActionCode=S.ActionCode,ScopeCode=S.ScopeCode,DisplayOrder=S.DisplayOrder,IsActive=1
+WHEN NOT MATCHED THEN INSERT(CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder,IsActive)
+VALUES(0,S.FunctionCode,S.FunctionName,S.Detail,S.ModuleCode,S.ActionCode,S.ScopeCode,S.DisplayOrder,1);
+GO
