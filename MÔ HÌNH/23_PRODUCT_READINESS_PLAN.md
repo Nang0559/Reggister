@@ -100,9 +100,9 @@ Tạo một contract duy nhất cho toàn hệ thống. Không sửa business t�
 
 | ID | Hạng mục | File/Layer | Trạng thái |
 |---|---|---|---|
-| P0-001 | SQL verification vẫn kiểm tra `F03ApprovalGroups/F03ApprovalPositionGroups/GroupCode` | `SQL/12_Verify.sql` | 🔴 |
-| P0-002 | SQL verification vẫn yêu cầu `usp_SyncOTActualHours` trong khi attendance calculation là canonical | `SQL/12_Verify.sql` | 🔴 |
-| P0-003 | Reconcile dashboard documentation với provider thực tế | `MÔ HÌNH/13_DASHBOARD_CAPABILITIES.md` | 🔴 |
+| P0-001 | SQL verification vẫn kiểm tra `F03ApprovalGroups/F03ApprovalPositionGroups/GroupCode` | `SQL/12_Verify.sql` | 🟢 |
+| P0-002 | SQL verification vẫn yêu cầu `usp_SyncOTActualHours` trong khi attendance calculation là canonical | `SQL/12_Verify.sql` | 🟢 |
+| P0-003 | Reconcile dashboard documentation với provider thực tế | `MÔ HÌNH/13_DASHBOARD_CAPABILITIES.md` | 🟢 |
 | P0-004 | Reconcile Approval DTO/selection/snapshot với docs | `MÔ HÌNH/20_...`, Application, UI | 🟠 |
 | P0-005 | Xác nhận Leave top-level `LeaveTypeCode` và detail cùng contract | Leave UI + DTO/service | 🟠 |
 | P0-006 | Xác nhận Trip/OT UI gọi route preview và render selector | UI | 🟠 |
@@ -112,8 +112,8 @@ Tạo một contract duy nhất cho toàn hệ thống. Không sửa business t�
 ## 0.3 Deliverables
 
 - [x] Tạo tài liệu này.
-- [ ] Canonical SQL verification.
-- [ ] Dashboard documentation reconciliation.
+- [x] Canonical SQL verification.
+- [x] Dashboard documentation reconciliation.
 - [ ] Approval contract reconciliation.
 - [ ] Leave/Trip/OT UI reconciliation.
 - [ ] User Guide reconciliation.
@@ -670,9 +670,9 @@ Hệ thống chỉ được đánh dấu **PRODUCT READY** khi:
 
 | Date | Phase | Change | Commit |
 |---|---|---|---|
-| 2026-09-20 | 0 | Created Product Readiness master plan | pending |
-| 2026-09-20 | 0 | Reconciled SQL verification contract | pending |
-| 2026-09-20 | 0 | Reconciled dashboard capability documentation | pending |
+| 2026-09-20 | 0 | Created Product Readiness master plan | `555d54d79b553f53ec34ade68ba53381893beda3` |
+| 2026-09-20 | 0 | Reconciled SQL verification contract | `5f5c39286697c97f0c41c03a556908523c6bd058` |
+| 2026-09-20 | 0 | Reconciled dashboard capability documentation | `e978d2aae5ce8d30ecadad2360203eb09fb282f4` |
 
 ---
 
