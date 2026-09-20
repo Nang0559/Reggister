@@ -25,8 +25,8 @@ public sealed class FvnWebAppContextSmokeTests
         Assert.True(File.Exists(sqlPath), $"Missing SQL script: {sqlPath}");
 
         var sql = File.ReadAllText(sqlPath);
-        Assert.DoesNotContain("GOGO", sql, StringComparison.OrdinalIgnoreCase);
-        Assert.Contains("GO", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.DoesNotContain("GOGO", sql);
+        Assert.Contains("GO", sql);
         Assert.Contains("FK_F03ExecutionHistory_Reconciliation", sql, StringComparison.Ordinal);
         Assert.Contains("FK_F03ExecutionEvidence_Confirmation", sql, StringComparison.Ordinal);
     }
