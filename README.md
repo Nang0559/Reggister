@@ -297,3 +297,45 @@ Trung tâm `/reports` cung cấp báo cáo Leave, OT, Trip, Equipment và Attend
 ## OT / Leave / Trip architecture
 
 OT, Leave và Trip là các request domain: đăng ký, danh sách, chi tiết và theo dõi tiến trình phê duyệt. Không có controller/client UI đồng bộ riêng cho OT. Dữ liệu chấm công và OT thực tế được tính tập trung bởi `HrmAttendanceCalculationController` → `IHrmAttendanceCalculationService` → `usp_CalculateHrmAttendance`; calculation batch đồng thời cập nhật actual OT cho các đơn đã Approved. Background worker chỉ gọi cùng pipeline này.
+
+## JWT configuration
+
+JWT signing secrets are never committed to the repository.
+
+### Development
+
+```powershell
+dotnet user-secrets set "Jwt:SecretKey" "<your-development-secret-at-least-32-bytes>" --project FVN_REGISTER.API
+dotnet user-secrets set "Jwt:Issuer" "FVNRGTApi" --project FVN_REGISTER.API
+dotnet user-secrets set "Jwt:Audience" "FVNRGTUI" --project FVN_REGISTER.API
+```
+
+Run the API using either `http` or `https` in `FVN_REGISTER.API/Properties/launchSettings.json`. The profiles intentionally do not contain `Jwt__SecretKey`; `ASPNETCORE_ENVIRONMENT=Development` enables the User Secrets provider through the `UserSecretsId` in the API project.
+
+Verify the secret with:
+
+```powershell
+dotnet user-secrets list --project FVN_REGISTER.API
+```
+
+### Production
+
+Set the signing secret in the process environment. The .NET configuration key `Jwt:SecretKey` maps to the environment variable `Jwt__SecretKey`.
+
+PowerShell:
+
+```powershell
+$env:Jwt__SecretKey="<your-production-secret-at-least-32-bytes>"
+```
+
+Windows service/IIS/container deployments should configure the same `Jwt__SecretKey` environment variable in the hosting environment rather than adding the secret to `appsettings.json`, `appsettings.Development.json`, `appsettings.Production.json`, or `launchSettings.json`.
+
+The API validates JWT configuration at startup and requires:
+
+- `Jwt:SecretKey`: non-empty and at least 32 UTF-8 bytes.
+- `Jwt:Issuer`: non-empty.
+- `Jwt:Audience`: non-empty.
+- `Jwt:AccessTokenHours`: greater than zero.
+- `Jwt:RememberMeDays`: greater than zero.
+
+`AuthService` consumes the typed `JwtOptions`; JWT token generation and bearer-token validation therefore use the same configuration source and values.
