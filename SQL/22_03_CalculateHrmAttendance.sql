@@ -105,13 +105,3 @@ BEGIN
  FROM dbo.F03HrmAttendanceCalculated WHERE CalculationBatchId=@BatchId;
 END;
 GO
-
-CREATE OR ALTER VIEW dbo.VF03HrmAttendanceDaily AS
-SELECT a.* FROM dbo.F03HrmAttendanceCalculated a
-INNER JOIN (
- SELECT WorkDate,EmployeeCode,MAX(Id) AS MaxId
- FROM dbo.F03HrmAttendanceCalculated
- GROUP BY WorkDate,EmployeeCode
-) x ON x.MaxId=a.Id;
-
-GO
