@@ -14,6 +14,7 @@ using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.OTTypes;
+using FVN_REGISTER.Application.Interfaces.OTLimitRules;
 using FVN_REGISTER.Application.Interfaces.PublicInformation;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Reports;
@@ -130,6 +131,7 @@ builder.Services.AddScoped<IOTValidator, OTValidator>();
 builder.Services.AddScoped<IOTService, OTService>();
 builder.Services.AddScoped<IDepartmentStatusService, DepartmentStatusService>();
 builder.Services.AddScoped<IOTTypeManagementService, OTTypeManagementService>();
+builder.Services.AddScoped<IOTLimitRuleManagementService, OTLimitRuleManagementService>();
 builder.Services.AddScoped<IOTEscalationService, OTEscalationService>();
 
 // Trip

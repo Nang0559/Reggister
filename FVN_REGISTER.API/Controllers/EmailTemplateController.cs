@@ -52,10 +52,13 @@ namespace FVN_REGISTER.API.Controllers
             [FromBody] EmailTemplateDto dto,
             CancellationToken ct)
         {
+            var user = UserInfo;
+            if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+
             return HandleResult(
                 await _templateService.SaveAsync(
                     dto,
-                    UserInfo!.UserId,
+                    user.UserId,
                     ct));
         }
 
@@ -64,10 +67,13 @@ namespace FVN_REGISTER.API.Controllers
             int id,
             CancellationToken ct)
         {
+            var user = UserInfo;
+            if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+
             return HandleResult(
                 await _templateService.ToggleActiveAsync(
                     id,
-                    UserInfo!.UserId,
+                    user.UserId,
                     ct));
         }
     }

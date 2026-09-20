@@ -41,14 +41,18 @@ public sealed class ApprovalPoliciesController : BaseApiController
     public async Task<IActionResult> Create([FromBody] ApprovalPolicyRequest request, CancellationToken ct)
     {
         if (!CanManage()) return Forbid();
-        return HandleResult(await _service.CreateAsync(request, UserInfo!.UserId, ct));
+        var user = UserInfo;
+        if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+        return HandleResult(await _service.CreateAsync(request, user.UserId, ct));
     }
 
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] ApprovalPolicyRequest request, CancellationToken ct)
     {
         if (!CanManage()) return Forbid();
-        return HandleResult(await _service.UpdateAsync(id, request, UserInfo!.UserId, ct));
+        var user = UserInfo;
+        if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+        return HandleResult(await _service.UpdateAsync(id, request, user.UserId, ct));
     }
 
     [HttpDelete("{id:int}")]

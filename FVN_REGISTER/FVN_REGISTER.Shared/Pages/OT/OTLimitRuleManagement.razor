@@ -1,0 +1,212 @@
+@page "/admin/ot-limit-rules"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.LimitRuleDtos
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.OTs
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+
+@inject IOTLimitRuleManagementClientService RuleService
+@inject IDialogService DialogService
+@inject ISnackbar Snackbar
+
+<PageTitle>Quản lý hạn mức OT - FCC</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudIcon Icon="@Icons.Material.Filled.Rule" Color="Color.Primary" Size="Size.Large" />
+    <div>
+        <MudText Typo="Typo.h5" Style="font-weight:700">Quản lý hạn mức OT</MudText>
+        <MudText Typo="Typo.caption" Color="Color.Secondary">Cấu hình hạn mức theo nhân viên, phòng ban hoặc khối</MudText>
+    </div>
+    <MudSpacer />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="OpenCreate">
+        Thêm hạn mức
+    </MudButton>
+</MudStack>
+
+<MudPaper Elevation="1" Class="pa-3 mb-4" Style="border-radius:12px">
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="OTLimitType?" Label="Loại giới hạn" @bind-Value="_limitType" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                <MudSelectItem T="OTLimitType?" Value="@((OTLimitType?)OTLimitType.Daily)">Ngày</MudSelectItem>
+                <MudSelectItem T="OTLimitType?" Value="@((OTLimitType?)OTLimitType.Weekly)">Tuần</MudSelectItem>
+                <MudSelectItem T="OTLimitType?" Value="@((OTLimitType?)OTLimitType.Monthly)">Tháng</MudSelectItem>
+                <MudSelectItem T="OTLimitType?" Value="@((OTLimitType?)OTLimitType.Yearly)">Năm</MudSelectItem>
+                <MudSelectItem T="OTLimitType?" Value="@((OTLimitType?)OTLimitType.Special)">Đặc biệt</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="OTLimitScopeType?" Label="Phạm vi" @bind-Value="_scopeType" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                <MudSelectItem T="OTLimitScopeType?" Value="@((OTLimitScopeType?)OTLimitScopeType.Employee)">Nhân viên / vị trí</MudSelectItem>
+                <MudSelectItem T="OTLimitScopeType?" Value="@((OTLimitScopeType?)OTLimitScopeType.Department)">Phòng ban</MudSelectItem>
+                <MudSelectItem T="OTLimitScopeType?" Value="@((OTLimitScopeType?)OTLimitScopeType.Block)">Khối</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="bool?" Label="Trạng thái" @bind-Value="_isActive" Clearable="true" Variant="Variant.Outlined" Margin="Margin.Dense">
+                <MudSelectItem T="bool?" Value="@((bool?)true)">Đang áp dụng</MudSelectItem>
+                <MudSelectItem T="bool?" Value="@((bool?)false)">Đang tạm dừng</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_loading)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Primary" Class="mb-3" />
+}
+else
+{
+    <MudPaper Elevation="1" Style="border-radius:12px; overflow:hidden">
+        <MudTable Items="@FilteredRules" Dense="true" Hover="true" Striped="true">
+            <HeaderContent>
+                <MudTh>Loại</MudTh>
+                <MudTh>Phạm vi</MudTh>
+                <MudTh>Hạn mức</MudTh>
+                <MudTh>Mô tả</MudTh>
+                <MudTh>Trạng thái</MudTh>
+                <MudTh Style="text-align:center">Thao tác</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>
+                    <MudChip T="string" Size="Size.Small" Color="@GetLimitColor(context.LimitType)">
+                        @GetLimitText(context.LimitType)
+                    </MudChip>
+                </MudTd>
+                <MudTd>
+                    <MudText Typo="Typo.body2" Style="font-weight:600">@context.ScopeText</MudText>
+                    @if (!string.IsNullOrWhiteSpace(context.Description))
+                    {
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@context.Description</MudText>
+                    }
+                </MudTd>
+                <MudTd><b>@context.LimitHours.ToString("0.##") giờ</b></MudTd>
+                <MudTd>@context.Description</MudTd>
+                <MudTd>
+                    <MudChip T="string" Size="Size.Small" Color="@(context.IsActive ? Color.Success : Color.Default)">
+                        @(context.IsActive ? "Đang áp dụng" : "Tạm dừng")
+                    </MudChip>
+                </MudTd>
+                <MudTd Style="text-align:center">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit" Color="Color.Primary" Size="Size.Small" OnClick="@(() => OpenEdit(context))" />
+                    <MudIconButton Icon="@(context.IsActive ? Icons.Material.Filled.Pause : Icons.Material.Filled.PlayArrow)"
+                                   Color="@(context.IsActive ? Color.Warning : Color.Success)" Size="Size.Small"
+                                   OnClick="@(() => Toggle(context))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small"
+                                   OnClick="@(() => Delete(context))" />
+                </MudTd>
+            </RowTemplate>
+            <NoRecordsContent>
+                <MudText Class="pa-6" Color="Color.Secondary">Không có quy tắc phù hợp.</MudText>
+            </NoRecordsContent>
+        </MudTable>
+    </MudPaper>
+}
+
+@code {
+    private List<OTLimitRuleDto> _rules = new();
+    private bool _loading = true;
+    private OTLimitType? _limitType;
+    private OTLimitScopeType? _scopeType;
+    private bool? _isActive;
+
+    private IEnumerable<OTLimitRuleDto> FilteredRules =>
+        _rules.Where(x =>
+            (!_limitType.HasValue || x.LimitType == _limitType.Value) &&
+            (!_scopeType.HasValue || x.ScopeType == _scopeType.Value) &&
+            (!_isActive.HasValue || x.IsActive == _isActive.Value));
+
+    private static readonly DialogOptions DialogOptions = new()
+    {
+        MaxWidth = MaxWidth.Medium,
+        FullWidth = true,
+        CloseOnEscapeKey = true
+    };
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = await RuleService.GetAllAsync();
+            if (result.IsSuccess && result.Data != null)
+                _rules = result.Data;
+            else
+                Snackbar.Add(result.Message ?? "Không thể tải danh sách hạn mức OT.", Severity.Error);
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task OpenCreate()
+    {
+        var parameters = new DialogParameters
+        {
+            [nameof(OTLimitRuleEditDialog.Model)] = new OTLimitRuleUpsertDto()
+        };
+        var dialog = await DialogService.ShowAsync<OTLimitRuleEditDialog>("Thêm hạn mức OT", parameters, DialogOptions);
+        if ((await dialog.Result) is { Canceled: false }) await LoadAsync();
+    }
+
+    private async Task OpenEdit(OTLimitRuleDto item)
+    {
+        var model = new OTLimitRuleUpsertDto
+        {
+            Id = item.Id,
+            LimitType = item.LimitType,
+            ScopeType = item.ScopeType,
+            ScopeCode = item.ScopeCode,
+            EmployeeCode = item.EmployeeCode,
+            PositionCode = item.PositionCode,
+            DeptCode = item.DeptCode,
+            LimitHours = item.LimitHours,
+            Description = item.Description,
+            IsActive = item.IsActive
+        };
+        var parameters = new DialogParameters { [nameof(OTLimitRuleEditDialog.Model)] = model };
+        var dialog = await DialogService.ShowAsync<OTLimitRuleEditDialog>("Sửa hạn mức OT", parameters, DialogOptions);
+        if ((await dialog.Result) is { Canceled: false }) await LoadAsync();
+    }
+
+    private async Task Toggle(OTLimitRuleDto item)
+    {
+        var result = await RuleService.ToggleAsync(item.Id);
+        Snackbar.Add(result.Message ?? (result.IsSuccess ? "Đã cập nhật." : "Không thể cập nhật."), result.IsSuccess ? Severity.Success : Severity.Error);
+        if (result.IsSuccess) await LoadAsync();
+    }
+
+    private async Task Delete(OTLimitRuleDto item)
+    {
+        var confirmed = await DialogService.ShowMessageBox(
+            "Xóa hạn mức OT",
+            $"Bạn có chắc muốn xóa quy tắc “{item.ScopeText} - {GetLimitText(item.LimitType)}”?",
+            yesText: "Xóa", cancelText: "Hủy");
+
+        if (confirmed != true) return;
+
+        var result = await RuleService.DeleteAsync(item.Id);
+        Snackbar.Add(result.Message ?? (result.IsSuccess ? "Đã xóa." : "Không thể xóa."), result.IsSuccess ? Severity.Success : Severity.Error);
+        if (result.IsSuccess) await LoadAsync();
+    }
+
+    private static string GetLimitText(OTLimitType type) => type switch
+    {
+        OTLimitType.Daily => "Ngày",
+        OTLimitType.Weekly => "Tuần",
+        OTLimitType.Monthly => "Tháng",
+        OTLimitType.Yearly => "Năm",
+        OTLimitType.Special => "Đặc biệt",
+        _ => type.ToString()
+    };
+
+    private static Color GetLimitColor(OTLimitType type) => type switch
+    {
+        OTLimitType.Daily => Color.Info,
+        OTLimitType.Weekly => Color.Primary,
+        OTLimitType.Monthly => Color.Secondary,
+        OTLimitType.Yearly => Color.Success,
+        OTLimitType.Special => Color.Warning,
+        _ => Color.Default
+    };
+}

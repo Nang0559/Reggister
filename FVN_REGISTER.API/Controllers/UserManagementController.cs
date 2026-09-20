@@ -65,8 +65,11 @@ public class UserManagementController : BaseApiController
         if (!await CanAsync(SecurityFunctionCodes.UserManagementCreate, ct))
             return Forbid();
 
+        var user = UserInfo;
+        if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+
         return HandleResult(
-            await _userMgt.CreateAsync(request, UserInfo!.UserId, ct));
+            await _userMgt.CreateAsync(request, user.UserId, ct));
     }
 
     [HttpPut]
@@ -77,8 +80,11 @@ public class UserManagementController : BaseApiController
         if (!await CanAsync(SecurityFunctionCodes.UserManagementEdit, ct))
             return Forbid();
 
+        var user = UserInfo;
+        if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+
         return HandleResult(
-            await _userMgt.UpdateAsync(request, UserInfo!.UserId, ct));
+            await _userMgt.UpdateAsync(request, user.UserId, ct));
     }
 
     [HttpDelete("{id:int}")]
@@ -87,12 +93,15 @@ public class UserManagementController : BaseApiController
         if (!await CanAsync(SecurityFunctionCodes.UserManagementEdit, ct))
             return Forbid();
 
-        if (id == UserInfo!.UserId)
+        var user = UserInfo;
+        if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+
+        if (id == user.UserId)
             return BadRequest(ApiResponse<object>.Fail(
                 "Không thể xóa tài khoản đang đăng nhập."));
 
         return HandleResult(
-            await _userMgt.DeleteAsync(id, UserInfo.UserId, ct));
+            await _userMgt.DeleteAsync(id, user.UserId, ct));
     }
 
     [HttpPut("{id:int}/toggle-lock")]
@@ -101,12 +110,15 @@ public class UserManagementController : BaseApiController
         if (!await CanAsync(SecurityFunctionCodes.UserManagementLock, ct))
             return Forbid();
 
-        if (id == UserInfo!.UserId)
+        var user = UserInfo;
+        if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+
+        if (id == user.UserId)
             return BadRequest(ApiResponse<object>.Fail(
                 "Không thể khóa tài khoản đang đăng nhập."));
 
         return HandleResult(
-            await _userMgt.ToggleLockAsync(id, UserInfo.UserId, ct));
+            await _userMgt.ToggleLockAsync(id, user.UserId, ct));
     }
 
     [HttpPut("{id:int}/reset-password")]
@@ -122,9 +134,12 @@ public class UserManagementController : BaseApiController
             return BadRequest(ApiResponse<object>.Fail(
                 "Dữ liệu không hợp lệ."));
 
+        var user = UserInfo;
+        if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+
         return HandleResult(
             await _userMgt.ResetPasswordAsync(
-                id, request.NewPassword, UserInfo!.UserId, ct));
+                id, request.NewPassword, user.UserId, ct));
     }
 
     private async Task<bool> CanAsync(int functionCode, CancellationToken ct)

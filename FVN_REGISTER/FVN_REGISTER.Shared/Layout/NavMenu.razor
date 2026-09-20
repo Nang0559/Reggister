@@ -61,6 +61,10 @@
 
         <MudNavGroup Title="Quản lý OT" Icon="@Icons.Material.Filled.Timelapse" Expanded="false">
             <MudNavLink href="/ot/list" Icon="@Icons.Material.Filled.FormatListBulleted">Danh sách đơn OT</MudNavLink>
+            @if (Can(SecurityFunctionCodes.OTEdit))
+            {
+                <MudNavLink href="/admin/ot-limit-rules" Icon="@Icons.Material.Filled.Rule">Hạn mức OT</MudNavLink>
+            }
         </MudNavGroup>
     }
 
