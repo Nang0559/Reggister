@@ -15,6 +15,12 @@ public sealed class F03ActionItem : BaseAuditEntity
     [Required, StringLength(100)]
     public string SourceId { get; set; } = string.Empty;
 
+    [Required, StringLength(50)]
+    public string SourceType { get; set; } = "MODULE";
+
+    [StringLength(100)]
+    public string? ParticipantId { get; set; }
+
     public int EmployeeId { get; set; }
     public int? AssignedToUserId { get; set; }
     public int AssignedToEmployeeId { get; set; }
