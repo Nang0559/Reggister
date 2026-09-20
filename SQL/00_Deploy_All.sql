@@ -5,10 +5,8 @@ FVN_REGISTER - MASTER SQL DEPLOYMENT
 Run in SSMS with SQLCMD Mode enabled.
 
 Order:
-  01..25 existing database/application foundations
-  26 Shared Work Calendar + Action schema
-  27 Shared Work Calendar + Action indexes / policies / seeds
-  28 Shared Work Calendar + Action verification
+  01..30 ordered database/application foundations
+  31..35 post-foundation feature hardening
   99 Final cross-layer/schema verification
 
 IMPORTANT:
@@ -43,11 +41,11 @@ IMPORTANT:
 :r 17_ApprovalRouteSelection.sql
 :r 18_ApproverConfigurationReview.sql
 :r 19_OT_LimitRule_ScopeColumns.sql
-:r 13_Hrm_User_Approval_Provisioning.sql
-:r 14_ExecutionReviewSecurity.sql
-:r 17_DocumentationConsistency.sql
-:r 18_OT_Leave_Limits.sql
-:r 19_WorkCalendar.sql
+:r 31_Hrm_User_Approval_Provisioning.sql
+:r 32_ExecutionReviewSecurity.sql
+:r 33_DocumentationConsistency.sql
+:r 34_OT_Leave_Limits.sql
+:r 35_WorkCalendar.sql
 :r 12_Verify.sql
 :r 20_Reports.sql
 :r 21_Verify_Reports.sql
@@ -67,7 +65,7 @@ IMPORTANT:
 :r 99_Verify.sql
 
 PRINT N'============================================================';
-PRINT N'FVN_REGISTER SQL deployment 01..29 + 99 verification completed.';
+PRINT N'FVN_REGISTER SQL deployment 01..35 + 99 verification completed.';
 PRINT N'============================================================';
 GO
 
