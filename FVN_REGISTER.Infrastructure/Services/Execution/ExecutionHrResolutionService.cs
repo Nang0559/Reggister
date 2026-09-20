@@ -390,11 +390,14 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         _db.Set<F03ExecutionResolution>().Add(resolution);
         await _db.SaveChangesAsync(cancellationToken);
 
-        if (decision == "OK")
+        if (decision == "OK"
+            && string.Equals(reconciliation.ModuleCode, "ATTENDANCE", StringComparison.OrdinalIgnoreCase))
         {
             var payrollPeriod = await _db.PayrollCalculationPeriods
                 .AsNoTracking()
-                .Where(x => x.IsActive != false && x.FromDate <= reconciliation.WorkDate && x.ToDate >= reconciliation.WorkDate)
+                .Where(x => x.IsActive != false
+                    && x.FromDate <= reconciliation.WorkDate
+                    && x.ToDate >= reconciliation.WorkDate)
                 .OrderByDescending(x => x.Id)
                 .FirstOrDefaultAsync(cancellationToken)
                 ?? throw new InvalidOperationException(
@@ -409,7 +412,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                 ReconciliationId = reconciliation.Id,
                 ResolutionId = resolution.Id,
                 ModuleCode = reconciliation.ModuleCode,
-                CorrectionType = $"{reconciliation.ModuleCode}_RESOLUTION",
+                CorrectionType = "ATTENDANCE_RECALCULATION",
                 EmployeeId = reconciliation.EmployeeId,
                 WorkDate = reconciliation.WorkDate,
                 Status = "Pending",
@@ -424,33 +427,21 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             _db.ExecutionCorrections.Add(correction);
             await _db.SaveChangesAsync(cancellationToken);
 
-            if (string.Equals(reconciliation.ModuleCode, "ATTENDANCE", StringComparison.OrdinalIgnoreCase))
-            {
-                var calc = await _attendanceCalculation.CalculateAsync(
-                    new FVN_REGISTER.Contract.Dtos.HrmSync.HrmAttendanceCalculationRequestDto
-                    {
-                        DeptCode = employee.DeptCode,
-                        FromDate = reconciliation.WorkDate.ToDateTime(TimeOnly.MinValue),
-                        ToDate = reconciliation.WorkDate.ToDateTime(TimeOnly.MinValue)
-                    },
-                    $"HR-EXECUTION-RESOLUTION:{reconciliationId}",
-                    cancellationToken);
+            var calc = await _attendanceCalculation.CalculateAsync(
+                new FVN_REGISTER.Contract.Dtos.HrmSync.HrmAttendanceCalculationRequestDto
+                {
+                    DeptCode = employee.DeptCode,
+                    FromDate = reconciliation.WorkDate.ToDateTime(TimeOnly.MinValue),
+                    ToDate = reconciliation.WorkDate.ToDateTime(TimeOnly.MinValue)
+                },
+                $"HR-EXECUTION-RESOLUTION:{reconciliationId}",
+                cancellationToken);
 
-                if (!calc.IsSuccess)
-                    throw new InvalidOperationException(
-                        $"Không thể tính lại công ngày {reconciliation.WorkDate:dd/MM/yyyy}: {calc.Message}");
+            if (!calc.IsSuccess)
+                throw new InvalidOperationException(
+                    $"Không thể tính lại công ngày {reconciliation.WorkDate:dd/MM/yyyy}: {calc.Message}");
 
-                correction.AppliedState = "RECALCULATED";
-            }
-            else
-            {
-                // Other business modules remain their own source of truth.
-                // The generic correction is an auditable resolution record; a
-                // module-specific producer may consume it later without changing
-                // the HR decision itself.
-                correction.AppliedState = decision;
-            }
-
+            correction.AppliedState = "RECALCULATED";
             correction.Status = "Applied";
             correction.AppliedAt = DateTime.Now;
             correction.AppliedBy = userId;
@@ -459,7 +450,6 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             correction.LastModifiedSource = "HR_EXECUTION_CORRECTION";
             await _db.SaveChangesAsync(cancellationToken);
         }
-
         var oldStatus = reconciliation.ReconciliationStatus;
         reconciliation.ReconciliationStatus = "Resolved";
         reconciliation.ResolvedAt = now;
