@@ -113,9 +113,61 @@ public class LeaveHistoryHandler : BaseHistoryHandler<F03LeaveDay>
         });
     }
 
-    public override Task<ServiceResult<HistoryItemDetailDto>> GetDetailAsync(
+    public override async Task<ServiceResult<HistoryItemDetailDto>> GetDetailAsync(
         int id, UserIdentityDto user, CancellationToken ct)
-        => throw new NotImplementedException("Cần implement GetDetailAsync cho Leave.");
+    {
+        var row = await (from request in Db.LeaveDays
+                          .AsNoTracking()
+                          .Include(x => x.F03LeaveDayDetails)
+                         join employee in Db.Employees.AsNoTracking()
+                             on request.EmployeeCode equals employee.EmployeeCode into employees
+                         from employee in employees.DefaultIfEmpty()
+                         where request.Id == id &&
+                               request.IsActive == true &&
+                               request.EmployeeCode == user.EmployeeCode
+                         select new { request, employee })
+            .FirstOrDefaultAsync(ct);
+
+        if (row == null)
+            return ServiceResult<HistoryItemDetailDto>.Fail("Không tìm thấy đơn nghỉ phép.");
+
+        var details = row.request.F03LeaveDayDetails
+            .OrderBy(x => x.LeaveDate)
+            .Select(x => new LeaveRequestDetailDto
+            {
+                LeaveDate = x.LeaveDate,
+                LeaveTypeCode = x.LeaveTypeCode,
+                IsHalfDay = x.IsHalfDay,
+                HalfDayOption = x.HalfDayOption
+            })
+            .ToList();
+
+        return ServiceResult<HistoryItemDetailDto>.Ok(new HistoryItemDetailDto
+        {
+            Id = id,
+            Kind = RequestModule.Leave.ToString(),
+            RequestStatus = row.request.RequestStatus.ToString(),
+            StatusDisplay = row.request.RequestStatus.ToDisplayName(),
+            StatusColor = GetStatusColor(row.request.RequestStatus),
+            SubmittedAt = row.request.CreatedAt ?? DateTime.Now,
+            CanCancel = ActiveStatuses.Contains(row.request.RequestStatus),
+            Leave = new LeaveDetailPayload
+            {
+                EmployeeName = row.employee?.EmployeeName,
+                DeptName = row.employee?.DeptCode,
+                StartDate = row.request.StartDate,
+                EndDate = row.request.EndDate,
+                TotalDay = row.request.TotalDay,
+                TotalLeaveDay = row.request.TotalLeaveDay ?? 0,
+                LeaveReason = row.request.LeaveReason,
+                LeaveTypeName = row.request.F03LeaveDayDetails
+                    .Select(x => x.LeaveTypeName)
+                    .FirstOrDefault(x => !string.IsNullOrWhiteSpace(x)),
+                Details = details
+            },
+            ApprovalSteps = await GetApprovalStepsAsync(id, ct)
+        });
+    }
 
     private static string GetStatusColor(ApprovalStatus status) => status switch
     {
