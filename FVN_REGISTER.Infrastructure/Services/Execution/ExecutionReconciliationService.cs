@@ -175,6 +175,14 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             entity.ModifiedBy = effectiveActorUserId;
             entity.ModifiedAt = DateTime.Now;
             entity.LastModifiedSource = "EXECUTION_RECONCILIATION";
+
+            if (string.Equals(requestedStatus, "Resolved", StringComparison.OrdinalIgnoreCase)
+                && previousStatus is not null)
+            {
+                entity.ResolvedAt = DateTime.Now;
+                entity.ResolvedBy = effectiveActorUserId;
+                entity.LastModifiedSource = "EXECUTION_CANCELLED";
+            }
         }
 
         var policy = await _db.ExecutionPolicies.AsNoTracking()
