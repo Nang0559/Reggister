@@ -350,3 +350,4 @@ app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notification");
 app.Run();
+builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Execution.IExecutionHrResolutionService, FVN_REGISTER.Infrastructure.Services.Execution.ExecutionHrResolutionService>();
