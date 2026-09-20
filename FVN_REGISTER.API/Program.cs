@@ -316,6 +316,7 @@ builder.Services.AddHostedService<EscalationBackgroundWorker>();
 builder.Services.AddHostedService<HrmSyncBackgroundWorker>();
 builder.Services.AddHostedService<HrmAttendanceCalculationWorker>();
 builder.Services.AddHostedService<ExecutionReconciliationBackgroundWorker>();
+builder.Services.AddHostedService<ActionItemLifecycleBackgroundWorker>();
 
 var app = builder.Build();
 
