@@ -83,18 +83,31 @@ builder.Services.AddMemoryCache();
 builder.Services.Configure<AuthDebugOptions>(builder.Configuration.GetSection("AuthDebug"));
 builder.Services.Configure<AppOptions>(opts => opts.SiteUrl = builder.Configuration["SiteUrl"] ?? "https://localhost:7264");
 
-builder.Services
-    .AddOptions<JwtOptions>()
-    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
-    .Validate(x => !string.IsNullOrWhiteSpace(x.SecretKey),
-        "Jwt:SecretKey is required. Supply it through configuration or environment variable Jwt__SecretKey.")
-    .Validate(x => Encoding.UTF8.GetByteCount(x.SecretKey) >= 32,
-        "Jwt:SecretKey must be at least 32 bytes.")
-    .Validate(x => !string.IsNullOrWhiteSpace(x.Issuer), "Jwt:Issuer is required.")
-    .Validate(x => !string.IsNullOrWhiteSpace(x.Audience), "Jwt:Audience is required.")
-    .Validate(x => x.AccessTokenHours > 0, "Jwt:AccessTokenHours must be greater than zero.")
-    .Validate(x => x.RememberMeDays > 0, "Jwt:RememberMeDays must be greater than zero.")
-    .ValidateOnStart();
+var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
+    ?? throw new InvalidOperationException("Jwt configuration is missing.");
+
+if (string.IsNullOrWhiteSpace(jwtOptions.SecretKey) ||
+    Encoding.UTF8.GetByteCount(jwtOptions.SecretKey) < 32)
+{
+    throw new InvalidOperationException(
+        "Jwt:SecretKey is required and must be at least 32 bytes. " +
+        "For Development, use .NET User Secrets or Jwt__SecretKey. " +
+        "For Production, use Jwt__SecretKey.");
+}
+
+if (string.IsNullOrWhiteSpace(jwtOptions.Issuer))
+    throw new InvalidOperationException("Jwt:Issuer is required.");
+
+if (string.IsNullOrWhiteSpace(jwtOptions.Audience))
+    throw new InvalidOperationException("Jwt:Audience is required.");
+
+if (jwtOptions.AccessTokenHours <= 0)
+    throw new InvalidOperationException("Jwt:AccessTokenHours must be greater than zero.");
+
+if (jwtOptions.RememberMeDays <= 0)
+    throw new InvalidOperationException("Jwt:RememberMeDays must be greater than zero.");
+
+builder.Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(jwtOptions));
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 
@@ -246,9 +259,6 @@ builder.Services.AddAuthentication(options =>
 .AddJwtBearer(options =>
 {
     options.MapInboundClaims = false;
-    var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
-        ?? throw new InvalidOperationException("JWT configuration is missing.");
-
     options.TokenValidationParameters = new TokenValidationParameters
     {
         ValidateIssuer = true, ValidIssuer = jwtOptions.Issuer,
