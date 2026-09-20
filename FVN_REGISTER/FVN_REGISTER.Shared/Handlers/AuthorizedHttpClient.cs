@@ -159,6 +159,18 @@ namespace FVN_REGISTER.Shared.Handlers
                 url,
                 ct);
 
+        public Task<ApiResponse<byte[]>> PostFileAsync(
+            string url,
+            object data,
+            CancellationToken ct = default)
+            => SendAsync<byte[]>(
+                () => new HttpRequestMessage(HttpMethod.Post, url)
+                {
+                    Content = JsonContent.Create(data)
+                },
+                url,
+                ct);
+
         public Task<ApiResponse<T>> PostAsync<T>(
             string url,
             object data,
