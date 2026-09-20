@@ -92,7 +92,8 @@ public sealed class ActionItemLifecycleBackgroundWorker : BackgroundService
                         .AsNoTracking()
                         .AnyAsync(x => x.IsActive != false
                             && x.ActionId == action.ActionId
-                            && x.ReconciliationStatus != "Resolved",
+                            && (x.ReconciliationStatus == "Mismatch"
+                                || x.ReconciliationStatus == "AwaitingConfirmation"),
                             stoppingToken);
 
                     if (unresolved)
