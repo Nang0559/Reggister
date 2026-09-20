@@ -170,7 +170,15 @@
     private string _reason = string.Empty;
     private ExecutionReconciliationDetailDto? _detail;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    [SupplyParameterFromQuery(Name = "reconciliationId")]
+    public long? ReconciliationId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        if (ReconciliationId.HasValue)
+            await OpenDetailAsync(ReconciliationId.Value);
+    }
 
     private async Task LoadAsync()
     {
