@@ -47,6 +47,7 @@ IMPORTANT:
 :r 17_DocumentationConsistency.sql
 :r 18_OT_Leave_Limits.sql
 :r 19_WorkCalendar.sql
+:r 12_Verify.sql
 :r 20_Reports.sql
 :r 21_Verify_Reports.sql
 :r 22_00_HrmAttendanceTables.sql
