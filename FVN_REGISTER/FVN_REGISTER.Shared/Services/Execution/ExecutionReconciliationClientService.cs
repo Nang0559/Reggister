@@ -15,6 +15,11 @@ public sealed class ExecutionReconciliationClientService : IExecutionReconciliat
         _http.GetAsync<IReadOnlyList<ExecutionReconciliationDto>>(
             $"api/execution/me?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}", ct);
 
+    public Task<ApiResponse<ExecutionReconciliationDetailDto>> GetDetailAsync(
+        long reconciliationId, CancellationToken ct = default) =>
+        _http.GetAsync<ExecutionReconciliationDetailDto>(
+            $"api/execution/me/{reconciliationId}/detail", ct);
+
     public Task<ApiResponse<ExecutionReconciliationDto>> GetAsync(
         long reconciliationId, CancellationToken ct = default) =>
         _http.GetAsync<ExecutionReconciliationDto>(
