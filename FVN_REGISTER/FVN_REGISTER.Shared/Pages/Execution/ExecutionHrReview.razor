@@ -4,6 +4,7 @@
 @using FVN_REGISTER.Shared.Handlers
 @using Microsoft.AspNetCore.Authorization
 @inject IHttpClientWithAuth Http
+@inject FVN_REGISTER.Shared.Services.Execution.IExecutionReconciliationClientService ExecutionService
 @inject ISnackbar Snackbar
 @rendermode InteractiveServer
 
@@ -24,8 +25,7 @@
         <MudGrid Class="mt-4" Spacing="2">
             <MudItem xs="12" sm="4">
                 <MudSelect T="string" Label="Module" @bind-Value="_module" Clearable="true">
-                    <MudSelectItem Value="@("ATTENDANCE")">Attendance</MudSelectItem>
-                    <MudSelectItem Value="@("OT")">OT</MudSelectItem>
+                        <MudSelectItem Value="@("OT")">OT</MudSelectItem>
                     <MudSelectItem Value="@("LEAVE")">Leave</MudSelectItem>
                     <MudSelectItem Value="@("TRIP")">Trip</MudSelectItem>
                 </MudSelect>
@@ -82,7 +82,7 @@
                             NG
                         </MudButton>
                         <MudButton Size="Size.Small" Variant="Variant.Text"
-                                   Href="@($"/execution?reconciliationId={context.Id}")">
+                                   OnClick="@(() => OpenDetailAsync(context.Id))">
                             Chi tiết
                         </MudButton>
                     </MudStack>
@@ -93,6 +93,71 @@
             </NoRecordsContent>
         </MudTable>
     </MudPaper>
+    @if (_detail is not null)
+    {
+        <MudPaper Outlined="true" Class="pa-4 mt-4">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                <MudText Typo="Typo.h6">
+                    Chi tiết @_detail.Reconciliation.ModuleCode / @_detail.Reconciliation.SourceId
+                </MudText>
+                <MudButton Size="Size.Small" OnClick="CloseDetail">Đóng</MudButton>
+            </MudStack>
+
+            @if (_detail.Evidence.Count > 0)
+            {
+                <MudTable Items="_detail.Evidence" Dense="true" Class="mt-3">
+                    <HeaderContent>
+                        <MudTh>Evidence</MudTh>
+                        <MudTh>FileId</MudTh>
+                        <MudTh>Trạng thái</MudTh>
+                        <MudTh>Ghi chú</MudTh>
+                        <MudTh></MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.EvidenceType</MudTd>
+                        <MudTd>@(context.FileId?.ToString() ?? "-")</MudTd>
+                        <MudTd>@context.ReviewStatus</MudTd>
+                        <MudTd>@(context.ReviewNote ?? "-")</MudTd>
+                        <MudTd>
+                            <MudStack Row="true" Spacing="1">
+                                <MudButton Size="Size.Small" Color="Color.Success"
+                                           OnClick="@(() => ReviewEvidenceAsync(context.Id, "Approved"))">
+                                    Duyệt
+                                </MudButton>
+                                <MudButton Size="Size.Small" Color="Color.Warning"
+                                           OnClick="@(() => ReviewEvidenceAsync(context.Id, "NeedMoreEvidence"))">
+                                    Cần bổ sung
+                                </MudButton>
+                                <MudButton Size="Size.Small" Color="Color.Error"
+                                           OnClick="@(() => ReviewEvidenceAsync(context.Id, "Rejected"))">
+                                    Từ chối
+                                </MudButton>
+                            </MudStack>
+                        </MudTd>
+                    </RowTemplate>
+                </MudTable>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-3">Chưa có evidence.</MudAlert>
+            }
+
+            @if (_detail.Confirmation is not null)
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-3">
+                    Employee decision: @_detail.Confirmation.Decision —
+                    Status: @_detail.Confirmation.Status
+                </MudAlert>
+            }
+
+            @if (_detail.HrResolution is not null)
+            {
+                <MudAlert Severity="Severity.Success" Class="mt-3">
+                    HR đã xử lý: @_detail.HrResolution.Decision — @_detail.HrResolution.Reason
+                </MudAlert>
+            }
+        </MudPaper>
+    }
 </MudContainer>
 
 @code {
@@ -103,6 +168,7 @@
     private bool _busy;
     private string? _error;
     private string _reason = string.Empty;
+    private ExecutionReconciliationDetailDto? _detail;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -132,6 +198,46 @@
         finally
         {
             _loading = false;
+        }
+    }
+
+    private async Task OpenDetailAsync(long reconciliationId)
+    {
+        var result = await ExecutionService.GetDetailAsync(reconciliationId);
+        if (!result.IsSuccess || result.Data is null)
+        {
+            Snackbar.Add(result.Message ?? "Không tải được chi tiết.", Severity.Error);
+            return;
+        }
+
+        _detail = result.Data;
+    }
+
+    private void CloseDetail() => _detail = null;
+
+    private async Task ReviewEvidenceAsync(long evidenceId, string status)
+    {
+        _busy = true;
+        try
+        {
+            var request = new ExecutionEvidenceReviewRequest(status, _reason?.Trim());
+            var result = await Http.PostAsync<ExecutionEvidenceDto>(
+                $"api/execution/hr/evidence/{evidenceId}/review", request);
+
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Review evidence thất bại.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add($"Evidence đã chuyển sang {status}.", Severity.Success);
+            if (_detail is not null)
+                await OpenDetailAsync(_detail.Reconciliation.Id);
+            await LoadAsync();
+        }
+        finally
+        {
+            _busy = false;
         }
     }
 
