@@ -76,12 +76,12 @@ Tạo một contract duy nhất cho toàn hệ thống. Không sửa business t�
 
 | Domain | Design | SQL | Entity/Config | Service | API | UI | Guide | Test | Status |
 |---|---|---|---|---|---|---|---|---|---|
-| Auth / Session | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ | 🟠 |
+| Auth / Session | 🟡 | 🟡 | 🟡 | 🟡 | 🟢 | 🟡 | 🟡 | ⬜ | 🟡 |
 | RBAC / Permission | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟠 | ⬜ | 🟠 |
 | HRM Employee/Dept/Position | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟠 | ⬜ | 🟠 |
-| Approval Policy | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟢 | ⬜ | 🟠 |
-| Approval Selection | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟢 | ⬜ | 🟠 |
-| Approval Snapshot/Engine | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟢 | ⬜ | 🟠 |
+| Approval Policy | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟢 | ⬜ | 🟡 |
+| Approval Selection | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟢 | ⬜ | 🟡 |
+| Approval Snapshot/Engine | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟢 | ⬜ | 🟡 |
 | Leave | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟠 | ⬜ | 🟠 |
 | OT | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟢 | ⬜ | 🟠 |
 | Trip | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟠 | 🟠 | ⬜ | 🟠 |
@@ -90,7 +90,7 @@ Tạo một contract duy nhất cho toàn hệ thống. Không sửa business t�
 | Attendance | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟢 | ⬜ | 🟠 |
 | Work Calendar | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟢 | ⬜ | 🟠 |
 | Notification | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟠 | ⬜ | 🟠 |
-| Dashboard | 🟠 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟠 | ⬜ | 🟠 |
+| Dashboard | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟢 | ⬜ | 🟡 |
 | Reports | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟢 | ⬜ | 🟠 |
 | CMS/Public Information | 🟢 | 🟢 | 🟢 | 🟢 | 🟢 | 🟠 | 🟢 | ⬜ | 🟠 |
 
@@ -100,14 +100,14 @@ Tạo một contract duy nhất cho toàn hệ thống. Không sửa business t�
 
 | ID | Hạng mục | File/Layer | Trạng thái |
 |---|---|---|---|
-| P0-001 | SQL verification vẫn kiểm tra `F03ApprovalGroups/F03ApprovalPositionGroups/GroupCode` | `SQL/12_Verify.sql` | 🟢 |
-| P0-002 | SQL verification vẫn yêu cầu `usp_SyncOTActualHours` trong khi attendance calculation là canonical | `SQL/12_Verify.sql` | 🟢 |
-| P0-003 | Reconcile dashboard documentation với provider thực tế | `MÔ HÌNH/13_DASHBOARD_CAPABILITIES.md` | 🟢 |
-| P0-004 | Reconcile Approval DTO/selection/snapshot với docs | `MÔ HÌNH/20_...`, Application, UI | 🟢 |
-| P0-005 | Xác nhận Leave top-level `LeaveTypeCode` và detail cùng contract | Leave UI + DTO/service | 🟢 |
-| P0-006 | Xác nhận Trip/OT UI gọi route preview và render selector | UI | 🟢 |
-| P0-007 | Xác nhận guide không mô tả chức năng chưa expose ở UI | `MÔ HÌNH/16_USER_GUIDE.md` | 🟢 |
-| P0-008 | Xác nhận toàn bộ legacy approval objects/columns đã bị loại bỏ hoặc không còn được runtime sử dụng | SQL + code | 🟠 |
+| P0-001 | SQL verification còn kiểm tra legacy ApprovalGroup model | `SQL/12_Verify.sql` | 🟢 DONE |
+| P0-002 | SQL verification còn yêu cầu `usp_SyncOTActualHours` | `SQL/12_Verify.sql` | 🟢 DONE |
+| P0-003 | Reconcile dashboard documentation với provider thực tế | `MÔ HÌNH/13_DASHBOARD_CAPABILITIES.md` | 🟢 DONE |
+| P0-004 | Reconcile Approval DTO/selection/snapshot với docs | `MÔ HÌNH/20_...`, Application, UI | 🟠 NEED VERIFY |
+| P0-005 | Xác nhận Leave top-level `LeaveTypeCode` và detail cùng contract | Leave UI + DTO/service | 🟢 DONE |
+| P0-006 | Xác nhận Trip/OT UI gọi route preview và render selector | UI | 🟠 NEED VERIFY |
+| P0-007 | Xác nhận guide không mô tả chức năng chưa expose ở UI | `MÔ HÌNH/16_USER_GUIDE.md` | 🟠 NEED VERIFY |
+| P0-008 | Xác nhận toàn bộ legacy approval objects/columns đã bị loại bỏ hoặc không còn được runtime sử dụng | SQL + code | 🟢 SQL DONE / 🟠 RUNTIME VERIFY |
 
 ## 0.3 Deliverables
 
@@ -117,7 +117,11 @@ Tạo một contract duy nhất cho toàn hệ thống. Không sửa business t�
 - [x] Approval contract reconciliation.
 - [x] Leave/Trip/OT UI reconciliation.
 - [x] User Guide reconciliation.
-- [ ] Cập nhật matrix sau mỗi fix.
+- [x] Cập nhật matrix sau mỗi fix.
+- [x] Xác nhận `SQL/12_Verify.sql` hiện đã kiểm tra canonical Approval + Attendance contract.
+- [x] Xác nhận `MÔ HÌNH/13_DASHBOARD_CAPABILITIES.md` đã mô tả Trip/Equipment là provider thực tế, còn runtime certification ở Phase 10.
+- [x] Xác nhận ApprovalRouteController chỉ truyền EmployeeCode; PositionCode/DeptCode được resolve server-side.
+- [ ] Runtime verify toàn bộ UI/submit/snapshot contract.
 
 ---
 
@@ -715,3 +719,68 @@ PHASE 14
 > **PHASE 0 — System Reconciliation**
 
 Việc tiếp theo sau khi cập nhật tài liệu là xử lý từng P0/P1 có evidence, sau đó mới chạy full build ở Phase 1.
+
+
+---
+
+# 21. Phase 0 Evidence Update — 2026-09-20
+
+### Verified directly on `feature/security-rbac-dashboard`
+
+1. **SQL/12_Verify.sql**
+   - Đã là canonical verification.
+   - Kiểm tra `F03ApprovalPolicies.PositionCode`.
+   - Kiểm tra FK `FK_F03ApprovalPolicies_F03Positions`.
+   - Kiểm tra unique `UX_F03ApprovalPolicies_Request_Position_Level`.
+   - Chặn `GroupCode`, `ApprovalGroupCode`, `RequesterPositionCode`.
+   - Chặn `F03ApprovalPositionGroups`.
+   - Chặn `F03ApprovalGroups`.
+   - Chặn `usp_SyncOTActualHours`.
+   - Kiểm tra `usp_SyncAttendanceStaging`.
+
+   **Kết luận:** hai blocker SQL trước đây không còn là blocker trên branch hiện tại.
+
+2. **SQL/99_Verify.sql**
+   - Đồng nhất với attendance canonical pipeline.
+   - Tiếp tục chặn legacy `usp_SyncOTActualHours`.
+
+3. **SQL/17_ApprovalRouteSelection.sql**
+   - Canonical route là `F03Employees.PositionCode → F03Positions → F03ApprovalPolicies → F03Approvers`.
+   - Có `F03ApprovalSelections`.
+   - Không tạo `F03ApprovalPositionGroups`.
+   - Policy unique theo RequestType + PositionCode + Level.
+
+4. **MÔ HÌNH/13_DASHBOARD_CAPABILITIES.md**
+   - Đã ghi nhận Leave, OT, Trip, Equipment providers.
+   - Trip/Equipment vẫn cần runtime certification ở Phase 10.
+
+5. **MÔ HÌNH/20_APPROVAL_ROUTE_SELECTION.md**
+   - Đã mô tả Selection → Snapshot → ApprovalEngine.
+   - Đã mô tả immutable snapshot invariant.
+   - API response documentation vẫn cần đối soát với DTO runtime thực tế.
+
+6. **ApprovalRouteController**
+   - Chỉ nhận EmployeeCode từ authenticated user.
+   - Không nhận PositionCode/DeptCode từ caller.
+   - Authorization function được map theo RequestModule.
+
+7. **ApprovalRouteService**
+   - Resolve active F03Employee theo EmployeeCode.
+   - Resolve PositionCode từ F03Employee.
+   - Resolve policy theo RequestType + PositionCode.
+   - Resolve candidates từ F03Approvers.
+   - Loại requester khỏi candidates.
+   - Ưu tiên candidate theo department, fallback ALL.
+   - Không tự chọn approver bằng FirstOrDefault.
+
+### Phase 0 conclusion
+
+**Không còn evidence cho P0-001/P0-002 là blocker trên branch hiện tại.**
+
+Các mục cần tiếp tục trước Phase 1:
+
+- Runtime verification của ApprovalSelection → Snapshot → ApprovalEngine.
+- Runtime verification Trip/OT UI.
+- Full User Guide certification.
+- Legacy object/code search ở toàn bộ runtime.
+- Sau khi Phase 0 evidence đủ: chuyển Phase 1 và chạy full restore/build/test.
