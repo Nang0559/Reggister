@@ -38,6 +38,7 @@ public sealed class ActionItemWriter : IActionItemWriter
             existing.ReferenceNo = draft.ReferenceNo;
             existing.PayloadJson = draft.PayloadJson;
             existing.AssignedToUserId = draft.AssignedToUserId;
+            existing.ModifiedBy = draft.ActorUserId;
             existing.ModifiedAt = DateTime.Now;
             await _db.SaveChangesAsync(cancellationToken);
             return existing.ActionId;
@@ -63,7 +64,10 @@ public sealed class ActionItemWriter : IActionItemWriter
             DueAt = draft.DueAt,
             DetailRoute = draft.DetailRoute,
             ReferenceNo = draft.ReferenceNo,
-            PayloadJson = draft.PayloadJson
+            PayloadJson = draft.PayloadJson,
+            CreatedBy = draft.ActorUserId ?? 0,
+            CreatedAt = DateTime.Now,
+            LastModifiedSource = "ACTION_WRITER"
         };
 
         _db.ActionItems.Add(entity);
