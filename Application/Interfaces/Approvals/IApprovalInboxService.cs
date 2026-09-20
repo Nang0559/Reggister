@@ -11,8 +11,8 @@ namespace FVN_REGISTER.Application.Interfaces.Approvals
 {
     // <summary>
     /// "Hộp thư chờ duyệt" tổng hợp xuyên module (Leave + OT + ...) cho 1 approver.
-    /// KHÁC với ApprovalListService&lt;T&gt; (generic, per-module, dùng nội bộ trong
-    /// LeaveService/OTService để lấy pending riêng của từng loại) — đừng nhầm 2 cái này.
+    /// Pending items của mọi module đều đi qua approval workflow/engine path; không có
+    /// datasource/service pending-list riêng theo module.
     ///
     /// Không có method lấy chi tiết 1 item xuyên module: muốn xem chi tiết, FE tự điều hướng
     /// theo Module (RequestModule.Leave -> ILeaveOrchestrator.GetDetailsAsync,
