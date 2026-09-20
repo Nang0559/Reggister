@@ -41,12 +41,17 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             .Where(x => x.IsActive != false && x.IsEnabled)
             .ToDictionaryAsync(x => x.ModuleCode, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
-        var tasks = _registry.Providers
+        // All providers are scoped to the same FVNWEBAPPContext. EF Core DbContext
+        // is not thread-safe, so providers must execute sequentially unless each
+        // provider is moved to an independent DbContextFactory scope.
+        var results = new List<IReadOnlyList<CalendarItemDto>>();
+        foreach (var provider in _registry.Providers
             .Where(x => policies.ContainsKey(x.ModuleCode)
-                && (allowedModules is null || allowedModules.Contains(x.ModuleCode)))
-            .Select(x => x.GetItemsAsync(context, cancellationToken));
+                && (allowedModules is null || allowedModules.Contains(x.ModuleCode))))
+        {
+            results.Add(await provider.GetItemsAsync(context, cancellationToken));
+        }
 
-        var results = await Task.WhenAll(tasks);
         var items = results
             .SelectMany(x => x)
             .OrderBy(x => x.WorkDate)
