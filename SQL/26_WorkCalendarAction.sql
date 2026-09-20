@@ -82,7 +82,7 @@ IF OBJECT_ID(N'dbo.F03CalendarProjection',N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.F03CalendarProjection
     (
-        Id bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03CalendarProjection PRIMARY KEY,
+        Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03CalendarProjection PRIMARY KEY,
         IsActive bit NOT NULL CONSTRAINT DF_F03CalendarProjection_IsActive DEFAULT 1,
         CreatedBy int NOT NULL CONSTRAINT DF_F03CalendarProjection_CreatedBy DEFAULT 0,
         LastModifiedSource nvarchar(50) NULL,
@@ -110,7 +110,7 @@ IF OBJECT_ID(N'dbo.F03ActionItems',N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.F03ActionItems
     (
-        Id bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03ActionItems PRIMARY KEY,
+        Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03ActionItems PRIMARY KEY,
         IsActive bit NOT NULL CONSTRAINT DF_F03ActionItems_IsActive DEFAULT 1,
         CreatedBy int NOT NULL CONSTRAINT DF_F03ActionItems_CreatedBy DEFAULT 0,
         LastModifiedSource nvarchar(50) NULL,
