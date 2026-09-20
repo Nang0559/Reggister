@@ -11,7 +11,7 @@ using FVN_REGISTER.Core.Utils;
 using Microsoft.EntityFrameworkCore;
 using FVN_REGISTER.Core.Enums;
 
-namespace FVN_REGISTER.API.Services.OT
+namespace FVN_REGISTER.Infrastructure.Services.OT
 {
     public class OTValidator : IOTValidator
     {
