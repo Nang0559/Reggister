@@ -165,7 +165,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 $"Cần xác nhận {entity.ModuleCode} / {entity.SourceId}.",
                 1,
                 100,
-                dueAt,
+                null,
                 "/execution",
                 null,
                 JsonSerializer.Serialize(new
