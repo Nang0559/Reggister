@@ -298,6 +298,43 @@ Trung tâm `/reports` cung cấp báo cáo Leave, OT, Trip, Equipment và Attend
 
 OT, Leave và Trip là các request domain: đăng ký, danh sách, chi tiết và theo dõi tiến trình phê duyệt. Không có controller/client UI đồng bộ riêng cho OT. Dữ liệu chấm công và OT thực tế được tính tập trung bởi `HrmAttendanceCalculationController` → `IHrmAttendanceCalculationService` → `usp_CalculateHrmAttendance`; calculation batch đồng thời cập nhật actual OT cho các đơn đã Approved. Background worker chỉ gọi cùng pipeline này.
 
+## Database connection configuration
+
+The API uses the standard .NET configuration key `ConnectionStrings:DefaultConnection`. The connection string is never committed to the repository.
+
+### Development
+
+The quickest setup is:
+
+```powershell
+.\scripts\Setup-DevelopmentSecrets.ps1
+```
+
+The script generates a random development JWT secret and stores both values in .NET User Secrets:
+
+- `Jwt:SecretKey`
+- `Jwt:Issuer`
+- `Jwt:Audience`
+- `ConnectionStrings:DefaultConnection`
+
+Alternatively, set the database connection string directly:
+
+```powershell
+dotnet user-secrets set "ConnectionStrings:DefaultConnection" "<your-sql-server-connection-string>" --project FVN_REGISTER.API
+```
+
+The API validates `ConnectionStrings:DefaultConnection` at startup before registering `FVNWEBAPPContext`. This prevents the less useful SQL client error `The ConnectionString property has not been initialized.`.
+
+### Production
+
+Set the configuration key through the environment:
+
+```powershell
+$env:ConnectionStrings__DefaultConnection="<your-production-sql-server-connection-string>"
+```
+
+Do not put SQL usernames, passwords, or connection strings in tracked `appsettings*.json` files or `launchSettings.json`.
+
 ## JWT configuration
 
 JWT signing secrets are never committed to the repository.
