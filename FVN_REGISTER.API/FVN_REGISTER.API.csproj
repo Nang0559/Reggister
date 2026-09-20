@@ -6,6 +6,8 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <SelfContained>true</SelfContained>
     <PublishSingleFile>false</PublishSingleFile>
+    <!-- Development secrets are loaded from .NET User Secrets. Production uses environment variables. -->
+    <UserSecretsId>FVN_REGISTER_API</UserSecretsId>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="9.0.0" />
