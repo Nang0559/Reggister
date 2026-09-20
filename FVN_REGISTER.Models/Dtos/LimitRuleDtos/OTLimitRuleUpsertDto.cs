@@ -22,6 +22,9 @@ public class OTLimitRuleUpsertDto
     [Range(0.1, 999, ErrorMessage = "Số giờ phải lớn hơn 0")]
     public decimal LimitHours { get; set; }
 
+    // Trường tương thích dữ liệu cũ; backend luôn chuẩn hóa theo LimitHours.
+    public decimal LimitValue { get; set; }
+
     [MaxLength(20)]
     public string? PositionCode { get; set; }
 
