@@ -118,11 +118,17 @@ public sealed class ActionItemService : IActionItemService
             .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public Task<bool> CompleteAsync(int employeeId, int userId, Guid actionId, CancellationToken cancellationToken = default) =>
-        SetTerminalStatusAsync(employeeId, userId, actionId, ActionItemStatus.Completed, cancellationToken);
+    public async Task<bool> CompleteAsync(string employeeCode, int userId, Guid actionId, CancellationToken cancellationToken = default)
+    {
+        var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
+        return await SetTerminalStatusAsync(employeeId, userId, actionId, ActionItemStatus.Completed, cancellationToken);
+    }
 
-    public Task<bool> DismissAsync(int employeeId, int userId, Guid actionId, CancellationToken cancellationToken = default) =>
-        SetTerminalStatusAsync(employeeId, userId, actionId, ActionItemStatus.Dismissed, cancellationToken);
+    public async Task<bool> DismissAsync(string employeeCode, int userId, Guid actionId, CancellationToken cancellationToken = default)
+    {
+        var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
+        return await SetTerminalStatusAsync(employeeId, userId, actionId, ActionItemStatus.Dismissed, cancellationToken);
+    }
 
     private async Task<bool> SetTerminalStatusAsync(
         int employeeId,
