@@ -54,3 +54,15 @@ IF COL_LENGTH(N'dbo.F03LeaveBalances', N'BaseLeaveDays') IS NULL
    OR COL_LENGTH(N'dbo.F03LeaveBalances', N'CalculatedAt') IS NULL
     THROW 51330, N'F03LeaveBalances vẫn thiếu cột entitlement bắt buộc.', 1;
 GO
+
+
+/* Canonical natural key: one annual entitlement snapshot per employee/work year. */
+IF NOT EXISTS (
+    SELECT 1 FROM sys.indexes
+    WHERE name=N'UX_F03LeaveBalances_EmployeeYear'
+      AND object_id=OBJECT_ID(N'dbo.F03LeaveBalances'))
+BEGIN
+    CREATE UNIQUE INDEX UX_F03LeaveBalances_EmployeeYear
+        ON dbo.F03LeaveBalances(EmployeeCode,WorkYear);
+END;
+GO
