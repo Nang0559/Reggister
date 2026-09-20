@@ -38,6 +38,7 @@ public class FVNWEBAPPContext : DbContext
     public DbSet<F03ExecutionConfirmationEvidence> ExecutionConfirmationEvidence { get; set; }
     public DbSet<F03ExecutionReconciliationHistory> ExecutionReconciliationHistory { get; set; }
     public DbSet<F03ExecutionResolution> ExecutionResolutions { get; set; }
+    public DbSet<F03ExecutionCorrection> ExecutionCorrections { get; set; }
     public DbSet<F03PayrollCalculationPeriod> PayrollCalculationPeriods { get; set; }
     public DbSet<F03PayrollInput> PayrollInputs { get; set; }
     public DbSet<F03ActionPolicy> ActionPolicies { get; set; } public DbSet<F03AuditLog> AuditLogs { get; set; } public DbSet<F03Attachment> Attachments { get; set; } public DbSet<F03EmailQueue> EmailQueues { get; set; } public DbSet<F03EmailLog> EmailLogs { get; set; } public DbSet<F03EmailTemplate> EmailTemplates { get; set; } public DbSet<F03EmailProfile> EmailProfiles { get; set; }
