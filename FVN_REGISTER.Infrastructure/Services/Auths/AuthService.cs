@@ -13,7 +13,6 @@ using FVN_REGISTER.Infrastructure.Hubs;
 using FVN_REGISTER.Infrastructure.Utils;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
@@ -28,17 +27,15 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
     {
         private readonly IUnitOfWork _uow;
         private readonly IAuditService _audit;
-        private readonly IConfiguration _configuration;
+        private readonly JwtOptions _jwtOptions;
         private readonly ISessionService _sessionService;
         private readonly IHubContext<NotificationHub> _hubContext;
 
-        private const int AccessTokenHoursDefault = 8;
-        private const int AccessTokenDaysRemember = 7;
 
         public AuthService(
             IUnitOfWork uow,
             IAuditService audit,
-            IConfiguration configuration,
+            IOptions<JwtOptions> jwtOptions,
             ISessionService sessionService,
             IHubContext<NotificationHub> hubContext,
             ILogger<AuthService> logger,
@@ -47,7 +44,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
         {
             _uow = uow;
             _audit = audit;
-            _configuration = configuration;
+            _jwtOptions = jwtOptions.Value;
             _sessionService = sessionService;
             _hubContext = hubContext;
         }
@@ -316,11 +313,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 .Select(e => new { e.EmailAddress, e.PositionCode })
                 .FirstOrDefaultAsync(ct);
 
-            var jwtSettings = _configuration.GetSection("Jwt");
-            var secretKey = jwtSettings["SecretKey"]
-                ?? throw new Exception("JWT Secret Key is not configured.");
-
-            var key = Encoding.UTF8.GetBytes(secretKey);
+            var key = Encoding.UTF8.GetBytes(_jwtOptions.SecretKey);
             var claims = new List<Claim>
             {
                 // Canonical JWT claims. Keep application-specific identity data in
@@ -346,8 +339,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             claims.Add(new Claim("role", role));
 
             var expires = rememberMe
-                ? DateTime.UtcNow.AddDays(AccessTokenDaysRemember)
-                : DateTime.UtcNow.AddHours(AccessTokenHoursDefault);
+                ? DateTime.UtcNow.AddDays(_jwtOptions.RememberMeDays)
+                : DateTime.UtcNow.AddHours(_jwtOptions.AccessTokenHours);
 
             var tokenDescriptor = new SecurityTokenDescriptor
             {
@@ -357,8 +350,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 Expires = expires,
                 SigningCredentials = new SigningCredentials(
                     new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256),
-                Issuer = jwtSettings["Issuer"],
-                Audience = jwtSettings["Audience"]
+                Issuer = _jwtOptions.Issuer,
+                Audience = _jwtOptions.Audience
             };
 
             var tokenHandler = new JwtSecurityTokenHandler();
