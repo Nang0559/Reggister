@@ -52,6 +52,7 @@ public static class SecurityFunctionCodes
     public const int SecurityAudit = 2604;
 
     public const int PublicInformationManage = 2801;
+    public const int ExecutionReview = 2802;
 
     public const int AttendanceView = 2901;
     public const int AttendanceExport = 2902;
