@@ -125,12 +125,13 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                 var cancelled = row.RequestStatus == ApprovalStatus.Cancelled;
                 if (cancelled)
                 {
+                    var cancelledEmployeeId = await ResolveEmployeeIdAsync(db, row.EmployeeCode, ct);
                     var existing = await db.ExecutionReconciliations.AsNoTracking()
                         .AnyAsync(x => x.IsActive != false
                             && x.ModuleCode == "OT"
                             && x.SourceType == "OT_EMPLOYEE"
                             && x.SourceId == $"{row.OTCode}:{row.EmployeeCode}"
-                            && x.EmployeeId == ResolveEmployeeIdSync(db, row.EmployeeCode)
+                            && x.EmployeeId == cancelledEmployeeId
                             && x.WorkDate == workDate, ct);
 
                     if (!existing)
