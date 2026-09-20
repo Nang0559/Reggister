@@ -16,6 +16,27 @@ public sealed class ActionItemWriter : IActionItemWriter
         ActionItemDraft draft,
         CancellationToken cancellationToken = default)
     {
+        var policy = await _db.ActionPolicies.AsNoTracking()
+            .Where(x => x.IsActive && x.IsEnabled
+                && x.ModuleCode == draft.ModuleCode
+                && x.ActionType == draft.ActionType)
+            .Select(x => new
+            {
+                x.DefaultPriority,
+                x.DueHours,
+                x.TitleTemplate,
+                x.SummaryTemplate
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var dueAt = draft.DueAt;
+        if (!dueAt.HasValue && policy?.DueHours is > 0)
+            dueAt = DateTime.Now.AddHours(policy.DueHours.Value);
+
+        var priority = policy?.DefaultPriority ?? draft.Priority;
+        var title = string.IsNullOrWhiteSpace(policy?.TitleTemplate) ? draft.Title : policy.TitleTemplate;
+        var summary = string.IsNullOrWhiteSpace(policy?.SummaryTemplate) ? draft.Summary : policy.SummaryTemplate;
+
         var existing = await _db.ActionItems
             .FirstOrDefaultAsync(x =>
                 x.ModuleCode == draft.ModuleCode
@@ -29,11 +50,11 @@ public sealed class ActionItemWriter : IActionItemWriter
 
         if (existing is not null)
         {
-            existing.Title = draft.Title;
-            existing.Summary = draft.Summary;
+            existing.Title = title;
+            existing.Summary = summary;
             existing.Severity = draft.Severity;
-            existing.Priority = draft.Priority;
-            existing.DueAt = draft.DueAt;
+            existing.Priority = priority;
+            existing.DueAt = dueAt;
             existing.DetailRoute = draft.DetailRoute;
             existing.ReferenceNo = draft.ReferenceNo;
             existing.PayloadJson = draft.PayloadJson;
@@ -56,12 +77,12 @@ public sealed class ActionItemWriter : IActionItemWriter
             AssignedToUserId = draft.AssignedToUserId,
             WorkDate = draft.WorkDate,
             ActionType = draft.ActionType,
-            Title = draft.Title,
-            Summary = draft.Summary,
+            Title = title,
+            Summary = summary,
             Severity = draft.Severity,
-            Priority = draft.Priority,
+            Priority = priority,
             Status = ActionItemStatus.Open,
-            DueAt = draft.DueAt,
+            DueAt = dueAt,
             DetailRoute = draft.DetailRoute,
             ReferenceNo = draft.ReferenceNo,
             PayloadJson = draft.PayloadJson,
