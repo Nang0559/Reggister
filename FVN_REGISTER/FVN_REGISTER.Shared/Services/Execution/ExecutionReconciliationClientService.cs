@@ -20,11 +20,6 @@ public sealed class ExecutionReconciliationClientService : IExecutionReconciliat
         _http.GetAsync<ExecutionReconciliationDto>(
             $"api/execution/me/{reconciliationId}", ct);
 
-    public Task<ApiResponse<ExecutionReconciliationDto>> UpsertAsync(
-        ExecutionReconciliationUpsertRequest request, CancellationToken ct = default) =>
-        _http.PostAsync<ExecutionReconciliationDto>(
-            "api/execution/me/reconciliations", request, ct);
-
     public Task<ApiResponse<ExecutionConfirmationDto>> SubmitConfirmationAsync(
         long reconciliationId, ExecutionConfirmationRequest request, CancellationToken ct = default) =>
         _http.PostAsync<ExecutionConfirmationDto>(
