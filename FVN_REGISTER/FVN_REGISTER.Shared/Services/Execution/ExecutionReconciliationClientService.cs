@@ -22,16 +22,16 @@ public sealed class ExecutionReconciliationClientService : IExecutionReconciliat
 
     public Task<ApiResponse<ExecutionReconciliationDto>> UpsertAsync(
         ExecutionReconciliationUpsertRequest request, CancellationToken ct = default) =>
-        _http.PostAsync<ExecutionReconciliationUpsertRequest, ExecutionReconciliationDto>(
+        _http.PostAsync<ExecutionReconciliationDto>(
             "api/execution/me/reconciliations", request, ct);
 
     public Task<ApiResponse<ExecutionConfirmationDto>> SubmitConfirmationAsync(
         long reconciliationId, ExecutionConfirmationRequest request, CancellationToken ct = default) =>
-        _http.PostAsync<ExecutionConfirmationRequest, ExecutionConfirmationDto>(
+        _http.PostAsync<ExecutionConfirmationDto>(
             $"api/execution/me/{reconciliationId}/confirmation", request, ct);
 
     public Task<ApiResponse<ExecutionEvidenceDto>> AddEvidenceAsync(
         long confirmationId, ExecutionEvidenceRequest request, CancellationToken ct = default) =>
-        _http.PostAsync<ExecutionEvidenceRequest, ExecutionEvidenceDto>(
+        _http.PostAsync<ExecutionEvidenceDto>(
             $"api/execution/me/confirmations/{confirmationId}/evidence", request, ct);
 }
