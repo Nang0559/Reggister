@@ -235,6 +235,64 @@ IF COL_LENGTH(N'dbo.F03LeaveBalances',N'YearsOfService') IS NULL
 IF COL_LENGTH(N'dbo.F03LeaveBalances',N'CalculatedAt') IS NULL
     THROW 50997, 'Missing dbo.F03LeaveBalances.CalculatedAt.', 1;
 
+
+/* ===========================================================================
+   SHARED EXECUTION / CALENDAR / ACTION ARCHITECTURE VERIFICATION
+   =========================================================================== */
+IF OBJECT_ID(N'dbo.F03ExecutionPolicies',N'U') IS NULL
+    THROW 51300, 'Missing F03ExecutionPolicies.', 1;
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NULL
+    THROW 51301, 'Missing F03ExecutionReconciliations.', 1;
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NULL
+    THROW 51302, 'Missing F03ExecutionConfirmations.', 1;
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmationEvidence',N'U') IS NULL
+    THROW 51303, 'Missing F03ExecutionConfirmationEvidence.', 1;
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliationHistory',N'U') IS NULL
+    THROW 51304, 'Missing F03ExecutionReconciliationHistory.', 1;
+IF OBJECT_ID(N'dbo.F03CalendarProjection',N'U') IS NULL
+    THROW 51305, 'Missing F03CalendarProjection.', 1;
+IF OBJECT_ID(N'dbo.F03ActionItems',N'U') IS NULL
+    THROW 51306, 'Missing F03ActionItems.', 1;
+
+/* Shared identity must support multi-participant modules without making the
+   shared layer the source-of-truth for OT/Leave/Trip business state. */
+IF COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'SourceType') IS NULL
+    THROW 51307, 'F03ExecutionReconciliations.SourceType is required.', 1;
+IF COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'ParticipantId') IS NULL
+    THROW 51308, 'F03ExecutionReconciliations.ParticipantId is required.', 1;
+IF COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'SourceType') IS NULL
+    THROW 51309, 'F03ExecutionConfirmations.SourceType is required.', 1;
+IF COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'ParticipantId') IS NULL
+    THROW 51310, 'F03ExecutionConfirmations.ParticipantId is required.', 1;
+IF COL_LENGTH(N'dbo.F03CalendarProjection',N'SourceType') IS NULL
+    THROW 51311, 'F03CalendarProjection.SourceType is required.', 1;
+IF COL_LENGTH(N'dbo.F03CalendarProjection',N'ParticipantId') IS NULL
+    THROW 51312, 'F03CalendarProjection.ParticipantId is required.', 1;
+IF COL_LENGTH(N'dbo.F03ActionItems',N'SourceType') IS NULL
+    THROW 51313, 'F03ActionItems.SourceType is required.', 1;
+IF COL_LENGTH(N'dbo.F03ActionItems',N'ParticipantId') IS NULL
+    THROW 51314, 'F03ActionItems.ParticipantId is required.', 1;
+
+/* Evidence must reuse the shared attachment store. */
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.foreign_keys
+    WHERE name=N'FK_F03ExecutionEvidence_Attachment'
+      AND parent_object_id=OBJECT_ID(N'dbo.F03ExecutionConfirmationEvidence')
+)
+    THROW 51315, 'Execution evidence must reference F03Attachment.', 1;
+
+/* Reconciliation may reference an Action, but Action remains orchestration. */
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.foreign_keys
+    WHERE name=N'FK_F03ExecutionReconciliations_Action'
+      AND parent_object_id=OBJECT_ID(N'dbo.F03ExecutionReconciliations')
+)
+    THROW 51316, 'Execution reconciliation must reference shared ActionItem when an action exists.', 1;
+
+PRINT N'Shared Execution / Calendar / Action verification passed.';
+
 PRINT N'Work Calendar / Annual Leave verification passed.';
 PRINT N'99_Verify: PASS';
 GO
