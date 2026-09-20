@@ -177,8 +177,7 @@ IF OBJECT_ID(N'dbo.F03CompanyHolidays',N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.F03CompanyHolidays
     (
-        Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03CompanyHolidays PRIMARY KEY,
-        IsActive bit NULL CONSTRAINT DF_F03CompanyHolidays_IsActive DEFAULT 1,
+        Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03CompanyHolidays PRIMARY KEY,        IsActive bit NULL CONSTRAINT DF_F03CompanyHolidays_IsActive DEFAULT 1,
         CreatedBy int NOT NULL CONSTRAINT DF_F03CompanyHolidays_CreatedBy DEFAULT 0,
         LastModifiedSource nvarchar(50) NULL,
         CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03CompanyHolidays_CreatedAt DEFAULT GETDATE(),
@@ -228,7 +227,6 @@ IF OBJECT_ID('dbo.F03EquipmentRequests','U') IS NULL CREATE TABLE dbo.F03Equipme
 IF OBJECT_ID('dbo.F03EquipmentRepairHistory','U') IS NULL CREATE TABLE dbo.F03EquipmentRepairHistory(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,AssetId int NOT NULL,RequestId int NOT NULL,RepairDate datetime2(0) NOT NULL,OperatorUserId int NOT NULL,RepairCost decimal(18,2) NULL,RepairContent nvarchar(1000) NOT NULL,RepairVendor nvarchar(250) NULL,RepairResult nvarchar(1000) NULL,Note nvarchar(1000) NULL,IsApproved bit NOT NULL DEFAULT 0);
 
 IF OBJECT_ID('dbo.F03Approvers','U') IS NULL CREATE TABLE dbo.F03Approvers(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,UserId int NULL,RequestType nvarchar(20) NOT NULL,ApproverCode nvarchar(50) NOT NULL,PositionCode nvarchar(20) NULL,ApproverName nvarchar(100) NOT NULL,ApproverEmail nvarchar(100) NOT NULL,ApproverDeptCode nvarchar(20) NOT NULL,ApproverDeptName nvarchar(100) NOT NULL,ApproveForDeptCode nvarchar(20) NOT NULL,ApproveForDeptName nvarchar(100) NOT NULL,Level int NOT NULL,RoleName nvarchar(50) NOT NULL);
-IF OBJECT_ID('dbo.F03ApprovalSteps','U') IS NULL CREATE TABLE dbo.F03ApprovalSteps(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,RequestType nvarchar(20) NOT NULL,RequestId int NOT NULL,Level int NOT NULL,LevelName nvarchar(50) NULL,RoleName nvarchar(50) NOT NULL,ApproverCode nvarchar(50) NULL,ApproverName nvarchar(100) NULL,ApproverEmail nvarchar(100) NULL,Required bit NOT NULL DEFAULT 1,Approved bit NULL,ApprovedAt datetime2(0) NULL,Comment nvarchar(500) NULL,ReminderSent bit NOT NULL DEFAULT 0,IsOverriddenByAdmin bit NOT NULL DEFAULT 0,OverriddenByCode nvarchar(50) NULL,OverriddenByName nvarchar(100) NULL,OverriddenAt datetime2(0) NULL);
 IF OBJECT_ID('dbo.F03ApprovalSnapshots','U') IS NULL CREATE TABLE dbo.F03ApprovalSnapshots(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50) NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETUTCDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,RequestId int NOT NULL,RequestType int NOT NULL);
 IF OBJECT_ID('dbo.F03ApprovalStepSnapshots','U') IS NULL CREATE TABLE dbo.F03ApprovalStepSnapshots(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50) NULL,CreatedAt datetime2(0) NOT NULL DEFAULT GETUTCDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,SnapshotId int NOT NULL,Level int NOT NULL,ApproverCode nvarchar(20) NOT NULL,ApproverName nvarchar(100) NOT NULL,ApproverEmail nvarchar(max) NOT NULL,RoleName nvarchar(100) NOT NULL,IsRequired bit NOT NULL);
 IF OBJECT_ID('dbo.ApprovalHistories','U') IS NULL CREATE TABLE dbo.ApprovalHistories(Id int IDENTITY PRIMARY KEY,IsActive bit NULL DEFAULT 1,CreatedBy int NOT NULL DEFAULT 0,LastModifiedSource nvarchar(50),CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),ModifiedBy int NULL,ModifiedAt datetime2(0) NULL,RequestType int NOT NULL,RequestId int NOT NULL,StepId int NOT NULL,IsOverriddenByAdmin bit NOT NULL DEFAULT 0,ApproverCode nvarchar(50) NOT NULL,ApproverName nvarchar(100) NOT NULL,OverriddenByCode nvarchar(50) NULL,OverriddenByName nvarchar(100) NULL,OverriddenAt datetime2(0) NULL,Decision int NOT NULL,Comment nvarchar(max) NULL,ActionAt datetime2(0) NOT NULL);
@@ -358,72 +356,3 @@ IF OBJECT_ID('dbo.F03Shifts','U') IS NULL CREATE TABLE dbo.F03Shifts(
     ShiftType tinyint NOT NULL DEFAULT 0,
     DepartmentScope nvarchar(1000) NULL,
     RestDayType tinyint NOT NULL DEFAULT 0,
-    IgnoreAbsence bit NOT NULL DEFAULT 1,
-    ScheduleInOutType tinyint NOT NULL DEFAULT 0,
-    SplitOTAfterShift bit NOT NULL DEFAULT 0,
-    CountBreakAsWork bit NULL,
-    CountToTotalWork bit NULL,
-    AllowOutside bit NOT NULL DEFAULT 0,
-    AllowEarlyCheckIn bit NOT NULL DEFAULT 0,
-    ShiftGroup nvarchar(50) NULL
-);
-
-IF OBJECT_ID('dbo.F03ShiftSchedules','U') IS NULL CREATE TABLE dbo.F03ShiftSchedules(
-    Id int IDENTITY PRIMARY KEY,
-    IsActive bit NOT NULL DEFAULT 1,
-    CreatedBy int NOT NULL DEFAULT 0,
-    LastModifiedSource nvarchar(50) NULL,
-    CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),
-    ModifiedBy int NULL,
-    ModifiedAt datetime2(0) NULL,
-    ScheduleCode nvarchar(50) NOT NULL,
-    ScheduleName nvarchar(200) NOT NULL,
-    IsMonthly bit NOT NULL DEFAULT 0,
-    HrmCode nvarchar(50) NOT NULL
-);
-
-IF OBJECT_ID('dbo.F03ShiftScheduleDays','U') IS NULL CREATE TABLE dbo.F03ShiftScheduleDays(
-    Id int IDENTITY PRIMARY KEY,
-    IsActive bit NOT NULL DEFAULT 1,
-    CreatedBy int NOT NULL DEFAULT 0,
-    LastModifiedSource nvarchar(50) NULL,
-    CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),
-    ModifiedBy int NULL,
-    ModifiedAt datetime2(0) NULL,
-    ScheduleCode nvarchar(50) NOT NULL,
-    DayNo tinyint NOT NULL,
-    ShiftCode nvarchar(20) NOT NULL
-);
-
-IF OBJECT_ID('dbo.F03EmployeeShiftSchedules','U') IS NULL CREATE TABLE dbo.F03EmployeeShiftSchedules(
-    Id int IDENTITY PRIMARY KEY,
-    IsActive bit NOT NULL DEFAULT 1,
-    CreatedBy int NOT NULL DEFAULT 0,
-    LastModifiedSource nvarchar(50) NULL,
-    CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),
-    ModifiedBy int NULL,
-    ModifiedAt datetime2(0) NULL,
-    EmployeeCode nvarchar(50) NOT NULL,
-    ScheduleCode nvarchar(50) NULL,
-    ScheduleType nvarchar(20) NULL,
-    HrmEmployeeNo int NULL,
-    ValidFrom date NULL,
-    ValidTo date NULL
-);
-
-IF OBJECT_ID('dbo.F03HrmShiftReference','U') IS NULL CREATE TABLE dbo.F03HrmShiftReference(
-    Id bigint IDENTITY PRIMARY KEY,
-    IsActive bit NOT NULL DEFAULT 1,
-    CreatedAt datetime2(0) NOT NULL DEFAULT GETDATE(),
-    SyncedAt datetime2(0) NOT NULL DEFAULT GETDATE(),
-    EmployeeCode nvarchar(50) NOT NULL,
-    WorkDate date NOT NULL,
-    HrmScheduleCode nvarchar(50) NULL,
-    HrmShiftCode nvarchar(20) NULL,
-    HrmShiftAbbr nvarchar(10) NULL,
-    HrmCheckIn datetime2(0) NULL,
-    HrmCheckOut datetime2(0) NULL,
-    SourceUpdatedAt datetime2(0) NULL
-);
-
-GO

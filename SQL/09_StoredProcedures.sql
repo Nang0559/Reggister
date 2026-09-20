@@ -1,67 +1,6 @@
 USE [FVN_REGISTER];
 GO
-CREATE OR ALTER PROCEDURE dbo.usp_GetPendingApproval
-    @ApproverCode nvarchar(50)=NULL,
-    @ApproverEmail nvarchar(100)=NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SELECT RequestType,RequestId,Level,RoleName,ApproverCode,ApproverName,ApproverEmail,
-           Required,Approved,ApprovedAt,Comment,ReminderSent
-    FROM dbo.F03ApprovalSteps
-    WHERE Required=1 AND Approved IS NULL
-      AND (@ApproverCode IS NULL OR ApproverCode=@ApproverCode)
-      AND (@ApproverEmail IS NULL OR ApproverEmail=@ApproverEmail)
-    ORDER BY Level,CreatedAt;
-END;
-GO
 
-CREATE OR ALTER PROCEDURE dbo.usp_DecideApproval
-    @StepId int,
-    @Decision int,
-    @Comment nvarchar(500)=NULL,
-    @ApproverCode nvarchar(50)=NULL,
-    @OverriddenByCode nvarchar(50)=NULL,
-    @OverriddenByName nvarchar(100)=NULL
-AS
-BEGIN
-    SET NOCOUNT ON;
-    SET XACT_ABORT ON;
-    BEGIN TRAN;
-
-    DECLARE @RequestType nvarchar(20), @RequestId int, @ApproverName nvarchar(100);
-    SELECT @RequestType=RequestType,@RequestId=RequestId,@ApproverName=ApproverName
-    FROM dbo.F03ApprovalSteps WITH(UPDLOCK,HOLDLOCK)
-    WHERE Id=@StepId;
-
-    IF @RequestType IS NULL
-    BEGIN
-        ROLLBACK;
-        THROW 50001,'Approval step not found',1;
-    END;
-
-    UPDATE dbo.F03ApprovalSteps
-    SET Approved=CASE WHEN @Decision=1 THEN 1 WHEN @Decision=2 THEN 0 ELSE Approved END,
-        ApprovedAt=CASE WHEN @Decision IN(1,2) THEN GETDATE() ELSE ApprovedAt END,
-        Comment=@Comment,
-        IsOverriddenByAdmin=CASE WHEN @OverriddenByCode IS NULL THEN IsOverriddenByAdmin ELSE 1 END,
-        OverriddenByCode=COALESCE(@OverriddenByCode,OverriddenByCode),
-        OverriddenByName=COALESCE(@OverriddenByName,OverriddenByName),
-        OverriddenAt=CASE WHEN @OverriddenByCode IS NULL THEN OverriddenAt ELSE GETDATE() END
-    WHERE Id=@StepId;
-
-    INSERT dbo.ApprovalHistories
-    (RequestType,RequestId,StepId,IsOverriddenByAdmin,ApproverCode,ApproverName,
-     OverriddenByCode,OverriddenByName,OverriddenAt,Decision,Comment,ActionAt,CreatedBy)
-    VALUES
-    (CASE @RequestType WHEN N'Leave' THEN 0 WHEN N'Overtime' THEN 1 WHEN N'Trip' THEN 2 WHEN N'Equipment' THEN 3 END,
-     @RequestId,@StepId,CASE WHEN @OverriddenByCode IS NULL THEN 0 ELSE 1 END,
-     COALESCE(@ApproverCode,''),COALESCE(@ApproverName,''),@OverriddenByCode,@OverriddenByName,
-     CASE WHEN @OverriddenByCode IS NULL THEN NULL ELSE GETDATE() END,
-     @Decision,@Comment,GETDATE(),0);
-    COMMIT;
-END;
-GO
 
 
 /*
@@ -117,8 +56,7 @@ BEGIN
            tgt.AllowEarlyCheckIn=src.CTinhVaoSom,
            tgt.ShiftGroup=src.CNhomCa,
            tgt.LastModifiedSource=N'HRM',
-           tgt.ModifiedBy=0,
-           tgt.ModifiedAt=@Now
+           tgt.ModifiedBy=0,           tgt.ModifiedAt=@Now
     FROM dbo.F03Shifts tgt
     INNER JOIN HRM.dbo.tblca src ON tgt.ShiftCode=CONVERT(nvarchar(20),src.CMa);
 
@@ -237,7 +175,6 @@ GO
   F03OTRequests.StartTime of an APPROVED OT request is the local
   business source for the beginning of the requested OT window.
 */
-
 /*
   Pipeline B — local shift master + HRM attendance -> F03AttendanceStaging (attendance read model).
   HRM is READ ONLY. Shift configuration is first synchronized by
@@ -357,8 +294,7 @@ BEGIN
         IsCheckIn bit NULL
     );
 
-    INSERT #Swipes(EmployeeCode,SwipeTime,IsCheckIn)
-    SELECT DISTINCT
+    INSERT #Swipes(EmployeeCode,SwipeTime,IsCheckIn)    SELECT DISTINCT
         RTRIM(nv.NVMaNV),r.ThoiGian,CAST(dd.DDChinhVao AS bit)
     FROM HRM.dbo.RecordDataNew r
     INNER JOIN HRM.dbo.tblDauDoc dd ON dd.DDMa=r.IDM
@@ -477,8 +413,7 @@ BEGIN
     (WorkDate,EmployeeCode,DeptCode,DeptName,FullName,CheckInText,CheckOutText,CheckInDateTime,CheckOutDateTime,
      ShiftCode,ShiftName,ShiftAbbr,ShiftCategory,OtHours,TotalHours,IsHoliday,HolidayType,ShiftType,SyncedAt)
     SELECT CAST(@WorkDate AS datetime2(0)),r.EmployeeCode,e.DeptCode,d.DeptName,e.FullName,
-           CASE WHEN r.CheckIn IS NULL THEN NULL ELSE CONVERT(varchar(5),CAST(r.CheckIn AS time(0)),108) END,
-           CASE WHEN r.CheckOut IS NULL THEN NULL ELSE CONVERT(varchar(5),CAST(r.CheckOut AS time(0)),108) END,
+           CASE WHEN r.CheckIn IS NULL THEN NULL ELSE CONVERT(varchar(5),CAST(r.CheckIn AS time(0)),108) END,           CASE WHEN r.CheckOut IS NULL THEN NULL ELSE CONVERT(varchar(5),CAST(r.CheckOut AS time(0)),108) END,
            r.CheckIn,r.CheckOut,r.ShiftCode,r.ShiftName,r.ShiftAbbr,r.ShiftCategory,
            CAST(CASE WHEN ot.StartTime IS NULL OR r.CheckIn IS NULL OR r.CheckOut IS NULL THEN 0
                     WHEN r.CheckOut <= ot.StartTime OR r.CheckIn >= ot.EndTime THEN 0
@@ -545,18 +480,6 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER PROCEDURE dbo.usp_ProcessApprovalEscalation @Now datetime2(0)=NULL AS
-BEGIN
- SET NOCOUNT ON;
- SET @Now=COALESCE(@Now,GETDATE());
- SELECT s.Id,s.RequestType,s.RequestId,s.Level,s.ApproverCode,s.ApproverEmail,r.EscalateHours
- FROM dbo.F03ApprovalSteps s
- JOIN dbo.F03EscalationRules r
-   ON r.RequestModule=s.RequestType AND r.Level=s.Level AND r.IsActive=1
- WHERE s.Required=1 AND s.Approved IS NULL
-   AND DATEDIFF(minute,s.CreatedAt,@Now)>=r.EscalateHours*60;
-END;
-GO
 /*
 ================================================================================
 PIPELINE A — HRM MASTER DATA SOURCE CONTRACTS
@@ -598,58 +521,3 @@ BEGIN
                  ELSE CONVERT(nvarchar(50), BP.BPMaCha) END,
         DisplayPriority =
             CASE WHEN BP.BPUuTien IS NULL THEN NULL
-                 WHEN BP.BPUuTien > 2147483647 OR BP.BPUuTien < -2147483648 THEN NULL
-                 ELSE CONVERT(int, BP.BPUuTien) END,
-        ShowInReport = CAST(ISNULL(BP.BPHienThiBC, 1) AS bit)
-    FROM HRM.dbo.tblBoPhan AS BP
-    WHERE ISNULL(BP.DLocked, 0) = 0
-    ORDER BY BP.BPUuTien, BP.BPMa;
-END;
-GO
-
-CREATE OR ALTER PROCEDURE dbo.usp_SyncHrmPositionSource
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    SELECT
-        PositionCode = LTRIM(RTRIM(CV.CVMa)),
-        PositionName = CV.CVTen
-    FROM HRM.dbo.tblChucVu AS CV
-    WHERE ISNULL(CV.DLocked, 0) = 0
-      AND NULLIF(LTRIM(RTRIM(CV.CVMa)), N'') IS NOT NULL
-    ORDER BY CV.CVMa;
-END;
-GO
-
-CREATE OR ALTER PROCEDURE dbo.usp_SyncHrmEmployeeSource
-AS
-BEGIN
-    SET NOCOUNT ON;
-
-    SELECT
-        EmployeeCode = LTRIM(RTRIM(NV.NVMaNV)),
-        EmployeeName = COALESCE(NULLIF(LTRIM(RTRIM(NV.NVHoTen)), N''), LTRIM(RTRIM(NV.NVMaNV))),
-        DeptCode =
-            CASE WHEN ISNULL(NV.NVMaBP, 0) = 0 THEN NULL
-                 ELSE CONVERT(nvarchar(20), NV.NVMaBP) END,
-        PositionCode = NULLIF(LEFT(LTRIM(RTRIM(NV.NVMaCV)), 20), N''),
-        BirthDate = NV.NVNgaySinh,
-        GenderCode = CONVERT(int, NV.NVGioiTinh),
-        EmailAddress = ISNULL(NULLIF(LTRIM(RTRIM(NV.NVEmailCaNhan)), N''), N''),
-        PhoneNumber = NULLIF(LTRIM(RTRIM(NV.NVDienThoai)), N''),
-        FirstWorkingDate = NV.NVNgayVao,
-        EndWorkingDate =
-            CASE
-                WHEN NV.NVNgayRa IS NULL OR NV.NVNgayRa >= '9990-01-01'
-                    THEN NULL
-                ELSE NV.NVNgayRa
-            END,
-        TotalLeaveDays = CONVERT(decimal(5,2), NV.NVSoNgayPhep),
-        EmployeeNo = NV.NVMa
-    FROM HRM.dbo.tblNhanVien AS NV
-    WHERE ISNULL(NV.DLocked, 0) = 0
-      AND NULLIF(LTRIM(RTRIM(NV.NVMaNV)), N'') IS NOT NULL
-    ORDER BY NV.NVMaNV;
-END;
-GO
