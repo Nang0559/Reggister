@@ -49,7 +49,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                     || x.ReconciliationStatus == "AwaitingConfirmation"));
 
         if (!string.IsNullOrWhiteSpace(moduleCode))
-            query = query.Where(x => x.ModuleCode == moduleCode.Trim().ToUpper());
+            query = query.Where(x => x.ModuleCode == moduleCode.Trim().ToUpperInvariant());
 
         if (!string.IsNullOrWhiteSpace(status))
             query = query.Where(x => x.ReconciliationStatus == status.Trim());
