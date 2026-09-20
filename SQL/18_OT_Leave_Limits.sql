@@ -32,18 +32,5 @@ WHERE NOT EXISTS
       AND r.DeptCode IS NULL
 );
 
-IF NOT EXISTS
-(
-    SELECT 1 FROM sys.indexes
-    WHERE name = N'UX_OTLimitRule_ActiveScope'
-      AND object_id = OBJECT_ID(N'dbo.F03OTLimitRules')
-)
-BEGIN
-    CREATE UNIQUE INDEX UX_OTLimitRule_ActiveScope
-        ON dbo.F03OTLimitRules(LimitType, DeptCode, PositionCode)
-        WHERE IsActive = 1;
-END;
-GO
-
-PRINT N'OT limit baseline installed: Monthly=40h, Yearly=200h, Special=300h; Weekly remains configurable.';
+PRINT N'OT limit baseline installed: Monthly=40h, Yearly=200h, Special=300h; Weekly remains configurable. ScopeType defaults to Employee=1.';
 GO

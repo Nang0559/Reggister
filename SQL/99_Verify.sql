@@ -5,7 +5,7 @@ SELECT DB_NAME() AS DatabaseName;
 SELECT name,type_desc FROM sys.tables WHERE name LIKE N'F03%' OR name LIKE N'Approval%' OR name LIKE N'Hrm%' ORDER BY name;
 SELECT TABLE_SCHEMA,TABLE_NAME,COLUMN_NAME,DATA_TYPE,CHARACTER_MAXIMUM_LENGTH FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA=N'dbo' AND (TABLE_NAME LIKE N'F03%' OR TABLE_NAME LIKE N'Approval%' OR TABLE_NAME LIKE N'Hrm%') ORDER BY TABLE_NAME,ORDINAL_POSITION;
 SELECT name,type_desc FROM sys.views WHERE name IN(N'vEmployeeApprover',N'vF03Employee',N'vF03leaveType',N'vF03LeaveRequest',N'vF03LeaveRequestDetail',N'vF03LeaveBalance',N'vF03OTRequest',N'vF03OTRequestDetail',N'vF03OTSummary',N'vF03Users',N'vw_CurrentlyPresentEmployees',N'vF03EmployeeAttendance',N'VwShiftCheckInOut');
-SELECT name,type_desc FROM sys.procedures WHERE name IN(N'usp_GetPendingApproval',N'usp_DecideApproval',N'usp_SyncAttendanceStaging',N'usp_DequeueEmail',N'usp_ProcessApprovalEscalation',N'usp_WriteAuditLog',N'usp_WriteUserLog');
+SELECT name,type_desc FROM sys.procedures WHERE name IN(N'usp_SyncAttendanceStaging',N'usp_DequeueEmail',N'usp_CalculateHrmAttendance',N'usp_GetHrmAttendanceCalculation',N'usp_WriteAuditLog',N'usp_WriteUserLog');
 SELECT fk.name,OBJECT_NAME(fk.parent_object_id) AS ParentTable,OBJECT_NAME(fk.referenced_object_id) AS ReferencedTable FROM sys.foreign_keys fk ORDER BY ParentTable,fk.name;
 GO
 
@@ -163,11 +163,11 @@ IF OBJECT_ID(N'dbo.F03ApprovalReminderLog',N'U') IS NOT NULL AND COL_LENGTH(N'db
 /* ===========================================================================
    WORK CALENDAR / ANNUAL LEAVE VERIFICATION
    =========================================================================== */
-IF OBJECT_ID(N'dbo.F03WorkYear',N'U') IS NULL
-    THROW 50991, 'Missing canonical table dbo.F03WorkYear.', 1;
+IF OBJECT_ID(N'dbo.F03WorkYears',N'U') IS NULL
+    THROW 50991, 'Missing canonical table dbo.F03WorkYears.', 1;
 
-IF OBJECT_ID(N'dbo.F03CompanyHoliday',N'U') IS NULL
-    THROW 50992, 'Missing canonical table dbo.F03CompanyHoliday.', 1;
+IF OBJECT_ID(N'dbo.F03CompanyHolidays',N'U') IS NULL
+    THROW 50992, 'Missing canonical table dbo.F03CompanyHolidays.', 1;
 
 IF COL_LENGTH(N'dbo.F03CompanyHoliday',N'TinhPhep') IS NULL
     THROW 50993, 'Missing dbo.F03CompanyHoliday.TinhPhep.', 1;

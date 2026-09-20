@@ -40,6 +40,8 @@ IMPORTANT:
 ===============================================================================
 */
 
+:on error exit
+
 :r 01_Database.sql
 :r 02_Preflight.sql
 :r 03_Tables.sql
@@ -51,12 +53,13 @@ IMPORTANT:
 :r 09_StoredProcedures.sql
 :r 10_Triggers.sql
 :r 11_Automation.sql
-:r 12_Verify.sql
 :r 13_HrmShiftMaster.sql
 :r 14_SecurityAuthorization.sql
 :r 15_PublicInformation.sql
 :r 16_EquipmentFlexibleImport.sql
 :r 17_ApprovalRouteSelection.sql
+:r 18_ApproverConfigurationReview.sql
+:r 19_OT_LimitRule_ScopeColumns.sql
 :r 13_Hrm_User_Approval_Provisioning.sql
 :r 17_DocumentationConsistency.sql
 :r 18_OT_Leave_Limits.sql

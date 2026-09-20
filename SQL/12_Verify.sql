@@ -201,11 +201,11 @@ IF OBJECT_ID(N'dbo.usp_ReconcileHrmSecurity',N'P') IS NULL
 /* ============================================================
    WORK CALENDAR / ANNUAL LEAVE
    ============================================================ */
-IF OBJECT_ID(N'dbo.F03WorkYear',N'U') IS NULL
-    THROW 50991,'Missing canonical table dbo.F03WorkYear.',1;
-IF OBJECT_ID(N'dbo.F03CompanyHoliday',N'U') IS NULL
-    THROW 50992,'Missing canonical table dbo.F03CompanyHoliday.',1;
-IF COL_LENGTH(N'dbo.F03CompanyHoliday',N'TinhPhep') IS NULL
+IF OBJECT_ID(N'dbo.F03WorkYears',N'U') IS NULL
+    THROW 50991,'Missing canonical table dbo.F03WorkYears.',1;
+IF OBJECT_ID(N'dbo.F03CompanyHolidays',N'U') IS NULL
+    THROW 50992,'Missing canonical table dbo.F03CompanyHolidays.',1;
+IF COL_LENGTH(N'dbo.F03CompanyHolidays',N'TinhPhep') IS NULL
     THROW 50993,'Missing dbo.F03CompanyHoliday.TinhPhep.',1;
 IF COL_LENGTH(N'dbo.F03LeaveBalances',N'BaseLeaveDays') IS NULL
     THROW 50994,'Missing dbo.F03LeaveBalances.BaseLeaveDays.',1;
