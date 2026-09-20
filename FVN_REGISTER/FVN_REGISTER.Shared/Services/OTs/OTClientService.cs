@@ -52,10 +52,6 @@ public sealed class OTClientService : IOTClientService
 
     public Task<ApiResponse<List<OTTypeDto>>> GetActiveOTTypesAsync(CancellationToken ct = default)
         => _http.GetAsync<List<OTTypeDto>>("api/OTType/active", ct);
-
-    public Task<ApiResponse<List<ApprovalStepSnapshotDto>>> PreviewApprovalAsync(OTRequestUpsertDto request, CancellationToken ct = default)
-        => _http.PostAsync<List<ApprovalStepSnapshotDto>>($"{Base}/preview", request, ct);
-
     public Task<ApiResponse<OTBalanceDto>> GetOTBalanceAsync(int year, CancellationToken ct = default)
         => _http.GetAsync<OTBalanceDto>($"{Base}/balance/{year}", ct);
 
