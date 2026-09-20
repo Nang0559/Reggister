@@ -135,13 +135,13 @@
     private string _error = "Không thể tải kỳ lương.";
 
     private bool CanPrepare =>
-        _period is not null && _period.Status is "Open" or "Calculated";
+        _period is not null && (_period.Status is "Open" or "Calculated");
 
     private bool CanLock =>
         _period?.Status == "Calculated" && _inputs.Count > 0;
 
     private bool CanPrint =>
-        _period?.Status is "Calculated" or "Locked" && _inputs.Count > 0;
+        _period?.Status is ("Calculated" or "Locked") && _inputs.Count > 0;
 
     private Color StatusColor => _period?.Status switch
     {
