@@ -13,18 +13,24 @@ using FVN_REGISTER.Shared.Services.HrmSync;
 using FVN_REGISTER.Shared.Services.Leaves;
 using FVN_REGISTER.Shared.Services.Notifications;
 using FVN_REGISTER.Shared.Services.OTs;
+using FVN_REGISTER.Shared.Services.Security;
 using FVN_REGISTER.Shared.Services.Trips;
 using FVN_REGISTER.Shared.Services.Users;
-using FVN_REGISTER.Shared.Services.Security;
 using FVN_REGISTER.Shared.Utils;
 using FVN_REGISTER.Web.Components;
 using FVN_REGISTER.Web.Services;
 using Microsoft.AspNetCore.Components.Authorization;
+using MudBlazor;
 using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
-builder.Services.AddMudServices(config =>\n{\n    config.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.BottomRight;\n    config.SnackbarConfiguration.MaxDisplayedSnackbars = 4;\n    config.SnackbarConfiguration.PreventDuplicates = true;\n});
+builder.Services.AddMudServices(config =>
+{
+    config.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.BottomRight;
+    config.SnackbarConfiguration.MaxDisplayedSnackbars = 4;
+    config.SnackbarConfiguration.PreventDuplicates = true;
+});
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.Configure<AuthDebugOptions>(builder.Configuration.GetSection("AuthDebug"));
 builder.Services.AddAuthentication(options => options.DefaultScheme = "Cookies").AddCookie("Cookies", options => { options.LoginPath = "/login"; options.AccessDeniedPath = "/access-denied"; });
