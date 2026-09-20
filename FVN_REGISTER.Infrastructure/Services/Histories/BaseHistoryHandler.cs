@@ -1,5 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.Histories;
 using FVN_REGISTER.Contract.Dtos.Approvals;
+using FVN_REGISTER.Application.Maps;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Histories;
 using FVN_REGISTER.Contract.Utils;
@@ -73,18 +74,11 @@ public abstract class BaseHistoryHandler<TRequest> : IHistoryHandler
         request.ModifiedAt = DateTime.Now;
         request.ModifiedBy = user.UserId;
 
-        var pendingSteps = await Db.ApprovalSteps
-            .Where(s => s.RequestId == id
-                     && s.RequestType == ModuleKind
-                     && s.Approved == null)
-            .ToListAsync(ct);
-
-        foreach (var step in pendingSteps)
-        {
-            step.Required = false;
-            step.Comment = $"Đơn đã bị hủy bởi {user.UserName}: {reason}";
-        }
-
+        // Cancellation is represented by the request status itself. The legacy
+        // F03ApprovalSteps table is no longer part of the approval pipeline and
+        // must not be mutated here. Snapshot steps are immutable; ApprovalEngine
+        // reads the request subject/status and therefore cancelled requests are
+        // excluded from the pending inbox.
         await Db.SaveChangesAsync(ct);
         return ServiceResult.Ok("Đã hủy đơn thành công.");
     }
@@ -95,45 +89,51 @@ public abstract class BaseHistoryHandler<TRequest> : IHistoryHandler
         int requestId,
         CancellationToken ct)
     {
-        return await Db.ApprovalSteps
+        var snapshot = await Db.ApprovalSnapshots
             .AsNoTracking()
-            .Where(s => s.RequestType == ModuleKind && s.RequestId == requestId)
-            .OrderBy(s => s.Level)
-            .Select(s => MapStep(s))
+            .Include(s => s.Steps)
+            .FirstOrDefaultAsync(
+                s => s.RequestType == ModuleKind && s.RequestId == requestId, ct);
+
+        if (snapshot == null)
+            return new();
+
+        var histories = await Db.ApprovalHistories
+            .AsNoTracking()
+            .Where(h => h.RequestType == ModuleKind && h.RequestId == requestId)
             .ToListAsync(ct);
+
+        return ApprovalStepMapper.MapToList(snapshot.Steps, histories);
     }
 
     protected async Task<Dictionary<int, List<ApprovalStepDto>>> GetApprovalStepsMapAsync(
         List<int> requestIds,
         CancellationToken ct)
     {
-        var steps = await Db.ApprovalSteps
+        if (requestIds.Count == 0)
+            return new();
+
+        var snapshots = await Db.ApprovalSnapshots
             .AsNoTracking()
+            .Include(s => s.Steps)
             .Where(s => s.RequestType == ModuleKind && requestIds.Contains(s.RequestId))
-            .OrderBy(s => s.Level)
-            .Select(s => new { s.RequestId, Step = MapStep(s) })
             .ToListAsync(ct);
 
-        return steps
-            .GroupBy(x => x.RequestId)
-            .ToDictionary(g => g.Key, g => g.Select(x => x.Step).ToList());
-    }
+        var histories = await Db.ApprovalHistories
+            .AsNoTracking()
+            .Where(h => h.RequestType == ModuleKind && requestIds.Contains(h.RequestId))
+            .ToListAsync(ct);
 
-    private static ApprovalStepDto MapStep(F03ApprovalStep s) => new()
-    {
-        Level = s.Level,
-        RoleName = s.RoleName,
-        ApproverCode = s.ApproverCode,
-        ApproverName = s.ApproverName,
-        ApproverEmail = s.ApproverEmail,
-        IsApproved = s.Approved,
-        ApproveTime = s.ApprovedAt,
-        Comment = s.Comment,
-        IsRequired = s.Required,
-        IsOverriddenByAdmin = s.IsOverriddenByAdmin,
-        OverriddenByName = s.OverriddenByName,
-        OverriddenAt = s.OverriddenAt
-    };
+        var historyByRequest = histories
+            .GroupBy(h => h.RequestId)
+            .ToDictionary(g => g.Key, g => g.ToList());
+
+        return snapshots.ToDictionary(
+            s => s.RequestId,
+            s => ApprovalStepMapper.MapToList(
+                s.Steps,
+                historyByRequest.GetValueOrDefault(s.RequestId, new())));
+    }
 
     protected static bool CanUserCancel(string ownerEmployeeCode, UserIdentityDto user)
         => ownerEmployeeCode == user.EmployeeCode || user.IsAdmin;
