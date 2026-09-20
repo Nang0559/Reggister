@@ -16,6 +16,12 @@ public sealed class F03ExecutionConfirmation : BaseAuditEntity
     [Required, StringLength(100)]
     public string SourceId { get; set; } = string.Empty;
 
+    [Required, StringLength(50)]
+    public string SourceType { get; set; } = "MODULE";
+
+    [StringLength(100)]
+    public string? ParticipantId { get; set; }
+
     public int EmployeeId { get; set; }
     public DateOnly WorkDate { get; set; }
 
