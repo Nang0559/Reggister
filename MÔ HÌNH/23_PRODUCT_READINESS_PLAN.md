@@ -683,6 +683,49 @@ Hệ thống chỉ được đánh dấu **PRODUCT READY** khi:
 | 2026-09-20 | 0 | Fixed Leave type contract in create UI | `c00d6d8580f932b7d94a85ea471f58d85b9c8b7a` |
 | 2026-09-20 | 0 | Fixed Trip approval route loading and missing-route UX | `761e2ebf4ebc2a53a9e894dc7740158710b1d1b0`, `11367c22bc50117c7877d6bcfe7f3dc3b22a3548` |
 
+
+### Phase 1 Evidence Update — 2026-09-20
+
+Đã bắt đầu Phase 1 trên branch `feature/security-rbac-dashboard`.
+
+#### Static integrity fixes đã áp dụng
+
+1. **Anonymous auth debug endpoint**
+   - Xóa `GET api/auth/test-auth` khỏi `AuthController`.
+   - Endpoint cũ trả claims identity trong khi gắn `[AllowAnonymous]`; đây không phải runtime contract cần thiết của sản phẩm.
+
+2. **Nullable identity guards**
+   - Đã loại bỏ các `UserInfo!` dereference ở các mutation endpoint sau:
+     - `UserManagementController`: Create, Update, Delete, ToggleLock, ResetPassword.
+     - `ApprovalPoliciesController`: Create, Update.
+     - `HrmUserRoleRulesController`: Create, Update.
+     - `EmailTemplateController`: Save, Toggle.
+   - Các action mutation hiện phải có authenticated `UserInfo` trước khi truyền `UserId` xuống service.
+
+3. **Auth refresh contract**
+   - Backend hiện có `POST api/auth/refresh`.
+   - Client vẫn chưa hoàn tất refresh pipeline: `ITokenStorage` hiện chỉ lưu access token, chưa có refresh-token storage; `AuthHeaderHandler` chưa retry 401 bằng refresh.
+   - Vì vậy **không đánh dấu refresh là DONE**. Đây là P1 còn lại của Phase 1.
+
+#### Phase 1 items cần tiếp tục
+
+- [ ] Full `dotnet restore`.
+- [ ] Full solution build.
+- [ ] Build API/Application/Infrastructure/Models/Shared/Web.
+- [ ] DI verification.
+- [ ] DTO namespace/signature verification.
+- [ ] Complete refresh-token client pipeline.
+- [ ] Complete dead-interface/service cleanup only after repository-wide reference verification.
+- [ ] Warning classification.
+- [ ] Runtime verification after successful build.
+
+#### Current Phase 1 blockers
+
+- **P1:** refresh token chưa được nối từ client đến backend.
+- **P1:** dead service/interface candidates cần repository-wide reference evidence trước khi xóa.
+- **NEED VERIFY:** full solution build chưa có evidence trên branch.
+
+
 ---
 
 ## 20. Current execution order
@@ -719,7 +762,7 @@ PHASE 14
 
 ### Current focus
 
-> **PHASE 0 — System Reconciliation**
+> **PHASE 1 — Build & Static Integrity**
 
 Việc tiếp theo sau khi cập nhật tài liệu là xử lý từng P0/P1 có evidence, sau đó mới chạy full build ở Phase 1.
 
