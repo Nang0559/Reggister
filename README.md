@@ -285,7 +285,7 @@ Leave, OT and Trip share one Work Calendar. It aggregates company holidays plus 
 - Availability: `GET /api/calendar/availability`
 - UI component: `WorkCalendar`
 - Design: `MÔ HÌNH/18_WORK_CALENDAR.md`
-- SQL: `SQL/19_WorkCalendar.sql`
+- SQL: `SQL/35_WorkCalendar.sql`
 
 Company holidays are informational calendar data; final Leave/OT/Trip authorization and validation remain in each module.
 
