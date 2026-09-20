@@ -3,7 +3,7 @@ using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Histories;
 
 
-namespace FVN_REGISTER.API.Services.Histories
+namespace FVN_REGISTER.Infrastructure.Services.Histories
 {
     public class HistoryDispatcher : IHistoryDispatcher
     {

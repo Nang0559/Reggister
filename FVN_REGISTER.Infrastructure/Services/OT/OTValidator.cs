@@ -1,17 +1,17 @@
-﻿using FVN_REGISTER.Application.Interfaces.Approvals;
+﻿
 using FVN_REGISTER.Application.Interfaces.OT;
-using FVN_REGISTER.Application.Models.Subjects;
+
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Requests.OT;
-using FVN_REGISTER.Core.Entities.OT;
+
 
 using FVN_REGISTER.Core.Repositories;
-using FVN_REGISTER.Core.Utils;
-using Microsoft.EntityFrameworkCore;
-using FVN_REGISTER.Core.Enums;
 
-namespace FVN_REGISTER.API.Services.OT
+using Microsoft.EntityFrameworkCore;
+
+
+namespace FVN_REGISTER.Infrastructure.Services.OT
 {
     public class OTValidator : IOTValidator
     {
