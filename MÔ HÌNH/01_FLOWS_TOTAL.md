@@ -313,3 +313,27 @@ WorkCalendarDto
 ```
 
 The calendar is a read projection. Final authorization and business validation remain in the corresponding module service/validator.
+
+
+## 6A. D3 — Employee-scoped OT Revision & Attendance Confirmation
+
+D3 phải phân biệt đơn OT master và hiệu lực OT của từng nhân viên. Một đơn OT nhiều người vẫn là một OT Master duy nhất; khi một nhân viên cần điều chỉnh, hệ thống tạo revision riêng cho participant đó và approval chỉ có scope trên participant đó.
+
+```mermaid
+flowchart LR
+    M[OT Master - 1 đơn duy nhất] --> P[OT Participant theo Employee]
+    P --> R1[Approved Revision hiện tại]
+    P --> R2[Revision điều chỉnh riêng]
+    R2 --> A[Approval Scope = EmployeeOnly]
+    A -->|Approved| E[Revision mới trở thành Effective]
+    A -->|Rejected| O[Giữ Effective Revision cũ]
+    E --> C[Recalculate OT chỉ Employee này]
+    O --> C
+    C --> CAL[Personal Work Calendar]
+```
+
+Invariant: approval/recalculation không được áp dụng toàn bộ participant của OT Master. Approver phải thấy rõ TargetEmployee đang xin approve lại; các participant khác trong cùng đơn được hiển thị read-only/mờ và không nằm trong approval scope.
+
+### Attendance không có dữ liệu
+
+Nếu participant đã có OT Approved nhưng không có attendance/actual work data, không tự kết luận ngay là không đi làm. Ngày đó chuyển PendingConfirmation và calendar hiển thị ?. Người dùng click ? để xác nhận: Có đi làm → bắt buộc gửi bằng chứng làm việc → chờ HC/HR xác nhận; Không đi làm → xác nhận không đi làm; Không phản hồi đến ngày khóa công 20 → system tự chuyển AutoConfirmedNotWorked, OT không còn hiệu lực trên calendar/payroll projection nhưng toàn bộ approval/audit history vẫn giữ nguyên.
