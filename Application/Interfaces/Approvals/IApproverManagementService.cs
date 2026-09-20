@@ -50,10 +50,5 @@ namespace FVN_REGISTER.Application.Interfaces.Approvals
         // ══════════════════════════════════════════════════════════════════
         // HELPERS DÙNG CHO PROVIDER (BuildHierarchy)
         // ══════════════════════════════════════════════════════════════════
-
-        Task<int> GetRequesterLevelAsync(string employeeCode, RequestModule requestType, CancellationToken ct);
-        Task<F03Approver?> GetApproverAsync(int level, string approveForDeptCode, RequestModule requestType, CancellationToken ct);
-        Task<List<F03Approver>> GetApproversForDeptAsync(string approveForDeptCode, RequestModule requestType, CancellationToken ct);
-        Task<string> ResolveApproverEmailAsync(string employeeCode, RequestModule requestType, CancellationToken ct = default);
     }
 }
