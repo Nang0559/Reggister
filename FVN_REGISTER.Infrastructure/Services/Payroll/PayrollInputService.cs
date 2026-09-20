@@ -137,6 +137,38 @@ public sealed class PayrollInputService : IPayrollInputService
             new UTF8Encoding(true).GetBytes(sb.ToString()));
     }
 
+    public async Task<PayrollPrintResultDto> GetPrintDataAsync(int periodId, CancellationToken ct = default)
+    {
+        var period = await GetPeriodAsync(periodId, ct);
+        Ensure21To20(period);
+
+        if (period.Status is not ("Calculated" or "Locked"))
+            throw new InvalidOperationException(
+                "Chỉ được in bảng công khi kỳ lương đã Calculated hoặc Locked.");
+
+        await EnsurePayrollReadyAsync(period, ct);
+
+        var calculatedAt = period.CalculatedAt
+            ?? throw new InvalidOperationException("Kỳ lương chưa có snapshot chính thức.");
+
+        var stale = await _db.ExecutionReconciliations.AsNoTracking()
+            .AnyAsync(x => x.IsActive != false
+                && x.WorkDate >= period.FromDate
+                && x.WorkDate <= period.ToDate
+                && x.ModifiedAt.HasValue
+                && x.ModifiedAt.Value > calculatedAt, ct);
+
+        if (stale)
+            throw new InvalidOperationException(
+                "Bảng công đã thay đổi sau lần snapshot. Hãy Prepare lại kỳ lương trước khi in.");
+
+        var inputs = await GetInputsAsync(periodId, ct);
+        if (inputs.Count == 0)
+            throw new InvalidOperationException("Kỳ lương không có dữ liệu bảng công để in.");
+
+        return new PayrollPrintResultDto(Map(period), inputs);
+    }
+
     public async Task<IReadOnlyList<PayrollInputDto>> GetInputsAsync(int periodId, CancellationToken ct = default)
     {
         _ = await GetPeriodAsync(periodId, ct);
@@ -177,6 +209,17 @@ public sealed class PayrollInputService : IPayrollInputService
         if (unresolved)
             throw new InvalidOperationException(
                 "Kỳ lương còn Execution Reconciliation Mismatch/AwaitingConfirmation chưa được giải quyết.");
+
+        var failedOrPendingCorrection = await _db.ExecutionCorrections.AsNoTracking()
+            .AnyAsync(x => x.IsActive != false
+                && x.WorkDate >= period.FromDate
+                && x.WorkDate <= period.ToDate
+                && x.Status != "Applied"
+                && x.Status != "Cancelled", ct);
+
+        if (failedOrPendingCorrection)
+            throw new InvalidOperationException(
+                "Kỳ lương còn Execution Correction Pending/Failed chưa được xử lý.");
     }
 
     private async Task<F03PayrollCalculationPeriod> GetPeriodAsync(
