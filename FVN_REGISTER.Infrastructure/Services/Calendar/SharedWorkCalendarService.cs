@@ -33,7 +33,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy nhân viên của tài khoản hiện tại.");
 
-        var context = new CalendarContext(employeeId.Value, userId, from, to);
+        var context = new CalendarContext(employeeId, userId, from, to);
 
         var policies = await _db.CalendarModulePolicies
             .AsNoTracking()
