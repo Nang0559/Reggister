@@ -1,6 +1,5 @@
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Approvals;
-using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Dtos.OTTypeDtos;
 using FVN_REGISTER.Contract.Requests.OT;
