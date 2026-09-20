@@ -25,15 +25,6 @@ namespace FVN_REGISTER.Shared.Services.Leaves
             return await _http.PostFileAsync("api/report/export/excel", query, ct);
         }
 
-        // Hàm Helper để build tự động chuỗi URL query string tránh rác mã nguồn
-        private string FormQueryString(ReportQueryDto query)
-        {
-            var properties = from p in query.GetType().GetProperties()
-                             where p.GetValue(query, null) != null
-                             select p.Name + "=" + System.Net.WebUtility.UrlEncode(p.GetValue(query, null)?.ToString());
-
-            return string.Join("&", properties);
-        }
         public async Task<ApiResponse<List<KeyValuePair<string, string>>>> GetLookupDepartmentsAsync(CancellationToken ct = default)
     => await _http.GetAsync<List<KeyValuePair<string, string>>>("api/report/lookup/departments", ct);
 
