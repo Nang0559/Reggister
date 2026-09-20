@@ -188,9 +188,8 @@ builder.Services.AddScoped<IApprovalWorkflowOrchestrator<TripRequestSubject>, Ap
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<EquipmentRequestSubject>, ApprovalWorkflowOrchestrator<EquipmentRequestSubject>>();
 builder.Services.AddScoped<IApprovalEngineResolver, ApprovalEngineResolver>();
 builder.Services.AddScoped<IApprovalGroupingPolicy, ApprovalGroupingPolicy>();
+// Unified approval inbox: pending items are resolved through the approval workflow/engine path.
 builder.Services.AddScoped<IApprovalInboxService, ApprovalInboxService>();
-builder.Services.AddScoped<IApprovalListDataSource<LeaveRequestDto>, LeaveApprovalListDataSource>();
-builder.Services.AddScoped<IApprovalListDataSource<OTRequestDto>, OTApprovalListDataSource>();
 
 // HRM Sync
 builder.Services.AddScoped<IHrmSourceReader<HrmDepartmentSourceRow>, HrmDepartmentSourceReader>();
