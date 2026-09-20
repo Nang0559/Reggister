@@ -282,3 +282,43 @@ IF NOT EXISTS
     CREATE INDEX IX_F03HrmOTActual_Batch
         ON dbo.F03HrmOTActual(CalculationBatchId, WorkDate, HrmEmployeeId, Id);
 GO
+
+
+/*
+===============================================================================
+CALCULATION RUN AUDIT
+
+One lightweight row per execution. This is deliberately separate from the
+business attendance history: rerunning a date changes CURRENT state but does
+not create another full copy of attendance data in the current table.
+===============================================================================
+*/
+IF OBJECT_ID(N'dbo.F03HrmAttendanceCalculationRun',N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.F03HrmAttendanceCalculationRun
+    (
+        CalculationBatchId uniqueidentifier NOT NULL CONSTRAINT PK_F03HrmAttendanceCalculationRun PRIMARY KEY,
+        DeptCode nvarchar(20) NULL,
+        FromDate date NOT NULL,
+        ToDate date NOT NULL,
+        TriggeredBy nvarchar(100) NOT NULL,
+        CalculationVersion nvarchar(50) NOT NULL,
+        Status nvarchar(20) NOT NULL,
+        StartedAt datetime2(0) NOT NULL,
+        FinishedAt datetime2(0) NULL,
+        EmployeeCount int NULL,
+        CalculatedRows int NULL,
+        ErrorMessage nvarchar(2000) NULL
+    );
+END;
+GO
+
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE object_id=OBJECT_ID(N'dbo.F03HrmAttendanceCalculationRun')
+      AND name=N'IX_F03HrmAttendanceCalculationRun_DateStatus'
+)
+    CREATE INDEX IX_F03HrmAttendanceCalculationRun_DateStatus
+        ON dbo.F03HrmAttendanceCalculationRun(FromDate,ToDate,Status,StartedAt DESC);
+GO
