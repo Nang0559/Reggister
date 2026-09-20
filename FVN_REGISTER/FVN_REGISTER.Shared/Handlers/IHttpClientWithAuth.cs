@@ -13,5 +13,6 @@ namespace FVN_REGISTER.Shared.Handlers
         Task<ApiResponse<PaginationResult<T>>> GetPagedAsync<T>(string url, CancellationToken ct = default);
         Task<ApiResponse<T>> PostMultipartAsync<T>(string url, MultipartFormDataContent content, CancellationToken ct = default);
         Task<ApiResponse<byte[]>> GetFileAsync(string url, CancellationToken ct = default);
+        Task<ApiResponse<byte[]>> PostFileAsync(string url, object data, CancellationToken ct = default);
     }
 }
