@@ -20,4 +20,8 @@
     <PackageReference Include="Microsoft.Extensions.Options" Version="9.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Interfaces\Infrastructure\" />
+  </ItemGroup>
+
 </Project>
