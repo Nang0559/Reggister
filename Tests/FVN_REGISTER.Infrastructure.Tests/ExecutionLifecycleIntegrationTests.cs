@@ -14,7 +14,8 @@ public sealed class ExecutionLifecycleIntegrationTests
     {
         var connectionString = Environment.GetEnvironmentVariable("FVN_REGISTER_SQL_CONNECTION");
         if (string.IsNullOrWhiteSpace(connectionString))
-            return;
+            throw new InvalidOperationException(
+                "FVN_REGISTER_SQL_CONNECTION is required for execution lifecycle integration tests.");
 
         var options = new DbContextOptionsBuilder<FVNWEBAPPContext>()
             .UseSqlServer(connectionString)
@@ -56,15 +57,19 @@ public sealed class ExecutionLifecycleIntegrationTests
             0);
 
         var firstId = await writer.EnsureOpenAsync(draft);
-        var first = await db.ActionItems.SingleAsync(x => x.ActionId == firstId);
+        var firstDueAt = await db.ActionItems.AsNoTracking()
+            .Where(x => x.ActionId == firstId)
+            .Select(x => x.DueAt)
+            .SingleAsync();
 
-        await Task.Delay(20);
-
-        var secondId = await writer.EnsureOpenAsync(draft);
-        var second = await db.ActionItems.SingleAsync(x => x.ActionId == secondId);
+        var rerunDraft = draft with { DueAt = dueAt.AddHours(24) };
+        var secondId = await writer.EnsureOpenAsync(rerunDraft);
+        var second = await db.ActionItems.AsNoTracking()
+            .SingleAsync(x => x.ActionId == secondId);
 
         Assert.Equal(firstId, secondId);
-        Assert.Equal(first.DueAt, second.DueAt);
+        Assert.Equal(firstDueAt, second.DueAt);
+        Assert.NotEqual(rerunDraft.DueAt, second.DueAt);
         Assert.Equal(ActionItemStatus.Open, second.Status);
 
         await transaction.RollbackAsync();
