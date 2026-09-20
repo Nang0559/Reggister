@@ -18,7 +18,8 @@ public interface IExecutionReconciliationService
     Task<ExecutionReconciliationDto> UpsertAsync(
         string employeeCode,
         ExecutionReconciliationUpsertRequest request,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        int? actorUserId = null);
 
     Task<ExecutionConfirmationDto> SubmitConfirmationAsync(
         string employeeCode,
