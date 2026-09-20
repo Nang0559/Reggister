@@ -142,8 +142,8 @@ public class OTHistoryHandler : BaseHistoryHandler<F03OTRequest>
                           .AsNoTracking()
                           .Include(x => x.Employees)
                          join employee in Db.Employees.AsNoTracking()
-                             on request.EmployeeCode equals employee.EmployeeCode into employees
-                         from employee in employees.DefaultIfEmpty()
+                             on request.EmployeeCode equals employee.EmployeeCode into employeeJoin
+                         from employee in employeeJoin.DefaultIfEmpty()
                          where request.Id == id &&
                                request.IsActive == true &&
                                request.EmployeeCode == user.EmployeeCode
