@@ -62,18 +62,6 @@ public sealed class ExecutionController : BaseApiController
             : Ok(ApiResponse<object>.Ok(result));
     }
 
-    [HttpPost("me/reconciliations")]
-    public async Task<IActionResult> Upsert(
-        [FromBody] ExecutionReconciliationUpsertRequest request,
-        CancellationToken ct)
-    {
-        if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
-            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
-
-        var result = await _execution.UpsertAsync(UserInfo.EmployeeCode, request, ct);
-        return Ok(ApiResponse<object>.Ok(result));
-    }
-
     [HttpPost("me/{reconciliationId:long}/confirmation")]
     public async Task<IActionResult> SubmitConfirmation(
         long reconciliationId,
@@ -96,7 +84,7 @@ public sealed class ExecutionController : BaseApiController
         if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
-        var result = await _execution.AddEvidenceAsync(UserInfo.EmployeeCode, confirmationId, request, ct);
+        var result = await _execution.AddEvidenceAsync(UserInfo.EmployeeCode, UserInfo.UserId.Value, confirmationId, request, ct);
         return Ok(ApiResponse<object>.Ok(result));
     }
 
