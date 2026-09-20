@@ -10,6 +10,10 @@ public sealed class F03PayrollCalculationPeriod : BaseAuditEntity
  public DateOnly ToDate { get; set; }
  [Required,StringLength(20)] public string Status { get; set; }="Open";
  public DateTime? CalculatedAt { get; set; }
+ public int? CalculatedBy { get; set; }
  public DateTime? LockedAt { get; set; }
+ public int? LockedBy { get; set; }
  public DateTime? ExportedAt { get; set; }
+ public int? ExportedBy { get; set; }
+ public string? LastModifiedSource { get; set; }
 }
