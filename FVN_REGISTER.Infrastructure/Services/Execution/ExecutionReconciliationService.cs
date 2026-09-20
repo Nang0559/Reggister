@@ -90,6 +90,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             entity.DetailJson = request.DetailJson;
         }
 
+        var previousStatus = entity.ReconciliationStatus;
         if (request.RequiresConfirmation && !string.Equals(entity.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
         {
             entity.ActionId = await _actionWriter.EnsureOpenAsync(new ActionItemDraft(
@@ -119,6 +120,9 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 request.ParticipantId), cancellationToken);
         }
 
+        await _db.SaveChangesAsync(cancellationToken);
+        if (!string.Equals(previousStatus, entity.ReconciliationStatus, StringComparison.OrdinalIgnoreCase))
+            await AddHistoryAsync(entity, previousStatus, entity.ReconciliationStatus, "UPSERT", null, null, cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
@@ -172,8 +176,12 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         confirmation.SubmittedAt = DateTime.Now;
         reconciliation.ReconciliationStatus = "AwaitingConfirmation";
 
+        var previousStatus = reconciliation.ReconciliationStatus;
         await _db.SaveChangesAsync(cancellationToken);
         reconciliation.ConfirmationId = confirmation.Id;
+        await _db.SaveChangesAsync(cancellationToken);
+        if (!string.Equals(previousStatus, reconciliation.ReconciliationStatus, StringComparison.OrdinalIgnoreCase))
+            await AddHistoryAsync(reconciliation, previousStatus, reconciliation.ReconciliationStatus, "CONFIRMATION_SUBMITTED", null, employeeId, cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
@@ -271,6 +279,27 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             "resolved" => "Resolved",
             _ => throw new ArgumentException($"ReconciliationStatus không hợp lệ: {status}.")
         };
+    }
+
+    private async Task AddHistoryAsync(
+        F03ExecutionReconciliation reconciliation,
+        string? fromStatus,
+        string toStatus,
+        string eventType,
+        string? reason,
+        int? actorEmployeeId,
+        CancellationToken cancellationToken)
+    {
+        _db.ExecutionReconciliationHistory.Add(new F03ExecutionReconciliationHistory
+        {
+            ReconciliationId = reconciliation.Id,
+            FromStatus = fromStatus,
+            ToStatus = toStatus,
+            EventType = eventType,
+            Reason = reason,
+            ActorEmployeeId = actorEmployeeId,
+            CreatedAt = DateTime.Now
+        });
     }
 
     private static Expression<Func<F03ExecutionReconciliation, ExecutionReconciliationDto>> ToDto() =>
