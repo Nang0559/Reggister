@@ -1,5 +1,7 @@
 ﻿
 
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace FVN_REGISTER.Core.Entities.HRM
 {
     /// <summary>
@@ -7,6 +9,7 @@ namespace FVN_REGISTER.Core.Entities.HRM
     /// (F03Approver...) bị lệch/lỗi thời — sync KHÔNG tự sửa F03Approver (đó là quyết định
     /// nghiệp vụ cần con người), chỉ ghi cờ để Admin UI hiển thị và xử lý thủ công.
     /// </summary>
+    [Table("F03SyncReviewFlag")]
     public class F03SyncReviewFlag
     {
         public int Id { get; set; }
