@@ -6,16 +6,9 @@ GO
 
 /* ============================================================================
    FVN_REGISTER - Work year schema upgrade
-   EF configuration maps F03WorkYear -> dbo.F03WorkYears.
-   Existing databases may not have this table.
+   EF configuration maps the canonical WorkYear entity -> dbo.F03WorkYears.
+   Existing databases may not have this table. SQL 19 owns legacy-name migration.
    ============================================================================ */
-
-IF OBJECT_ID(N'dbo.F03WorkYears', N'U') IS NULL
-   AND OBJECT_ID(N'dbo.F03WorkYear', N'U') IS NOT NULL
-BEGIN
-    EXEC sys.sp_rename N'dbo.F03WorkYear', N'F03WorkYears';
-END;
-GO
 
 IF OBJECT_ID(N'dbo.F03WorkYears', N'U') IS NULL
 BEGIN
