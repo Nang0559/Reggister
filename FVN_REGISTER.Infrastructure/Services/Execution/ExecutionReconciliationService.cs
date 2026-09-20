@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using System.Text.Json;
 using FVN_REGISTER.Application.Interfaces.Actions;
 using FVN_REGISTER.Application.Interfaces.Execution;
+using FVN_REGISTER.Application.Services.Execution;
 using FVN_REGISTER.Application.Interfaces.Notifications;
 using Microsoft.EntityFrameworkCore.Storage;
 using FVN_REGISTER.Application.Models.Actions;
@@ -477,7 +478,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
 
         if (user is null) return;
 
-        var module = MapNotificationModule(reconciliation.ModuleCode);
+        var module = ExecutionNotificationModuleMapper.ToRequestModule(reconciliation.ModuleCode);
 
         await _notificationService.CreateAsync(new FVN_REGISTER.Contract.Dtos.Notifications.CreateNotificationDto
         {
@@ -587,23 +588,6 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         }
     }
 
-    private static RequestModule MapNotificationModule(string moduleCode)
-    {
-        switch (moduleCode?.Trim().ToUpperInvariant())
-        {
-            case "OT":
-                return RequestModule.Overtime;
-            case "LEAVE":
-                return RequestModule.Leave;
-            case "TRIP":
-                return RequestModule.Trip;
-            case "EQUIPMENT":
-                return RequestModule.Equipment;
-            default:
-                throw new InvalidOperationException(
-                    $"Không có mapping Notification Module cho Execution ModuleCode '{moduleCode}'.");
-        }
-    }
 
     private async Task<int> ResolveEmployeeIdAsync(string employeeCode, CancellationToken cancellationToken)
     {
