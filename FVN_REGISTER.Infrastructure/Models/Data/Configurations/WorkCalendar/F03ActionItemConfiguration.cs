@@ -17,7 +17,7 @@ public sealed class F03ActionItemConfiguration : IEntityTypeConfiguration<F03Act
             .HasFilter("[Status] IN (0, 10)");
         entity.HasIndex(x => new { x.AssignedToUserId, x.Status, x.Priority, x.DueAt });
         entity.HasIndex(x => new { x.AssignedToEmployeeId, x.Status, x.Priority, x.DueAt });
-        entity.HasIndex(x => new { x.ModuleCode, x.SourceId, x.ActionType });
+        entity.HasIndex(x => new { x.ModuleCode, x.SourceType, x.SourceId, x.ParticipantId, x.ActionType });
         entity.Property(x => x.ActionId).HasDefaultValueSql("(newsequentialid())");
         entity.Property(x => x.SourceType).HasMaxLength(50).IsRequired();
         entity.Property(x => x.ParticipantId).HasMaxLength(100);
