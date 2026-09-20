@@ -136,6 +136,8 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             reconciliation.LastModifiedSource = "HR_EXECUTION_EVIDENCE_REVIEW";
         }
 
+        var actorEmployeeId = await ResolveActorEmployeeIdAsync(employeeCode, userId, cancellationToken);
+
         _db.ExecutionReconciliationHistory.Add(new F03ExecutionReconciliationHistory
         {
             ReconciliationId = reconciliation.Id,
@@ -144,7 +146,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             EventType = $"EVIDENCE_{reviewStatus.ToUpperInvariant()}",
             Reason = note,
             ActorUserId = userId,
-            ActorEmployeeId = reconciliation.EmployeeId,
+            ActorEmployeeId = actorEmployeeId,
             CreatedAt = DateTime.Now
         });
 
