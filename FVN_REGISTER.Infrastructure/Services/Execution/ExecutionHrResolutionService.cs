@@ -61,6 +61,76 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             .ToListAsync(cancellationToken);
     }
 
+    public async Task<ExecutionEvidenceDto> ReviewEvidenceAsync(
+        int userId,
+        string employeeCode,
+        long evidenceId,
+        ExecutionEvidenceReviewRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureHrPermissionAsync(userId, cancellationToken);
+
+        var reviewStatus = NormalizeEvidenceReviewStatus(request.ReviewStatus);
+        var note = request.ReviewNote?.Trim();
+
+        if (note?.Length > 2000)
+            throw new ArgumentException("ReviewNote tối đa 2000 ký tự.");
+
+        await using var transaction = await _db.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable, cancellationToken);
+
+        var evidence = await _db.ExecutionConfirmationEvidence
+            .FirstOrDefaultAsync(x => x.Id == evidenceId && x.IsActive != false, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy evidence.");
+
+        var confirmation = await _db.ExecutionConfirmations
+            .FirstOrDefaultAsync(x => x.Id == evidence.ConfirmationId && x.IsActive != false, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy confirmation của evidence.");
+
+        var reconciliation = await _db.ExecutionReconciliations
+            .FirstOrDefaultAsync(x => x.Id == confirmation.ReconciliationId && x.IsActive != false, cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy reconciliation của evidence.");
+
+        if (string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Reconciliation đã Resolved, không thể review evidence.");
+
+        evidence.ReviewStatus = reviewStatus;
+        evidence.ReviewedBy = userId;
+        evidence.ReviewedAt = DateTime.Now;
+        evidence.ReviewNote = note;
+        evidence.ModifiedBy = userId;
+        evidence.ModifiedAt = DateTime.Now;
+        evidence.LastModifiedSource = "HR_EXECUTION_EVIDENCE_REVIEW";
+
+        // Any negative evidence review keeps the employee action open.
+        if (reviewStatus == "Rejected" || reviewStatus == "NeedMoreEvidence")
+        {
+            confirmation.Status = "NeedMoreEvidence";
+            confirmation.ReviewedBy = userId;
+            confirmation.ReviewedAt = DateTime.Now;
+            confirmation.ReviewNote = note;
+            reconciliation.RequiresConfirmation = true;
+            reconciliation.RequiresEvidence = true;
+            reconciliation.LastModifiedSource = "HR_EXECUTION_EVIDENCE_REVIEW";
+        }
+
+        await _db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
+
+        return new ExecutionEvidenceDto(
+            evidence.Id,
+            evidence.ConfirmationId,
+            evidence.EvidenceType,
+            evidence.FileId,
+            evidence.ReferenceNo,
+            evidence.ExternalUrl,
+            evidence.Description,
+            evidence.ReviewStatus,
+            evidence.SubmittedAt,
+            evidence.ReviewedAt,
+            evidence.ReviewNote);
+    }
+
     public async Task<ExecutionHrResolutionDto> ResolveAsync(
         int userId,
         string employeeCode,
@@ -112,11 +182,27 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 
         if (confirmation is not null)
         {
+            if (decision == "OK" && reconciliation.RequiresEvidence)
+            {
+                var evidenceRows = await _db.ExecutionConfirmationEvidence
+                    .AsNoTracking()
+                    .Where(x => x.ConfirmationId == confirmation.Id && x.IsActive != false)
+                    .Select(x => x.ReviewStatus)
+                    .ToListAsync(cancellationToken);
+
+                if (evidenceRows.Count == 0 || evidenceRows.Any(x => !string.Equals(x, "Approved", StringComparison.OrdinalIgnoreCase)))
+                    throw new InvalidOperationException(
+                        "Không thể Resolve OK khi evidence chưa được review Approved đầy đủ.");
+            }
+
             confirmation.Status = decision == "OK" ? "Approved" : "Rejected";
             confirmation.Decision = decision == "OK" ? "USER_CORRECT" : "USER_NOT_CORRECT";
             confirmation.ReviewedBy = userId;
             confirmation.ReviewedAt = now;
             confirmation.ReviewNote = reason;
+            confirmation.ModifiedBy = userId;
+            confirmation.ModifiedAt = now;
+            confirmation.LastModifiedSource = "HR_EXECUTION_REVIEW";
             reconciliation.ConfirmationId = confirmation.Id;
         }
 
@@ -342,6 +428,15 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         "OK" => "OK",
         "NG" => "NG",
         _ => throw new ArgumentException("Decision chỉ được là OK hoặc NG.")
+    };
+
+    private static string NormalizeEvidenceReviewStatus(string value) => value?.Trim().ToUpperInvariant() switch
+    {
+        "APPROVED" => "Approved",
+        "REJECTED" => "Rejected",
+        "NEEDMOREEVIDENCE" => "NeedMoreEvidence",
+        "NEED_MORE_EVIDENCE" => "NeedMoreEvidence",
+        _ => throw new ArgumentException("ReviewStatus chỉ được là Approved, Rejected hoặc NeedMoreEvidence.")
     };
 
     private static string NormalizeCalendarAction(string value) => value?.Trim().ToUpperInvariant() switch
