@@ -8,6 +8,7 @@ public sealed class F03ExecutionPolicyConfiguration : IEntityTypeConfiguration<F
     public void Configure(EntityTypeBuilder<F03ExecutionPolicy> b)
     {
         b.ToTable("F03ExecutionPolicies"); b.HasKey(x=>x.Id); b.Property(x=>x.ModuleCode).HasMaxLength(50).IsRequired();
+        b.Property(x => x.LastModifiedSource).HasMaxLength(50);
         b.HasIndex(x=>x.ModuleCode).IsUnique();
     }
 }
