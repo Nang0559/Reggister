@@ -254,51 +254,6 @@ IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03ExecutionC
     ALTER TABLE dbo.F03ExecutionCorrections ADD CONSTRAINT CK_F03ExecutionCorrections_Status CHECK(Status IN(N'Pending',N'Applied',N'Failed',N'Cancelled'));
 GO
 
-IF OBJECT_ID(N'dbo.F03PayrollCalculationPeriods',N'U') IS NULL
-BEGIN
- CREATE TABLE dbo.F03PayrollCalculationPeriods(
-  Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03PayrollCalculationPeriods PRIMARY KEY,
-  IsActive bit NOT NULL CONSTRAINT DF_F03PayrollPeriods_IsActive DEFAULT 1,
-  CreatedBy int NOT NULL CONSTRAINT DF_F03PayrollPeriods_CreatedBy DEFAULT 0,
-  CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03PayrollPeriods_CreatedAt DEFAULT GETDATE(),
-  ModifiedBy int NULL, ModifiedAt datetime2(0) NULL,
-  PeriodCode nvarchar(20) NOT NULL, FromDate date NOT NULL, ToDate date NOT NULL,
-  Status nvarchar(20) NOT NULL CONSTRAINT DF_F03PayrollPeriods_Status DEFAULT N'Open',
-  CalculatedAt datetime2(0) NULL, LockedAt datetime2(0) NULL, ExportedAt datetime2(0) NULL
- );
-END;
-GO
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03PayrollCalculationPeriods_PeriodCode' AND object_id=OBJECT_ID(N'dbo.F03PayrollCalculationPeriods'))
- CREATE UNIQUE INDEX UX_F03PayrollCalculationPeriods_PeriodCode ON dbo.F03PayrollCalculationPeriods(PeriodCode);
-GO
-IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03PayrollCalculationPeriods_Date')
- ALTER TABLE dbo.F03PayrollCalculationPeriods ADD CONSTRAINT CK_F03PayrollCalculationPeriods_Date CHECK(ToDate>=FromDate);
-GO
-IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03PayrollCalculationPeriods_Status')
- ALTER TABLE dbo.F03PayrollCalculationPeriods ADD CONSTRAINT CK_F03PayrollCalculationPeriods_Status CHECK(Status IN(N'Open',N'Calculated',N'Locked',N'Exported'));
-GO
-IF OBJECT_ID(N'dbo.F03PayrollInputs',N'U') IS NULL
-BEGIN
- CREATE TABLE dbo.F03PayrollInputs(
-  Id bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03PayrollInputs PRIMARY KEY,
-  IsActive bit NOT NULL CONSTRAINT DF_F03PayrollInputs_IsActive DEFAULT 1,
-  CreatedBy int NOT NULL CONSTRAINT DF_F03PayrollInputs_CreatedBy DEFAULT 0,
-  CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03PayrollInputs_CreatedAt DEFAULT GETDATE(),
-  ModifiedBy int NULL, ModifiedAt datetime2(0) NULL,
-  PayrollPeriodId int NOT NULL, EmployeeId int NOT NULL, WorkDate date NOT NULL,
-  WorkMinutes decimal(10,2) NOT NULL, LeaveTotal decimal(10,2) NOT NULL,
-  OTMinutes decimal(10,2) NOT NULL, Source nvarchar(30) NOT NULL DEFAULT N'HRM_CALCULATION',
-  SnapshotAt datetime2(0) NOT NULL DEFAULT GETDATE()
- );
-END;
-GO
-IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03PayrollInputs_PeriodEmployeeDate' AND object_id=OBJECT_ID(N'dbo.F03PayrollInputs'))
- CREATE UNIQUE INDEX UX_F03PayrollInputs_PeriodEmployeeDate ON dbo.F03PayrollInputs(PayrollPeriodId,EmployeeId,WorkDate);
-GO
-IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03PayrollInputs_Period')
- ALTER TABLE dbo.F03PayrollInputs ADD CONSTRAINT FK_F03PayrollInputs_Period FOREIGN KEY(PayrollPeriodId) REFERENCES dbo.F03PayrollCalculationPeriods(Id);
-GO
-/* Existing-installation compatibility MUST run before any index that references upgraded columns. */
 IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
 BEGIN
     IF COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'SourceType') IS NULL
@@ -572,29 +527,4 @@ GO
 PRINT N'GENERIC EXECUTION RECONCILIATION SCHEMA VERIFIED.';
 GO
 
-CREATE OR ALTER PROCEDURE dbo.usp_PreparePayrollPeriod
- @PeriodId int
-AS
-BEGIN
- SET NOCOUNT ON; SET XACT_ABORT ON;
- DECLARE @FromDate date,@ToDate date,@Status nvarchar(20);
- SELECT @FromDate=FromDate,@ToDate=ToDate,@Status=Status FROM dbo.F03PayrollCalculationPeriods WHERE Id=@PeriodId AND IsActive=1;
- IF @FromDate IS NULL THROW 52200,N'Không tìm thấy kỳ lương.',1;
- IF @Status IN(N'Locked',N'Exported') THROW 52201,N'Kỳ lương đã khóa/xuất, không được thay đổi.',1;
- BEGIN TRAN;
- DELETE FROM dbo.F03PayrollInputs WHERE PayrollPeriodId=@PeriodId;
- INSERT dbo.F03PayrollInputs(PayrollPeriodId,EmployeeId,WorkDate,WorkMinutes,LeaveTotal,OTMinutes,Source,SnapshotAt)
- SELECT @PeriodId,e.Id,a.WorkDate,
-        CAST(ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0) AS decimal(10,2)),
-        CAST(ISNULL(a.LeaveTotal,0) AS decimal(10,2)),
-        CAST(ISNULL(o.RecognizedOTMinutes,0) AS decimal(10,2)),
-        N'HRM_CALCULATION',GETDATE()
- FROM dbo.F03HrmAttendanceCalculated a
- INNER JOIN dbo.F03Employees e ON e.EmployeeCode=a.EmployeeCode
- LEFT JOIN dbo.F03HrmOTActual o ON o.HrmEmployeeId=a.HrmEmployeeId AND o.WorkDate=a.WorkDate
- WHERE a.WorkDate BETWEEN @FromDate AND @ToDate;
- UPDATE dbo.F03PayrollCalculationPeriods SET Status=N'Calculated',CalculatedAt=GETDATE() WHERE Id=@PeriodId;
- COMMIT;
- SELECT @PeriodId AS PeriodId,COUNT(*) AS InputRows FROM dbo.F03PayrollInputs WHERE PayrollPeriodId=@PeriodId;
-END;
-GO
+
