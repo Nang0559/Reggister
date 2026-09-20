@@ -3,9 +3,11 @@
 @using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.Leaves
 @using FVN_REGISTER.Shared.Utils.Helpers
+@using Microsoft.JSInterop
 @inherits AppComponentBase
 @inject IReportClientService ReportService
 @inject ISnackbar Snackbar
+@inject IJSRuntime JS
 
 <MudPaper Elevation="1" Class="pa-4 mb-4">
     <MudGrid>
@@ -146,7 +148,18 @@
         }
 
         var result = await ReportService.ExportExcelAsync(Query);
-        if (!result.IsSuccess) Snackbar.Add(result.Message ?? "Lỗi xuất Excel", Severity.Error);
+        if (!result.IsSuccess || result.Data == null)
+        {
+            Snackbar.Add(result.Message ?? "Lỗi xuất Excel", Severity.Error);
+            return;
+        }
+
+        var fileName = $"BaoCao_{ReportType}_{DateTime.Now:yyyyMMdd}.xlsx";
+        await JS.InvokeVoidAsync(
+            "fvnFileDownload.downloadBase64",
+            fileName,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            Convert.ToBase64String(result.Data));
     }
 
     private static List<ChartSeries<double>> MapToMudChartSeries(List<ReportChartSeries> backendSeries)
