@@ -81,10 +81,10 @@ public sealed class ExecutionController : BaseApiController
         [FromBody] ExecutionEvidenceRequest request,
         CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
-            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
+        if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh người dùng hợp lệ."));
 
-        var result = await _execution.AddEvidenceAsync(UserInfo.EmployeeCode, UserInfo.UserId.Value, confirmationId, request, ct);
+        var result = await _execution.AddEvidenceAsync(UserInfo.EmployeeCode, userId, confirmationId, request, ct);
         return Ok(ApiResponse<object>.Ok(result));
     }
 
