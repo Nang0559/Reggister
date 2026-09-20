@@ -1,5 +1,5 @@
 ﻿using FVN_REGISTER.Application.Interfaces.HrmSync;
-using FVN_REGISTER.Application.Services.HrmSync.ManualSync.BaseManuals;
+using FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.BaseManuals;
 using FVN_REGISTER.Core.Entities.HRM;
 using FVN_REGISTER.Core.Entities.Leaves;
 using FVN_REGISTER.Core.Repositories;
