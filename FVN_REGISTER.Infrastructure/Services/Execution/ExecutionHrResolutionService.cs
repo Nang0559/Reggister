@@ -16,6 +16,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
     private readonly IHrmAttendanceCalculationService _attendanceCalculation;
     private readonly IAuthorizationService _authorization;
     private readonly INotificationService _notificationService;
+    private readonly ILogger<ExecutionHrResolutionService> _logger;
     public const int HrExecutionReviewFunctionCode = FVN_REGISTER.Core.Constants.SecurityFunctionCodes.ExecutionReview;
 
     private readonly FVNWEBAPPContext _db;
@@ -24,12 +25,14 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         FVNWEBAPPContext db,
         IHrmAttendanceCalculationService attendanceCalculation,
         IAuthorizationService authorization,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        ILogger<ExecutionHrResolutionService> logger)
     {
         _db = db;
         _attendanceCalculation = attendanceCalculation;
         _authorization = authorization;
         _notificationService = notificationService;
+        _logger = logger;
     }
 
     public async Task<IReadOnlyList<ExecutionHrReviewItemDto>> GetPendingAsync(
@@ -116,6 +119,13 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         if (string.Equals(employeeCode, targetEmployeeCode, StringComparison.OrdinalIgnoreCase))
             throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException("HR không được review evidence của chính mình.");
 
+        var targetDeptCode = await _db.Employees.AsNoTracking()
+            .Where(x => x.EmployeeCode == targetEmployeeCode && x.IsActive != false)
+            .Select(x => x.DeptCode)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        await EnsureHrTargetScopeAsync(userId, targetEmployeeCode, targetDeptCode, cancellationToken);
+
         evidence.ReviewStatus = reviewStatus;
         evidence.ReviewedBy = userId;
         evidence.ReviewedAt = DateTime.Now;
@@ -161,9 +171,11 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                 note,
                 cancellationToken);
         }
-        catch
+        catch (Exception ex)
         {
-            // Evidence review remains committed even if realtime notification delivery fails.
+            _logger.LogError(ex,
+                "Execution evidence review notification failed for ReconciliationId={ReconciliationId}, EvidenceId={EvidenceId}.",
+                reconciliation.Id, evidenceId);
         }
 
         return new ExecutionEvidenceDto(
@@ -187,7 +199,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         ExecutionHrResolutionRequest request,
         CancellationToken cancellationToken = default)
     {
-        await EnsureHrPermissionAsync(userId, cancellationToken);
+        await EnsureHrPermissionAsync(userId, requireAllScope: false, cancellationToken);
 
         var decision = NormalizeDecision(request.Decision);
         var calendarAction = NormalizeCalendarAction(request.CalendarAction);
@@ -224,6 +236,8 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         if (string.Equals(employee.EmployeeCode, employeeCode, StringComparison.OrdinalIgnoreCase))
             throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException("HR không được tự giải quyết phản hồi của chính mình.");
 
+        await EnsureHrTargetScopeAsync(userId, employee.EmployeeCode, employee.DeptCode, cancellationToken);
+
         var confirmation = reconciliation.ConfirmationId.HasValue
             ? await _db.ExecutionConfirmations.FirstOrDefaultAsync(
                 x => x.Id == reconciliation.ConfirmationId.Value && x.IsActive != false,
@@ -252,7 +266,8 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             }
 
             confirmation.Status = decision == "OK" ? "Approved" : "Rejected";
-            confirmation.Decision = decision == "OK" ? "USER_CORRECT" : "USER_NOT_CORRECT";
+            // Confirmation.Decision belongs to the employee. HR's decision is
+            // stored in F03ExecutionResolutions and must never overwrite it.
             confirmation.ReviewedBy = userId;
             confirmation.ReviewedAt = now;
             confirmation.ReviewNote = reason;
@@ -406,9 +421,11 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                 resolution.Id,
                 cancellationToken);
         }
-        catch
+        catch (Exception ex)
         {
-            // Resolution is authoritative; notification delivery must not roll it back.
+            _logger.LogError(ex,
+                "Execution HR resolution notification failed for ReconciliationId={ReconciliationId}, ResolutionId={ResolutionId}.",
+                reconciliation.Id, resolution.Id);
         }
 
         return new ExecutionHrResolutionDto(
@@ -501,9 +518,41 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             ActionId = reconciliation.ActionId,
             Metadata = JsonSerializer.Serialize(new { reconciliation.Id, reviewStatus, note }),
             NotificationType = "EXECUTION_EVIDENCE_REVIEW",
-            IsRead = false,
             IsHighPriority = reviewStatus != "Approved"
         }, cancellationToken);
+    }
+
+    private async Task EnsureHrTargetScopeAsync(
+        int userId,
+        string targetEmployeeCode,
+        string? targetDeptCode,
+        CancellationToken cancellationToken)
+    {
+        var actor = await _db.Users.AsNoTracking()
+            .Where(x => x.Id == userId && x.IsActive != false)
+            .Select(x => new UserIdentityDto
+            {
+                UserId = x.Id,
+                EmployeeCode = x.EmployeeCode,
+                DeptCode = x.DeptCode,
+                Permission = x.PermissionCode,
+                FullName = x.FullName,
+                LevelApprove = x.LevelApprove,
+                IsLoggedIn = true
+            })
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? throw new UnauthorizedAccessException("Tài khoản HR không tồn tại.");
+
+        if (!await _authorization.CanAccessAsync(
+                actor,
+                HrExecutionReviewFunctionCode,
+                targetEmployeeCode,
+                targetDeptCode,
+                cancellationToken))
+        {
+            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                $"HR không có scope xử lý nhân viên {targetEmployeeCode}.");
+        }
     }
 
     private async Task<int> ResolveActorEmployeeIdAsync(
@@ -540,14 +589,15 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             "LEAVE" => RequestModule.Leave,
             "TRIP" => RequestModule.Trip,
             "ATTENDANCE" => RequestModule.Attendance,
-            _ => RequestModule.Leave
+            _ => throw new InvalidOperationException(
+                $"Không có mapping Notification Module cho Execution ModuleCode '{reconciliation.ModuleCode}'.")
         };
 
         await _notificationService.CreateAsync(new FVN_REGISTER.Contract.Dtos.Notifications.CreateNotificationDto
         {
             UserId = user.Id,
             EmployeeCode = user.EmployeeCode,
-            RequestModule = module,
+            Module = module,
             Action = decision == "OK" ? NotificationAction.Approved : NotificationAction.Rejected,
             Title = decision == "OK"
                 ? "Phản hồi đã được Nhân sự xác nhận"
@@ -564,7 +614,6 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                 Reason = reason
             }),
             NotificationType = "EXECUTION_HR_RESOLUTION",
-            IsRead = false,
             IsHighPriority = decision == "NG"
         }, cancellationToken);
     }
