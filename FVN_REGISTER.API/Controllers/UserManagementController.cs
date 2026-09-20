@@ -134,9 +134,12 @@ public class UserManagementController : BaseApiController
             return BadRequest(ApiResponse<object>.Fail(
                 "Dữ liệu không hợp lệ."));
 
+        var user = UserInfo;
+        if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+
         return HandleResult(
             await _userMgt.ResetPasswordAsync(
-                id, request.NewPassword, UserInfo!.UserId, ct));
+                id, request.NewPassword, user.UserId, ct));
     }
 
     private async Task<bool> CanAsync(int functionCode, CancellationToken ct)
