@@ -21,6 +21,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         int userId,
         DateOnly from,
         DateOnly to,
+        IReadOnlySet<string>? allowedModules = null,
         CancellationToken cancellationToken = default)
     {
         if (from > to)
@@ -33,7 +34,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy nhân viên của tài khoản hiện tại.");
 
-        var context = new CalendarContext(employeeId, userId, from, to);
+        var context = new CalendarContext(employeeId, userId, from, to, allowedModules);
 
         var policies = await _db.CalendarModulePolicies
             .AsNoTracking()
@@ -41,7 +42,8 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             .ToDictionaryAsync(x => x.ModuleCode, StringComparer.OrdinalIgnoreCase, cancellationToken);
 
         var tasks = _registry.Providers
-            .Where(x => policies.ContainsKey(x.ModuleCode))
+            .Where(x => policies.ContainsKey(x.ModuleCode)
+                && (allowedModules is null || allowedModules.Contains(x.ModuleCode)))
             .Select(x => x.GetItemsAsync(context, cancellationToken));
 
         var results = await Task.WhenAll(tasks);
@@ -91,7 +93,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         DateOnly to,
         CancellationToken cancellationToken = default)
     {
-        var result = await GetMonthAsync(employeeCode, userId, from, to, cancellationToken);
+        var result = await GetMonthAsync(employeeCode, userId, from, to, allowedModules, cancellationToken);
         return result.Alerts;
     }
 }
