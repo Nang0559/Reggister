@@ -13,9 +13,10 @@ public sealed class PayrollInputService : IPayrollInputService
 
     public async Task<PayrollPeriodDto> GetOrCreateCurrentPeriodAsync(int actorUserId, CancellationToken ct = default)
     {
-        var row = await _db.Database.SqlQueryRaw<F03PayrollCalculationPeriod>(
-            "EXEC dbo.usp_EnsurePayrollPeriod @AsOfDate={0}, @ActorUserId={1}",
-            DateTime.Today, actorUserId).FirstOrDefaultAsync(ct);
+        var row = await _db.PayrollCalculationPeriods
+            .FromSqlInterpolated($"EXEC dbo.usp_EnsurePayrollPeriod @AsOfDate={DateTime.Today}, @ActorUserId={actorUserId}")
+            .AsNoTracking()
+            .FirstOrDefaultAsync(ct);
 
         return row is null
             ? throw new InvalidOperationException("Không thể tạo/xác định kỳ lương hiện tại.")
