@@ -212,6 +212,48 @@ IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03ExecutionR
         CHECK (CalendarAction IN (N'KEEP',N'REFRESH',N'CANCEL'));
 GO
 
+IF OBJECT_ID(N'dbo.F03ExecutionCorrections',N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.F03ExecutionCorrections
+    (
+        Id bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03ExecutionCorrections PRIMARY KEY,
+        IsActive bit NOT NULL CONSTRAINT DF_F03ExecutionCorrections_IsActive DEFAULT 1,
+        CreatedBy int NOT NULL CONSTRAINT DF_F03ExecutionCorrections_CreatedBy DEFAULT 0,
+        CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03ExecutionCorrections_CreatedAt DEFAULT GETDATE(),
+        ModifiedBy int NULL,
+        ModifiedAt datetime2(0) NULL,
+        LastModifiedSource nvarchar(50) NULL,
+        ReconciliationId bigint NOT NULL,
+        ResolutionId bigint NOT NULL,
+        ModuleCode nvarchar(50) NOT NULL,
+        CorrectionType nvarchar(50) NOT NULL,
+        EmployeeId int NOT NULL,
+        WorkDate date NOT NULL,
+        Status nvarchar(30) NOT NULL CONSTRAINT DF_F03ExecutionCorrections_Status DEFAULT N'Pending',
+        RequestedState nvarchar(100) NULL,
+        AppliedState nvarchar(100) NULL,
+        AppliedAt datetime2(0) NULL,
+        AppliedBy int NULL,
+        Reason nvarchar(2000) NULL
+    );
+END;
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03ExecutionCorrections_Resolution' AND object_id=OBJECT_ID(N'dbo.F03ExecutionCorrections'))
+    CREATE UNIQUE INDEX UX_F03ExecutionCorrections_Resolution ON dbo.F03ExecutionCorrections(ResolutionId);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03ExecutionCorrections_EmployeeDate' AND object_id=OBJECT_ID(N'dbo.F03ExecutionCorrections'))
+    CREATE INDEX IX_F03ExecutionCorrections_EmployeeDate ON dbo.F03ExecutionCorrections(EmployeeId,WorkDate,ModuleCode,Status);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionCorrections_Reconciliation')
+    ALTER TABLE dbo.F03ExecutionCorrections ADD CONSTRAINT FK_F03ExecutionCorrections_Reconciliation FOREIGN KEY(ReconciliationId) REFERENCES dbo.F03ExecutionReconciliations(Id);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionCorrections_Resolution')
+    ALTER TABLE dbo.F03ExecutionCorrections ADD CONSTRAINT FK_F03ExecutionCorrections_Resolution FOREIGN KEY(ResolutionId) REFERENCES dbo.F03ExecutionResolutions(Id);
+GO
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03ExecutionCorrections_Status')
+    ALTER TABLE dbo.F03ExecutionCorrections ADD CONSTRAINT CK_F03ExecutionCorrections_Status CHECK(Status IN(N'Pending',N'Applied',N'Failed',N'Cancelled'));
+GO
+
 /* HR execution-review permission. 2107 is intentionally separate from OT/Leave user actions. */
 IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2107)
 BEGIN
