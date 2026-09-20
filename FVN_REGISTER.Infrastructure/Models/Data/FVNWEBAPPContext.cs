@@ -36,6 +36,19 @@ public class FVNWEBAPPContext : DbContext
         modelBuilder.Entity<VwShiftCheckInOut>(entity => { entity.HasNoKey(); entity.ToView("VwShiftCheckInOut"); });
 
 
+        modelBuilder.Entity<F03OTLimitRule>(entity =>
+        {
+            // dbo.F03OTLimitRules stores LimitType as nvarchar (e.g. Monthly, Yearly, Special),
+            // while the domain model exposes OTLimitType as an enum.
+            // Explicit conversion prevents EF from materializing the string column as Int32.
+            entity.Property(x => x.LimitType)
+                .HasConversion<string>()
+                .HasMaxLength(40);
+
+            entity.Property(x => x.ScopeType)
+                .HasConversion<int>();
+        });
+
         modelBuilder.Entity<F03Position>(entity =>
         {
             entity.HasKey(x => x.Id);
