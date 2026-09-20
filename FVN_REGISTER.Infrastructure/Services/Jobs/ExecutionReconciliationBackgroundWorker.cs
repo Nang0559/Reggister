@@ -102,9 +102,12 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
             var planned = row.OTHours;
             var actual = row.ActualHours;
 
+            // The current day is not a mismatch merely because HRM has not
+            // produced ActualHours yet. Reconcile it after the execution window closes.
+            var workDate = DateOnly.FromDateTime(row.OTDate);
             var status = actual.HasValue
                 ? Math.Abs(actual.Value - planned) <= 0.1m ? "Matched" : "Mismatch"
-                : "Mismatch";
+                : workDate < DateOnly.FromDateTime(DateTime.Today) ? "Mismatch" : "None";
 
             var actualState = actual.HasValue
                 ? $"ActualHours={actual.Value:0.##}"
@@ -118,7 +121,7 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                     $"{row.OTCode}:{row.EmployeeCode}",
                     row.EmployeeCode,
                     await ResolveEmployeeIdAsync(db, row.EmployeeCode, ct),
-                    DateOnly.FromDateTime(row.OTDate),
+                    workDate,
                     $"ApprovedHours={planned:0.##}",
                     actualState,
                     status,
@@ -134,7 +137,9 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                         row.ActualStartTime,
                         row.ActualEndTime
                     })),
-                ct);
+                ct,
+                actorUserId: 0);
+            db.ChangeTracker.Clear();
         }
     }
 
@@ -171,10 +176,23 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                 ? to.ToDateTime(TimeOnly.MaxValue)
                 : row.EndDate);
 
-            var employeeId = await ResolveEmployeeIdAsync(db, row.EmployeeCode, ct);
+            int employeeId;
+            try
+            {
+                employeeId = await ResolveEmployeeIdAsync(db, row.EmployeeCode, ct);
+            }
+            catch (Exception ex)
+            {
+                // One stale/deleted employee must not block the remaining reconciliation rows.
+                Console.WriteLine($"Execution reconciliation skipped Leave {row.Id}/{row.EmployeeCode}: {ex.Message}");
+                db.ChangeTracker.Clear();
+                continue;
+            }
 
             for (var date = start; date <= end; date = date.AddDays(1))
             {
+                try
+                {
                 var attendance = await db.VF03EmployeeAttendances.AsNoTracking()
                     .Where(x => x.EmployeeId == row.EmployeeCode && x.Date == date)
                     .Select(x => new { x.CheckInTime, x.CheckOutTime })
@@ -208,7 +226,18 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                             WorkDate = date,
                             Attendance = attendance
                         })),
-                    ct);
+                    ct,
+                    actorUserId: 0);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Execution reconciliation skipped Leave {row.Id}/{date:yyyy-MM-dd}: {ex.Message}");
+                    db.ChangeTracker.Clear();
+                }
+                finally
+                {
+                    db.ChangeTracker.Clear();
+                }
             }
         }
     }
@@ -237,30 +266,11 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
             })
             .ToListAsync(ct);
 
-        var hasTripActual = await db.Database.SqlQuery<int>(
-            $"SELECT CASE WHEN OBJECT_ID(N'dbo.F03TripActual', N'U') IS NULL THEN 0 ELSE 1 END AS [Value]")
-            .SingleAsync(ct) == 1;
-
         foreach (var row in requests)
         {
-            var employeeId = await ResolveEmployeeIdAsync(db, row.EmployeeCode, ct);
-
-            if (!hasTripActual)
+            try
             {
-                await service.UpsertAsync(
-                    row.EmployeeCode,
-                    new ExecutionReconciliationUpsertRequest(
-                        "TRIP",
-                        "TRIP_REQUEST",
-                        row.TripCode,
-                        null,
-                        employeeId,
-                        DateOnly.FromDateTime(row.StartDate),
-                        "Approved",
-                        "NOT_TRACKED",
-                        "Mismatch",
-                        true,
-                        true,
+            var employeeId = await ResolveEmployeeIdAsync(db, row.EmployeeCode, ct);
                         JsonSerializer.Serialize(new
                         {
                             row.Id,
@@ -281,7 +291,13 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                 .ToListAsync(ct);
 
             var actual = actualRows.FirstOrDefault();
-            var status = actual is null ? "Mismatch" : "Matched";
+            var endDate = DateOnly.FromDateTime(row.EndDate);
+            var workDate = DateOnly.FromDateTime(row.StartDate);
+            var status = actual is null
+                ? endDate < DateOnly.FromDateTime(DateTime.Today) ? "Mismatch" : "None"
+                : string.Equals(actual.Status, "Completed", StringComparison.OrdinalIgnoreCase)
+                    ? "Matched"
+                    : endDate < DateOnly.FromDateTime(DateTime.Today) ? "Mismatch" : "None";
 
             await service.UpsertAsync(
                 row.EmployeeCode,
@@ -304,7 +320,17 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                         row.EmployeeCode,
                         Actual = actual
                     })),
-                ct);
+                ct,
+                actorUserId: 0);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Execution reconciliation skipped Trip {row.Id}/{row.EmployeeCode}: {ex.Message}");
+            }
+            finally
+            {
+                db.ChangeTracker.Clear();
+            }
         }
     }
 
@@ -314,7 +340,7 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
         CancellationToken ct) =>
         db.Employees.AsNoTracking()
             .Where(x => x.IsActive != false && x.EmployeeCode == employeeCode)
-            .Select(x => (int?)x.Id)
+            .Select(x => x.Id)
             .SingleAsync(ct);
 
     private sealed class TripActualWorkerRow
