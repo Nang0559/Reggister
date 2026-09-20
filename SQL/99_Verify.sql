@@ -296,3 +296,14 @@ PRINT N'Shared Execution / Calendar / Action verification passed.';
 PRINT N'Work Calendar / Annual Leave verification passed.';
 PRINT N'99_Verify: PASS';
 GO
+
+
+/* Trip execution source-of-truth verification. */
+IF OBJECT_ID(N'dbo.F03TripActual',N'U') IS NULL
+    THROW 53030, N'Missing F03TripActual.', 1;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03TripActual_TripRequest' AND object_id=OBJECT_ID(N'dbo.F03TripActual'))
+    THROW 53031, N'Missing unique TripRequestId index on F03TripActual.', 1;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03TripActual_TripRequest')
+    THROW 53032, N'F03TripActual must reference F03TripRequests.', 1;
+PRINT N'F03TripActual verification completed.';
+GO
