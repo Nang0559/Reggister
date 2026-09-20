@@ -48,6 +48,7 @@ BEGIN
         CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03ExecutionReconciliations_CreatedAt DEFAULT GETDATE(),
         ModifiedBy int NULL,
         ModifiedAt datetime2(0) NULL,
+        LastModifiedSource nvarchar(50) NULL,
 
         ModuleCode nvarchar(50) NOT NULL,
         SourceType nvarchar(50) NOT NULL CONSTRAINT DF_F03ExecutionReconciliations_SourceType DEFAULT N'MODULE',
@@ -86,6 +87,7 @@ BEGIN
         CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03ExecutionConfirmations_CreatedAt DEFAULT GETDATE(),
         ModifiedBy int NULL,
         ModifiedAt datetime2(0) NULL,
+        LastModifiedSource nvarchar(50) NULL,
 
         ReconciliationId bigint NOT NULL,
         ModuleCode nvarchar(50) NOT NULL,
@@ -121,6 +123,7 @@ BEGIN
         CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03ExecutionConfirmationEvidence_CreatedAt DEFAULT GETDATE(),
         ModifiedBy int NULL,
         ModifiedAt datetime2(0) NULL,
+        LastModifiedSource nvarchar(50) NULL,
 
         ConfirmationId bigint NOT NULL,
         EvidenceType nvarchar(50) NOT NULL,
@@ -290,4 +293,30 @@ AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03ExecutionReconcilia
 GO
 
 PRINT N'29_EXECUTION_RECONCILIATION canonical source identity and shared references completed.';
+GO
+
+
+/* 28 runs before this file on a new database; execution-specific checks therefore live here. */
+IF OBJECT_ID(N'dbo.F03ExecutionPolicies',N'U') IS NULL THROW 52029, N'Missing F03ExecutionPolicies', 1;
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NULL THROW 52029, N'Missing F03ExecutionReconciliations', 1;
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NULL THROW 52029, N'Missing F03ExecutionConfirmations', 1;
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmationEvidence',N'U') IS NULL THROW 52029, N'Missing F03ExecutionConfirmationEvidence', 1;
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliationHistory',N'U') IS NULL THROW 52029, N'Missing F03ExecutionReconciliationHistory', 1;
+
+IF COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'LastModifiedSource') IS NULL THROW 52040, N'Missing F03ExecutionReconciliations.LastModifiedSource', 1;
+IF COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'LastModifiedSource') IS NULL THROW 52041, N'Missing F03ExecutionConfirmations.LastModifiedSource', 1;
+IF COL_LENGTH(N'dbo.F03ExecutionConfirmationEvidence',N'LastModifiedSource') IS NULL THROW 52042, N'Missing F03ExecutionConfirmationEvidence.LastModifiedSource', 1;
+
+IF COL_LENGTH(N'dbo.F03CalendarProjection',N'SourceType') IS NULL THROW 52030, N'Missing F03CalendarProjection.SourceType', 1;
+IF COL_LENGTH(N'dbo.F03CalendarProjection',N'ParticipantId') IS NULL THROW 52031, N'Missing F03CalendarProjection.ParticipantId', 1;
+IF COL_LENGTH(N'dbo.F03ActionItems',N'SourceType') IS NULL THROW 52032, N'Missing F03ActionItems.SourceType', 1;
+IF COL_LENGTH(N'dbo.F03ActionItems',N'ParticipantId') IS NULL THROW 52033, N'Missing F03ActionItems.ParticipantId', 1;
+IF COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'SourceType') IS NULL THROW 52034, N'Missing F03ExecutionReconciliations.SourceType', 1;
+IF COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'ParticipantId') IS NULL THROW 52035, N'Missing F03ExecutionReconciliations.ParticipantId', 1;
+IF COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'SourceType') IS NULL THROW 52036, N'Missing F03ExecutionConfirmations.SourceType', 1;
+IF COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'ParticipantId') IS NULL THROW 52037, N'Missing F03ExecutionConfirmations.ParticipantId', 1;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionEvidence_Attachment') THROW 52038, N'Execution evidence must reference F03Attachment.', 1;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionReconciliations_Action') THROW 52039, N'Execution reconciliation must reference shared ActionItem.', 1;
+
+PRINT N'GENERIC EXECUTION RECONCILIATION SCHEMA VERIFIED.';
 GO
