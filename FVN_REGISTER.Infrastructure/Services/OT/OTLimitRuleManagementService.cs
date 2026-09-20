@@ -234,11 +234,6 @@ public sealed class OTLimitRuleManagementService : BaseService<OTLimitRuleManage
         switch (model.ScopeType)
         {
             case OTLimitScopeType.Employee:
-                if (string.IsNullOrWhiteSpace(model.EmployeeCode)
-                    && string.IsNullOrWhiteSpace(model.DeptCode)
-                    && string.IsNullOrWhiteSpace(model.PositionCode))
-                    return "Phạm vi Nhân viên phải có mã nhân viên, phòng ban hoặc vị trí.";
-
                 if (!string.IsNullOrWhiteSpace(model.EmployeeCode))
                 {
                     var employeeExists = await _uow.Repository<F03Employee>().Query()
