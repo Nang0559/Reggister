@@ -159,6 +159,19 @@ public sealed class ActionItemService : IActionItemService
             or ActionItemStatus.Cancelled)
             return false;
 
+        // Execution actions may only close after their reconciliation lifecycle
+        // has reached Resolved. This keeps Action as workflow state, not a
+        // bypass around confirmation/reconciliation.
+        var reconciliation = await _db.ExecutionReconciliations
+            .AsNoTracking()
+            .Where(x => x.IsActive != false && x.ActionId == entity.ActionId)
+            .Select(x => new { x.ReconciliationStatus })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (reconciliation is not null
+            && !string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
+            return false;
+
         entity.Status = target;
 
         if (target == ActionItemStatus.Completed)
