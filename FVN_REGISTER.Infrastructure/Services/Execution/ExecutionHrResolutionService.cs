@@ -67,10 +67,10 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                     r.PlannedState, r.ActualState, r.ReconciliationStatus,
                     r.RequiresConfirmation, r.RequiresEvidence, r.ConfirmationId,
                     r.ActionId, r.ResolvedAt))
-            .Take(500)
             .OrderBy(x => x.WorkDate)
             .ThenBy(x => x.ModuleCode)
             .ThenBy(x => x.EmployeeCode)
+            .Take(500)
             .ToListAsync(cancellationToken);
     }
 
