@@ -24,7 +24,7 @@ using MudBlazor.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddRazorComponents().AddInteractiveServerComponents();
-builder.Services.AddMudServices();
+builder.Services.AddMudServices(config =>\n{\n    config.SnackbarConfiguration.PositionClass = Defaults.Classes.Position.BottomRight;\n    config.SnackbarConfiguration.MaxDisplayedSnackbars = 4;\n    config.SnackbarConfiguration.PreventDuplicates = true;\n});
 builder.Services.AddBlazoredLocalStorage();
 builder.Services.Configure<AuthDebugOptions>(builder.Configuration.GetSection("AuthDebug"));
 builder.Services.AddAuthentication(options => options.DefaultScheme = "Cookies").AddCookie("Cookies", options => { options.LoginPath = "/login"; options.AccessDeniedPath = "/access-denied"; });
