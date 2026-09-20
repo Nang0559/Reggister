@@ -87,7 +87,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Notifications
                     ApprovalLevel = x.ApprovalLevel,
                     ActionUrl = x.ActionUrl ?? string.Empty,
                     IsRead = x.IsRead,
-                    CreatedAt = x.CreatedAt
+                    CreatedAt = x.CreatedAt,
+                    ActionId = x.ActionId
                 })
                 .ToListAsync(ct);
         }
