@@ -108,6 +108,9 @@ Tạo một contract duy nhất cho toàn hệ thống. Không sửa business t�
 | P0-006 | Xác nhận Trip/OT UI gọi route preview và render selector | UI | 🟠 NEED VERIFY |
 | P0-007 | Xác nhận guide không mô tả chức năng chưa expose ở UI | `MÔ HÌNH/16_USER_GUIDE.md` | 🟠 NEED VERIFY |
 | P0-008 | Xác nhận toàn bộ legacy approval objects/columns/service/data-source/DI đã bị loại bỏ hoặc không còn được runtime sử dụng | SQL + code + DI | 🟢 SQL DONE / 🟠 RUNTIME VERIFY |
+| P0-009 | History/Cancel không được đọc hoặc ghi F03ApprovalSteps; phải dùng Snapshot + ApprovalHistory | BaseHistoryHandler + ApprovalEngine | 🟢 FIXED / 🟠 BUILD VERIFY |
+| P0-010 | History detail Leave/OT không được NotImplementedException | LeaveHistoryHandler + OTHistoryHandler | 🟢 FIXED / 🟠 BUILD VERIFY |
+| P0-011 | History phải có handler runtime cho Leave/OT/Trip/Equipment | HistoryDispatcher + handlers + DI | 🟢 FIXED / 🟠 BUILD VERIFY |
 
 ## 0.3 Deliverables
 
@@ -781,6 +784,7 @@ Các mục cần tiếp tục trước Phase 1:
 
 - Runtime verification của ApprovalSelection → Snapshot → ApprovalEngine.
 - Runtime verification Trip/OT UI.
+- Build verification sau History/Cancel migration và 4-module History registration.
 - Full User Guide certification.
 - Legacy object/code/DI search ở toàn bộ runtime, đặc biệt pending-list legacy abstractions.
 - Sau khi Phase 0 evidence đủ: chuyển Phase 1 và chạy full restore/build/test.
@@ -799,3 +803,21 @@ Các mục cần tiếp tục trước Phase 1:
 - Cập nhật comment của `IApprovalInboxService` để không còn mô tả một `ApprovalListService` generic đã bị loại bỏ.
 
 **Commits:** `5e94e8136b6ca86d367ac97ed2ec3d0775d1eab0`, `f2fb10de6efe8753d3b56cfdf24a2f3552f8750b`, `b14cd5c07553489bf97f6f1a3e800ade7ad4297a`, `f4213418af8dcc5a1b2b561e13bf7d66a8464184`, `c50eda061f40a8caec2780e19536cb89f00ab5ae`.
+
+
+### Phase 0 Evidence Update — History / Cancel canonicalization
+
+Đã xác nhận BaseHistoryHandler<TRequest> trước đây đọc trực tiếp Db.ApprovalSteps (F03ApprovalSteps) cho cả History timeline và Cancel. Đây là legacy branch, không còn phù hợp với pipeline Selection → Snapshot → ApprovalEngine.
+
+Đã sửa:
+
+- History timeline chuyển sang F03ApprovalSnapshots + F03ApprovalStepSnapshots + F03ApprovalHistories, dùng chung ApprovalStepMapper với ApprovalEngine.
+- CancelAsync không còn mutate F03ApprovalSteps. Cancellation được biểu diễn bởi trạng thái request; snapshot approval steps giữ immutable contract.
+- ApprovalEngine.GetPendingForApproverAsync bổ sung kiểm tra subject.OverallStatus, loại request đã Cancelled/Approved/Rejected khỏi pending inbox ngay cả khi snapshot còn step Pending.
+- LeaveHistoryHandler.GetDetailAsync đã implement.
+- OTHistoryHandler.GetDetailAsync đã implement.
+- Bổ sung TripHistoryHandler và EquipmentHistoryHandler.
+- Đăng ký đủ 4 handlers trong DI.
+- HistoryController chấp nhận leave, ot, trip, equipment.
+
+**Important:** chưa đánh dấu Phase 0 DONE. Cần Phase 1 build/runtime evidence để xác nhận các thay đổi compile và endpoint/UI contract hoạt động thực tế.
