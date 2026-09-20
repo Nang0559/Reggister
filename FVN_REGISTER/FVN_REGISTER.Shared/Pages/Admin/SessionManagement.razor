@@ -1,0 +1,86 @@
+@page "/admin/sessions"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Authentication
+@using FVN_REGISTER.Shared.Services.Users
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IAuthClientService AuthService
+@inject ISnackbar Snackbar
+
+<PageTitle>Thiết bị & phiên đăng nhập</PageTitle>
+
+<MudStack Spacing="3">
+    <MudStack Row="true" AlignItems="AlignItems.Center">
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight:800">Thiết bị & phiên đăng nhập</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Xem và đăng xuất các thiết bị đang sử dụng tài khoản này.</MudText>
+        </div>
+        <MudSpacer />
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="_loading">Làm mới</MudButton>
+    </MudStack>
+
+    @if (_error != null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
+
+    <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
+        @if (_loading) { <MudProgressLinear Indeterminate="true" /> }
+        else if (_sessions.Count == 0) { <MudAlert Severity="Severity.Info">Không có phiên đăng nhập đang hoạt động.</MudAlert> }
+        else
+        {
+            <MudTable Items="_sessions" Hover="true" Dense="true" Striped="true">
+                <HeaderContent>
+                    <MudTh>Thiết bị</MudTh><MudTh>Loại</MudTh><MudTh>Đăng nhập</MudTh>
+                    <MudTh>Hoạt động cuối</MudTh><MudTh>Trạng thái</MudTh><MudTh></MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd><b>@context.DeviceName</b></MudTd>
+                    <MudTd>@context.DeviceType</MudTd>
+                    <MudTd>@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
+                    <MudTd>@(context.LastSeenAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—")</MudTd>
+                    <MudTd>
+                        @if (context.IsCurrent) { <MudChip T="string" Size="Size.Small" Color="Color.Success">Thiết bị hiện tại</MudChip> }
+                        else { <MudChip T="string" Size="Size.Small">Đang hoạt động</MudChip> }
+                    </MudTd>
+                    <MudTd Align="Align.Right">
+                        <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                                   Disabled="context.IsCurrent || _revokingId == context.Id"
+                                   OnClick="@(() => RevokeAsync(context))">Đăng xuất</MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+    </MudPaper>
+</MudStack>
+
+@code {
+    private List<SessionDto> _sessions = new();
+    private bool _loading;
+    private int? _revokingId;
+    private string? _error;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        _loading = true; _error = null;
+        try
+        {
+            var result = await AuthService.GetSessionsAsync();
+            if (!result.IsSuccess) { _error = result.Message ?? "Không tải được danh sách phiên đăng nhập."; return; }
+            _sessions = result.Data ?? new();
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task RevokeAsync(SessionDto session)
+    {
+        _revokingId = session.Id;
+        try
+        {
+            var result = await AuthService.RevokeSessionAsync(session.Id);
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể đăng xuất thiết bị.", Severity.Error); return; }
+            _sessions.RemoveAll(x => x.Id == session.Id);
+            Snackbar.Add($"Đã đăng xuất thiết bị {session.DeviceName}.", Severity.Success);
+        }
+        finally { _revokingId = null; }
+    }
+}
