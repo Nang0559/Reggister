@@ -18,7 +18,7 @@ public sealed class F03OTLimitRuleConfiguration : IEntityTypeConfiguration<F03OT
             .HasMaxLength(20)
             .IsRequired();
 
-        entity.Property(e => e.ScopeType).HasConversion<string>().HasMaxLength(20).HasDefaultValue(OTLimitScopeType.Employee);
+        entity.Property(e => e.ScopeType).HasConversion<int>().HasDefaultValue((int)OTLimitScopeType.Employee);
         entity.Property(e => e.ScopeCode).HasMaxLength(50);
         entity.Property(e => e.EmployeeCode).HasMaxLength(50);
         entity.Property(e => e.PositionCode).HasMaxLength(20);
