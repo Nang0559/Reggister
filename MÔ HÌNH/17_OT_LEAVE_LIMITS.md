@@ -131,3 +131,17 @@ Sau ConfirmedNotWorked hoặc AutoConfirmedNotWorked, effective OT của employe
 ## 10. Không ảnh hưởng participant khác
 
 Mọi command/recalculation liên quan revision phải có phạm vi: OTMasterId + ParticipantId/EmployeeId + RevisionId. Không được dùng OTMasterId đơn độc để cập nhật ActualHours, effective OT hoặc calendar của tất cả nhân viên.
+
+
+## 11. Shared Calendar policy
+
+OT và Leave cùng tham gia Work Calendar nhưng không được hard-code presentation trong từng module.
+
+- OT đăng ký Calendar Provider với reconciliation ApprovedVsActual/PlannedVsActual theo policy.
+- Leave đăng ký Calendar Provider với trạng thái Approved/Used hoặc policy khác.
+- Trip dùng cùng framework nếu được Admin bật.
+- Module mới có thể tham gia bằng provider/definition mà không sửa calendar aggregator.
+
+Admin quyết định IsEnabled, DisplayMode, NoteMode, ConfirmationMode, ReconciliationMode và Priority.
+
+Calendar chỉ là read projection. Hạn mức OT/Leave vẫn do validator/service của module quyết định; Calendar policy không thay đổi quota.
