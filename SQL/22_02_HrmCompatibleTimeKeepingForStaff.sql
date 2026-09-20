@@ -2,6 +2,14 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 	@StaffID int,	
 	@D Datetime
  AS
+BEGIN
+    SET NOCOUNT ON;
+
+    -- This is the proven HRM-compatible calculation engine.
+    -- Keep its calculation rules unchanged. Both manual and background
+    -- orchestration call this procedure through usp_CalculateHrmAttendance.
+    SET @D = CONVERT(date, @D);
+
 	CREATE TABLE #tblBaoCao ([BCNgay] [datetime] NOT NULL,
 	[BCDay] [int] NULL,
 	[BCMonth] [int] NULL,
