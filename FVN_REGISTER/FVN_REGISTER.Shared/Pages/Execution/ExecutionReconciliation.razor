@@ -55,7 +55,16 @@
                     }
                     else if (context.ConfirmationId != null)
                     {
-                        <MudChip T="string" Size="Size.Small" Color="Color.Info">Đã gửi xác nhận</MudChip>
+                        <MudStack Row="true" Spacing="1">
+                            <MudChip T="string" Size="Size.Small" Color="Color.Info">Đã gửi xác nhận</MudChip>
+                            @if (context.RequiresEvidence)
+                            {
+                                <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning"
+                                           OnClick="@(() => OpenEvidenceAsync(context))">
+                                    Bổ sung evidence
+                                </MudButton>
+                            }
+                        </MudStack>
                     }
                 </MudTd>
             </RowTemplate>
@@ -80,6 +89,24 @@
         </MudPaper>
     }
 
+    @if (_evidenceOpen && _selected is not null)
+    {
+        <MudPaper Outlined="true" Class="pa-4 mt-4">
+            <MudText Typo="Typo.h6">Bổ sung evidence</MudText>
+            <MudText Typo="Typo.body2" Class="mb-2">
+                @_selected.ModuleCode / @_selected.SourceId — có thể dùng mã tham chiếu hoặc URL chứng từ.
+            </MudText>
+            <MudTextField @bind-Value="_evidenceType" Label="Loại evidence" Variant="Variant.Outlined" Required="true" />
+            <MudTextField @bind-Value="_referenceNo" Label="Số tham chiếu" Variant="Variant.Outlined" Class="mt-2" />
+            <MudTextField @bind-Value="_externalUrl" Label="URL chứng từ (http/https)" Variant="Variant.Outlined" Class="mt-2" />
+            <MudTextField @bind-Value="_evidenceDescription" Label="Mô tả" Variant="Variant.Outlined" Lines="3" Class="mt-2" />
+            <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1" Class="mt-3">
+                <MudButton OnClick="CloseEvidence">Hủy</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitEvidenceAsync">Gửi evidence</MudButton>
+            </MudStack>
+        </MudPaper>
+    }
+
 @code {
     private DateTime? _from = DateTime.Today.AddDays(-30);
     private DateTime? _to = DateTime.Today.AddDays(30);
@@ -90,6 +117,11 @@
     private string _decision = "CONFIRMED";
     private string? _comment;
     private bool _evidenceRequired;
+    private bool _evidenceOpen;
+    private string _evidenceType = "DOCUMENT";
+    private string? _referenceNo;
+    private string? _externalUrl;
+    private string? _evidenceDescription;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -131,6 +163,52 @@
     }
 
     private void CloseConfirmation() => _confirmationOpen = false;
+
+    private Task OpenEvidenceAsync(ExecutionReconciliationDto item)
+    {
+        _selected = item;
+        _evidenceOpen = true;
+        _evidenceType = "DOCUMENT";
+        _referenceNo = null;
+        _externalUrl = null;
+        _evidenceDescription = null;
+        return Task.CompletedTask;
+    }
+
+    private void CloseEvidence() => _evidenceOpen = false;
+
+    private async Task SubmitEvidenceAsync()
+    {
+        if (_selected?.ConfirmationId is not long confirmationId)
+        {
+            Snackbar.Add("Chưa có confirmation để bổ sung evidence.", Severity.Warning);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_evidenceType))
+        {
+            Snackbar.Add("Vui lòng nhập loại evidence.", Severity.Warning);
+            return;
+        }
+
+        var result = await ExecutionService.AddEvidenceAsync(
+            confirmationId,
+            new ExecutionEvidenceRequest(
+                _evidenceType,
+                null,
+                _referenceNo,
+                _externalUrl,
+                _evidenceDescription));
+
+        if (!result.IsSuccess)
+        {
+            Snackbar.Add(result.Message ?? "Không thể thêm evidence.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Đã gửi evidence.", Severity.Success);
+        _evidenceOpen = false;
+    }
 
     private async Task SubmitConfirmationAsync()
     {
