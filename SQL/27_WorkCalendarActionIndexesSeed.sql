@@ -149,6 +149,14 @@ AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ActionItems_As
         FOREIGN KEY(AssignedToEmployeeId) REFERENCES dbo.F03Employees(Id);
 GO
 
+IF OBJECT_ID(N'dbo.F03CalendarProjection',N'U') IS NOT NULL
+AND OBJECT_ID(N'dbo.F03ActionItems',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03CalendarProjection_Action')
+    ALTER TABLE dbo.F03CalendarProjection
+        ADD CONSTRAINT FK_F03CalendarProjection_Action
+        FOREIGN KEY(ActionId) REFERENCES dbo.F03ActionItems(ActionId);
+GO
+
 IF OBJECT_ID(N'dbo.F03ActionItems',N'U') IS NOT NULL
 AND OBJECT_ID(N'dbo.F03Users',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ActionItems_AssignedUser')
