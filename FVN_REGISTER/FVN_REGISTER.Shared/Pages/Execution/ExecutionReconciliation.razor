@@ -6,6 +6,87 @@
 
 <PageTitle>Đối soát thực tế</PageTitle>
 
+@if (_detail is not null)
+{
+    <MudPaper Outlined="true" Class="pa-4 mb-4">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+            <MudText Typo="Typo.h6">
+                Chi tiết @_detail.Reconciliation.ModuleCode / @_detail.Reconciliation.SourceId
+            </MudText>
+            <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="CloseDetail">Đóng</MudButton>
+        </MudStack>
+
+        <MudGrid Class="mt-2">
+            <MudItem xs="12" md="4">
+                <MudText Typo="Typo.body2">
+                    Trạng thái: <b>@_detail.Reconciliation.ReconciliationStatus</b>
+                </MudText>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudText Typo="Typo.body2">
+                    Planned: @_detail.Reconciliation.PlannedState
+                </MudText>
+            </MudItem>
+            <MudItem xs="12" md="4">
+                <MudText Typo="Typo.body2">
+                    Actual: @_detail.Reconciliation.ActualState
+                </MudText>
+            </MudItem>
+        </MudGrid>
+
+        @if (_detail.Confirmation is not null)
+        {
+            <MudDivider Class="my-3" />
+            <MudText Typo="Typo.subtitle1">Xác nhận nhân viên</MudText>
+            <MudText Typo="Typo.body2">
+                Decision: <b>@_detail.Confirmation.Decision</b> —
+                Status: <b>@_detail.Confirmation.Status</b>
+            </MudText>
+            @if (!string.IsNullOrWhiteSpace(_detail.Confirmation.Comment))
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-2">@_detail.Confirmation.Comment</MudAlert>
+            }
+            @if (!string.IsNullOrWhiteSpace(_detail.Confirmation.ReviewNote))
+            {
+                <MudAlert Severity="Severity.Warning" Class="mt-2">
+                    Ghi chú review: @_detail.Confirmation.ReviewNote
+                </MudAlert>
+            }
+        }
+
+        @if (_detail.Evidence.Count > 0)
+        {
+            <MudDivider Class="my-3" />
+            <MudText Typo="Typo.subtitle1">Evidence</MudText>
+            <MudTable Items="_detail.Evidence" Dense="true" Hover="true">
+                <HeaderContent>
+                    <MudTh>Loại</MudTh>
+                    <MudTh>FileId</MudTh>
+                    <MudTh>Tham chiếu</MudTh>
+                    <MudTh>Review</MudTh>
+                    <MudTh>Ghi chú HR</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.EvidenceType</MudTd>
+                    <MudTd>@(context.FileId?.ToString() ?? "-")</MudTd>
+                    <MudTd>@(context.ReferenceNo ?? context.ExternalUrl ?? "-")</MudTd>
+                    <MudTd>@context.ReviewStatus</MudTd>
+                    <MudTd>@(context.ReviewNote ?? "-")</MudTd>
+                </RowTemplate>
+            </MudTable>
+        }
+
+        @if (_detail.HrResolution is not null)
+        {
+            <MudDivider Class="my-3" />
+            <MudAlert Severity="@(_detail.HrResolution.Decision == "OK" ? Severity.Success : Severity.Warning)">
+                <b>HR: @_detail.HrResolution.Decision</b> —
+                @_detail.HrResolution.Reason
+            </MudAlert>
+        }
+    </MudPaper>
+}
+
 <MudContainer MaxWidth="MaxWidth.False" Class="pa-4">
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
         <MudText Typo="Typo.h5">Đối soát thực tế</MudText>
@@ -46,6 +127,10 @@
                 <MudTd DataLabel="Thực tế">@(context.ActualState ?? "-")</MudTd>
                 <MudTd DataLabel="Trạng thái">@context.ReconciliationStatus</MudTd>
                 <MudTd>
+                    <MudButton Size="Size.Small" Variant="Variant.Text"
+                               OnClick="@(() => OpenDetailAsync(context.Id))">
+                        Chi tiết
+                    </MudButton>
                     @if (context.RequiresConfirmation && context.ConfirmationId == null)
                     {
                         <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
@@ -100,6 +185,7 @@
             <MudTextField @bind-Value="_referenceNo" Label="Số tham chiếu" Variant="Variant.Outlined" Class="mt-2" />
             <MudTextField @bind-Value="_externalUrl" Label="URL chứng từ (http/https)" Variant="Variant.Outlined" Class="mt-2" />
             <MudTextField @bind-Value="_evidenceDescription" Label="Mô tả" Variant="Variant.Outlined" Lines="3" Class="mt-2" />
+            <MudNumericField T="int?" @bind-Value="_fileId" Label="FileId chứng từ đã upload" Variant="Variant.Outlined" Class="mt-2" />
             <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1" Class="mt-3">
                 <MudButton OnClick="CloseEvidence">Hủy</MudButton>
                 <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitEvidenceAsync">Gửi evidence</MudButton>
@@ -122,8 +208,18 @@
     private string? _referenceNo;
     private string? _externalUrl;
     private string? _evidenceDescription;
+    private int? _fileId;
+    private ExecutionReconciliationDetailDto? _detail;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    [SupplyParameterFromQuery(Name = "reconciliationId")]
+    public long? ReconciliationId { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        if (ReconciliationId.HasValue)
+            await OpenDetailAsync(ReconciliationId.Value);
+    }
 
     private async Task LoadAsync()
     {
@@ -164,6 +260,20 @@
 
     private void CloseConfirmation() => _confirmationOpen = false;
 
+    private async Task OpenDetailAsync(long reconciliationId)
+    {
+        var result = await ExecutionService.GetDetailAsync(reconciliationId);
+        if (!result.IsSuccess || result.Data is null)
+        {
+            Snackbar.Add(result.Message ?? "Không tải được chi tiết đối soát.", Severity.Error);
+            return;
+        }
+
+        _detail = result.Data;
+    }
+
+    private void CloseDetail() => _detail = null;
+
     private Task OpenEvidenceAsync(ExecutionReconciliationDto item)
     {
         _selected = item;
@@ -172,6 +282,7 @@
         _referenceNo = null;
         _externalUrl = null;
         _evidenceDescription = null;
+        _fileId = null;
         return Task.CompletedTask;
     }
 
@@ -195,7 +306,7 @@
             confirmationId,
             new ExecutionEvidenceRequest(
                 _evidenceType,
-                null,
+                _fileId,
                 _referenceNo,
                 _externalUrl,
                 _evidenceDescription));
@@ -208,6 +319,9 @@
 
         Snackbar.Add("Đã gửi evidence.", Severity.Success);
         _evidenceOpen = false;
+        await LoadAsync();
+        if (_selected is not null)
+            await OpenDetailAsync(_selected.Id);
     }
 
     private async Task SubmitConfirmationAsync()
@@ -227,5 +341,7 @@
         Snackbar.Add("Đã gửi xác nhận.", Severity.Success);
         _confirmationOpen = false;
         await LoadAsync();
+        if (_selected is not null)
+            await OpenDetailAsync(_selected.Id);
     }
 }
