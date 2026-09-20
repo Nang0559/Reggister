@@ -49,7 +49,11 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             .Where(x => x.IsActive != false
                 && x.ReconciliationStatus != "Resolved"
                 && (x.ReconciliationStatus == "Mismatch"
-                    || x.ReconciliationStatus == "AwaitingConfirmation"));
+                    || x.ReconciliationStatus == "AwaitingConfirmation")
+                && _db.ExecutionPolicies.Any(p =>
+                    p.IsActive != false
+                    && p.ModuleCode == x.ModuleCode
+                    && p.ReviewMode != 0));
 
         if (!string.IsNullOrWhiteSpace(moduleCode))
             query = query.Where(x => x.ModuleCode == moduleCode.Trim().ToUpperInvariant());
@@ -241,6 +245,15 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 
         await EnsureHrTargetScopeAsync(userId, employee.EmployeeCode, employee.DeptCode, cancellationToken);
 
+        var reviewEnabled = await _db.ExecutionPolicies.AsNoTracking()
+            .AnyAsync(x => x.IsActive != false
+                && x.ModuleCode == reconciliation.ModuleCode
+                && x.ReviewMode != 0, cancellationToken);
+
+        if (!reviewEnabled)
+            throw new InvalidOperationException(
+                $"Module '{reconciliation.ModuleCode}' chưa bật HR Execution Review.");
+
         var confirmation = reconciliation.ConfirmationId.HasValue
             ? await _db.ExecutionConfirmations.FirstOrDefaultAsync(
                 x => x.Id == reconciliation.ConfirmationId.Value && x.IsActive != false,
@@ -310,7 +323,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         _db.Set<F03ExecutionResolution>().Add(resolution);
         await _db.SaveChangesAsync(cancellationToken);
 
-        if (decision == "OK" && reconciliation.ModuleCode.Equals("ATTENDANCE", StringComparison.OrdinalIgnoreCase))
+        if (decision == "OK")
         {
             var payrollPeriod = await _db.PayrollCalculationPeriods
                 .AsNoTracking()
@@ -329,7 +342,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                 ReconciliationId = reconciliation.Id,
                 ResolutionId = resolution.Id,
                 ModuleCode = reconciliation.ModuleCode,
-                CorrectionType = "ATTENDANCE_RECALCULATE",
+                CorrectionType = $"{reconciliation.ModuleCode}_RESOLUTION",
                 EmployeeId = reconciliation.EmployeeId,
                 WorkDate = reconciliation.WorkDate,
                 Status = "Pending",
@@ -344,24 +357,36 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             _db.ExecutionCorrections.Add(correction);
             await _db.SaveChangesAsync(cancellationToken);
 
-            var calc = await _attendanceCalculation.CalculateAsync(
-                new FVN_REGISTER.Contract.Dtos.HrmSync.HrmAttendanceCalculationRequestDto
-                {
-                    DeptCode = employee.DeptCode,
-                    FromDate = reconciliation.WorkDate.ToDateTime(TimeOnly.MinValue),
-                    ToDate = reconciliation.WorkDate.ToDateTime(TimeOnly.MinValue)
-                },
-                $"HR-EXECUTION-RESOLUTION:{reconciliationId}",
-                cancellationToken);
+            if (string.Equals(reconciliation.ModuleCode, "ATTENDANCE", StringComparison.OrdinalIgnoreCase))
+            {
+                var calc = await _attendanceCalculation.CalculateAsync(
+                    new FVN_REGISTER.Contract.Dtos.HrmSync.HrmAttendanceCalculationRequestDto
+                    {
+                        DeptCode = employee.DeptCode,
+                        FromDate = reconciliation.WorkDate.ToDateTime(TimeOnly.MinValue),
+                        ToDate = reconciliation.WorkDate.ToDateTime(TimeOnly.MinValue)
+                    },
+                    $"HR-EXECUTION-RESOLUTION:{reconciliationId}",
+                    cancellationToken);
 
-            if (!calc.IsSuccess)
-                throw new InvalidOperationException(
-                    $"Không thể tính lại công ngày {reconciliation.WorkDate:dd/MM/yyyy}: {calc.Message}");
+                if (!calc.IsSuccess)
+                    throw new InvalidOperationException(
+                        $"Không thể tính lại công ngày {reconciliation.WorkDate:dd/MM/yyyy}: {calc.Message}");
+
+                correction.AppliedState = "RECALCULATED";
+            }
+            else
+            {
+                // Other business modules remain their own source of truth.
+                // The generic correction is an auditable resolution record; a
+                // module-specific producer may consume it later without changing
+                // the HR decision itself.
+                correction.AppliedState = decision;
+            }
 
             correction.Status = "Applied";
             correction.AppliedAt = DateTime.Now;
             correction.AppliedBy = userId;
-            correction.AppliedState = "RECALCULATED";
             correction.ModifiedBy = userId;
             correction.ModifiedAt = DateTime.Now;
             correction.LastModifiedSource = "HR_EXECUTION_CORRECTION";
@@ -504,13 +529,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 
         if (user is null) return;
 
-        var module = reconciliation.ModuleCode.ToUpperInvariant() switch
-        {
-            "OT" => RequestModule.Overtime,
-            "LEAVE" => RequestModule.Leave,
-            "TRIP" => RequestModule.Trip,
-            _ => RequestModule.Leave
-        };
+        var module = MapNotificationModule(reconciliation.ModuleCode);
 
         await _notificationService.CreateAsync(new FVN_REGISTER.Contract.Dtos.Notifications.CreateNotificationDto
         {
@@ -594,7 +613,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             "OT" => RequestModule.Overtime,
             "LEAVE" => RequestModule.Leave,
             "TRIP" => RequestModule.Trip,
-            "ATTENDANCE" => RequestModule.Attendance,
+            "EQUIPMENT" => RequestModule.Equipment,
             _ => throw new InvalidOperationException(
                 $"Không có mapping Notification Module cho Execution ModuleCode '{reconciliation.ModuleCode}'.")
         };
@@ -649,6 +668,27 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             ? reason
             : $"{calendar.Summary} | HR: {reason}";
         calendar.CalculatedAt = now;
+        calendar.ModifiedAt = now;
+        calendar.LastModifiedSource = "HR_EXECUTION_REVIEW";
+    }
+
+
+    private static RequestModule MapNotificationModule(string moduleCode)
+    {
+        switch (moduleCode?.Trim().ToUpperInvariant())
+        {
+            case "OT":
+                return RequestModule.Overtime;
+            case "LEAVE":
+                return RequestModule.Leave;
+            case "TRIP":
+                return RequestModule.Trip;
+            case "EQUIPMENT":
+                return RequestModule.Equipment;
+            default:
+                throw new InvalidOperationException(
+                    $"Không có mapping Notification Module cho Execution ModuleCode '{moduleCode}'.");
+        }
     }
 
     private static string NormalizeDecision(string value) => value?.Trim().ToUpperInvariant() switch
