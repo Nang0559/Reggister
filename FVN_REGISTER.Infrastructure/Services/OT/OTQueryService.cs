@@ -463,7 +463,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
 
             var employees = await Uow.Repository<F03Employee>().Query()
                 .AsNoTracking()
-                .Where(e => e.IsActive == true && codes.Contains(e.EmployeeCode))
+                .Where(e => e.IsActive == true && codes.Contains(e.EmployeeCode ?? string.Empty))
                 .Select(e => new { e.EmployeeCode, e.EmployeeName, e.DeptCode, e.PositionCode })
                 .ToListAsync(ct);
 
@@ -512,7 +512,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                     && (e.OTRequest.OTDate >= yearStart && e.OTRequest.OTDate < yearEnd)
                     && (codes.Contains(e.EmployeeCode)
                         || (deptCode != string.Empty && e.OTRequest.DeptCode == deptCode)
-                        || blockDeptCodes.Contains(e.OTRequest.DeptCode)))
+                        || blockDeptCodes.Contains(e.OTRequest.DeptCode ?? string.Empty)))
                 .Select(e => new
                 {
                     e.EmployeeCode,
@@ -587,9 +587,9 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
 
             if (!string.IsNullOrWhiteSpace(blockCode))
             {
-                var blockUsed = used.Where(x => blockDeptCodes.Contains(x.DeptCode)).ToList();
+                var blockUsed = used.Where(x => blockDeptCodes.Contains(x.DeptCode ?? string.Empty)).ToList();
                 var blockRequest = model.Employees
-                    .Where(x => employees.Any(e => e.EmployeeCode == x.EmployeeCode && blockDeptCodes.Contains(e.DeptCode)))
+                    .Where(x => employees.Any(e => e.EmployeeCode == x.EmployeeCode && blockDeptCodes.Contains(e.DeptCode ?? string.Empty)))
                     .Sum(x => x.OTHours);
 
                 var blockPreview = new OTLimitScopePreviewDto
