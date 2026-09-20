@@ -10,10 +10,7 @@ public sealed class ActionItemWriter : IActionItemWriter
 {
     private readonly FVNWEBAPPContext _db;
 
-    public ActionItemWriter(FVNWEBAPPContext db)
-    {
-        _db = db;
-    }
+    public ActionItemWriter(FVNWEBAPPContext db) => _db = db;
 
     public async Task<Guid> EnsureOpenAsync(
         ActionItemDraft draft,
@@ -22,7 +19,9 @@ public sealed class ActionItemWriter : IActionItemWriter
         var existing = await _db.ActionItems
             .FirstOrDefaultAsync(x =>
                 x.ModuleCode == draft.ModuleCode
+                && x.SourceType == draft.SourceType
                 && x.SourceId == draft.SourceId
+                && x.ParticipantId == draft.ParticipantId
                 && x.ActionType == draft.ActionType
                 && x.AssignedToEmployeeId == draft.AssignedToEmployeeId
                 && (x.Status == ActionItemStatus.Open || x.Status == ActionItemStatus.InProgress),
@@ -48,7 +47,9 @@ public sealed class ActionItemWriter : IActionItemWriter
         {
             ActionId = Guid.NewGuid(),
             ModuleCode = draft.ModuleCode,
+            SourceType = draft.SourceType,
             SourceId = draft.SourceId,
+            ParticipantId = draft.ParticipantId,
             EmployeeId = draft.EmployeeId,
             AssignedToEmployeeId = draft.AssignedToEmployeeId,
             AssignedToUserId = draft.AssignedToUserId,
@@ -74,15 +75,15 @@ public sealed class ActionItemWriter : IActionItemWriter
         }
         catch (DbUpdateException)
         {
-            // The filtered unique index is the final concurrency guard.
-            // Re-read the winner and return its ActionId instead of duplicating.
             _db.Entry(entity).State = EntityState.Detached;
 
             var winner = await _db.ActionItems
                 .AsNoTracking()
                 .Where(x =>
                     x.ModuleCode == draft.ModuleCode
+                    && x.SourceType == draft.SourceType
                     && x.SourceId == draft.SourceId
+                    && x.ParticipantId == draft.ParticipantId
                     && x.ActionType == draft.ActionType
                     && x.AssignedToEmployeeId == draft.AssignedToEmployeeId
                     && (x.Status == ActionItemStatus.Open || x.Status == ActionItemStatus.InProgress))
