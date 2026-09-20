@@ -14,10 +14,6 @@ public interface IExecutionReconciliationClientService
         long reconciliationId,
         CancellationToken ct = default);
 
-    Task<ApiResponse<ExecutionReconciliationDto>> UpsertAsync(
-        ExecutionReconciliationUpsertRequest request,
-        CancellationToken ct = default);
-
     Task<ApiResponse<ExecutionConfirmationDto>> SubmitConfirmationAsync(
         long reconciliationId,
         ExecutionConfirmationRequest request,
