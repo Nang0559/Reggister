@@ -1,0 +1,157 @@
+@page "/execution"
+@using FVN_REGISTER.Contract.Dtos.Execution
+@using FVN_REGISTER.Shared.Services.Execution
+@inject IExecutionReconciliationClientService ExecutionService
+@inject ISnackbar Snackbar
+
+<PageTitle>Đối soát thực tế</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.False" Class="pa-4">
+    <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-4">
+        <MudText Typo="Typo.h5">Đối soát thực tế</MudText>
+        <MudStack Row="true" Spacing="1">
+            <MudDatePicker @bind-Date="_from" Label="Từ ngày" />
+            <MudDatePicker @bind-Date="_to" Label="Đến ngày" />
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadAsync">Tải lại</MudButton>
+        </MudStack>
+    </MudStack>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (_items.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">Không có reconciliation trong khoảng thời gian đã chọn.</MudAlert>
+    }
+    else
+    {
+        <MudTable Items="_items" Hover="true" Dense="true" Striped="true">
+            <HeaderContent>
+                <MudTh>Ngày</MudTh>
+                <MudTh>Module</MudTh>
+                <MudTh>Nguồn</MudTh>
+                <MudTh>Participant</MudTh>
+                <MudTh>Dự kiến</MudTh>
+                <MudTh>Thực tế</MudTh>
+                <MudTh>Trạng thái</MudTh>
+                <MudTh></MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd DataLabel="Ngày">@context.WorkDate.ToString("dd/MM/yyyy")</MudTd>
+                <MudTd DataLabel="Module">@context.ModuleCode</MudTd>
+                <MudTd DataLabel="Nguồn">@context.SourceType / @context.SourceId</MudTd>
+                <MudTd DataLabel="Participant">@(context.ParticipantId ?? "-")</MudTd>
+                <MudTd DataLabel="Dự kiến">@(context.PlannedState ?? "-")</MudTd>
+                <MudTd DataLabel="Thực tế">@(context.ActualState ?? "-")</MudTd>
+                <MudTd DataLabel="Trạng thái">@context.ReconciliationStatus</MudTd>
+                <MudTd>
+                    @if (context.RequiresConfirmation && context.ConfirmationId == null)
+                    {
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Primary"
+                                   OnClick="@(() => OpenConfirmationAsync(context))">
+                            Xác nhận
+                        </MudButton>
+                    }
+                    else if (context.ConfirmationId != null)
+                    {
+                        <MudChip T="string" Size="Size.Small" Color="Color.Info">Đã gửi xác nhận</MudChip>
+                    }
+                </MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+</MudContainer>
+
+<MudDialog @bind-IsVisible="_confirmationOpen">
+    <DialogContent>
+        @if (_selected is not null)
+        {
+            <MudText Typo="Typo.h6" Class="mb-3">
+                Xác nhận @(_selected.ModuleCode) / @(_selected.SourceId)
+            </MudText>
+            <MudSelect T="string" @bind-Value="_decision" Label="Kết luận" Variant="Variant.Outlined">
+                <MudSelectItem Value="@("CONFIRMED")">Xác nhận đúng</MudSelectItem>
+                <MudSelectItem Value="@("REJECTED")">Từ chối / cần xử lý lại</MudSelectItem>
+            </MudSelect>
+            <MudTextField @bind-Value="_comment" Label="Ghi chú" Variant="Variant.Outlined" Lines="3" Class="mt-3" />
+            <MudCheckBox @bind-Value="_evidenceRequired" Label="Yêu cầu bổ sung bằng chứng" />
+        }
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="CloseConfirmation">Hủy</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitConfirmationAsync">Gửi xác nhận</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    private DateTime? _from = DateTime.Today.AddDays(-30);
+    private DateTime? _to = DateTime.Today.AddDays(30);
+    private List<ExecutionReconciliationDto> _items = [];
+    private bool _loading;
+    private bool _confirmationOpen;
+    private ExecutionReconciliationDto? _selected;
+    private string _decision = "CONFIRMED";
+    private string? _comment;
+    private bool _evidenceRequired;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
+    {
+        if (_from is null || _to is null) return;
+        if (_to.Value.Date < _from.Value.Date)
+        {
+            Snackbar.Add("Khoảng ngày không hợp lệ.", Severity.Warning);
+            return;
+        }
+
+        _loading = true;
+        try
+        {
+            var result = await ExecutionService.GetMineAsync(
+                DateOnly.FromDateTime(_from.Value.Date),
+                DateOnly.FromDateTime(_to.Value.Date));
+
+            if (result.IsSuccess && result.Data is not null)
+                _items = result.Data.ToList();
+            else
+                Snackbar.Add(result.Message ?? "Không tải được dữ liệu đối soát.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private Task OpenConfirmationAsync(ExecutionReconciliationDto item)
+    {
+        _selected = item;
+        _decision = "CONFIRMED";
+        _comment = null;
+        _evidenceRequired = item.RequiresEvidence;
+        _confirmationOpen = true;
+        return Task.CompletedTask;
+    }
+
+    private void CloseConfirmation() => _confirmationOpen = false;
+
+    private async Task SubmitConfirmationAsync()
+    {
+        if (_selected is null) return;
+
+        var result = await ExecutionService.SubmitConfirmationAsync(
+            _selected.Id,
+            new ExecutionConfirmationRequest(_decision, _comment, _evidenceRequired));
+
+        if (!result.IsSuccess)
+        {
+            Snackbar.Add(result.Message ?? "Không gửi được xác nhận.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Đã gửi xác nhận.", Severity.Success);
+        _confirmationOpen = false;
+        await LoadAsync();
+    }
+}
