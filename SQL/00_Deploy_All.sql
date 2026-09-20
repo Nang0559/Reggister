@@ -44,6 +44,7 @@ IMPORTANT:
 
 :r 01_Database.sql
 :r 02_Preflight.sql
+:r 02_Schemas.sql
 :r 03_Tables.sql
 :r 04_Constraints.sql
 :r 05_Indexes.sql
@@ -51,8 +52,10 @@ IMPORTANT:
 :r 07_Views.sql
 :r 08_Functions.sql
 :r 09_StoredProcedures.sql
+:r 10_Audit.sql
 :r 10_Triggers.sql
 :r 11_Automation.sql
+:r 11_Permissions.sql
 :r 13_HrmShiftMaster.sql
 :r 14_SecurityAuthorization.sql
 :r 15_PublicInformation.sql

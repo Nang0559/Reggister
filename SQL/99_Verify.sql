@@ -161,6 +161,57 @@ IF OBJECT_ID(N'dbo.F03ApprovalReminderLog',N'U') IS NOT NULL AND COL_LENGTH(N'db
 
 
 /* ===========================================================================
+   PHASE 2 P0 SCHEMA GATES
+   =========================================================================== */
+IF OBJECT_ID(N'dbo.F03ShiftSchedules',N'U') IS NULL THROW 51270,'Missing F03ShiftSchedules.',1;
+IF OBJECT_ID(N'dbo.F03ShiftScheduleDays',N'U') IS NULL THROW 51271,'Missing F03ShiftScheduleDays.',1;
+IF OBJECT_ID(N'dbo.F03EmployeeShiftSchedules',N'U') IS NULL THROW 51272,'Missing F03EmployeeShiftSchedules.',1;
+IF OBJECT_ID(N'dbo.F03HrmShiftReference',N'U') IS NULL THROW 51273,'Missing F03HrmShiftReference.',1;
+
+IF OBJECT_ID(N'dbo.usp_SyncHrmEmployeeSource',N'P') IS NULL THROW 51274,'Missing usp_SyncHrmEmployeeSource. Obtain canonical definition from HRM dev database.',1;
+IF OBJECT_ID(N'dbo.usp_SyncHrmPositionSource',N'P') IS NULL THROW 51275,'Missing usp_SyncHrmPositionSource. Obtain canonical definition from HRM dev database.',1;
+
+IF COL_LENGTH(N'dbo.F03Departments',N'BlockCode') IS NULL
+    THROW 51276,'F03Departments.BlockCode is required for OT Block scope.',1;
+
+IF COL_LENGTH(N'dbo.F03OTLimitRules',N'ScopeType') IS NULL
+    THROW 51277,'F03OTLimitRules.ScopeType is required.',1;
+
+IF EXISTS
+(
+    SELECT 1
+    FROM sys.columns c
+    JOIN sys.types t ON t.user_type_id=c.user_type_id
+    WHERE c.object_id=OBJECT_ID(N'dbo.F03OTLimitRules')
+      AND c.name=N'ScopeType'
+      AND t.name<>N'int'
+)
+    THROW 51278,'F03OTLimitRules.ScopeType must be INT.',1;
+
+IF EXISTS
+(
+    SELECT 1 FROM dbo.F03OTLimitRules
+    WHERE ScopeType NOT IN (1,2,3) OR ScopeType IS NULL
+)
+    THROW 51279,'F03OTLimitRules contains invalid ScopeType values.',1;
+
+IF NOT EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE name=N'UX_OTLimitRule_ActiveScopeV2'
+      AND object_id=OBJECT_ID(N'dbo.F03OTLimitRules')
+)
+    THROW 51280,'Missing canonical OT scoped unique index.',1;
+
+IF EXISTS
+(
+    SELECT 1 FROM sys.indexes
+    WHERE name=N'UX_OTLimitRule_ActiveScope'
+      AND object_id=OBJECT_ID(N'dbo.F03OTLimitRules')
+)
+    THROW 51281,'Legacy UX_OTLimitRule_ActiveScope must not remain.',1;
+
+/* ===========================================================================
    WORK CALENDAR / ANNUAL LEAVE VERIFICATION
    =========================================================================== */
 IF OBJECT_ID(N'dbo.F03WorkYears',N'U') IS NULL
@@ -185,4 +236,5 @@ IF COL_LENGTH(N'dbo.F03LeaveBalances',N'CalculatedAt') IS NULL
     THROW 50997, 'Missing dbo.F03LeaveBalances.CalculatedAt.', 1;
 
 PRINT N'Work Calendar / Annual Leave verification passed.';
+PRINT N'99_Verify: PASS';
 GO
