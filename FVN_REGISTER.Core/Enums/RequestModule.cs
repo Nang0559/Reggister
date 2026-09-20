@@ -5,7 +5,6 @@
         Leave,
         Overtime,
         Trip,
-        Equipment,
-        Attendance
+        Equipment
     }
 }
