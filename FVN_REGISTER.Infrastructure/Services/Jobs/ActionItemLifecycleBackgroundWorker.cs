@@ -29,23 +29,22 @@ public sealed class ActionItemLifecycleBackgroundWorker : BackgroundService
                 var db = scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
                 var now = DateTime.Now;
 
-                var expired = await db.ActionItems
+                var dueActions = await db.ActionItems
                     .Where(x => x.IsActive != false
                         && (x.Status == ActionItemStatus.Open || x.Status == ActionItemStatus.InProgress)
                         && x.DueAt.HasValue
                         && x.DueAt.Value <= now)
                     .ToListAsync(stoppingToken);
 
-                foreach (var action in expired)
+                foreach (var action in dueActions)
                 {
-                    var hasResolvedReconciliation = await db.ExecutionReconciliations
+                    var reconciliation = await db.ExecutionReconciliations
                         .AsNoTracking()
-                        .AnyAsync(x => x.IsActive != false
-                            && x.ActionId == action.ActionId
-                            && x.ReconciliationStatus == "Resolved",
-                            stoppingToken);
+                        .Where(x => x.IsActive != false && x.ActionId == action.ActionId)
+                        .OrderByDescending(x => x.Id)
+                        .FirstOrDefaultAsync(stoppingToken);
 
-                    if (hasResolvedReconciliation)
+                    if (reconciliation?.ReconciliationStatus == "Resolved")
                     {
                         action.Status = ActionItemStatus.Completed;
                         action.CompletedAt = now;
@@ -53,15 +52,42 @@ public sealed class ActionItemLifecycleBackgroundWorker : BackgroundService
                     }
                     else
                     {
-                        action.Status = ActionItemStatus.Expired;
-                        action.ExpiredAt = now;
+                        // An unresolved execution is authoritative: the Action
+                        // remains actionable even after DueAt. Never silently expire
+                        // the Action while payroll/HR still depends on it.
+                        action.Status = ActionItemStatus.InProgress;
+                        action.ExpiredAt = null;
                         action.LastModifiedSource = "ACTION_LIFECYCLE";
                     }
 
                     action.ModifiedAt = now;
                 }
 
-                if (expired.Count > 0)
+                // Repair actions that were expired by an older worker version.
+                var orphanedExpired = await db.ActionItems
+                    .Where(x => x.IsActive != false
+                        && x.Status == ActionItemStatus.Expired)
+                    .ToListAsync(stoppingToken);
+
+                foreach (var action in orphanedExpired)
+                {
+                    var unresolved = await db.ExecutionReconciliations
+                        .AsNoTracking()
+                        .AnyAsync(x => x.IsActive != false
+                            && x.ActionId == action.ActionId
+                            && x.ReconciliationStatus != "Resolved",
+                            stoppingToken);
+
+                    if (unresolved)
+                    {
+                        action.Status = ActionItemStatus.InProgress;
+                        action.ExpiredAt = null;
+                        action.ModifiedAt = now;
+                        action.LastModifiedSource = "ACTION_LIFECYCLE_REPAIR";
+                    }
+                }
+
+                if (dueActions.Count > 0 || orphanedExpired.Count > 0)
                     await db.SaveChangesAsync(stoppingToken);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
