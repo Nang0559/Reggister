@@ -298,16 +298,6 @@ GO
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03PayrollInputs_Period')
  ALTER TABLE dbo.F03PayrollInputs ADD CONSTRAINT FK_F03PayrollInputs_Period FOREIGN KEY(PayrollPeriodId) REFERENCES dbo.F03PayrollCalculationPeriods(Id);
 GO
-/* HR execution-review permission. 2107 is intentionally separate from OT/Leave user actions. */
-IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2107)
-BEGIN
-    INSERT dbo.F03Functions
-        (CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
-    VALUES
-        (0,2107,N'Execution Review',N'Xem và giải quyết phản hồi đối soát thực tế của nhân viên.',N'EXECUTION',N'REVIEW',N'HR',2107);
-END;
-GO
-
 /* Existing-installation compatibility MUST run before any index that references upgraded columns. */
 IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
 BEGIN
