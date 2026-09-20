@@ -131,6 +131,7 @@ builder.Services.AddScoped<IOTValidator, OTValidator>();
 builder.Services.AddScoped<IOTService, OTService>();
 builder.Services.AddScoped<IDepartmentStatusService, DepartmentStatusService>();
 builder.Services.AddScoped<IOTTypeManagementService, OTTypeManagementService>();
+builder.Services.AddScoped<IOTLimitRuleManagementService, OTLimitRuleManagementService>();
 builder.Services.AddScoped<IOTEscalationService, OTEscalationService>();
 
 // Trip
