@@ -14,6 +14,7 @@ namespace FVN_REGISTER.Shared.Handlers
         private readonly HttpClient _httpClient;
         private readonly ILogger<AuthorizedHttpClient> _logger;
         private readonly ITokenStorage _tokenStorage;
+        private readonly SemaphoreSlim _refreshLock = new(1, 1);
 
         private static readonly JsonSerializerOptions JsonOptions = new()
         {
@@ -70,6 +71,18 @@ namespace FVN_REGISTER.Shared.Handlers
 
                 using var response = await _httpClient.SendAsync(request, ct);
 
+                if (response.StatusCode == HttpStatusCode.Unauthorized && !IsAuthRefreshRequest(url))
+                {
+                    var refreshed = await TryRefreshTokenAsync(ct);
+                    if (refreshed)
+                    {
+                        using var retry = requestFactory();
+                        await AttachTokenAsync(retry);
+                        using var retryResponse = await _httpClient.SendAsync(retry, ct);
+                        return await HandleResponseAsync<T>(retryResponse, url, ct);
+                    }
+                }
+
                 _logger.LogDebug(
                     "[HTTP] <- {Url} | Status={Status}",
                     url,
@@ -90,6 +103,53 @@ namespace FVN_REGISTER.Shared.Handlers
 
                 return ApiResponse<T>.Fail("Không thể kết nối đến server.");
             }
+        }
+
+        private static bool IsAuthRefreshRequest(string url)
+            => url.Contains("api/auth/refresh", StringComparison.OrdinalIgnoreCase);
+
+        private async Task<bool> TryRefreshTokenAsync(CancellationToken ct)
+        {
+            var refreshToken = await _tokenStorage.GetRefreshTokenAsync();
+            if (string.IsNullOrWhiteSpace(refreshToken)) return false;
+
+            await _refreshLock.WaitAsync(ct);
+            try
+            {
+                // Another request may have refreshed while this request waited.
+                var current = await _tokenStorage.GetTokenAsync();
+                if (!string.IsNullOrWhiteSpace(current))
+                {
+                    // The original request already received 401, so retrying with the
+                    // same token would be pointless; refresh remains the single owner here.
+                }
+
+                using var request = new HttpRequestMessage(HttpMethod.Post, "api/auth/refresh")
+                {
+                    Content = JsonContent.Create(new FVN_REGISTER.Contract.Requests.Auths.RefreshTokenRequestDto
+                    {
+                        RefreshToken = refreshToken
+                    })
+                };
+                using var response = await _httpClient.SendAsync(request, ct);
+                if (!response.IsSuccessStatusCode) return false;
+
+                var payload = await response.Content.ReadFromJsonAsync<ApiResponse<System.Text.Json.JsonElement>>(cancellationToken: ct);
+                if (payload?.IsSuccess != true || payload.Data.ValueKind != JsonValueKind.Object) return false;
+                if (!payload.Data.TryGetProperty("token", out var tokenNode) && !payload.Data.TryGetProperty("Token", out tokenNode)) return false;
+                var token = tokenNode.GetString();
+                if (string.IsNullOrWhiteSpace(token)) return false;
+
+                await _tokenStorage.SetTokenAsync(token);
+                return true;
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "[AUTH] Refresh token request failed.");
+                return false;
+            }
+            finally { _refreshLock.Release(); }
         }
 
         private async Task<ApiResponse<T>> HandleResponseAsync<T>(
