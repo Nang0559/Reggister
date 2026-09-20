@@ -1,6 +1,5 @@
 ﻿using FVN_REGISTER.Application.Interfaces.Common;
 using FVN_REGISTER.Contract.Dtos;
-using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Requests.OT;
 
@@ -11,10 +10,6 @@ namespace FVN_REGISTER.Application.Interfaces.OT
     {
         Task<OTCombinedDataDto> GetCombinedDataAsync(
             string employeeCode, string deptCode, int year, int month, CancellationToken ct = default);
-
-        Task<List<ApprovalStepSnapshotDto>> PreviewApprovalAsync(
-            OTRequestUpsertDto model, CancellationToken ct = default);
-
         Task<OTValidationResultDto> ValidateHoursAsync(OTRequestUpsertDto model, CancellationToken ct = default);
 
         Task<OTLimitPreviewDto> GetLimitPreviewAsync(OTRequestUpsertDto model, CancellationToken ct = default);
