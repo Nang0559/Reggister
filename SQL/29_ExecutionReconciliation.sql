@@ -380,10 +380,21 @@ IF NOT EXISTS (SELECT 1 FROM dbo.F03ExecutionPolicies WHERE ModuleCode=N'OT')
     VALUES(N'OT',2,1,2,1,48);
 IF NOT EXISTS (SELECT 1 FROM dbo.F03ExecutionPolicies WHERE ModuleCode=N'LEAVE')
     INSERT dbo.F03ExecutionPolicies(ModuleCode,ReconciliationMode,ConfirmationMode,EvidenceMode,ReviewMode,DueHours)
-    VALUES(N'LEAVE',1,1,2,1,48);
+    VALUES(N'LEAVE',2,1,2,1,48);
 IF NOT EXISTS (SELECT 1 FROM dbo.F03ExecutionPolicies WHERE ModuleCode=N'TRIP')
     INSERT dbo.F03ExecutionPolicies(ModuleCode,ReconciliationMode,ConfirmationMode,EvidenceMode,ReviewMode,DueHours)
     VALUES(N'TRIP',2,1,2,1,48);
+GO
+
+/* Existing installations may already have the policy row from the old seed.
+   Recovery must be enabled for Leave as well as new installations. */
+IF EXISTS (SELECT 1 FROM dbo.F03ExecutionPolicies WHERE ModuleCode=N'LEAVE')
+    UPDATE dbo.F03ExecutionPolicies
+       SET ReconciliationMode=2,
+           ModifiedAt=GETDATE(),
+           LastModifiedSource=N'DEPLOY_29_EXECUTION_RECONCILIATION'
+     WHERE ModuleCode=N'LEAVE'
+       AND (ReconciliationMode <> 2 OR ReconciliationMode IS NULL);
 GO
 IF NOT EXISTS (SELECT 1 FROM dbo.F03ActionPolicies WHERE ModuleCode=N'OT' AND ActionType=N'EXECUTION_CONFIRMATION')
     INSERT dbo.F03ActionPolicies(ModuleCode,ActionType,IsEnabled,DefaultPriority,DueHours,NotificationEnabled,EscalationEnabled,TitleTemplate,SummaryTemplate)
