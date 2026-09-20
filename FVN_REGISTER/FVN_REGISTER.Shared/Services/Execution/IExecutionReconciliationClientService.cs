@@ -10,6 +10,10 @@ public interface IExecutionReconciliationClientService
         DateOnly to,
         CancellationToken ct = default);
 
+    Task<ApiResponse<ExecutionReconciliationDetailDto>> GetDetailAsync(
+        long reconciliationId,
+        CancellationToken ct = default);
+
     Task<ApiResponse<ExecutionReconciliationDto>> GetAsync(
         long reconciliationId,
         CancellationToken ct = default);
