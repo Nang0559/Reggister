@@ -52,7 +52,7 @@ public sealed class TripHistoryHandler : BaseHistoryHandler<F03TripRequest>
             Id = x.request.Id,
             Kind = RequestModule.Trip,
             EmployeeCode = x.request.EmployeeCode,
-            EmployeeName = x.employee?.FullName ?? string.Empty,
+            EmployeeName = x.employee?.EmployeeName ?? string.Empty,
             DeptCode = x.employee?.DeptCode,
             SubmittedAt = x.request.CreatedAt ?? DateTime.Now,
             RequestStatus = x.request.RequestStatus.ToString(),
@@ -96,7 +96,7 @@ public sealed class TripHistoryHandler : BaseHistoryHandler<F03TripRequest>
             CanCancel = ActiveStatuses.Contains(row.request.RequestStatus),
             Trip = new TripDetailPayload
             {
-                EmployeeName = row.employee?.FullName,
+                EmployeeName = row.employee?.EmployeeName,
                 DeptName = row.employee?.DeptCode,
                 TripCode = row.request.TripCode,
                 StartDate = row.request.StartDate,
