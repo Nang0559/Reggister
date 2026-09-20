@@ -24,8 +24,9 @@ namespace FVN_REGISTER
 {
     public static class MauiProgram
     {
-        [System.Runtime.Versioning.SupportedOSPlatform("Android21.0")]
+        [System.Runtime.Versioning.SupportedOSPlatform("Android23.0")]
         [System.Runtime.Versioning.SupportedOSPlatform("iOS13.0")]
+        [System.Runtime.Versioning.SupportedOSPlatform("maccatalyst13.0")]
         [System.Runtime.Versioning.SupportedOSPlatform("Windows10.0.17763.0")]
         public static MauiApp CreateMauiApp()
         {
@@ -54,7 +55,7 @@ namespace FVN_REGISTER
             string baseUrl = "http://localhost:5017/"; if (!baseUrl.EndsWith("/")) baseUrl += "/";
             builder.Services.AddHttpClient<IHttpClientWithAuth, AuthorizedHttpClient>(client => client.BaseAddress = new Uri(baseUrl)).ConfigurePrimaryHttpMessageHandler(() => GetInsecureHandler()).AddHttpMessageHandler<AuthHeaderHandler>();
             builder.Services.AddHttpClient<IAuthClientService, AuthClientService>(client => client.BaseAddress = new Uri(baseUrl)).ConfigurePrimaryHttpMessageHandler(() => GetInsecureHandler());
-            builder.Services.AddScoped<ICurrentUserClientService, CurrentUserClientService>(); 
+            builder.Services.AddScoped<ICurrentUserClientService, CurrentUserClientService>();
             builder.Services.AddScoped<IDashboardClientService, DashboardClientService>(); builder.Services.AddScoped<ILeaveCreateClientService, LeaveCreateClientService>();
             builder.Services.AddScoped<ILeaveHistorysClientService, LeaveHistorysClientService>();
             builder.Services.AddScoped<IReportClientService, ReportClientService>();
@@ -67,20 +68,22 @@ namespace FVN_REGISTER
             builder.Services.AddScoped<IHrmUserRoleRuleClientService, HrmUserRoleRuleClientService>();
             builder.Services.AddScoped<IWorkYearManagementClientService, WorkYearManagementClientService>();
             builder.Services.AddScoped<ICompanyHolidayManagementClientService, CompanyHolidayManagementClientService>();
-
-            builder.Services.AddScoped<INotificationClientService, NotificationClientService>(); 
-            builder.Services.AddScoped<IDeptClientService, DeptClientService>(); 
+            builder.Services.AddScoped<INotificationClientService, NotificationClientService>();
+            builder.Services.AddScoped<IDeptClientService, DeptClientService>();
             builder.Services.AddScoped<IOTClientService, OTClientService>();
-            builder.Services.AddScoped<IOTLimitRuleManagementClientService, OTLimitRuleManagementClientService>(); 
-   
+            builder.Services.AddScoped<IOTLimitRuleManagementClientService, OTLimitRuleManagementClientService>();
             builder.Services.AddScoped<IDepartmentStatusClientService, DepartmentStatusClientService>(); builder.Services.AddScoped<IUserManagementClientService, UserManagementClientService>(); builder.Services.AddScoped<IApprovalListClientService, ApprovalListClientService>(); builder.Services.AddScoped<IApproverClientService, ApproverClientService>(); builder.Services.AddScoped<IHistoryClientService, HistoryClientService>(); builder.Services.AddScoped<IEmailTemplateClientService, EmailTemplateClientService>(); builder.Services.AddScoped<IEmailQueueClientService, EmailQueueClientService>(); builder.Services.AddScoped<IEmployeeManagementClientService, EmployeeManagementClientService>(); builder.Services.AddScoped<IDepartmentManagementClientService, DepartmentManagementClientService>(); builder.Services.AddScoped<ILeaveTypeClientService, LeaveTypeClientService>(); builder.Services.AddScoped<ITripClientService, TripClientService>(); builder.Services.AddScoped<IWorkCalendarClientService, WorkCalendarClientService>();
             builder.Services.AddScoped<FVN_REGISTER.Shared.Services.Equipment.IEquipmentClientService, FVN_REGISTER.Shared.Services.Equipment.EquipmentClientService>();
             return builder.Build();
-            static HttpClientHandler GetInsecureHandler() { var handler = new HttpClientHandler();
+
+            static HttpClientHandler GetInsecureHandler()
+            {
+                var handler = new HttpClientHandler();
 #if DEBUG
                 handler.ServerCertificateCustomValidationCallback = (message, cert, chain, errors) => true;
 #endif
-                return handler; }
+                return handler;
+            }
         }
     }
 }
