@@ -254,12 +254,6 @@ namespace FVN_REGISTER.API.Services.OT
 
                 if (!string.IsNullOrWhiteSpace(blockCode))
                 {
-                    var blockDeptCodes = await _uow.Repository<F03Department>().Query()
-                        .AsNoTracking()
-                        .Where(d => d.IsActive == true && d.BlockCode == blockCode)
-                        .Select(d => d.DeptCode)
-                        .ToListAsync(ct);
-
                     var blockUsed = usedData.Where(x => blockDeptCodes.Contains(x.DeptCode)).ToList();
                     ValidateAggregateLimit(activeRules, OTLimitScopeType.Block, blockCode, OTLimitType.Weekly,
                         blockUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
