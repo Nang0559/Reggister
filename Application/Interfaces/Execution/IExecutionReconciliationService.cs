@@ -9,6 +9,11 @@ public interface IExecutionReconciliationService
         long reconciliationId,
         CancellationToken cancellationToken = default);
 
+    Task<ExecutionReconciliationDetailDto?> GetDetailAsync(
+        string employeeCode,
+        long reconciliationId,
+        CancellationToken cancellationToken = default);
+
     Task<IReadOnlyList<ExecutionReconciliationDto>> GetMineAsync(
         string employeeCode,
         DateOnly from,
