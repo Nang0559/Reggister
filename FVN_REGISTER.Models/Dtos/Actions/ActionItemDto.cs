@@ -4,7 +4,9 @@ public sealed class ActionItemDto
 {
     public Guid ActionId { get; init; }
     public string ModuleCode { get; init; } = string.Empty;
+    public string SourceType { get; init; } = "MODULE";
     public string SourceId { get; init; } = string.Empty;
+    public string? ParticipantId { get; init; }
     public int EmployeeId { get; init; }
     public int AssignedToEmployeeId { get; init; }
     public DateOnly? WorkDate { get; init; }
