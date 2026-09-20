@@ -40,7 +40,7 @@ public sealed class ExecutionHrReviewController : BaseApiController
 
         try
         {
-            var result = await _service.GetPendingAsync(moduleCode, status, from, to, ct);
+            var result = await _service.GetPendingAsync(userId, moduleCode, status, from, to, ct);
             return Ok(ApiResponse<object>.Ok(result));
         }
         catch (UnauthorizedAccessException ex)
@@ -70,7 +70,7 @@ public sealed class ExecutionHrReviewController : BaseApiController
         }
         catch (UnauthorizedAccessException ex)
         {
-            return Forbid(ex.Message);
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<object>.Fail(ex.Message));
         }
         catch (KeyNotFoundException ex)
         {
