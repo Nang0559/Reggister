@@ -43,13 +43,13 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             .Select(ToDto()).ToListAsync(cancellationToken);
     }
 
-    public async Task<ExecutionReconciliationDto> UpsertAsync(ExecutionReconciliationUpsertRequest request, CancellationToken cancellationToken = default)
+    public async Task<ExecutionReconciliationDto> UpsertAsync(string employeeCode, ExecutionReconciliationUpsertRequest request, CancellationToken cancellationToken = default)
     {
         ValidateRequest(request);
 
-        var employeeExists = await _db.Employees.AsNoTracking()
-            .AnyAsync(x => x.Id == request.EmployeeId && x.IsActive != false, cancellationToken);
-        if (!employeeExists) throw new KeyNotFoundException("Không tìm thấy nhân viên của reconciliation.");
+        var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
+        if (request.EmployeeId != employeeId)
+            throw new UnauthorizedAccessException("Reconciliation không thuộc nhân viên hiện tại.");
 
         var entity = await _db.ExecutionReconciliations.FirstOrDefaultAsync(x =>
             x.ModuleCode == request.ModuleCode &&
