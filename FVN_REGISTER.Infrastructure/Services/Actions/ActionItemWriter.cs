@@ -54,7 +54,9 @@ public sealed class ActionItemWriter : IActionItemWriter
             existing.Summary = summary;
             existing.Severity = draft.Severity;
             existing.Priority = priority;
-            existing.DueAt = dueAt;
+            // DueAt is immutable for an open action. Rerunning reconciliation
+            // must never extend the employee's original deadline.
+
             existing.DetailRoute = draft.DetailRoute;
             existing.ReferenceNo = draft.ReferenceNo;
             existing.PayloadJson = draft.PayloadJson;
