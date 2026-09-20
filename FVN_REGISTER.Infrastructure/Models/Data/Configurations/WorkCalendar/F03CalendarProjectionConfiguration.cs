@@ -10,9 +10,11 @@ public sealed class F03CalendarProjectionConfiguration : IEntityTypeConfiguratio
     {
         entity.ToTable("F03CalendarProjection");
         entity.HasKey(x => x.Id);
-        entity.HasIndex(x => new { x.EmployeeId, x.WorkDate, x.ModuleCode, x.SourceId }).IsUnique();
+        entity.HasIndex(x => new { x.EmployeeId, x.WorkDate, x.ModuleCode, x.SourceType, x.SourceId, x.ParticipantId }).IsUnique();
         entity.HasIndex(x => new { x.EmployeeId, x.WorkDate });
         entity.HasIndex(x => new { x.EmployeeId, x.WorkDate, x.RequiresAction });
+        entity.Property(x => x.SourceType).HasMaxLength(50).IsRequired();
+        entity.Property(x => x.ParticipantId).HasMaxLength(100);
         entity.Property(x => x.ModuleCode).HasMaxLength(50).IsRequired();
         entity.Property(x => x.SourceId).HasMaxLength(100).IsRequired();
         entity.Property(x => x.StatusCode).HasMaxLength(50).IsRequired();
