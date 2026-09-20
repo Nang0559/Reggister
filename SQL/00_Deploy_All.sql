@@ -10,7 +10,7 @@ Order:
   03 Tables / schema
   04 Constraints / business keys
   05 Performance indexes
-  06 Seed / TEST data
+  06 Seed / TEST data (EXCLUDED from production master deploy)
   07 Views
   08 Functions
   09 Stored procedures
@@ -45,7 +45,7 @@ IMPORTANT:
 :r 03_Tables.sql
 :r 04_Constraints.sql
 :r 05_Indexes.sql
-:r 06_Seed.sql
+:rem 06_Seed.sql intentionally excluded; run only against a disposable/test database.
 :r 07_Views.sql
 :r 08_Functions.sql
 :r 09_StoredProcedures.sql
