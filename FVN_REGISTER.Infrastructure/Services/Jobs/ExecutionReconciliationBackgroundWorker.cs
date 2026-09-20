@@ -184,13 +184,21 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
             ? await GetUnresolvedSourceIdsAsync(db, "LEAVE", ct)
             : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        var unresolvedLeaveIds = unresolved
+            .Select(x => x.Split(':', 2)[0])
+            .Select(x => int.TryParse(x, out var id) ? (int?)id : null)
+            .Where(x => x.HasValue)
+            .Select(x => x!.Value)
+            .Distinct()
+            .ToList();
+
         var rows = await db.VF03LeaveRequests.AsNoTracking()
             .Where(x => x.IsActive == true
                 && (x.RequestStatus == ApprovalStatus.Approved
                     || x.RequestStatus == ApprovalStatus.Cancelled)
-                && x.EndDate >= from.ToDateTime(TimeOnly.MinValue)
-                && x.StartDate <= to.ToDateTime(TimeOnly.MaxValue)
-                || unresolved.Contains(x.LeaveCode))
+                && (x.EndDate >= from.ToDateTime(TimeOnly.MinValue)
+                    && x.StartDate <= to.ToDateTime(TimeOnly.MaxValue)
+                    || unresolvedLeaveIds.Contains(x.Id)))
             .Select(x => new
             {
                 x.Id,
