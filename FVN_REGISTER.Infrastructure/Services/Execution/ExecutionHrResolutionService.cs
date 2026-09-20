@@ -225,6 +225,9 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                 x => x.ReconciliationId == reconciliation.Id && x.IsActive != false,
                 cancellationToken);
 
+        if (decision == "OK" && reconciliation.RequiresEvidence && confirmation is null)
+            throw new InvalidOperationException("Không thể Resolve OK khi chưa có confirmation.");
+
         if (confirmation is not null)
         {
             if (decision == "OK" && reconciliation.RequiresEvidence)
