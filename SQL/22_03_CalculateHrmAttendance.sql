@@ -4,6 +4,11 @@ AS
 BEGIN
  SET NOCOUNT ON; SET XACT_ABORT ON;
  IF @FromDate IS NULL OR @ToDate IS NULL OR @FromDate>@ToDate THROW 51320,N'Khoảng ngày không hợp lệ.',1;
+ SET @TriggeredBy = COALESCE(NULLIF(LTRIM(RTRIM(@TriggeredBy)),N''),N'SYSTEM');
+ -- Single orchestration entry point for BOTH execution modes:
+ --   1) background: @DeptCode = NULL => whole company
+ --   2) manual:     @DeptCode + date range => selected department/date
+ -- The per-staff calculation remains dbo.usp_HrmCompatibleTimeKeepingForStaff.
  DECLARE @BatchId uniqueidentifier=NEWID(),@HrmDeptId int=TRY_CONVERT(int,NULLIF(@DeptCode,N''));
  CREATE TABLE #Result(
   BCNgay datetime NOT NULL,BCMaNV int NOT NULL,BCMaBP int NOT NULL,BCMaCV int NOT NULL,BCMaCa int NOT NULL,
