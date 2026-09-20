@@ -16,9 +16,10 @@ public sealed class F03PublicInformationConfiguration : IEntityTypeConfiguration
         b.Property(x => x.Summary).HasMaxLength(1000);
         b.Property(x => x.Status).HasMaxLength(30).IsRequired();
         b.Property(x => x.AttachmentUrl).HasMaxLength(1000);
-        b.Property(x => x.IsActive).HasDefaultValue(true);
         b.Property(x => x.CreatedAt).HasColumnType("datetime2(0)");
         b.Property(x => x.ModifiedAt).HasColumnType("datetime2(0)");
+        b.Ignore(x => x.IsActive);
+        b.Ignore(x => x.LastModifiedSource);
         b.HasIndex(x => new { x.Status, x.IsImportant, x.PublishedAt })
             .HasDatabaseName("IX_F03PublicInformation_Published");
     }
