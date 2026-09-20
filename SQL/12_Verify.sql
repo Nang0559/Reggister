@@ -35,6 +35,39 @@ BEGIN
     THROW 51200, 'One or more required FVN_REGISTER tables are missing.', 1;
 END;
 
+/* ============================================================
+   HRM APPROVER REVIEW FLAG SCHEMA
+   Canonical table: dbo.F03SyncReviewFlag
+   ============================================================ */
+IF COL_LENGTH(N'dbo.F03SyncReviewFlag',N'CurrentApproverId') IS NULL
+    THROW 51250,'F03SyncReviewFlag.CurrentApproverId is required.',1;
+IF COL_LENGTH(N'dbo.F03SyncReviewFlag',N'OldDeptCode') IS NULL
+    THROW 51251,'F03SyncReviewFlag.OldDeptCode is required.',1;
+IF COL_LENGTH(N'dbo.F03SyncReviewFlag',N'OldPositionCode') IS NULL
+    THROW 51252,'F03SyncReviewFlag.OldPositionCode is required.',1;
+IF COL_LENGTH(N'dbo.F03SyncReviewFlag',N'NewDeptCode') IS NULL
+    THROW 51253,'F03SyncReviewFlag.NewDeptCode is required.',1;
+IF COL_LENGTH(N'dbo.F03SyncReviewFlag',N'NewPositionCode') IS NULL
+    THROW 51254,'F03SyncReviewFlag.NewPositionCode is required.',1;
+IF COL_LENGTH(N'dbo.F03SyncReviewFlag',N'CurrentApproverCode') IS NULL
+    THROW 51255,'F03SyncReviewFlag.CurrentApproverCode is required.',1;
+IF COL_LENGTH(N'dbo.F03SyncReviewFlag',N'CurrentLevel') IS NULL
+    THROW 51256,'F03SyncReviewFlag.CurrentLevel is required.',1;
+IF COL_LENGTH(N'dbo.F03SyncReviewFlag',N'CurrentRoleName') IS NULL
+    THROW 51257,'F03SyncReviewFlag.CurrentRoleName is required.',1;
+IF COL_LENGTH(N'dbo.F03SyncReviewFlag',N'CurrentApproveForDeptCode') IS NULL
+    THROW 51258,'F03SyncReviewFlag.CurrentApproveForDeptCode is required.',1;
+IF COL_LENGTH(N'dbo.F03SyncReviewFlag',N'SuggestedApproverCode') IS NULL
+    THROW 51259,'F03SyncReviewFlag.SuggestedApproverCode is required.',1;
+IF COL_LENGTH(N'dbo.F03SyncReviewFlag',N'SuggestedLevel') IS NULL
+    THROW 51260,'F03SyncReviewFlag.SuggestedLevel is required.',1;
+IF COL_LENGTH(N'dbo.F03SyncReviewFlag',N'SuggestedRoleName') IS NULL
+    THROW 51261,'F03SyncReviewFlag.SuggestedRoleName is required.',1;
+IF COL_LENGTH(N'dbo.F03SyncReviewFlag',N'SuggestedApproveForDeptCode') IS NULL
+    THROW 51262,'F03SyncReviewFlag.SuggestedApproveForDeptCode is required.',1;
+IF COL_LENGTH(N'dbo.F03SyncReviewFlag',N'Decision') IS NULL
+    THROW 51263,'F03SyncReviewFlag.Decision is required.',1;
+
 IF COL_LENGTH(N'dbo.F03Employees',N'EndWorkingDate') IS NULL
     THROW 51201, 'F03Employees.EndWorkingDate is required.', 1;
 IF COL_LENGTH(N'dbo.F03Employees',N'EmployeeNo') IS NULL
