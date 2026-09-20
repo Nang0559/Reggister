@@ -55,7 +55,7 @@ public sealed class EquipmentHistoryHandler : BaseHistoryHandler<F03EquipmentReq
             Id = x.request.Id,
             Kind = RequestModule.Equipment,
             EmployeeCode = x.request.EmployeeCode,
-            EmployeeName = x.employee?.FullName ?? string.Empty,
+            EmployeeName = x.employee?.EmployeeName ?? string.Empty,
             DeptCode = x.employee?.DeptCode,
             SubmittedAt = x.request.CreatedAt ?? DateTime.Now,
             RequestStatus = x.request.RequestStatus.ToString(),
@@ -97,7 +97,7 @@ public sealed class EquipmentHistoryHandler : BaseHistoryHandler<F03EquipmentReq
             CanCancel = ActiveStatuses.Contains(row.request.RequestStatus),
             Equipment = new EquipmentDetailPayload
             {
-                EmployeeName = row.employee?.FullName,
+                EmployeeName = row.employee?.EmployeeName,
                 DeptName = row.employee?.DeptCode,
                 RequestKind = row.request.RequestKind,
                 EquipmentName = row.request.EquipmentName,
