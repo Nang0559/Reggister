@@ -54,6 +54,11 @@ public static class SecurityFunctionCodes
     public const int PublicInformationManage = 2801;
     public const int ExecutionReview = 2802;
 
+    public const int PayrollView = 2803;
+    public const int PayrollPrepare = 2804;
+    public const int PayrollLock = 2805;
+    public const int PayrollExport = 2806;
+
     public const int AttendanceView = 2901;
     public const int AttendanceExport = 2902;
 }
