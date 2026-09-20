@@ -112,21 +112,5 @@ namespace FVN_REGISTER.API.Controllers
             if (result == null) return NotFound(ApiResponse<object>.Fail("Thiết bị không tồn tại hoặc đã đăng xuất."));
             return Ok(ApiResponse.Ok("Đã đăng xuất thiết bị thành công."));
         }
-
-        [HttpGet("test-auth")]
-        [AllowAnonymous]
-        public IActionResult TestAuth()
-        {
-            var user = HttpContext.User;
-            _logger.LogDebugIf(Debug, "[AUTH TEST] IsAuth={Auth} | Name={Name}", user.Identity?.IsAuthenticated, user.Identity?.Name);
-            return Ok(new
-            {
-                IsAuthenticated = user.Identity?.IsAuthenticated,
-                Name = user.Identity?.Name,
-                AuthenticationType = user.Identity?.AuthenticationType,
-                Claims = user.Claims.Select(c => new { c.Type, c.Value }).ToList(),
-                UserInfoId = UserInfo?.UserId
-            });
-        }
     }
 }
