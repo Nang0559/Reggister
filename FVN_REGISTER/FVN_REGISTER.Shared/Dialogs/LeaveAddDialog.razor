@@ -90,12 +90,12 @@
                                 <tr>
                                     <td>@detail.LeaveDate.ToString("dd/MM/yyyy")</td>
                                     <td>
-                                        <MudSelect T="string" Value="detail.LeaveTypeCode" ValueChanged="@(code => ChangeLeaveType(detail, code))" Dense="true" Margin="Margin.Dense">
-                                            @foreach (var type in Model.LeaveTypes)
-                                            {
-                                                <MudSelectItem Value="@type.LeaveTypeCode">@type.LeaveTypeName</MudSelectItem>
-                                            }
-                                        </MudSelect>
+                                        @{
+                                            var detailType = Model.LeaveTypes.FirstOrDefault(x => x.LeaveTypeCode == detail.LeaveTypeCode);
+                                        }
+                                        <MudText Typo="Typo.body2">
+                                            @(detailType?.LeaveTypeName ?? detail.LeaveTypeCode)
+                                        </MudText>
                                     </td>
                                     <td>
                                         <MudSelect T="HalfDayType" Value="@(detail.HalfDayOption ?? HalfDayType.None)" ValueChanged="@(value => ChangeHalfDay(detail, value))" Dense="true" Margin="Margin.Dense">
@@ -186,8 +186,6 @@
             detail.LeaveTypeCode = code;
     }
 
-    private void ChangeLeaveType(LeaveRequestDetailUpsertDto detail, string code) => detail.LeaveTypeCode = code;
-
     private void ChangeDefaultHalfDay(HalfDayType value)
     {
         _defaultHalfDayOption = value;
@@ -229,7 +227,7 @@
             {
                 StartDate = _startDate.Value.Date,
                 EndDate = _endDate.Value.Date,
-                LeaveTypeCode = _details[0].LeaveTypeCode,
+                LeaveTypeCode = _defaultLeaveTypeCode!,
                 Reason = _reason.Trim(),
                 Details = _details.ToList(),
                 ApprovalSelections = selections
