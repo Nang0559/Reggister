@@ -236,30 +236,6 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         _db.Set<F03ExecutionResolution>().Add(resolution);
         await _db.SaveChangesAsync(cancellationToken);
 
-        F03ExecutionCorrection? correction = null;
-        if (decision == "OK")
-        {
-            correction = new F03ExecutionCorrection
-            {
-                ReconciliationId = reconciliation.Id,
-                ResolutionId = resolution.Id,
-                ModuleCode = reconciliation.ModuleCode.ToUpperInvariant(),
-                CorrectionType = reconciliation.ModuleCode.Equals("ATTENDANCE", StringComparison.OrdinalIgnoreCase)
-                    ? "ATTENDANCE_RECALCULATE"
-                    : "MODULE_RESOLUTION",
-                EmployeeId = reconciliation.EmployeeId,
-                WorkDate = reconciliation.WorkDate,
-                Status = "Pending",
-                RequestedState = reconciliation.PlannedState,
-                Reason = reason,
-                CreatedBy = userId,
-                CreatedAt = now,
-                LastModifiedSource = "HR_EXECUTION_REVIEW"
-            };
-            _db.ExecutionCorrections.Add(correction);
-            await _db.SaveChangesAsync(cancellationToken);
-        }
-
         var oldStatus = reconciliation.ReconciliationStatus;
         reconciliation.ReconciliationStatus = "Resolved";
         reconciliation.ResolvedAt = now;
@@ -310,22 +286,8 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 
             if (!calc.IsSuccess)
             {
-                if (correction is not null)
-                {
-                    correction.Status = "Failed";
-                    correction.Reason = calc.Message ?? reason;
-                    await _db.SaveChangesAsync(cancellationToken);
-                }
                 throw new InvalidOperationException(
                     $"Không thể tính lại công ngày {reconciliation.WorkDate:dd/MM/yyyy}: {calc.Message}");
-            }
-
-            if (correction is not null)
-            {
-                correction.Status = "Applied";
-                correction.AppliedAt = DateTime.Now;
-                correction.AppliedBy = userId;
-                correction.AppliedState = "RECALCULATED";
             }
         }
 
@@ -420,6 +382,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                 : "Phản hồi chưa được Nhân sự chấp thuận",
             Body = $"Ngày {reconciliation.WorkDate:dd/MM/yyyy} - {reconciliation.ModuleCode}: {reason}",
             ActionUrl = $"/execution/reconciliations/{reconciliation.Id}",
+            ActionId = reconciliation.ActionId,
             Metadata = JsonSerializer.Serialize(new
             {
                 reconciliation.Id,
