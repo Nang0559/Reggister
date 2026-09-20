@@ -868,7 +868,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 		SET @NgayNghiLeNV ='1900-01-01 00:00:00.000'
 		SET	@LamBu ='1900-01-01 00:00:00.000'
 
-		SELECT @LamBu=NBNgayLamBu FROM tblDangKyNghiBu WHERE NBMaNV=@StaffID and @D = NBNgayLamBu
+		SELECT @LamBu=NBNgayLamBu FROM HRM.dbo.tblDangKyNghiBu WHERE NBMaNV=@StaffID AND @D = NBNgayLamBu
 		SELECT @NgayNghiLe=NNLNgay FROM HRM.dbo.tblNgayNghiLe WHERE CONVERT(VARCHAR,@D,103) = CONVERT(VARCHAR,NNLNgay,103)
 		SELECT @NgayNghiLeNV=NLNVNgay FROM HRM.dbo.tblNgayNghiLeNhanVien WHERE NLNVMaNV=@StaffID and @D = NLNVNgay
 
@@ -891,8 +891,10 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 				SELECT @TGDenT=BCTGDen, @TGVeT=BCTGVe, @Cuaden=BCCuaDen, @CuaVe=BCCuaVe 
 				FROM #tblBaoCao WHERE BCMaNV=@StaffID AND BCNgay=@D
 
-				SELECT @TGLTToiDa=ISNULL(#tblBaoCao.BCTGLTToiDa,0),@TGLTToiDaTC=ISNULL(#tblBaoCao.BCTGLTToiDaTC,0) 
-				FROM #tblBaoCao WHERE BCMaNV=@StaffID AND BCNgay=@D
+				SELECT @TGLTToiDa=ISNULL(HRM.dbo.tblBaoCaoK.BCTGLTToiDa,0),
+				       @TGLTToiDaTC=ISNULL(HRM.dbo.tblBaoCaoK.BCTGLTToiDaTC,0)
+				FROM HRM.dbo.tblBaoCaoK
+				WHERE BCMaNV=@StaffID AND BCNgay=@D
 
 				WHILE @RowCount <= @NumberRecords
 					BEGIN
