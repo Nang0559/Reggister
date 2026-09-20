@@ -17,7 +17,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
     }
 
     public async Task<CalendarMonthDto> GetMonthAsync(
-        int employeeId,
+        string employeeCode,
         int userId,
         DateOnly from,
         DateOnly to,
@@ -26,7 +26,14 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         if (from > to)
             throw new ArgumentException("Calendar period is invalid.", nameof(from));
 
-        var context = new CalendarContext(employeeId, userId, from, to);
+        var employeeId = await _db.Employees
+            .AsNoTracking()
+            .Where(x => x.IsActive != false && x.EmployeeCode == employeeCode)
+            .Select(x => (int?)x.Id)
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy nhân viên của tài khoản hiện tại.");
+
+        var context = new CalendarContext(employeeId.Value, userId, from, to);
 
         var policies = await _db.CalendarModulePolicies
             .AsNoTracking()
@@ -78,13 +85,13 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
     }
 
     public async Task<IReadOnlyList<CalendarAlertItemDto>> GetAlertsAsync(
-        int employeeId,
+        string employeeCode,
         int userId,
         DateOnly from,
         DateOnly to,
         CancellationToken cancellationToken = default)
     {
-        var result = await GetMonthAsync(employeeId, userId, from, to, cancellationToken);
+        var result = await GetMonthAsync(employeeCode, userId, from, to, cancellationToken);
         return result.Alerts;
     }
 }
