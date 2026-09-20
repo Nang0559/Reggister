@@ -864,3 +864,189 @@ Các mục cần tiếp tục trước Phase 1:
 - HistoryController chấp nhận leave, ot, trip, equipment.
 
 **Important:** chưa đánh dấu Phase 0 DONE. Cần Phase 1 build/runtime evidence để xác nhận các thay đổi compile và endpoint/UI contract hoạt động thực tế.
+
+
+---
+
+# 22. Attendance Storage / History Go-Live Gate — Added 2026-09-21
+
+Mục tiêu: bảo đảm pipeline Attendance mới không chỉ tính đúng HRM mà còn chạy ổn định khi dữ liệu lớn, không làm phình CURRENT, không mất lịch sử và không archive nhầm kỳ công.
+
+## 22.1 Architecture contract
+
+- [ ] Xác nhận F03HrmAttendanceCalculated là CURRENT projection, không phải append-only history.
+- [ ] Xác nhận F03HrmOTActual là CURRENT projection.
+- [ ] Xác nhận mỗi (HrmEmployeeId, WorkDate) chỉ có tối đa một row CURRENT.
+- [ ] Xác nhận CalculationBatchId dùng để truy vết execution, không dùng để nhân bản lịch sử.
+- [ ] Xác nhận F03HrmAttendanceCalculationRun chỉ lưu audit nhẹ của mỗi execution.
+- [ ] Xác nhận business history nằm ở F03HrmAttendanceHistory.
+- [ ] Xác nhận OT history nằm ở F03HrmOTActualHistory.
+- [ ] Không tạo thêm pipeline tính OT độc lập ngoài usp_CalculateHrmAttendance.
+
+## 22.2 Calculation correctness
+
+Không được thay đổi thuật toán HRM-compatible.
+
+- [ ] So sánh controlled sample giữa HRM và FVN: ngày thường, ngày nghỉ, ngày lễ, ca đêm, đi muộn, về sớm, OT ngày, OT đêm, đổi ca, thiếu CheckIn, thiếu CheckOut, nghỉ phép, nghỉ/lễ overlap.
+- [ ] Xác nhận manual calculation và background calculation cùng gọi usp_CalculateHrmAttendance.
+- [ ] Xác nhận background truyền DeptCode = NULL để tính toàn công ty.
+- [ ] Xác nhận manual có thể truyền department + date range.
+- [ ] Xác nhận payroll period là 21 → 20.
+- [ ] Xác nhận startup catch-up không tạo duplicate CURRENT rows.
+
+## 22.3 Idempotence / rerun
+
+- [ ] Chạy cùng một ngày + cùng scope hai lần.
+- [ ] Số CURRENT rows không tăng theo số lần chạy.
+- [ ] F03HrmOTActual không tăng duplicate.
+- [ ] Kết quả lần sau thay thế CURRENT của scope được tính lại.
+- [ ] Chạy company-wide sau đó chạy một department.
+- [ ] Xác nhận department được refresh nhưng các department khác không bị xóa.
+- [ ] Chạy một department sau đó company-wide.
+- [ ] Xác nhận toàn công ty trở về một CURRENT projection nhất quán.
+- [ ] Chạy đồng thời hai calculation có overlap date/scope.
+- [ ] Kiểm tra blocking/deadlock và xác định policy serialization cho cùng scope.
+
+## 22.4 Transaction / failure safety
+
+- [ ] Cố tình làm calculation fail giữa một ngày.
+- [ ] Xác nhận transaction của ngày đó rollback cả delete/insert CURRENT attendance và delete/insert CURRENT OT.
+- [ ] Xác nhận ngày trước đó trong cùng range vẫn đã commit đúng theo thiết kế.
+- [ ] Xác nhận F03HrmAttendanceCalculationRun.Status = Failed.
+- [ ] Xác nhận ErrorMessage được ghi.
+- [ ] Xác nhận không có partial CURRENT rows của ngày bị fail.
+
+## 22.5 Calculation Run audit
+
+- [ ] Mỗi execution có một CalculationBatchId duy nhất.
+- [ ] Running → Succeeded khi hoàn tất.
+- [ ] Running → Failed khi exception.
+- [ ] EmployeeCount và CalculatedRows khớp với batch thực tế.
+- [ ] Không sử dụng CalculationRun như business history.
+- [ ] Có retention policy cho CalculationRun nếu số execution lớn.
+
+## 22.6 History archive
+
+- [ ] Không archive kỳ công hiện tại.
+- [ ] Không archive ngày chưa thuộc kỳ đã đóng.
+- [ ] Backup trước lần archive production đầu tiên.
+- [ ] Archive trong transaction.
+- [ ] Kiểm tra row count CURRENT trước archive.
+- [ ] Kiểm tra row count HISTORY sau archive.
+- [ ] CURRENT + HISTORY khớp tổng số business rows cần giữ.
+- [ ] Chạy archive lần hai cùng range → không tạo duplicate cùng CalculationBatchId.
+- [ ] Recalculation sau archive tạo RevisionNo mới, không overwrite revision cũ.
+- [ ] Kiểm tra revision giữa Attendance History và OT History khi cần đối soát.
+- [ ] Kiểm tra truy vấn lịch sử theo Employee, Department, Date range và Payroll period.
+- [ ] Kiểm tra partition pruning theo WorkDate.
+- [ ] Kiểm tra PAGE compression.
+- [ ] Kiểm tra index size và query plan trên dữ liệu production-like.
+- [ ] Không archive bằng thao tác DELETE thủ công ngoài stored procedure.
+
+## 22.7 Data integrity gates
+
+Trước Go-Live phải kiểm tra:
+
+- [ ] Duplicate CURRENT attendance: GROUP BY HrmEmployeeId, WorkDate HAVING COUNT(*) > 1.
+- [ ] Duplicate CURRENT OT: GROUP BY HrmEmployeeId, WorkDate HAVING COUNT(*) > 1.
+- [ ] CURRENT row có BatchId không tồn tại trong CalculationRun.
+- [ ] CalculationRun Running quá lâu.
+- [ ] History duplicate (HrmEmployeeId, WorkDate, RevisionNo).
+- [ ] CURRENT đã bị xóa nhưng HISTORY không có bản tương ứng.
+- [ ] Attendance History và OT History lệch batch đối với các employee/date có OT.
+- [ ] WorkDate ngoài payroll period được archive nhầm.
+- [ ] NULL/invalid EmployeeId hoặc Department mapping.
+- [ ] CURRENT/History có CalculatedAt bất thường.
+
+## 22.8 Volume / performance test
+
+Dùng dataset gần production:
+
+- [ ] 1 ngày × toàn công ty.
+- [ ] 7 ngày.
+- [ ] 1 payroll period (21 → 20).
+- [ ] 3 payroll periods.
+- [ ] Recalculate cùng period nhiều lần.
+- [ ] Background catch-up sau khi worker/API downtime.
+- [ ] Dashboard current-period query.
+- [ ] Calendar historical query.
+- [ ] Attendance report historical query.
+- [ ] Export historical range.
+- [ ] Đo CPU, logical reads, execution time, lock duration, tempdb và transaction log growth.
+
+### Suggested go-live thresholds
+
+Các ngưỡng phải được xác nhận theo hardware/database production thực tế:
+
+| Metric | Go-live gate |
+|---|---|
+| Duplicate CURRENT rows | 0 |
+| Failed calculation with partial committed date | 0 |
+| Archive duplicate batch | 0 |
+| Unexplained HRM/FVN difference | 0 trong certification set |
+| CalculationRun stuck Running | 0 sau SLA được phê duyệt |
+| Deadlock trong scheduled test | 0 unresolved |
+| History query timeout | 0 trong production-like test |
+| Data-loss finding | 0 |
+
+## 22.9 Reader / application certification
+
+- [ ] Dashboard chỉ đọc CURRENT cho kỳ đang mở.
+- [ ] Calendar đọc HISTORY cho ngày đã archive.
+- [ ] Report có thể đọc cả CURRENT + HISTORY.
+- [ ] Date filter không bỏ mất ngày nằm ở ranh giới archive.
+- [ ] Department filter vẫn enforce server-side.
+- [ ] Employee filter vẫn enforce server-side.
+- [ ] Export không bypass data scope.
+- [ ] Không còn code giả định toàn bộ lịch sử nằm trong F03HrmAttendanceCalculated.
+- [ ] Không còn code query F03HrmOTActual để lấy dữ liệu đã archive.
+
+## 22.10 Worker / operations certification
+
+- [ ] HrmAttendanceCalculationWorker được host registration.
+- [ ] Worker chạy startup catch-up.
+- [ ] Worker chạy calculation hàng ngày.
+- [ ] Worker không chạy calculation OT riêng.
+- [ ] Worker restart không tạo duplicate CURRENT.
+- [ ] Worker downtime được catch-up khi khởi động lại.
+- [ ] Có logging cho BatchId/date/scope/status.
+- [ ] Có alert khi calculation failed.
+- [ ] Có alert khi CalculationRun stuck.
+- [ ] Có runbook xử lý calculation failure.
+- [ ] Có runbook archive/restore.
+- [ ] Có runbook rollback khi archive lỗi.
+
+## 22.11 Production rollback / recovery
+
+- [ ] Database backup trước migration.
+- [ ] Backup/restore test đã thực hiện.
+- [ ] Test restore F03HrmAttendanceHistory.
+- [ ] Test restore F03HrmAttendanceCalculated.
+- [ ] Test recovery khi archive transaction rollback.
+- [ ] Xác nhận không dùng rollback application để đảo ngược một archive đã commit.
+- [ ] Có quy trình phục hồi History từ backup.
+- [ ] Có quy trình recalculation có kiểm soát cho một payroll period.
+
+## 22.12 Evidence required before marking DONE
+
+Phải lưu evidence cho:
+
+1. SQL deployment output.
+2. SQL verification output.
+3. Controlled HRM/FVN comparison.
+4. Idempotence test.
+5. Failure/rollback test.
+6. Archive test.
+7. Recalculation-after-archive revision test.
+8. Production-like volume test.
+9. Dashboard historical query.
+10. Calendar historical query.
+11. Attendance report historical query.
+12. Worker startup catch-up.
+13. Worker daily execution.
+14. Database backup/restore test.
+
+### Exit criteria
+
+Attendance Storage & History chỉ được đánh dấu GO-LIVE READY khi toàn bộ data-integrity gate = PASS, controlled HRM comparison = PASS, archive/revision test = PASS, volume test = PASS và reader certification = PASS.
+
