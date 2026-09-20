@@ -705,6 +705,7 @@ CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 						SET @Maca = @ShiftID1;
 				END
 			END
+		END
 
 		-- Neu chua co ca, chi ket thuc phan tinh Work/OT; IN/OUT raw van duoc
 		-- ghi ra #tblBaoCao de co the kiem tra truc tiep RecordDataNew.
