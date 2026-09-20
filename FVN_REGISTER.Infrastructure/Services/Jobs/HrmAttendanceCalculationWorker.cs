@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.HrmSync;
+using FVN_REGISTER.Infrastructure.Models.Data;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -70,7 +71,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
     private async Task RunCatchUpAsync(CancellationToken ct)
     {
         var yesterday = DateTime.Today.AddDays(-1).Date;
-        var payrollStart = GetPayrollPeriodStart(yesterday);
+        var payrollStart = await GetPayrollPeriodStartAsync(yesterday, stoppingToken);
 
         _logger.LogInformation(
             "[HRM_ATTENDANCE_WORKER] Catch-up company-wide: {From} -> {To}",
@@ -84,12 +85,12 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
     {
         var yesterday = DateTime.Today.AddDays(-1).Date;
 
+        var payrollStart = await GetPayrollPeriodStartAsync(yesterday, ct);
         _logger.LogInformation(
             "[HRM_ATTENDANCE_WORKER] Daily company-wide calculation: {Date}",
             yesterday.ToString("dd/MM/yyyy"));
-
         await CalculateCompanyWideAsync(
-            yesterday,
+            yesterday < payrollStart ? payrollStart : yesterday,
             yesterday,
             "HRM-ATTENDANCE-WORKER",
             ct);
@@ -153,11 +154,29 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         }
     }
 
-    private static DateTime GetPayrollPeriodStart(DateTime date)
+    private async Task<DateTime> GetPayrollPeriodStartAsync(DateTime date, CancellationToken ct)
     {
-        // Payroll period: 21st of current month -> 20th of next month.
-        // For a date on/before the 20th, the period started on the 21st
-        // of the previous month.
+        await using var scope = _serviceProvider.CreateAsyncScope();
+        var db = scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
+        var period = await db.PayrollCalculationPeriods.AsNoTracking()
+            .Where(x => x.IsActive != false && x.FromDate <= DateOnly.FromDateTime(date) && x.ToDate >= DateOnly.FromDateTime(date))
+            .OrderByDescending(x => x.Id)
+            .FirstOrDefaultAsync(ct);
+
+        if (period is not null)
+        {
+            if (period.Status is "Locked" or "Exported")
+            {
+                _logger.LogInformation(
+                    "[HRM_ATTENDANCE_WORKER] Bỏ qua ngày {Date}: kỳ {PeriodCode} đã {Status}.",
+                    date.ToString("dd/MM/yyyy"), period.PeriodCode, period.Status);
+                return date.AddDays(1);
+            }
+
+            return period.FromDate.ToDateTime(TimeOnly.MinValue);
+        }
+
+        // Bootstrap only when no period exists yet; the canonical period is 21 -> 20.
         return date.Day >= 21
             ? new DateTime(date.Year, date.Month, 21)
             : new DateTime(date.Year, date.Month, 1).AddMonths(-1).Date.AddDays(20);
