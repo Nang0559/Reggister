@@ -18,9 +18,6 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.HR
             // Cấu hình thuộc tính
             entity.Property(e => e.DeptCode).HasMaxLength(20).IsRequired();
             entity.Property(e => e.DeptName).HasMaxLength(100).IsRequired();
-            entity.Property(e => e.BlockCode).HasMaxLength(20);
-            entity.HasIndex(e => e.BlockCode, "IX_F03Department_BlockCode");
-
             // Audit defaults
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(getdate())");
             entity.Property(e => e.IsActive).HasDefaultValue(true);
