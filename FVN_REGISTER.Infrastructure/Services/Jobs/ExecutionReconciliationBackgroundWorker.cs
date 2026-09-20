@@ -211,10 +211,6 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                 && x.IsCountedAsLeave)
             .ToListAsync(ct);
 
-        var detailByKey = details
-            .GroupBy(x => (x.LeaveDaysId, DateOnly.FromDateTime(x.LeaveDate)))
-            .ToDictionary(x => x.Key, x => x.First());
-
         foreach (var row in rows)
         {
             var rowDetails = details
