@@ -1,4 +1,5 @@
-﻿using FVN_REGISTER.Contract.Dtos.Approvals;
+﻿using FVN_REGISTER.Contract.Dtos.Actions;
+using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Dtos.OT;
 
@@ -24,6 +25,10 @@ namespace FVN_REGISTER.Contract.Dtos.Dashboard
 
         public bool ShowManagerView { get; set; }
         public bool IsEPL { get; set; }
+
+        // Shared Action inbox: visible immediately on Dashboard/Login.
+        public ActionCountDto ActionCount { get; set; } = new();
+        public List<ActionItemDto> Actions { get; set; } = new();
     }
     public class LeaveDashboardSectionDto
     {
