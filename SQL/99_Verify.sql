@@ -150,6 +150,10 @@ BEGIN
     IF COL_LENGTH(N'dbo.F03UserLogs',N'CreatedBy') IS NULL THROW 51019, 'F03UserLogs must expose BaseAudit CreatedBy.', 1;
 END;
 
+/* Legacy pre-Snapshot approval step table must not remain. */
+IF OBJECT_ID(N'dbo.F03ApprovalSteps',N'U') IS NOT NULL
+    THROW 51023,'Legacy F03ApprovalSteps must be removed; canonical approval uses snapshots + history.',1;
+
 /* Approval BaseAudit checks */
 IF OBJECT_ID(N'dbo.F03ApprovalSnapshots',N'U') IS NOT NULL AND COL_LENGTH(N'dbo.F03ApprovalSnapshots',N'CreatedBy') IS NULL THROW 51020,'F03ApprovalSnapshots must expose BaseAudit fields.',1;
 IF OBJECT_ID(N'dbo.F03ApprovalStepSnapshots',N'U') IS NOT NULL AND COL_LENGTH(N'dbo.F03ApprovalStepSnapshots',N'CreatedBy') IS NULL THROW 51021,'F03ApprovalStepSnapshots must expose BaseAudit fields.',1;
