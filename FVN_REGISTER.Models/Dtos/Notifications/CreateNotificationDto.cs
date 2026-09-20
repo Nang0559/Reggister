@@ -31,5 +31,6 @@ namespace FVN_REGISTER.Contract.Dtos.Notifications
 
         // Shared work item identity; legacy notifications may leave this null.
         public Guid? ActionId { get; set; }
+        public string? NotificationType { get; set; }
     }
 }
