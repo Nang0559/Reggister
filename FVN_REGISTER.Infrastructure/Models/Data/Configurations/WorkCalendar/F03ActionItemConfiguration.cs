@@ -12,13 +12,15 @@ public sealed class F03ActionItemConfiguration : IEntityTypeConfiguration<F03Act
         entity.ToTable("F03ActionItems");
         entity.HasKey(x => x.Id);
         entity.HasIndex(x => x.ActionId).IsUnique();
-        entity.HasIndex(x => new { x.ModuleCode, x.SourceId, x.ActionType, x.AssignedToEmployeeId })
+        entity.HasIndex(x => new { x.ModuleCode, x.SourceType, x.SourceId, x.ParticipantId, x.ActionType, x.AssignedToEmployeeId })
             .IsUnique()
             .HasFilter("[Status] IN (0, 10)");
         entity.HasIndex(x => new { x.AssignedToUserId, x.Status, x.Priority, x.DueAt });
         entity.HasIndex(x => new { x.AssignedToEmployeeId, x.Status, x.Priority, x.DueAt });
         entity.HasIndex(x => new { x.ModuleCode, x.SourceId, x.ActionType });
         entity.Property(x => x.ActionId).HasDefaultValueSql("(newsequentialid())");
+        entity.Property(x => x.SourceType).HasMaxLength(50).IsRequired();
+        entity.Property(x => x.ParticipantId).HasMaxLength(100);
         entity.Property(x => x.ModuleCode).HasMaxLength(50).IsRequired();
         entity.Property(x => x.SourceId).HasMaxLength(100).IsRequired();
         entity.Property(x => x.ActionType).HasMaxLength(100).IsRequired();
