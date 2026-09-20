@@ -6,7 +6,7 @@ Run in SSMS with SQLCMD Mode enabled.
 
 Order:
   01..30 ordered database/application foundations
-  31..35 post-foundation feature hardening
+  31..35 post-foundation feature hardening (executed after 30)
   99 Final cross-layer/schema verification
 
 IMPORTANT:
@@ -21,8 +21,8 @@ IMPORTANT:
 :on error exit
 
 :r 01_Database.sql
-:r 02_Preflight.sql
-:r 02_Schemas.sql
+:r 02A_Preflight.sql
+:r 02B_Schemas.sql
 :r 03_Tables.sql
 :r 04_Constraints.sql
 :r 05_Indexes.sql
@@ -30,10 +30,11 @@ IMPORTANT:
 :r 07_Views.sql
 :r 08_Functions.sql
 :r 09_StoredProcedures.sql
-:r 10_Audit.sql
-:r 10_Triggers.sql
-:r 11_Automation.sql
-:r 11_Permissions.sql
+:r 10A_Audit.sql
+:r 10B_Triggers.sql
+:r 11A_Automation.sql
+:r 11B_Permissions.sql
+:r 12_Verify.sql
 :r 13_HrmShiftMaster.sql
 :r 14_SecurityAuthorization.sql
 :r 15_PublicInformation.sql
@@ -41,12 +42,6 @@ IMPORTANT:
 :r 17_ApprovalRouteSelection.sql
 :r 18_ApproverConfigurationReview.sql
 :r 19_OT_LimitRule_ScopeColumns.sql
-:r 31_Hrm_User_Approval_Provisioning.sql
-:r 32_ExecutionReviewSecurity.sql
-:r 33_DocumentationConsistency.sql
-:r 34_OT_Leave_Limits.sql
-:r 35_WorkCalendar.sql
-:r 12_Verify.sql
 :r 20_Reports.sql
 :r 21_Verify_Reports.sql
 :r 22_00_HrmAttendanceTables.sql
@@ -60,8 +55,13 @@ IMPORTANT:
 :r 27_WorkCalendarActionIndexesSeed.sql
 :r 28_Verify_WorkCalendarAction.sql
 :r 29_ExecutionReconciliation.sql
-:r ../Database/Trips/002_Create_F03TripActual.sql
 :r 30_Payroll.sql
+:r 31_Hrm_User_Approval_Provisioning.sql
+:r 32_ExecutionReviewSecurity.sql
+:r 33_DocumentationConsistency.sql
+:r 34_OT_Leave_Limits.sql
+:r 35_WorkCalendar.sql
+:r ../Database/Trips/002_Create_F03TripActual.sql
 :r 99_Verify.sql
 
 PRINT N'============================================================';
