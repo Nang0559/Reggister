@@ -1,5 +1,7 @@
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Histories;
+using FVN_REGISTER.Contract.Dtos.OT;
+using FVN_REGISTER.Contract.Dtos.Notifications;
 using FVN_REGISTER.Core.Extensions;
 
 using Microsoft.EntityFrameworkCore;
