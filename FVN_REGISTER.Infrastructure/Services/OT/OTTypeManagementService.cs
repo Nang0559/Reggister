@@ -7,6 +7,7 @@ using FVN_REGISTER.Infrastructure.Services.Common;
 using FVN_REGISTER.Application.Maps;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.EntityFrameworkCore;
 using System.Linq.Expressions;
 
 namespace FVN_REGISTER.Infrastructure.Services.OT
@@ -59,10 +60,10 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         protected override IOrderedQueryable<F03OTType> ApplyDefaultOrder(IQueryable<F03OTType> query)
             => query.OrderBy(x => x.OTTypeCode);
 
-        // TODO: khi có bảng F03OTRequest (đơn tăng ca thực tế), thay logic này bằng
-        // kiểm tra x => x.OTTypeCode == entity.OTTypeCode để chặn đổi/xóa mã đang dùng.
         protected override Task<bool> IsInUseAsync(F03OTType entity, CancellationToken ct)
-            => Task.FromResult(false);
+            => Uow.Repository<F03OTRequest>().Query()
+                .AsNoTracking()
+                .AnyAsync(x => x.IsActive == true && x.OTTypeCode == entity.OTTypeCode, ct);
 
         // ===== Public API theo interface =====
         public Task<ServiceResult<List<OTTypeDto>>> GetFilteredAsync(bool? isActive, CancellationToken ct = default)
