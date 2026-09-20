@@ -128,7 +128,8 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (policy?.AutoResolveMode != 0
+        if (policy is not null
+            && policy.AutoResolveMode != 0
             && string.Equals(entity.ReconciliationStatus, "Matched", StringComparison.OrdinalIgnoreCase))
         {
             entity.ReconciliationStatus = "Resolved";
@@ -150,10 +151,8 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
 
         if (confirmationRequired && !string.Equals(entity.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
         {
-            var dueAt = policy?.DueHours is > 0
-                ? DateTime.Now.AddHours(policy.DueHours.Value)
-                : (DateTime?)null;
-
+            // ActionItemWriter assigns DueAt only when creating the action.
+            // Never calculate a fresh deadline on reconciliation reruns.
             entity.ActionId = await _actionWriter.EnsureOpenAsync(new ActionItemDraft(
                 entity.ModuleCode,
                 entity.SourceId,
