@@ -15,6 +15,9 @@ public partial class F03Department : BaseAuditEntity
     [Required, StringLength(100)]
     public string DeptName { get; set; } = string.Empty;
 
+    // Legacy HR source field; F03Departments does not contain this column in the application DB.
+    // Keep the CLR property for compatibility, but never map it to SQL.
+    [NotMapped]
     [StringLength(20)]
     public string? BlockCode { get; set; }
     [StringLength(50)]
