@@ -61,6 +61,7 @@ IMPORTANT:
 :r 27_WorkCalendarActionIndexesSeed.sql
 :r 28_Verify_WorkCalendarAction.sql
 :r 29_ExecutionReconciliation.sql
+:r ../Database/Trips/002_Create_F03TripActual.sql
 :r 99_Verify.sql
 
 PRINT N'============================================================';
