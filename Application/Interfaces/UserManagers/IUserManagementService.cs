@@ -20,6 +20,5 @@ namespace FVN_REGISTER.Application.Interfaces.UserManagers
             int id, int currentUserId, CancellationToken ct = default);
         Task<ServiceResult> ResetPasswordAsync(
             int id, string newPassword, int currentUserId, CancellationToken ct = default);
-        Task<ServiceResult> ReactivateAsync(int id, int currentUserId, CancellationToken ct = default); // MỚI
     }
 }
