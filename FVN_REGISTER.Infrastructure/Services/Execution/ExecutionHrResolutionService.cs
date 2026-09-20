@@ -1,5 +1,6 @@
 using System.Text.Json;
 using FVN_REGISTER.Application.Interfaces.Execution;
+using FVN_REGISTER.Application.Services.Execution;
 using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Contract.Dtos.Authentication;
@@ -595,7 +596,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 
         if (user is null) return;
 
-        var module = MapNotificationModule(reconciliation.ModuleCode);
+        var module = ExecutionNotificationModuleMapper.ToRequestModule(reconciliation.ModuleCode);
 
         await _notificationService.CreateAsync(new FVN_REGISTER.Contract.Dtos.Notifications.CreateNotificationDto
         {
@@ -739,23 +740,6 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
     }
 
 
-    private static RequestModule MapNotificationModule(string moduleCode)
-    {
-        switch (moduleCode?.Trim().ToUpperInvariant())
-        {
-            case "OT":
-                return RequestModule.Overtime;
-            case "LEAVE":
-                return RequestModule.Leave;
-            case "TRIP":
-                return RequestModule.Trip;
-            case "EQUIPMENT":
-                return RequestModule.Equipment;
-            default:
-                throw new InvalidOperationException(
-                    $"Không có mapping Notification Module cho Execution ModuleCode '{moduleCode}'.");
-        }
-    }
 
     private static string NormalizeDecision(string value) => value?.Trim().ToUpperInvariant() switch
     {
