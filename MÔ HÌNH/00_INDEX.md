@@ -117,3 +117,10 @@ Controller không query EF; Application không phụ thuộc Infrastructure. Mod
 - Phase 3 — Capability + Data Scope: `12_SECURITY_RBAC.md` (Section Phase 3)
 
 - [19 — Reports & Statistics](19_REPORTS_STATISTICS.md) — Danh mục báo cáo, capability và data scope.
+
+
+## Shared Work Calendar
+
+- 18_OT_ATTENDANCE_RECONCILIATION.md — chuẩn dùng chung cho Personal Work Calendar: OT/Leave/Trip và module mới có thể plug-in theo CalendarModuleDefinition + CalendarModulePolicy.
+- Calendar là read projection; Admin quyết định module nào xuất hiện, mức hiển thị, note, confirmation và reconciliation.
+- Ô lịch chỉ hiển thị tổng quan; chi tiết, cảnh báo và nội dung cần xác nhận nằm ở panel/bảng dưới lịch.
