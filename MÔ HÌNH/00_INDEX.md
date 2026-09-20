@@ -117,3 +117,8 @@ Controller không query EF; Application không phụ thuộc Infrastructure. Mod
 - Phase 3 — Capability + Data Scope: `12_SECURITY_RBAC.md` (Section Phase 3)
 
 - [19 — Reports & Statistics](19_REPORTS_STATISTICS.md) — Danh mục báo cáo, capability và data scope.
+
+
+## Shared Work Calendar + Action / Task
+- **18_OT_ATTENDANCE_RECONCILIATION.md** — chuẩn đối soát OT/chấm công và Calendar dùng chung.
+- **24_WORK_CALENDAR_AND_ACTION_IMPLEMENTATION.md** — source-of-truth triển khai Work Calendar, Action/Task, Notification và Dashboard.
