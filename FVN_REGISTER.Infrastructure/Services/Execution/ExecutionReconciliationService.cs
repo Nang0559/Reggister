@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore.Storage;
 using FVN_REGISTER.Application.Models.Actions;
 using FVN_REGISTER.Contract.Dtos.Execution;
 using FVN_REGISTER.Core.Entities.WorkCalendar;
+using FVN_REGISTER.Core.Enums;
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Execution;
@@ -49,6 +50,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         ValidateRequest(request);
 
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
+        var actorUserId = await ResolveUserIdAsync(employeeCode, cancellationToken);
         if (request.EmployeeId != employeeId)
             throw new UnauthorizedAccessException("Reconciliation không thuộc nhân viên hiện tại.");
 
@@ -63,67 +65,120 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             x.EmployeeId == request.EmployeeId &&
             x.WorkDate == request.WorkDate, cancellationToken);
 
+        var isNew = entity is null;
+        var previousStatus = entity?.ReconciliationStatus;
+
         if (entity is null)
         {
             entity = new F03ExecutionReconciliation
             {
-                ModuleCode = request.ModuleCode,
-                SourceType = request.SourceType,
-                SourceId = request.SourceId,
-                ParticipantId = request.ParticipantId,
+                ModuleCode = request.ModuleCode.Trim().ToUpperInvariant(),
+                SourceType = request.SourceType.Trim().ToUpperInvariant(),
+                SourceId = request.SourceId.Trim(),
+                ParticipantId = request.ParticipantId?.Trim(),
                 EmployeeId = request.EmployeeId,
-                WorkDate = request.WorkDate
+                WorkDate = request.WorkDate,
+                CreatedBy = actorUserId,
+                CreatedAt = DateTime.Now
             };
             _db.ExecutionReconciliations.Add(entity);
         }
 
-        // Resolved is terminal. A repeated projection/reconciliation run must not
-        // regress a completed business lifecycle back to an open state.
-        if (!string.Equals(entity.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(request.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
+        // Resolved is terminal. AwaitingConfirmation is also sticky so a worker
+        // rerun cannot reopen/regress an employee confirmation back to Mismatch.
+        var requestedStatus = NormalizeStatus(request.ReconciliationStatus);
+        var effectiveStatus = ResolveEffectiveStatus(
+            previousStatus,
+            requestedStatus,
+            request.RequiresConfirmation);
+
+        if (!string.Equals(previousStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
         {
-            entity.PlannedState = request.PlannedState;
-            entity.ActualState = request.ActualState;
-            entity.ReconciliationStatus = NormalizeStatus(request.ReconciliationStatus);
+            entity.PlannedState = request.PlannedState?.Trim();
+            entity.ActualState = request.ActualState?.Trim();
+            entity.ReconciliationStatus = effectiveStatus;
             entity.RequiresConfirmation = request.RequiresConfirmation;
             entity.RequiresEvidence = request.RequiresEvidence;
             entity.DetailJson = request.DetailJson;
+            entity.ModifiedBy = actorUserId;
+            entity.ModifiedAt = DateTime.Now;
+            entity.LastModifiedSource = "EXECUTION_RECONCILIATION";
         }
 
-        var previousStatus = entity.ReconciliationStatus;
-        if (request.RequiresConfirmation && !string.Equals(entity.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
+        var policy = await _db.ExecutionPolicies.AsNoTracking()
+            .Where(x => x.IsActive != false && x.ModuleCode == entity.ModuleCode)
+            .Select(x => new
+            {
+                x.ConfirmationMode,
+                x.EvidenceMode,
+                x.DueHours
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var confirmationRequired = entity.RequiresConfirmation
+            && (policy is null || policy.ConfirmationMode != 0);
+
+        entity.RequiresConfirmation = confirmationRequired;
+        entity.RequiresEvidence = entity.RequiresEvidence
+            || (policy?.EvidenceMode ?? 0) != 0;
+
+        if (confirmationRequired && !string.Equals(entity.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
         {
+            var dueAt = policy?.DueHours is > 0
+                ? DateTime.Now.AddHours(policy.DueHours.Value)
+                : (DateTime?)null;
+
             entity.ActionId = await _actionWriter.EnsureOpenAsync(new ActionItemDraft(
-                request.ModuleCode,
-                request.SourceId,
-                request.EmployeeId,
-                request.EmployeeId,
+                entity.ModuleCode,
+                entity.SourceId,
+                entity.EmployeeId,
+                entity.EmployeeId,
                 null,
-                request.WorkDate,
+                entity.WorkDate,
                 ConfirmationActionType,
                 "Xác nhận đối soát thực tế",
-                $"Cần xác nhận {request.ModuleCode} / {request.SourceId}.",
+                $"Cần xác nhận {entity.ModuleCode} / {entity.SourceId}.",
                 1,
                 100,
-                null,
+                dueAt,
                 "/execution",
                 null,
                 JsonSerializer.Serialize(new
                 {
-                    request.ModuleCode,
-                    request.SourceType,
-                    request.SourceId,
-                    request.ParticipantId,
-                    request.WorkDate
+                    entity.ModuleCode,
+                    entity.SourceType,
+                    entity.SourceId,
+                    entity.ParticipantId,
+                    entity.WorkDate,
+                    ReconciliationId = entity.Id
                 }),
-                request.SourceType,
-                request.ParticipantId), cancellationToken);
+                entity.SourceType,
+                entity.ParticipantId,
+                actorUserId), cancellationToken);
+        }
+        else if (!confirmationRequired && entity.ActionId.HasValue)
+        {
+            await CancelOpenActionAsync(entity.ActionId.Value, cancellationToken);
         }
 
+        await SaveProjectionAsync(entity, cancellationToken);
         await _db.SaveChangesAsync(cancellationToken);
-        if (!string.Equals(previousStatus, entity.ReconciliationStatus, StringComparison.OrdinalIgnoreCase))
-            await AddHistoryAsync(entity, previousStatus, entity.ReconciliationStatus, "UPSERT", null, null, cancellationToken);
-        await _db.SaveChangesAsync(cancellationToken);
+
+        var currentStatus = entity.ReconciliationStatus;
+        if (isNew || !string.Equals(previousStatus, currentStatus, StringComparison.OrdinalIgnoreCase))
+        {
+            await AddHistoryAsync(
+                entity,
+                previousStatus,
+                currentStatus,
+                isNew ? "CREATED" : "UPSERT",
+                null,
+                actorUserId,
+                employeeId,
+                cancellationToken);
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
         await transaction.CommitAsync(cancellationToken);
 
         return await _db.ExecutionReconciliations.AsNoTracking()
@@ -133,10 +188,14 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
 
     public async Task<ExecutionConfirmationDto> SubmitConfirmationAsync(string employeeCode, long reconciliationId, ExecutionConfirmationRequest request, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(request.Decision))
-            throw new ArgumentException("Decision không được để trống.");
+        var decision = NormalizeConfirmationDecision(request.Decision);
+        var comment = request.Comment?.Trim();
+
+        if (comment?.Length > 2000)
+            throw new ArgumentException("Comment tối đa 2000 ký tự.");
 
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
+        var actorUserId = await ResolveUserIdAsync(employeeCode, cancellationToken);
 
         await using var transaction = await _db.Database.BeginTransactionAsync(
             System.Data.IsolationLevel.Serializable, cancellationToken);
@@ -149,7 +208,9 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             throw new InvalidOperationException("Reconciliation đã Resolved, không thể gửi lại confirmation.");
 
         if (!reconciliation.RequiresConfirmation)
-            throw new InvalidOperationException("Reconciliation này không yêu cầu confirmation.");
+            throw new InvalidOperationException("Reconciliation này không còn yêu cầu confirmation.");
+
+        var previousStatus = reconciliation.ReconciliationStatus;
 
         var confirmation = await _db.ExecutionConfirmations.FirstOrDefaultAsync(
             x => x.ReconciliationId == reconciliation.Id, cancellationToken);
@@ -164,27 +225,49 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 SourceId = reconciliation.SourceId,
                 ParticipantId = reconciliation.ParticipantId,
                 EmployeeId = reconciliation.EmployeeId,
-                WorkDate = reconciliation.WorkDate
+                WorkDate = reconciliation.WorkDate,
+                CreatedBy = actorUserId,
+                CreatedAt = DateTime.Now
             };
             _db.ExecutionConfirmations.Add(confirmation);
         }
+        else
+        {
+            confirmation.ModifiedBy = actorUserId;
+            confirmation.ModifiedAt = DateTime.Now;
+        }
 
-        confirmation.Decision = request.Decision.Trim();
-        confirmation.Comment = request.Comment?.Trim();
+        confirmation.Decision = decision;
+        confirmation.Comment = comment;
         confirmation.EvidenceRequired = request.EvidenceRequired || reconciliation.RequiresEvidence;
         confirmation.Status = "Pending";
         confirmation.SubmittedAt = DateTime.Now;
-        reconciliation.ReconciliationStatus = "AwaitingConfirmation";
+        confirmation.LastModifiedSource = "EMPLOYEE_CONFIRMATION";
 
-        var previousStatus = reconciliation.ReconciliationStatus;
+        reconciliation.ReconciliationStatus = "AwaitingConfirmation";
+        reconciliation.ModifiedBy = actorUserId;
+        reconciliation.ModifiedAt = DateTime.Now;
+        reconciliation.LastModifiedSource = "EMPLOYEE_CONFIRMATION";
+
         await _db.SaveChangesAsync(cancellationToken);
         reconciliation.ConfirmationId = confirmation.Id;
         await _db.SaveChangesAsync(cancellationToken);
-        if (!string.Equals(previousStatus, reconciliation.ReconciliationStatus, StringComparison.OrdinalIgnoreCase))
-            await AddHistoryAsync(reconciliation, previousStatus, reconciliation.ReconciliationStatus, "CONFIRMATION_SUBMITTED", null, employeeId, cancellationToken);
-        await _db.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
 
+        if (!string.Equals(previousStatus, reconciliation.ReconciliationStatus, StringComparison.OrdinalIgnoreCase))
+        {
+            await AddHistoryAsync(
+                reconciliation,
+                previousStatus,
+                reconciliation.ReconciliationStatus,
+                "CONFIRMATION_SUBMITTED",
+                comment,
+                actorUserId,
+                employeeId,
+                cancellationToken);
+            await _db.SaveChangesAsync(cancellationToken);
+        }
+
+        await transaction.CommitAsync(cancellationToken);
         return ToConfirmationDto(confirmation);
     }
 
@@ -199,6 +282,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             throw new ArgumentException("EvidenceType không được để trống.");
 
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
+        var actorUserId = await ResolveUserIdAsync(employeeCode, cancellationToken);
         var confirmation = await _db.ExecutionConfirmations.FirstOrDefaultAsync(x =>
             x.Id == confirmationId && x.IsActive != false && x.EmployeeId == employeeId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy confirmation.");
@@ -234,9 +318,12 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             ReferenceNo = request.ReferenceNo?.Trim(),
             ExternalUrl = request.ExternalUrl?.Trim(),
             Description = request.Description?.Trim(),
-            SubmittedBy = employeeId,
+            SubmittedBy = actorUserId,
             SubmittedAt = DateTime.Now,
-            ReviewStatus = "Pending"
+            ReviewStatus = "Pending",
+            CreatedBy = actorUserId,
+            CreatedAt = DateTime.Now,
+            LastModifiedSource = "EXECUTION_EVIDENCE"
         };
 
         _db.ExecutionConfirmationEvidence.Add(evidence);
@@ -256,6 +343,15 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             ?? throw new KeyNotFoundException("Không tìm thấy nhân viên của tài khoản hiện tại.");
     }
 
+    private async Task<int> ResolveUserIdAsync(string employeeCode, CancellationToken cancellationToken)
+    {
+        return await _db.Users.AsNoTracking()
+            .Where(x => x.IsActive != false && x.EmployeeCode == employeeCode)
+            .Select(x => (int?)x.Id)
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? throw new UnauthorizedAccessException("Không xác định được UserId của tài khoản hiện tại.");
+    }
+
     private static void ValidateRequest(ExecutionReconciliationUpsertRequest request)
     {
         if (string.IsNullOrWhiteSpace(request.ModuleCode)) throw new ArgumentException("ModuleCode không được để trống.");
@@ -265,6 +361,8 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         if (request.WorkDate == default) throw new ArgumentException("WorkDate không hợp lệ.");
         if (string.IsNullOrWhiteSpace(request.ReconciliationStatus)) throw new ArgumentException("ReconciliationStatus không được để trống.");
         _ = NormalizeStatus(request.ReconciliationStatus);
+        if (request.DetailJson?.Length > 100000)
+            throw new ArgumentException("DetailJson quá lớn.");
     }
 
     private static string NormalizeStatus(string status)
@@ -281,22 +379,126 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         };
     }
 
+    private static string NormalizeConfirmationDecision(string value) => value?.Trim().ToUpperInvariant() switch
+    {
+        "CONFIRMED" => "CONFIRMED",
+        "REJECTED" => "REJECTED",
+        "NEED_MORE_EVIDENCE" => "NEED_MORE_EVIDENCE",
+        _ => throw new ArgumentException("Decision chỉ được là CONFIRMED, REJECTED hoặc NEED_MORE_EVIDENCE.")
+    };
+
+    private static string ResolveEffectiveStatus(string? previousStatus, string requestedStatus, bool requiresConfirmation)
+    {
+        if (string.Equals(previousStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
+            return "Resolved";
+
+        if (string.Equals(previousStatus, "AwaitingConfirmation", StringComparison.OrdinalIgnoreCase)
+            && !string.Equals(requestedStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
+            return "AwaitingConfirmation";
+
+        if (requiresConfirmation && string.Equals(requestedStatus, "Mismatch", StringComparison.OrdinalIgnoreCase))
+            return "Mismatch";
+
+        return requestedStatus;
+    }
+
+    private async Task CancelOpenActionAsync(Guid actionId, CancellationToken cancellationToken)
+    {
+        var action = await _db.ActionItems.FirstOrDefaultAsync(
+            x => x.ActionId == actionId
+                && x.Status != ActionItemStatus.Completed
+                && x.Status != ActionItemStatus.Dismissed
+                && x.Status != ActionItemStatus.Cancelled
+                && x.Status != ActionItemStatus.Expired,
+            cancellationToken);
+
+        if (action is null) return;
+
+        action.Status = ActionItemStatus.Cancelled;
+        action.CompletedAt = null;
+        action.DismissedAt = null;
+        action.ModifiedAt = DateTime.Now;
+    }
+
+    private async Task SaveProjectionAsync(
+        F03ExecutionReconciliation reconciliation,
+        CancellationToken cancellationToken)
+    {
+        var projection = await _db.CalendarProjections.FirstOrDefaultAsync(x =>
+            x.IsActive != false
+            && x.EmployeeId == reconciliation.EmployeeId
+            && x.WorkDate == reconciliation.WorkDate
+            && x.ModuleCode == reconciliation.ModuleCode
+            && x.SourceType == reconciliation.SourceType
+            && x.SourceId == reconciliation.SourceId
+            && x.ParticipantId == reconciliation.ParticipantId,
+            cancellationToken);
+
+        if (projection is null)
+        {
+            projection = new F03CalendarProjection
+            {
+                EmployeeId = reconciliation.EmployeeId,
+                WorkDate = reconciliation.WorkDate,
+                ModuleCode = reconciliation.ModuleCode,
+                SourceType = reconciliation.SourceType,
+                SourceId = reconciliation.SourceId,
+                ParticipantId = reconciliation.ParticipantId,
+                CreatedBy = reconciliation.ModifiedBy ?? reconciliation.CreatedBy,
+                CreatedAt = DateTime.Now
+            };
+            _db.CalendarProjections.Add(projection);
+        }
+
+        projection.StatusCode = reconciliation.ReconciliationStatus;
+        projection.Marker = reconciliation.ReconciliationStatus switch
+        {
+            "Mismatch" => "!",
+            "AwaitingConfirmation" => "?",
+            "Resolved" => "OK",
+            _ => null
+        };
+        projection.Summary = reconciliation.ReconciliationStatus switch
+        {
+            "Mismatch" => $"Chênh lệch {reconciliation.ModuleCode}: cần xác nhận.",
+            "AwaitingConfirmation" => $"Đang chờ xác nhận {reconciliation.ModuleCode}.",
+            "Resolved" => $"Đã giải quyết {reconciliation.ModuleCode}.",
+            _ => $"Đối soát {reconciliation.ModuleCode}: {reconciliation.ReconciliationStatus}."
+        };
+        projection.Severity = reconciliation.ReconciliationStatus == "Mismatch" ? (byte)2 :
+            reconciliation.ReconciliationStatus == "AwaitingConfirmation" ? (byte)1 : (byte)0;
+        projection.RequiresAction = reconciliation.RequiresConfirmation
+            && !string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase);
+        projection.ActionId = reconciliation.ActionId;
+        projection.DetailRoute = $"/execution/{reconciliation.Id}";
+        projection.PayloadJson = reconciliation.DetailJson;
+        projection.ModifiedBy = reconciliation.ModifiedBy;
+        projection.ModifiedAt = DateTime.Now;
+        projection.LastModifiedSource = "EXECUTION_RECONCILIATION";
+        projection.CalculatedAt = DateTime.Now;
+    }
+
     private async Task AddHistoryAsync(
         F03ExecutionReconciliation reconciliation,
         string? fromStatus,
         string toStatus,
         string eventType,
         string? reason,
+        int? actorUserId,
         int? actorEmployeeId,
         CancellationToken cancellationToken)
     {
+        if (reconciliation.Id <= 0)
+            return;
+
         _db.ExecutionReconciliationHistory.Add(new F03ExecutionReconciliationHistory
         {
             ReconciliationId = reconciliation.Id,
             FromStatus = fromStatus,
             ToStatus = toStatus,
             EventType = eventType,
-            Reason = reason,
+            Reason = reason?.Length > 2000 ? reason[..2000] : reason,
+            ActorUserId = actorUserId,
             ActorEmployeeId = actorEmployeeId,
             CreatedAt = DateTime.Now
         });
