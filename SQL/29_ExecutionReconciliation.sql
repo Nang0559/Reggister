@@ -571,3 +571,30 @@ GO
 
 PRINT N'GENERIC EXECUTION RECONCILIATION SCHEMA VERIFIED.';
 GO
+
+CREATE OR ALTER PROCEDURE dbo.usp_PreparePayrollPeriod
+ @PeriodId int
+AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ DECLARE @FromDate date,@ToDate date,@Status nvarchar(20);
+ SELECT @FromDate=FromDate,@ToDate=ToDate,@Status=Status FROM dbo.F03PayrollCalculationPeriods WHERE Id=@PeriodId AND IsActive=1;
+ IF @FromDate IS NULL THROW 52200,N'Không tìm thấy kỳ lương.',1;
+ IF @Status IN(N'Locked',N'Exported') THROW 52201,N'Kỳ lương đã khóa/xuất, không được thay đổi.',1;
+ BEGIN TRAN;
+ DELETE FROM dbo.F03PayrollInputs WHERE PayrollPeriodId=@PeriodId;
+ INSERT dbo.F03PayrollInputs(PayrollPeriodId,EmployeeId,WorkDate,WorkMinutes,LeaveTotal,OTMinutes,Source,SnapshotAt)
+ SELECT @PeriodId,e.Id,a.WorkDate,
+        CAST(ISNULL(a.WorkMinutesDay,0)+ISNULL(a.WorkMinutesNight,0) AS decimal(10,2)),
+        CAST(ISNULL(a.LeaveTotal,0) AS decimal(10,2)),
+        CAST(ISNULL(o.RecognizedOTMinutes,0) AS decimal(10,2)),
+        N'HRM_CALCULATION',GETDATE()
+ FROM dbo.F03HrmAttendanceCalculated a
+ INNER JOIN dbo.F03Employees e ON e.EmployeeCode=a.EmployeeCode
+ LEFT JOIN dbo.F03HrmOTActual o ON o.HrmEmployeeId=a.HrmEmployeeId AND o.WorkDate=a.WorkDate
+ WHERE a.WorkDate BETWEEN @FromDate AND @ToDate;
+ UPDATE dbo.F03PayrollCalculationPeriods SET Status=N'Calculated',CalculatedAt=GETDATE() WHERE Id=@PeriodId;
+ COMMIT;
+ SELECT @PeriodId AS PeriodId,COUNT(*) AS InputRows FROM dbo.F03PayrollInputs WHERE PayrollPeriodId=@PeriodId;
+END;
+GO
