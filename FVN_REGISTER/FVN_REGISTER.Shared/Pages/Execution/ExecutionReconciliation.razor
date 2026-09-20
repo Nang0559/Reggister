@@ -63,26 +63,22 @@
     }
 </MudContainer>
 
-<MudDialog @bind-IsVisible="_confirmationOpen">
-    <DialogContent>
-        @if (_selected is not null)
-        {
-            <MudText Typo="Typo.h6" Class="mb-3">
-                Xác nhận @(_selected.ModuleCode) / @(_selected.SourceId)
-            </MudText>
-            <MudSelect T="string" @bind-Value="_decision" Label="Kết luận" Variant="Variant.Outlined">
+    @if (_confirmationOpen && _selected is not null)
+    {
+        <MudPaper Outlined="true" Class="pa-4 mt-4">
+            <MudText Typo="Typo.h6">Xác nhận @_selected.ModuleCode / @_selected.SourceId</MudText>
+            <MudSelect T="string" @bind-Value="_decision" Label="Kết luận" Variant="Variant.Outlined" Class="mt-3">
                 <MudSelectItem Value="@("CONFIRMED")">Xác nhận đúng</MudSelectItem>
                 <MudSelectItem Value="@("REJECTED")">Từ chối / cần xử lý lại</MudSelectItem>
             </MudSelect>
             <MudTextField @bind-Value="_comment" Label="Ghi chú" Variant="Variant.Outlined" Lines="3" Class="mt-3" />
             <MudCheckBox @bind-Value="_evidenceRequired" Label="Yêu cầu bổ sung bằng chứng" />
-        }
-    </DialogContent>
-    <DialogActions>
-        <MudButton OnClick="CloseConfirmation">Hủy</MudButton>
-        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitConfirmationAsync">Gửi xác nhận</MudButton>
-    </DialogActions>
-</MudDialog>
+            <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1" Class="mt-3">
+                <MudButton OnClick="CloseConfirmation">Hủy</MudButton>
+                <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitConfirmationAsync">Gửi xác nhận</MudButton>
+            </MudStack>
+        </MudPaper>
+    }
 
 @code {
     private DateTime? _from = DateTime.Today.AddDays(-30);
