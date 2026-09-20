@@ -12,6 +12,12 @@ public interface IExecutionHrResolutionService
         DateOnly? to,
         CancellationToken cancellationToken = default);
 
+    Task<ExecutionReconciliationDetailDto?> GetDetailAsync(
+        int userId,
+        string employeeCode,
+        long reconciliationId,
+        CancellationToken cancellationToken = default);
+
     Task<ExecutionEvidenceDto> ReviewEvidenceAsync(
         int userId,
         string employeeCode,
