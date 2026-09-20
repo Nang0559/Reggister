@@ -18,6 +18,27 @@ public sealed class FvnWebAppContextSmokeTests
     }
 
     [Fact]
+    public void ExecutionReconciliation_service_captures_previous_status_before_mutation()
+    {
+        var root = FindRepositoryRoot();
+        var servicePath = Path.Combine(
+            root, "FVN_REGISTER.Infrastructure", "Services", "Execution",
+            "ExecutionReconciliationService.cs");
+
+        Assert.True(File.Exists(servicePath), $"Missing service: {servicePath}");
+
+        var source = File.ReadAllText(servicePath);
+        var previousIndex = source.IndexOf("var previousStatus = entity?.ReconciliationStatus;", StringComparison.Ordinal);
+        var assignmentIndex = source.IndexOf("entity.ReconciliationStatus = effectiveStatus;", StringComparison.Ordinal);
+
+        Assert.True(previousIndex >= 0);
+        Assert.True(assignmentIndex >= 0);
+        Assert.True(previousIndex < assignmentIndex, "previousStatus must be captured before status mutation.");
+        Assert.Contains("ActorUserId = actorUserId", source);
+        Assert.Contains("isNew ? \"CREATED\" : \"UPSERT\"", source);
+    }
+
+    [Fact]
     public void ExecutionReconciliation_sql_script_has_valid_batch_separators_and_history_fk()
     {
         var root = FindRepositoryRoot();
