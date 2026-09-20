@@ -1,5 +1,4 @@
 using FVN_REGISTER.Application.Interfaces.HrmSync;
-using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Data.SqlClient;
@@ -88,11 +87,8 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
         var workbook = new HSSFWorkbook(input);
         var sheet = workbook.GetSheetAt(0);
 
-        // The HRM report period is the company payroll period ending on the 20th.
-        // Do not derive the first day from the last row's calendar month.
-        var anchor = rows.Max(x => x.WorkDate);
-        var period = CompanyPayrollPeriod.For(anchor);
-        ApplyAttendanceHeader(sheet, period);
+        var month = rows.Max(x => x.WorkDate);
+        ApplyAttendanceHeader(sheet, month);
 
         var grouped = rows
             .GroupBy(x => new { x.EmployeeCode, x.FullName, x.DeptCode })
@@ -111,20 +107,15 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
             SetText(row, 0, (i + 1).ToString());
             SetText(row, 1, item.Key.EmployeeCode);
             SetText(row, 2, item.Key.FullName?.Trim());
+            SetText(row, 5, GetPosition(item));
             SetText(row, 6, item.Key.DeptCode);
 
             var byDate = item.ToDictionary(x => x.WorkDate.Date);
-            for (var day = 0; day < period.DayCount; day++)
+            for (var day = 0; day < 31; day++)
             {
-                var date = period.From.AddDays(day);
+                var date = month.AddMonths(-1).Date.AddDays(20 + day);
                 var cell = row.GetCell(7 + day) ?? row.CreateCell(7 + day);
                 cell.SetCellValue(GetAttendanceMark(byDate.GetValueOrDefault(date)));
-            }
-
-            for (var day = period.DayCount; day < 31; day++)
-            {
-                var cell = row.GetCell(7 + day) ?? row.CreateCell(7 + day);
-                cell.SetCellValue(string.Empty);
             }
         }
 
@@ -138,9 +129,8 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
         var workbook = new HSSFWorkbook(input);
         var sheet = workbook.GetSheetAt(0);
 
-        var anchor = rows.Max(x => x.WorkDate);
-        var period = CompanyPayrollPeriod.For(anchor);
-        ApplyOtHeader(sheet, period);
+        var month = rows.Max(x => x.WorkDate);
+        ApplyOtHeader(sheet, month);
 
         var grouped = rows
             .GroupBy(x => new { x.EmployeeCode, x.FullName, x.DeptCode })
@@ -162,17 +152,13 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
             SetText(row, 3, item.Key.DeptCode);
 
             var byDate = item.ToDictionary(x => x.WorkDate.Date);
-            for (var day = 0; day < period.DayCount; day++)
+            for (var day = 0; day < 31; day++)
             {
-                var date = period.From.AddDays(day);
+                var date = month.AddMonths(-1).Date.AddDays(20 + day);
                 var cell = row.GetCell(4 + day) ?? row.CreateCell(4 + day);
-                cell.SetCellValue(GetOtValue(byDate.GetValueOrDefault(date)));
-            }
 
-            for (var day = period.DayCount; day < 31; day++)
-            {
-                var cell = row.GetCell(4 + day) ?? row.CreateCell(4 + day);
-                cell.SetCellValue(string.Empty);
+                var value = GetOtValue(byDate.GetValueOrDefault(date));
+                cell.SetCellValue(value);
             }
         }
 
@@ -181,10 +167,26 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
     }
 
     private static string GetAttendanceMark(AttendanceRow? row)
-        => row?.AttendanceDisplayValue?.Trim() ?? string.Empty;
+    {
+        // The calculation SQL owns HRM display semantics. The exporter only renders it.
+        return row?.AttendanceDisplayValue?.Trim() ?? string.Empty;
+    }
 
     private static string GetOtValue(OtRow? row)
-        => row?.OtDisplayValue?.Trim() ?? string.Empty;
+    {
+        // Never infer OT meaning from weekday/holiday in the Excel layer.
+        // HRM-compatible calculation persists the display value explicitly.
+        return row?.OtDisplayValue?.Trim() ?? string.Empty;
+    }
+
+    private static string FormatOtHours(int minutes)
+    {
+        var hours = Math.Round(minutes / 60d, 2, MidpointRounding.AwayFromZero);
+        return hours.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+    }
+
+    private static string FirstNonEmpty(params string?[] values)
+        => values.FirstOrDefault(x => !string.IsNullOrWhiteSpace(x))?.Trim() ?? string.Empty;
 
     private string GetTemplate(string name)
     {
@@ -198,55 +200,35 @@ ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
         return path;
     }
 
-    private static void ApplyAttendanceHeader(ISheet sheet, CompanyPayrollPeriod period)
+    private static void ApplyAttendanceHeader(ISheet sheet, DateTime month)
     {
         SetText(sheet.GetRow(0), 0, "CÔNG TY TNHH FCC VIỆT NAM");
-        SetText(sheet.GetRow(1), 0, $"KỲ CÔNG {period.From:dd/MM/yyyy} - {period.To:dd/MM/yyyy}");
-        SetText(sheet.GetRow(3), 0, $"BẢNG CHẤM CÔNG KỲ {period.From:dd/MM/yyyy} - {period.To:dd/MM/yyyy}");
+        SetText(sheet.GetRow(1), 0, $"THÁNG {month:M}");
+        SetText(sheet.GetRow(3), 0, $"BẢNG CHẤM CÔNG THÁNG {month:M}/{month:yyyy}");
 
         for (var i = 0; i < 31; i++)
         {
-            var cell = sheet.GetRow(3)?.GetCell(7 + i) ?? sheet.GetRow(3)?.CreateCell(7 + i);
-            var row4 = sheet.GetRow(4);
-            if (cell == null) continue;
-
-            if (i < period.DayCount)
-            {
-                var date = period.From.AddDays(i);
-                cell.SetCellValue(date.Day == 1 ? date.ToString("dd/MM") : date.Day.ToString());
-                if (row4 != null)
-                    SetText(row4, 7 + i, date.ToString("ddd", new System.Globalization.CultureInfo("en-US")));
-            }
-            else
-            {
-                cell.SetCellValue(string.Empty);
-                SetText(row4, 7 + i, string.Empty);
-            }
+            var date = month.AddMonths(-1).Date.AddDays(20 + i);
+            SetText(sheet.GetRow(3), 7 + i, date.Day == 1 ? date.ToString("dd/MM") : date.Day.ToString());
+            SetText(sheet.GetRow(4), 7 + i, date.ToString("ddd", new System.Globalization.CultureInfo("en-US")));
         }
     }
 
-    private static void ApplyOtHeader(ISheet sheet, CompanyPayrollPeriod period)
+    private static void ApplyOtHeader(ISheet sheet, DateTime month)
     {
         SetText(sheet.GetRow(0), 0, "CÔNG TY TNHH FCC VIỆT NAM");
-        SetText(sheet.GetRow(1), 0, $"BẢNG LÀM THÊM KỲ {period.From:dd/MM/yyyy} - {period.To:dd/MM/yyyy}");
+        SetText(sheet.GetRow(1), 0, $"                BẢNG  LÀM THÊM THÁNG {month:M} NĂM {month:yyyy}");
 
         for (var i = 0; i < 31; i++)
         {
-            var row3 = sheet.GetRow(3);
-            var row4 = sheet.GetRow(4);
-            if (i < period.DayCount)
-            {
-                var date = period.From.AddDays(i);
-                SetText(row3, 4 + i, date.Day == 1 ? date.ToString("dd/MM") : date.Day.ToString());
-                SetText(row4, 4 + i, date.ToString("ddd", new System.Globalization.CultureInfo("en-US")));
-            }
-            else
-            {
-                SetText(row3, 4 + i, string.Empty);
-                SetText(row4, 4 + i, string.Empty);
-            }
+            var date = month.AddMonths(-1).Date.AddDays(20 + i);
+            SetText(sheet.GetRow(3), 4 + i, date.Day == 1 ? date.ToString("dd/MM") : date.Day.ToString());
+            SetText(sheet.GetRow(4), 4 + i, date.ToString("ddd", new System.Globalization.CultureInfo("en-US")));
         }
     }
+
+    private static string GetPosition(IEnumerable<AttendanceRow> rows)
+        => string.Empty;
 
     private static void EnsureRows(ISheet sheet, int firstRow, int count, int columns)
     {

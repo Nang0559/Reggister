@@ -1,3 +1,4 @@
+
 window.workCalendar = (function () {
     let _calendar = null;
     let _dotNetRef = null;
@@ -19,14 +20,6 @@ window.workCalendar = (function () {
             height: 'auto',
             selectable: false,
             events: events || [],
-
-            datesSet: function (info) {
-                if (_dotNetRef)
-                    _dotNetRef.invokeMethodAsync(
-                        'OnCalendarRangeChanged',
-                        info.startStr,
-                        info.endStr);
-            },
 
             dateClick: function (info) {
                 if (_dotNetRef)

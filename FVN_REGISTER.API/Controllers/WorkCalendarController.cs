@@ -1,3 +1,4 @@
+
 using FVN_REGISTER.Application.Interfaces.Calendar;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
@@ -37,9 +38,12 @@ public sealed class WorkCalendarController : ControllerBase
         var user = _currentUser.GetCurrentUser();
         if (user == null) return Unauthorized();
 
-        if (!await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveView, ct)
-            && !await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct)
-            && !await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct))
+        var canAttendance = await _authorization.HasAsync(user, SecurityFunctionCodes.AttendanceView, ct);
+        var canLeave = await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveView, ct);
+        var canOt = await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct);
+        var canTrip = await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct);
+
+        if (!canAttendance && !canLeave && !canOt && !canTrip)
             return Forbid();
 
         var fromDate = from == default ? DateTime.Today : from.Date;
@@ -68,11 +72,15 @@ public sealed class WorkCalendarController : ControllerBase
         var user = _currentUser.GetCurrentUser();
         if (user == null) return Unauthorized();
 
-        if (!await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveView, ct)
-            && !await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct)
-            && !await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct))
+        var canAttendance = await _authorization.HasAsync(user, SecurityFunctionCodes.AttendanceView, ct);
+        var canLeave = await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveView, ct);
+        var canOt = await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct);
+        var canTrip = await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct);
+
+        if (!canAttendance && !canLeave && !canOt && !canTrip)
             return Forbid();
 
-        return Ok(await _service.GetAvailabilityAsync(user.EmployeeCode ?? string.Empty, date, ct));
+        return Ok(await _service.GetAvailabilityAsync(
+            user.EmployeeCode ?? string.Empty, date, ct));
     }
 }

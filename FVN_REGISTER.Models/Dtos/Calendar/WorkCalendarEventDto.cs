@@ -11,10 +11,4 @@ public sealed class WorkCalendarEventDto
     public string Status { get; set; } = string.Empty;
     public bool IsReadOnly { get; set; }
     public int? RequestId { get; set; }
-
-    // FullCalendar presentation. Null means use the default theme.
-    public string? Color { get; set; }
-    public string? BackgroundColor { get; set; }
-    public string? BorderColor { get; set; }
-    public bool AllDay { get; set; }
 }
