@@ -2,6 +2,7 @@
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.LimitRuleDtos
 @using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Dialogs.OT
 @using FVN_REGISTER.Shared.Services.OTs
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
@@ -178,7 +179,7 @@ else
 
     private async Task Delete(OTLimitRuleDto item)
     {
-        var confirmed = await DialogService.ShowMessageBox(
+        var confirmed = await DialogService.ShowMessageBoxAsync(
             "Xóa hạn mức OT",
             $"Bạn có chắc muốn xóa quy tắc “{item.ScopeText} - {GetLimitText(item.LimitType)}”?",
             yesText: "Xóa", cancelText: "Hủy");
