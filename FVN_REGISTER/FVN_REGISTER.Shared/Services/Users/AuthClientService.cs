@@ -60,6 +60,8 @@ namespace FVN_REGISTER.Shared.Services.Users
                 {
                     var token = result.Data.Token;
                     await _tokenStorage.SetTokenAsync(token);
+                    if (!string.IsNullOrWhiteSpace(result.Data.RefreshToken))
+                        await _tokenStorage.SetRefreshTokenAsync(result.Data.RefreshToken);
 
                     if (_authStateProvider is CustomAuthStateProvider provider)
                         provider.NotifyUserLogin(token);
@@ -167,7 +169,7 @@ namespace FVN_REGISTER.Shared.Services.Users
             }
             finally
             {
-                await _tokenStorage.RemoveTokenAsync();
+                await _tokenStorage.ClearAsync();
                 _currentUserService.ClearUser();
 
                 if (_authStateProvider is CustomAuthStateProvider provider)
