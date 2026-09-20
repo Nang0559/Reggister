@@ -68,6 +68,25 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03PayrollInputs_E
  ALTER TABLE dbo.F03PayrollInputs WITH NOCHECK ADD CONSTRAINT FK_F03PayrollInputs_Employee FOREIGN KEY(EmployeeId) REFERENCES dbo.F03Employees(Id);
 GO
 
+IF NOT EXISTS (
+    SELECT 1 FROM dbo.F03PayrollCalculationPeriods
+    WHERE DAY(FromDate)<>21 OR ToDate<>DATEADD(DAY,-1,DATEADD(MONTH,1,FromDate))
+)
+    ALTER TABLE dbo.F03PayrollCalculationPeriods WITH CHECK CHECK CONSTRAINT CK_F03PayrollCalculationPeriods_21_20;
+ELSE
+    PRINT N'WARNING: legacy payroll periods violate 21->20 and date constraint remains untrusted.';
+GO
+
+IF NOT EXISTS (
+    SELECT 1 FROM dbo.F03PayrollInputs p
+    LEFT JOIN dbo.F03Employees e ON e.Id=p.EmployeeId
+    WHERE e.Id IS NULL
+)
+    ALTER TABLE dbo.F03PayrollInputs WITH CHECK CHECK CONSTRAINT FK_F03PayrollInputs_Employee;
+ELSE
+    PRINT N'WARNING: orphan payroll input employees exist; FK_F03PayrollInputs_Employee remains untrusted.';
+GO
+
 CREATE OR ALTER PROCEDURE dbo.usp_EnsurePayrollPeriod
  @AsOfDate date,
  @ActorUserId int = 0
