@@ -1,86 +1,103 @@
-
+using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Calendar;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
-using FVN_REGISTER.Contract.Dtos.Calendar;
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using IAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 
 namespace FVN_REGISTER.API.Controllers;
 
+[Authorize]
 [ApiController]
 [Route("api/calendar")]
-[Authorize]
-public sealed class WorkCalendarController : ControllerBase
+public sealed class WorkCalendarController : BaseApiController
 {
-    private readonly IWorkCalendarService _service;
-    private readonly ICurrentUserService _currentUser;
+    private readonly ISharedWorkCalendarService _calendar;
     private readonly IAuthorizationService _authorization;
 
     public WorkCalendarController(
-        IWorkCalendarService service,
         ICurrentUserService currentUser,
+        IUserLogService userLog,
+        ILogger<WorkCalendarController> logger,
+        IOptionsMonitor<AuthDebugOptions> options,
+        ISharedWorkCalendarService calendar,
         IAuthorizationService authorization)
+        : base(currentUser, userLog, logger, options)
     {
-        _service = service;
-        _currentUser = currentUser;
+        _calendar = calendar;
         _authorization = authorization;
     }
 
-    [HttpGet]
-    public async Task<ActionResult<WorkCalendarDto>> Get(
-        [FromQuery] DateTime from,
-        [FromQuery] DateTime to,
+    [HttpGet("me")]
+    public async Task<IActionResult> GetMine(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
         CancellationToken ct)
     {
-        var user = _currentUser.GetCurrentUser();
-        if (user == null) return Unauthorized();
+        if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
-        var canAttendance = await _authorization.HasAsync(user, SecurityFunctionCodes.AttendanceView, ct);
-        var canLeave = await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveView, ct);
-        var canOt = await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct);
-        var canTrip = await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct);
-
-        if (!canAttendance && !canLeave && !canOt && !canTrip)
+        var modules = await GetAuthorizedModulesAsync(UserInfo, ct);
+        if (modules.Count == 0)
             return Forbid();
 
-        var fromDate = from == default ? DateTime.Today : from.Date;
-        var toDate = to == default ? fromDate.AddDays(42) : to.Date;
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var first = from ?? new DateOnly(today.Year, today.Month, 1);
+        var last = to ?? new DateOnly(today.Year, today.Month, DateTime.DaysInMonth(today.Year, today.Month));
 
-        if (toDate < fromDate)
-            return BadRequest("Khoảng ngày không hợp lệ.");
+        if (last < first)
+            return BadRequest(ApiResponse<object>.Fail("Khoảng ngày không hợp lệ."));
 
-        if ((toDate - fromDate).TotalDays > 93)
-            return BadRequest("Lịch chỉ cho phép tối đa 94 ngày mỗi lần tải.");
+        if (last.DayNumber - first.DayNumber > 93)
+            return BadRequest(ApiResponse<object>.Fail("Lịch chỉ cho phép tối đa 94 ngày mỗi lần tải."));
 
-        return Ok(await _service.GetAsync(
-            user.EmployeeCode ?? string.Empty,
-            user.DeptCode,
-            user.PositionCode,
-            fromDate,
-            toDate,
-            ct));
+        var result = await _calendar.GetMonthAsync(UserInfo.EmployeeCode, userId, first, last, modules, ct);
+        return Ok(ApiResponse<object>.Ok(result));
     }
 
-    [HttpGet("availability")]
-    public async Task<ActionResult<CalendarAvailabilityDto>> Availability(
-        [FromQuery] DateTime date,
+    [HttpGet("me/alerts")]
+    public async Task<IActionResult> GetAlerts(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
         CancellationToken ct)
     {
-        var user = _currentUser.GetCurrentUser();
-        if (user == null) return Unauthorized();
+        if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
-        var canAttendance = await _authorization.HasAsync(user, SecurityFunctionCodes.AttendanceView, ct);
-        var canLeave = await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveView, ct);
-        var canOt = await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct);
-        var canTrip = await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct);
-
-        if (!canAttendance && !canLeave && !canOt && !canTrip)
+        var modules = await GetAuthorizedModulesAsync(UserInfo, ct);
+        if (modules.Count == 0)
             return Forbid();
 
-        return Ok(await _service.GetAvailabilityAsync(
-            user.EmployeeCode ?? string.Empty, date, ct));
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var first = from ?? today.AddDays(-30);
+        var last = to ?? today.AddDays(30);
+
+        if (last < first)
+            return BadRequest(ApiResponse<object>.Fail("Khoảng ngày không hợp lệ."));
+
+        var result = await _calendar.GetAlertsAsync(UserInfo.EmployeeCode, userId, first, last, modules, ct);
+        return Ok(ApiResponse<object>.Ok(result));
+    }
+
+    private async Task<HashSet<string>> GetAuthorizedModulesAsync(
+        FVN_REGISTER.Contract.Dtos.Authentication.UserIdentityDto user,
+        CancellationToken ct)
+    {
+        var result = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        if (await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct))
+            result.Add("OT");
+
+        if (await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveView, ct))
+            result.Add("LEAVE");
+
+        if (await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct))
+            result.Add("TRIP");
+
+        return result;
     }
 }
