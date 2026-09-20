@@ -9,7 +9,7 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.OTs
     {
         public void Configure(EntityTypeBuilder<F03OTReasonCode> entity)
         {
-            entity.ToTable("F03OTReasonCodes");
+            entity.ToTable("F03OTCodes");
             entity.HasKey(e => e.Id).HasName("PK_F03OTReasonCodes");
 
             // Index cho mã lý do để tránh trùng lặp
