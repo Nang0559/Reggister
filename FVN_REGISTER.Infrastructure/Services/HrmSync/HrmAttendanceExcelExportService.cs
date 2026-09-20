@@ -36,13 +36,18 @@ public sealed class HrmAttendanceExcelExportService : IHrmAttendanceExcelExportS
             if (ot)
             {
                 var rows = await _uow.SqlQueryRawAsync<OtRow>(@"
-SELECT WorkDate,EmployeeCode,FullName,DeptCode,ShiftAbbr,
-       OTRecognizedMinutesDay,OTRecognizedMinutesNight,
-       OTMinutesDay,OTMinutesNight,HrmHoliday,HrmEmployeeHoliday,
-       OtDisplayValue
-FROM dbo.F03HrmAttendanceCalculated
-WHERE CalculationBatchId=@BatchId
-ORDER BY DeptCode,EmployeeCode,WorkDate;", ct, p);
+SELECT a.WorkDate,a.EmployeeCode,a.FullName,a.DeptCode,a.ShiftAbbr,
+       o.RecognizedOTMinutes AS OTRecognizedMinutesDay,
+       0 AS OTRecognizedMinutesNight,
+       o.ActualOTDayMinutes AS OTMinutesDay,
+       o.ActualOTNightMinutes AS OTMinutesNight,
+       a.HrmHoliday,a.HrmEmployeeHoliday,a.OtDisplayValue
+FROM dbo.F03HrmOTActual o
+INNER JOIN dbo.F03HrmAttendanceCalculated a
+    ON a.Id=o.SourceAttendanceId
+   AND a.CalculationBatchId=o.CalculationBatchId
+WHERE o.CalculationBatchId=@BatchId
+ORDER BY a.DeptCode,a.EmployeeCode,a.WorkDate;", ct, p);
 
                 if (rows.Count == 0)
                     return ServiceResult<byte[]>.Fail("Không có dữ liệu tính OT của batch này.");
