@@ -93,12 +93,15 @@ public class UserManagementController : BaseApiController
         if (!await CanAsync(SecurityFunctionCodes.UserManagementEdit, ct))
             return Forbid();
 
-        if (id == UserInfo!.UserId)
+        var user = UserInfo;
+        if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+
+        if (id == user.UserId)
             return BadRequest(ApiResponse<object>.Fail(
                 "Không thể xóa tài khoản đang đăng nhập."));
 
         return HandleResult(
-            await _userMgt.DeleteAsync(id, UserInfo.UserId, ct));
+            await _userMgt.DeleteAsync(id, user.UserId, ct));
     }
 
     [HttpPut("{id:int}/toggle-lock")]
