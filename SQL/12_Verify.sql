@@ -206,7 +206,7 @@ IF OBJECT_ID(N'dbo.F03WorkYears',N'U') IS NULL
 IF OBJECT_ID(N'dbo.F03CompanyHolidays',N'U') IS NULL
     THROW 50992,'Missing canonical table dbo.F03CompanyHolidays.',1;
 IF COL_LENGTH(N'dbo.F03CompanyHolidays',N'TinhPhep') IS NULL
-    THROW 50993,'Missing dbo.F03CompanyHoliday.TinhPhep.',1;
+    THROW 50993,'Missing dbo.F03CompanyHolidays.TinhPhep.',1;
 IF COL_LENGTH(N'dbo.F03LeaveBalances',N'BaseLeaveDays') IS NULL
     THROW 50994,'Missing dbo.F03LeaveBalances.BaseLeaveDays.',1;
 IF COL_LENGTH(N'dbo.F03LeaveBalances',N'SeniorityLeaveDays') IS NULL
