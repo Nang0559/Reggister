@@ -1,4 +1,4 @@
-﻿namespace FVN_REGISTER.Application.Services.HrmSync.ManualSync.BaseManuals
+﻿namespace FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.BaseManuals
 {
     using FVN_REGISTER.Application.Interfaces.HrmSync;
     using FVN_REGISTER.Core.Enums;
