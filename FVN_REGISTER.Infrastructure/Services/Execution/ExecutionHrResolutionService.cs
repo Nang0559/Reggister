@@ -380,7 +380,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         }
         catch
         {
-            // Resolution is authoritative; notification delivery is retried by the notification subsystem.
+            // Resolution is authoritative; notification delivery must not roll it back.
         }
 
         return new ExecutionHrResolutionDto(
