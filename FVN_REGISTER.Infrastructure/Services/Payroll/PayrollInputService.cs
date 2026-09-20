@@ -169,41 +169,6 @@ public sealed class PayrollInputService : IPayrollInputService
             throw new InvalidOperationException(
                 "Không được in/xuất bảng công-OT: kỳ lương còn Execution Reconciliation chưa được giải quyết.");
 
-        var pendingCorrection = await _db.ExecutionCorrections.AsNoTracking()
-            .AnyAsync(x => x.IsActive != false
-                && x.WorkDate >= period.FromDate
-                && x.WorkDate <= period.ToDate
-                && x.Status != "Applied"
-                && x.Status != "Cancelled", ct);
-
-        if (pendingCorrection)
-            throw new InvalidOperationException(
-                "Không được in/xuất bảng công-OT: kỳ lương còn Execution Correction Pending/Failed.");
-
-        var failedCorrection = await _db.ExecutionCorrections.AsNoTracking()
-            .AnyAsync(x => x.IsActive != false
-                && x.WorkDate >= period.FromDate
-                && x.WorkDate <= period.ToDate
-                && x.Status == "Failed", ct);
-
-        if (failedCorrection)
-            throw new InvalidOperationException(
-                "Không được in/xuất bảng công-OT: kỳ lương còn Correction Failed.");
-
-        var unresolvedHr = await _db.ExecutionReconciliations.AsNoTracking()
-            .AnyAsync(x => x.IsActive != false
-                && x.WorkDate >= period.FromDate
-                && x.WorkDate <= period.ToDate
-                && x.ReconciliationStatus == "Resolved"
-                && _db.ExecutionCorrections.Any(c => c.IsActive != false
-                    && c.ReconciliationId == x.Id
-                    && c.Status == "Failed"), ct);
-
-        if (unresolvedHr)
-            throw new InvalidOperationException(
-                "Không được in/xuất bảng công-OT: có Resolution đã đóng nhưng correction thất bại.");
-    }
-
     private static void Ensure21To20(F03PayrollCalculationPeriod period)
     {
         if (period.FromDate.Day != 21
