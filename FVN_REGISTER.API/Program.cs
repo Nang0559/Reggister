@@ -191,8 +191,6 @@ builder.Services.AddScoped<IApprovalGroupingPolicy, ApprovalGroupingPolicy>();
 builder.Services.AddScoped<IApprovalInboxService, ApprovalInboxService>();
 builder.Services.AddScoped<IApprovalListDataSource<LeaveRequestDto>, LeaveApprovalListDataSource>();
 builder.Services.AddScoped<IApprovalListDataSource<OTRequestDto>, OTApprovalListDataSource>();
-builder.Services.AddScoped<ApprovalListService<LeaveRequestDto>>();
-builder.Services.AddScoped<ApprovalListService<OTRequestDto>>();
 
 // HRM Sync
 builder.Services.AddScoped<IHrmSourceReader<HrmDepartmentSourceRow>, HrmDepartmentSourceReader>();
