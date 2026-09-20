@@ -370,49 +370,6 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
         return ServiceResult.Ok("Đã giữ nguyên cấu hình Approver hiện tại.");
     }
 
-    public async Task<int> GetRequesterLevelAsync(string employeeCode, RequestModule requestType, CancellationToken ct)
-    {
-        var emp = await _uow.Repository<F03Employee>().Query().AsNoTracking()
-            .Where(x => x.EmployeeCode == employeeCode)
-            .Select(x => new { x.LevelApprove, x.PositionCode })
-            .FirstOrDefaultAsync(ct);
-
-        return emp == null ? 0 : CvCodeRules.ResolveLevel(emp.LevelApprove, emp.PositionCode);
-    }
-
-    public async Task<F03Approver?> GetApproverAsync(
-        int level, string approveForDeptCode, RequestModule requestType, CancellationToken ct)
-    {
-        var q = _uow.Repository<F03Approver>().Query().AsNoTracking()
-            .Where(x => x.Level == level && x.RequestType == requestType && x.IsActive == true);
-        var byDept = await q.Where(x => x.ApproveForDeptCode == approveForDeptCode).FirstOrDefaultAsync(ct);
-        if (byDept != null) return byDept;
-        return await q.Where(x => x.ApproveForDeptCode == ApproveForDept.All).FirstOrDefaultAsync(ct);
-    }
-
-    public async Task<List<F03Approver>> GetApproversForDeptAsync(
-        string approveForDeptCode, RequestModule requestType, CancellationToken ct)
-    {
-        var all = await _uow.Repository<F03Approver>().Query().AsNoTracking()
-            .Where(x => x.RequestType == requestType && x.IsActive == true &&
-                        (x.ApproveForDeptCode == approveForDeptCode || x.ApproveForDeptCode == ApproveForDept.All))
-            .OrderBy(x => x.Level).ThenBy(x => x.ApproverName).ToListAsync(ct);
-
-        return all.GroupBy(x => x.Level).SelectMany(g =>
-        {
-            var byDept = g.Where(x => x.ApproveForDeptCode == approveForDeptCode).ToList();
-            return byDept.Any() ? byDept : g.Where(x => x.ApproveForDeptCode == ApproveForDept.All).ToList();
-        }).OrderBy(x => x.Level).ToList();
-    }
-
-    public async Task<string> ResolveApproverEmailAsync(
-        string employeeCode, RequestModule requestType, CancellationToken ct = default)
-    {
-        return await _uow.Repository<F03Approver>().Query().AsNoTracking()
-            .Where(x => x.ApproverCode == employeeCode && x.RequestType == requestType && x.IsActive == true)
-            .Select(x => x.ApproverEmail).FirstOrDefaultAsync(ct) ?? "";
-    }
-
     private static ServiceResult ValidateModel(ApproverDto model)
     {
         if (string.IsNullOrWhiteSpace(model.ApproverCode)) return ServiceResult.Fail("Chưa chọn nhân viên.");
