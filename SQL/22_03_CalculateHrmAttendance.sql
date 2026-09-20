@@ -24,6 +24,19 @@ BEGIN
  DECLARE @D date=@FromDate;
  WHILE @D<=@ToDate
  BEGIN
+  /*
+     Result storage is current-state by (HrmEmployeeId, WorkDate).
+     Replace only the requested scope for this date.  The transaction keeps
+     the previous result intact if HRM-compatible calculation fails midway.
+     This is storage orchestration only; the HRM calculation algorithm is
+     unchanged.
+  */
+  BEGIN TRANSACTION;
+
+  DELETE FROM dbo.F03HrmAttendanceCalculated
+  WHERE WorkDate=@D
+    AND (@HrmDeptId IS NULL OR HrmDeptId=@HrmDeptId);
+
   DECLARE @StaffID int;
   DECLARE staff_cur CURSOR LOCAL FAST_FORWARD FOR
    SELECT NVMa FROM HRM.dbo.tblNhanVien WHERE ISNULL(DLocked,0)=0 AND (@HrmDeptId IS NULL OR NVMaBP=@HrmDeptId);
@@ -80,8 +93,26 @@ BEGIN
    FROM dbo.F03HrmAttendanceCalculated a WHERE a.CalculationBatchId=@BatchId AND a.WorkDate=@D AND a.HrmEmployeeId=@StaffID;
    FETCH NEXT FROM staff_cur INTO @StaffID;
   END
-  CLOSE staff_cur; DEALLOCATE staff_cur; SET @D=DATEADD(day,1,@D);
+  CLOSE staff_cur;
+  DEALLOCATE staff_cur;
+
+  COMMIT TRANSACTION;
+
+  SET @D=DATEADD(day,1,@D);
  END
+
+ /*
+    F03HrmOTActual follows the same current-state rule.  Remove the old
+    employee/date rows represented by this calculation batch, then insert
+    the newly calculated values.
+ */
+ DELETE oa
+ FROM dbo.F03HrmOTActual oa
+ INNER JOIN dbo.F03HrmAttendanceCalculated a
+     ON a.HrmEmployeeId=oa.HrmEmployeeId
+    AND a.WorkDate=oa.WorkDate
+ WHERE a.CalculationBatchId=@BatchId;
+
  INSERT dbo.F03HrmOTActual(CalculationBatchId,WorkDate,HrmEmployeeId,EmployeeCode,DeptCode,ActualStartTime,ActualEndTime,ActualMinutes,ActualOTDayMinutes,ActualOTNightMinutes,RecognizedOTMinutes,SourceAttendanceId)
  SELECT CalculationBatchId,WorkDate,HrmEmployeeId,EmployeeCode,DeptCode,CheckInTime,CheckOutTime,CASE WHEN CheckInTime IS NOT NULL AND CheckOutTime IS NOT NULL THEN DATEDIFF(minute,CheckInTime,CheckOutTime) ELSE 0 END,OTMinutesDay+OTMinutesDayTC,OTMinutesNight+OTMinutesNightTC,OTRecognizedMinutesDay+OTRecognizedMinutesNight,Id
  FROM dbo.F03HrmAttendanceCalculated WHERE CalculationBatchId=@BatchId AND (CheckInTime IS NOT NULL OR CheckOutTime IS NOT NULL);
