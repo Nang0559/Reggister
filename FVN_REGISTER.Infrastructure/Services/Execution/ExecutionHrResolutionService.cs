@@ -43,7 +43,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         DateOnly? to,
         CancellationToken cancellationToken = default)
     {
-        await EnsureHrPermissionAsync(userId, requireAllScope: true, cancellationToken);
+        await EnsureHrPermissionAsync(userId, requireAllScope: false, cancellationToken);
 
         var query = _db.ExecutionReconciliations.AsNoTracking()
             .Where(x => x.IsActive != false
@@ -79,6 +79,73 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             .ThenBy(x => x.EmployeeCode)
             .Take(500)
             .ToListAsync(cancellationToken);
+    }
+
+    public async Task<ExecutionReconciliationDetailDto?> GetDetailAsync(
+        int userId,
+        string employeeCode,
+        long reconciliationId,
+        CancellationToken cancellationToken = default)
+    {
+        await EnsureHrPermissionAsync(userId, requireAllScope: false, cancellationToken);
+
+        var target = await _db.ExecutionReconciliations.AsNoTracking()
+            .Where(x => x.Id == reconciliationId && x.IsActive != false)
+            .Join(_db.Employees.AsNoTracking(),
+                r => r.EmployeeId,
+                e => e.Id,
+                (r, e) => new { Reconciliation = r, Employee = e })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (target is null)
+            return null;
+
+        if (string.Equals(target.Employee.EmployeeCode, employeeCode, StringComparison.OrdinalIgnoreCase))
+            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                "HR không được xem execution review của chính mình.");
+
+        await EnsureHrTargetScopeAsync(
+            userId,
+            target.Employee.EmployeeCode,
+            target.Employee.DeptCode,
+            cancellationToken);
+
+        var reconciliation = await _db.ExecutionReconciliations.AsNoTracking()
+            .Where(x => x.Id == reconciliationId)
+            .Select(ToDto())
+            .SingleAsync(cancellationToken);
+
+        var confirmation = await _db.ExecutionConfirmations.AsNoTracking()
+            .Where(x => x.ReconciliationId == reconciliationId && x.IsActive != false)
+            .Select(x => new ExecutionConfirmationDto(
+                x.Id, x.ReconciliationId, x.ModuleCode, x.SourceType, x.SourceId,
+                x.ParticipantId, x.EmployeeId, x.WorkDate, x.Decision, x.Status,
+                x.Comment, x.EvidenceRequired, x.SubmittedAt, x.ReviewedAt, x.ReviewNote))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var evidence = confirmation is null
+            ? Array.Empty<ExecutionEvidenceDto>()
+            : await _db.ExecutionConfirmationEvidence.AsNoTracking()
+                .Where(x => x.ConfirmationId == confirmation.Id && x.IsActive != false)
+                .OrderByDescending(x => x.SubmittedAt)
+                .Select(x => new ExecutionEvidenceDto(
+                    x.Id, x.ConfirmationId, x.EvidenceType, x.FileId,
+                    x.ReferenceNo, x.ExternalUrl, x.Description,
+                    x.ReviewStatus, x.SubmittedAt, x.ReviewedAt, x.ReviewNote))
+                .ToListAsync(cancellationToken);
+
+        var hrResolution = await _db.Set<F03ExecutionResolution>().AsNoTracking()
+            .Where(x => x.ReconciliationId == reconciliationId && x.IsActive != false)
+            .OrderByDescending(x => x.ResolvedAt)
+            .Select(x => new ExecutionHrResolutionSummaryDto(
+                x.Id, x.Decision, x.Reason, x.CalendarAction, x.ResolvedAt))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return new ExecutionReconciliationDetailDto(
+            reconciliation,
+            confirmation,
+            evidence,
+            hrResolution);
     }
 
     public async Task<ExecutionEvidenceDto> ReviewEvidenceAsync(
