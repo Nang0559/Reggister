@@ -13,4 +13,5 @@ public sealed class F03PayrollInput : BaseAuditEntity
  public decimal OTMinutes { get; set; }
  [Required,StringLength(30)] public string Source { get; set; }="HRM_CALCULATION";
  public DateTime SnapshotAt { get; set; }
+ public string? LastModifiedSource { get; set; }
 }
