@@ -50,7 +50,9 @@ BEGIN
         ModifiedAt datetime2(0) NULL,
 
         ModuleCode nvarchar(50) NOT NULL,
+        SourceType nvarchar(50) NOT NULL CONSTRAINT DF_F03ExecutionReconciliations_SourceType DEFAULT N'MODULE',
         SourceId nvarchar(100) NOT NULL,
+        ParticipantId nvarchar(100) NULL,
         EmployeeId int NOT NULL,
         WorkDate date NOT NULL,
 
@@ -87,7 +89,9 @@ BEGIN
 
         ReconciliationId bigint NOT NULL,
         ModuleCode nvarchar(50) NOT NULL,
+        SourceType nvarchar(50) NOT NULL CONSTRAINT DF_F03ExecutionConfirmations_SourceType DEFAULT N'MODULE',
         SourceId nvarchar(100) NOT NULL,
+        ParticipantId nvarchar(100) NULL,
         EmployeeId int NOT NULL,
         WorkDate date NOT NULL,
 
@@ -161,13 +165,13 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03ExecutionReconciliations_Key' AND object_id=OBJECT_ID(N'dbo.F03ExecutionReconciliations'))
     CREATE UNIQUE INDEX UX_F03ExecutionReconciliations_Key
-        ON dbo.F03ExecutionReconciliations(ModuleCode,SourceId,EmployeeId,WorkDate);
+        ON dbo.F03ExecutionReconciliations(ModuleCode,SourceType,SourceId,ParticipantId,EmployeeId,WorkDate);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03ExecutionReconciliations_EmployeeDate' AND object_id=OBJECT_ID(N'dbo.F03ExecutionReconciliations'))
     CREATE INDEX IX_F03ExecutionReconciliations_EmployeeDate
         ON dbo.F03ExecutionReconciliations(EmployeeId,WorkDate,ReconciliationStatus)
-        INCLUDE(ModuleCode,SourceId,RequiresConfirmation,RequiresEvidence,ConfirmationId,ActionId);
+        INCLUDE(ModuleCode,SourceType,SourceId,ParticipantId,RequiresConfirmation,RequiresEvidence,ConfirmationId,ActionId);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03ExecutionReconciliations_Action' AND object_id=OBJECT_ID(N'dbo.F03ExecutionReconciliations'))
@@ -182,7 +186,8 @@ GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03ExecutionConfirmations_EmployeeStatus' AND object_id=OBJECT_ID(N'dbo.F03ExecutionConfirmations'))
     CREATE INDEX IX_F03ExecutionConfirmations_EmployeeStatus
-        ON dbo.F03ExecutionConfirmations(EmployeeId,Status,WorkDate);
+        ON dbo.F03ExecutionConfirmations(EmployeeId,Status,WorkDate)
+        INCLUDE(ModuleCode,SourceType,SourceId,ParticipantId,ReconciliationId);
 GO
 
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03ExecutionEvidence_Confirmation' AND object_id=OBJECT_ID(N'dbo.F03ExecutionConfirmationEvidence'))
@@ -225,4 +230,64 @@ IF NOT EXISTS (SELECT 1 FROM dbo.F03ExecutionPolicies WHERE ModuleCode=N'TRIP')
 GO
 
 PRINT N'29_EXECUTION_RECONCILIATION schema completed.';
+GO
+
+/* Canonical source identity upgrade for existing installations. */
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'SourceType') IS NULL
+        ALTER TABLE dbo.F03ExecutionReconciliations ADD SourceType nvarchar(50) NOT NULL
+            CONSTRAINT DF_F03ExecutionReconciliations_SourceType DEFAULT N'MODULE' WITH VALUES;
+    IF COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'ParticipantId') IS NULL
+        ALTER TABLE dbo.F03ExecutionReconciliations ADD ParticipantId nvarchar(100) NULL;
+END;
+GO
+
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'SourceType') IS NULL
+        ALTER TABLE dbo.F03ExecutionConfirmations ADD SourceType nvarchar(50) NOT NULL
+            CONSTRAINT DF_F03ExecutionConfirmations_SourceType DEFAULT N'MODULE' WITH VALUES;
+    IF COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'ParticipantId') IS NULL
+        ALTER TABLE dbo.F03ExecutionConfirmations ADD ParticipantId nvarchar(100) NULL;
+END;
+GO
+
+/* Evidence uses the existing shared attachment/file store. */
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmationEvidence',N'U') IS NOT NULL
+AND OBJECT_ID(N'dbo.F03Attachment',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionEvidence_Attachment')
+    ALTER TABLE dbo.F03ExecutionConfirmationEvidence
+        ADD CONSTRAINT FK_F03ExecutionEvidence_Attachment
+        FOREIGN KEY(FileId) REFERENCES dbo.F03Attachment(Id);
+GO
+
+/* History belongs to the reconciliation lifecycle. */
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliationHistory',N'U') IS NOT NULL
+AND OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionHistory_Reconciliation')
+    ALTER TABLE dbo.F03ExecutionReconciliationHistory
+        ADD CONSTRAINT FK_F03ExecutionHistory_Reconciliation
+        FOREIGN KEY(ReconciliationId) REFERENCES dbo.F03ExecutionReconciliations(Id);
+GO
+
+/* Action is orchestration output; it never becomes business source-of-truth. */
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
+AND OBJECT_ID(N'dbo.F03ActionItems',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionReconciliations_Action')
+    ALTER TABLE dbo.F03ExecutionReconciliations
+        ADD CONSTRAINT FK_F03ExecutionReconciliations_Action
+        FOREIGN KEY(ActionId) REFERENCES dbo.F03ActionItems(ActionId);
+GO
+
+/* Canonical employee isolation indexes. */
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03ExecutionReconciliations_ModuleSourceParticipant'
+               AND object_id=OBJECT_ID(N'dbo.F03ExecutionReconciliations'))
+    CREATE INDEX IX_F03ExecutionReconciliations_ModuleSourceParticipant
+        ON dbo.F03ExecutionReconciliations(ModuleCode,SourceType,SourceId,ParticipantId,EmployeeId,WorkDate)
+        INCLUDE(ReconciliationStatus,RequiresConfirmation,RequiresEvidence,ConfirmationId,ActionId);
+GO
+
+PRINT N'29_EXECUTION_RECONCILIATION canonical source identity and shared references completed.';
 GO
