@@ -114,9 +114,13 @@ public sealed class ExecutionHrReviewController : BaseApiController
                 ct);
             return Ok(ApiResponse<object>.Ok(result));
         }
+        catch (ForbiddenAccessException ex)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<object>.Fail(ex.Message));
+        }
         catch (UnauthorizedAccessException ex)
         {
-            return Forbid(ex.Message);
+            return Unauthorized(ApiResponse<object>.Fail(ex.Message));
         }
         catch (KeyNotFoundException ex)
         {
