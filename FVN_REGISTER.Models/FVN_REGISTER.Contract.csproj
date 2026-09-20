@@ -7,4 +7,10 @@
   <ItemGroup>
     <ProjectReference Include="..\FVN_REGISTER.Core\FVN_REGISTER.Core.csproj" />
   </ItemGroup>
+
+  <!-- Execution contract DTOs live in a shared repository folder outside this project root. -->
+  <ItemGroup>
+    <Compile Include="..\FVN_REGISTER.Contract\Dtos\Execution\*.cs"
+             LinkBase="Dtos\Execution" />
+  </ItemGroup>
 </Project>
