@@ -15,11 +15,12 @@ public sealed class ActionItemService : IActionItemService
     }
 
     public async Task<IReadOnlyList<ActionItemDto>> GetMineAsync(
-        int employeeId,
+        string employeeCode,
         int userId,
         bool includeCompleted = false,
         CancellationToken cancellationToken = default)
     {
+        var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
         var query = _db.ActionItems
             .AsNoTracking()
             .Where(x => x.IsActive != false
@@ -59,10 +60,11 @@ public sealed class ActionItemService : IActionItemService
     }
 
     public async Task<ActionCountDto> GetCountAsync(
-        int employeeId,
+        string employeeCode,
         int userId,
         CancellationToken cancellationToken = default)
     {
+        var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
         var counts = await _db.ActionItems
             .AsNoTracking()
             .Where(x => x.IsActive != false
@@ -81,11 +83,12 @@ public sealed class ActionItemService : IActionItemService
     }
 
     public async Task<ActionItemDto?> GetAsync(
-        int employeeId,
+        string employeeCode,
         int userId,
         Guid actionId,
         CancellationToken cancellationToken = default)
     {
+        var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
         return await _db.ActionItems
             .AsNoTracking()
             .Where(x => x.ActionId == actionId
@@ -155,5 +158,15 @@ public sealed class ActionItemService : IActionItemService
 
         await _db.SaveChangesAsync(cancellationToken);
         return true;
+    }
+
+    private async Task<int> ResolveEmployeeIdAsync(string employeeCode, CancellationToken cancellationToken)
+    {
+        return await _db.Employees
+            .AsNoTracking()
+            .Where(x => x.IsActive != false && x.EmployeeCode == employeeCode)
+            .Select(x => (int?)x.Id)
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy nhân viên của tài khoản hiện tại.");
     }
 }
