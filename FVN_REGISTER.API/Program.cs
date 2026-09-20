@@ -75,6 +75,7 @@ using FVN_REGISTER.Infrastructure.Services;
 using FVN_REGISTER.Infrastructure.Services.Departments;
 using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Contract.Responses;
+using FVN_REGISTER.Core.Exceptions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -328,6 +329,7 @@ app.UseExceptionHandler(errorApp =>
 
         var (statusCode, message) = exception switch
         {
+            ForbiddenAccessException ex => (StatusCodes.Status403Forbidden, ex.Message),
             UnauthorizedAccessException ex => (StatusCodes.Status401Unauthorized, ex.Message),
             KeyNotFoundException ex => (StatusCodes.Status404NotFound, ex.Message),
             ArgumentException ex => (StatusCodes.Status400BadRequest, ex.Message),
