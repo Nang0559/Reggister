@@ -13,9 +13,10 @@ public interface ISharedWorkCalendarService
         CancellationToken cancellationToken = default);
 
     Task<IReadOnlyList<CalendarAlertItemDto>> GetAlertsAsync(
-        int employeeId,
+        string employeeCode,
         int userId,
         DateOnly from,
         DateOnly to,
+        IReadOnlySet<string>? allowedModules = null,
         CancellationToken cancellationToken = default);
 }
