@@ -165,3 +165,6 @@ Controller Authorize ≠ Data Scope.
 Report View ≠ Export.
 Export ≠ quyền sửa.
 SQL View ≠ Authorization.
+
+## 16. Reporting đối với Shared Calendar / Action
+Reports có thể đọc Calendar/Action projections để thống kê số việc cần xử lý, action theo module/status/severity và quá hạn. Reporting chỉ quan sát; không cho report thay đổi Action workflow hoặc business workflow. Data scope và capability vẫn áp dụng.
