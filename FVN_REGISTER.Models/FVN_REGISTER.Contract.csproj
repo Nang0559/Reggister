@@ -12,5 +12,7 @@
   <ItemGroup>
     <Compile Include="..\FVN_REGISTER.Contract\Dtos\Execution\*.cs"
              LinkBase="Dtos\Execution" />
+    <Compile Include="..\FVN_REGISTER.Contract\Dtos\Payroll\*.cs"
+             LinkBase="Dtos\Payroll" />
   </ItemGroup>
 </Project>
