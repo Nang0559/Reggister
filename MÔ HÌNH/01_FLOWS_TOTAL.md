@@ -337,3 +337,50 @@ Invariant: approval/recalculation không được áp dụng toàn bộ particip
 ### Attendance không có dữ liệu
 
 Nếu participant đã có OT Approved nhưng không có attendance/actual work data, không tự kết luận ngay là không đi làm. Ngày đó chuyển PendingConfirmation và calendar hiển thị ?. Người dùng click ? để xác nhận: Có đi làm → bắt buộc gửi bằng chứng làm việc → chờ HC/HR xác nhận; Không đi làm → xác nhận không đi làm; Không phản hồi đến ngày khóa công 20 → system tự chuyển AutoConfirmedNotWorked, OT không còn hiệu lực trên calendar/payroll projection nhưng toàn bộ approval/audit history vẫn giữ nguyên.
+
+
+## 6B. Shared Work Calendar Policy — Multi-module
+
+D3 Calendar không được coi là logic riêng của OT. Đây là một pipeline dùng chung cho OT, Leave, Trip và các module tương lai.
+
+```mermaid
+flowchart LR
+    M[Module Definition] --> R[Calendar Registry]
+    A[Admin Policy] --> P[Calendar Policy Engine]
+    R --> P
+    P --> AGG[Calendar Aggregator]
+    OT[OT Provider] --> AGG
+    L[Leave Provider] --> AGG
+    T[Trip Provider] --> AGG
+    X[Future Module Provider] --> AGG
+    AGG --> C[Compact Calendar Projection]
+    AGG --> N[Notes / Confirmation Inbox]
+```
+
+### Nguyên tắc
+
+1. Module tự cung cấp business data qua ICalendarModuleProvider.
+2. Calendar Registry biết module nào hỗ trợ calendar.
+3. Admin bật/tắt module và cấu hình DisplayMode, NoteMode, ConfirmationMode, ReconciliationMode, Priority.
+4. Calendar Aggregator không chứa if/else riêng cho OT, Leave, Trip; dùng contract + policy.
+5. Module mới chỉ cần provider + definition + DI registration; sau đó Admin có thể bật để áp dụng.
+6. Business authorization, approval và mutation vẫn do module owner xử lý.
+
+### Presentation rule
+
+Ô lịch chỉ hiển thị trạng thái tổng quan và marker/icon ngắn. Thông tin chi tiết, lỗi, chênh lệch, evidence và việc cần xác nhận nằm ở bảng/panel dưới lịch.
+
+```text
+Calendar cell
+    ↓
+Compact summary / marker
+    ↓
+CalendarAlertItem
+    ├─ RequiresAction
+    ├─ Summary
+    └─ DetailRoute
+            ↓
+      Module detail / confirmation
+```
+
+Điều này cho phép một ngày có OT + Leave + Trip mà không phá vỡ kích thước ô lịch.
