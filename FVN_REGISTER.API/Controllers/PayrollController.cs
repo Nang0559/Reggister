@@ -62,6 +62,13 @@ public sealed class PayrollController : BaseApiController
         return Ok(ApiResponse<object>.Ok(await _service.LockAsync(periodId, user.UserId, ct)));
     }
 
+    [HttpGet("periods/{periodId:int}/print-data")]
+    public async Task<IActionResult> GetPrintData(int periodId, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.PayrollView, ct)) return Forbid();
+        return Ok(ApiResponse<object>.Ok(await _service.GetPrintDataAsync(periodId, ct)));
+    }
+
     [HttpGet("periods/{periodId:int}/inputs")]
     public async Task<IActionResult> GetInputs(int periodId, CancellationToken ct)
     {
