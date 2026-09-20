@@ -31,6 +31,12 @@ public sealed class F03CalendarProjection : BaseAuditEntity
     [StringLength(500)]
     public string? DetailRoute { get; set; }
 
+    [Required, StringLength(50)]
+    public string SourceType { get; set; } = "MODULE";
+
+    [StringLength(100)]
+    public string? ParticipantId { get; set; }
+
     public string? PayloadJson { get; set; }
     public DateTime CalculatedAt { get; set; }
 }
