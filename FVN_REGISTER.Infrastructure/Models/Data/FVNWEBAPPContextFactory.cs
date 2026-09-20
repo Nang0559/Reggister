@@ -21,9 +21,17 @@ namespace FVN_REGISTER.Infrastructure
                 .SetBasePath(basePath)
                 .AddJsonFile("appsettings.json")
                 .AddJsonFile("appsettings.Development.json", optional: true)
+                .AddEnvironmentVariables()
+                .AddUserSecrets("FVN_REGISTER_API", optional: true)
                 .Build();
 
             var connectionString = configuration.GetConnectionString("DefaultConnection");
+
+            if (string.IsNullOrWhiteSpace(connectionString))
+            {
+                throw new InvalidOperationException(
+                    "ConnectionStrings:DefaultConnection is required for EF Core design-time operations.");
+            }
 
             var optionsBuilder = new DbContextOptionsBuilder<FVNWEBAPPContext>();
             optionsBuilder.UseSqlServer(connectionString);
