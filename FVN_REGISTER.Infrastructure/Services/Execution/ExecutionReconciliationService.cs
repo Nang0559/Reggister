@@ -392,7 +392,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             RelatedRequestId = int.TryParse(reconciliation.SourceId, out var requestId) ? requestId : 0,
             Action = NotificationAction.Pending,
             Title = $"Cần xác nhận đối soát {reconciliation.ModuleCode}",
-            Body = $"Ngày {reconciliation.WorkDate:dd/MM/yyyy} — {$"Cần xác nhận {reconciliation.ModuleCode} / {reconciliation.SourceId}."}",
+            Body = $"Ngày {reconciliation.WorkDate:dd/MM/yyyy} — Cần xác nhận {reconciliation.ModuleCode} / {reconciliation.SourceId}.",
             ActionUrl = $"/execution?reconciliationId={reconciliation.Id}",
             ActionId = reconciliation.ActionId,
             NotificationType = "EXECUTION_ACTION",
