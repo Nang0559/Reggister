@@ -46,9 +46,9 @@ else if (_form != null)
             <MudCard Elevation="2" Class="pa-4">
                 <MudText Typo="Typo.subtitle1" Class="mb-3">Thông tin đơn</MudText>
                 <MudGrid>
-                    <MudItem xs="12" sm="4"><MudDatePicker Value="_date" ValueChanged="OnDateChanged" Label="Ngày OT (*)" Variant="Variant.Outlined" Required="true" /></MudItem>
-                    <MudItem xs="6" sm="4"><MudTimePicker Value="_start" ValueChanged="OnStartChanged" Label="Giờ bắt đầu" Variant="Variant.Outlined" AmPm="false" /></MudItem>
-                    <MudItem xs="6" sm="4"><MudTimePicker Value="_end" ValueChanged="OnEndChanged" Label="Giờ kết thúc" Variant="Variant.Outlined" AmPm="false" /></MudItem>
+                    <MudItem xs="12" sm="4"><MudDatePicker Date="_date" DateChanged="OnDateChanged" Label="Ngày OT (*)" Variant="Variant.Outlined" Required="true" /></MudItem>
+                    <MudItem xs="6" sm="4"><MudTimePicker Time="_start" TimeChanged="OnStartChanged" Label="Giờ bắt đầu" Variant="Variant.Outlined" AmPm="false" /></MudItem>
+                    <MudItem xs="6" sm="4"><MudTimePicker Time="_end" TimeChanged="OnEndChanged" Label="Giờ kết thúc" Variant="Variant.Outlined" AmPm="false" /></MudItem>
                     <MudItem xs="12" sm="6">
                         <MudSelect T="string" @bind-Value="_form.OTTypeCode" Label="Loại OT (*)" Variant="Variant.Outlined" Required="true">
                             @foreach (var type in _otTypes)
