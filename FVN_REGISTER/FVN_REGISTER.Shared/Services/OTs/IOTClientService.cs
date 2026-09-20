@@ -1,6 +1,5 @@
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Approvals;
-using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Contract.Dtos.OTTypeDtos;
 using FVN_REGISTER.Contract.Requests.OT;
@@ -21,9 +20,7 @@ public interface IOTClientService
     Task<ApiResponse<List<OTSummaryDto>>> GetMyHistoryAsync(int? year = null, CancellationToken ct = default);
     Task<ApiResponse<OTBalanceDto>> GetEmployeeBalanceAsync(string employeeCode, int year, CancellationToken ct = default);
     Task<ApiResponse<OTCombinedDataDto>> GetCombinedDataAsync(CancellationToken ct = default);
-    Task<ApiResponse<List<OTTypeDto>>> GetActiveOTTypesAsync(CancellationToken ct = default);
-    Task<ApiResponse<List<ApprovalStepSnapshotDto>>> PreviewApprovalAsync(OTRequestUpsertDto request, CancellationToken ct = default);
-    Task<ApiResponse<OTBalanceDto>> GetOTBalanceAsync(int year, CancellationToken ct = default);
+    Task<ApiResponse<List<OTTypeDto>>> GetActiveOTTypesAsync(CancellationToken ct = default);    Task<ApiResponse<OTBalanceDto>> GetOTBalanceAsync(int year, CancellationToken ct = default);
     Task<ApiResponse<List<OTSummaryDto>>> GetRecentOTRequestsAsync(int limit = 10, CancellationToken ct = default);
     Task<ApiResponse<List<PendingApprovalItemDto>>> GetPendingApprovalsAsync(int level = 0, CancellationToken ct = default);
     Task<ApiResponse<PaginationResult<OTSummaryDto>>> GetPagedOTRequestsAsync(string? deptCode, string? status, DateTime? fromDate, DateTime? toDate, int page = 1, int pageSize = 20, CancellationToken ct = default);
