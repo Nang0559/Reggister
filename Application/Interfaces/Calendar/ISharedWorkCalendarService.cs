@@ -5,7 +5,7 @@ namespace FVN_REGISTER.Application.Interfaces.Calendar;
 public interface ISharedWorkCalendarService
 {
     Task<CalendarMonthDto> GetMonthAsync(
-        int employeeId,
+        string employeeCode,
         int userId,
         DateOnly from,
         DateOnly to,
