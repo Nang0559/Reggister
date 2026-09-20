@@ -216,3 +216,9 @@ Không resolve `UserId` ở Shared/UI. Backend chịu trách nhiệm `EmployeeCo
 Thiết kế hiện tại được mở rộng: hệ thống vẫn tự xác định **các cấp phê duyệt** theo chức vụ người đăng ký, nhưng mỗi cấp có thể có nhiều approver hợp lệ. Người đăng ký chỉ chọn **một approver trong danh sách của từng cấp**; không được thay đổi cấp.
 
 Chi tiết: [20_APPROVAL_ROUTE_SELECTION.md](./20_APPROVAL_ROUTE_SELECTION.md).
+
+
+## 11. Approval → Action / Notification
+Approval pending cần xử lý có thể tạo `ActionItem` cho approver, nhưng Approval Engine vẫn là source of truth của trạng thái duyệt. Action chỉ là inbox điều phối.
+
+Không dùng `ActionItem.Status` thay cho `ApprovalStep.Status/Decision`. Khi approval hoàn tất, action tương ứng được đóng theo event/workflow của Approval Engine.
