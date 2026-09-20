@@ -294,6 +294,24 @@ IF NOT EXISTS
 PRINT N'Shared Execution / Calendar / Action verification passed.';
 
 PRINT N'Work Calendar / Annual Leave verification passed.';
+
+/* Payroll Input / 21->20 verification. */
+IF OBJECT_ID(N'dbo.F03PayrollCalculationPeriods',N'U') IS NULL THROW 51400,N'Missing F03PayrollCalculationPeriods.',1;
+IF OBJECT_ID(N'dbo.F03PayrollInputs',N'U') IS NULL THROW 51401,N'Missing F03PayrollInputs.',1;
+IF OBJECT_ID(N'dbo.usp_PreparePayrollPeriod',N'P') IS NULL THROW 51402,N'Missing usp_PreparePayrollPeriod.',1;
+IF OBJECT_ID(N'dbo.usp_EnsurePayrollPeriod',N'P') IS NULL THROW 51403,N'Missing usp_EnsurePayrollPeriod.',1;
+IF COL_LENGTH(N'dbo.F03PayrollCalculationPeriods',N'LastModifiedSource') IS NULL THROW 51404,N'Missing PayrollPeriod.LastModifiedSource.',1;
+IF COL_LENGTH(N'dbo.F03PayrollCalculationPeriods',N'CalculatedBy') IS NULL THROW 51405,N'Missing PayrollPeriod.CalculatedBy.',1;
+IF COL_LENGTH(N'dbo.F03PayrollCalculationPeriods',N'LockedBy') IS NULL THROW 51406,N'Missing PayrollPeriod.LockedBy.',1;
+IF COL_LENGTH(N'dbo.F03PayrollCalculationPeriods',N'ExportedBy') IS NULL THROW 51407,N'Missing PayrollPeriod.ExportedBy.',1;
+IF COL_LENGTH(N'dbo.F03PayrollInputs',N'LastModifiedSource') IS NULL THROW 51408,N'Missing PayrollInput.LastModifiedSource.',1;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03PayrollInputs_Employee') THROW 51409,N'Missing FK_F03PayrollInputs_Employee.',1;
+IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2803 AND FunctionName=N'Payroll.View' AND IsActive=1) THROW 51410,N'Missing Payroll.View security function.',1;
+IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2804 AND FunctionName=N'Payroll.Prepare' AND IsActive=1) THROW 51411,N'Missing Payroll.Prepare security function.',1;
+IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2805 AND FunctionName=N'Payroll.Lock' AND IsActive=1) THROW 51412,N'Missing Payroll.Lock security function.',1;
+IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2806 AND FunctionName=N'Payroll.Export' AND IsActive=1) THROW 51413,N'Missing Payroll.Export security function.',1;
+PRINT N'Payroll verification completed.';
+GO
 PRINT N'99_Verify: PASS';
 GO
 
