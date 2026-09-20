@@ -92,7 +92,9 @@ BEGIN
         EmployeeId int NOT NULL,
         WorkDate date NOT NULL,
         ModuleCode nvarchar(50) NOT NULL,
+        SourceType nvarchar(50) NOT NULL CONSTRAINT DF_F03CalendarProjection_SourceType DEFAULT N'MODULE',
         SourceId nvarchar(100) NOT NULL,
+        ParticipantId nvarchar(100) NULL,
         StatusCode nvarchar(50) NOT NULL,
         Marker nvarchar(20) NULL,
         Summary nvarchar(500) NULL,
@@ -119,7 +121,9 @@ BEGIN
         ModifiedAt datetime2(0) NULL,
         ActionId uniqueidentifier NOT NULL CONSTRAINT DF_F03ActionItems_ActionId DEFAULT NEWSEQUENTIALID(),
         ModuleCode nvarchar(50) NOT NULL,
+        SourceType nvarchar(50) NOT NULL CONSTRAINT DF_F03ActionItems_SourceType DEFAULT N'MODULE',
         SourceId nvarchar(100) NOT NULL,
+        ParticipantId nvarchar(100) NULL,
         EmployeeId int NOT NULL,
         AssignedToUserId int NULL,
         AssignedToEmployeeId int NOT NULL,
@@ -184,4 +188,31 @@ GO
    existing calendar rows have no canonical ActionItem identity. */
 GO
 PRINT N'26_WORK_CALENDAR_ACTION schema upgrade completed.';
+GO
+
+/* Canonical source identity for shared projections/actions.
+   SourceType identifies the business aggregate/participant shape.
+   ParticipantId isolates multi-employee modules (e.g. OT employees).
+   These fields do not replace the business module source-of-truth. */
+IF OBJECT_ID(N'dbo.F03CalendarProjection',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03CalendarProjection',N'SourceType') IS NULL
+        ALTER TABLE dbo.F03CalendarProjection ADD SourceType nvarchar(50) NOT NULL
+            CONSTRAINT DF_F03CalendarProjection_SourceType DEFAULT N'MODULE' WITH VALUES;
+    IF COL_LENGTH(N'dbo.F03CalendarProjection',N'ParticipantId') IS NULL
+        ALTER TABLE dbo.F03CalendarProjection ADD ParticipantId nvarchar(100) NULL;
+END;
+GO
+
+IF OBJECT_ID(N'dbo.F03ActionItems',N'U') IS NOT NULL
+BEGIN
+    IF COL_LENGTH(N'dbo.F03ActionItems',N'SourceType') IS NULL
+        ALTER TABLE dbo.F03ActionItems ADD SourceType nvarchar(50) NOT NULL
+            CONSTRAINT DF_F03ActionItems_SourceType DEFAULT N'MODULE' WITH VALUES;
+    IF COL_LENGTH(N'dbo.F03ActionItems',N'ParticipantId') IS NULL
+        ALTER TABLE dbo.F03ActionItems ADD ParticipantId nvarchar(100) NULL;
+END;
+GO
+
+PRINT N'26_WORK_CALENDAR_ACTION canonical source identity upgrade completed.';
 GO
