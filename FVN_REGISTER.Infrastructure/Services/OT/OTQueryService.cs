@@ -254,47 +254,6 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             };
         }
 
-        public async Task<List<ApprovalStepSnapshotDto>> PreviewApprovalAsync(
-            OTRequestUpsertDto model, CancellationToken ct = default)
-        {
-            var employeeCode = !string.IsNullOrWhiteSpace(model.EmployeeCode)
-                ? model.EmployeeCode
-                : model.Employees.FirstOrDefault()?.EmployeeCode ?? string.Empty;
-
-            var deptCode = model.DeptCode;
-            if (string.IsNullOrWhiteSpace(deptCode) && !string.IsNullOrWhiteSpace(employeeCode))
-                deptCode = await GetEmployeeDeptCodeAsync(employeeCode, ct);
-
-            var positionCode = model.PositionCode;
-            if (string.IsNullOrWhiteSpace(positionCode) && !string.IsNullOrWhiteSpace(employeeCode))
-            {
-                positionCode = await Uow.Repository<F03Employee>().Query()
-                    .AsNoTracking()
-                    .Where(x => x.EmployeeCode == employeeCode)
-                    .Select(x => x.PositionCode)
-                    .FirstOrDefaultAsync(ct) ?? string.Empty;
-            }
-
-            var totalOTHours = model.Employees.Sum(x => x.OTHours);
-            if (totalOTHours <= 0 && model.StartTime != model.EndTime)
-            {
-                var duration = model.EndTime - model.StartTime;
-                if (duration < TimeSpan.Zero)
-                    duration += TimeSpan.FromDays(1);
-                totalOTHours = (decimal)duration.TotalHours;
-            }
-
-            var context = ApprovalBuildContext.ForOT(
-                requestId: 0,
-                employeeCode: employeeCode,
-                deptCode: deptCode ?? string.Empty,
-                positionCode: positionCode ?? string.Empty,
-                totalOTHours: totalOTHours,
-                otTypeCode: string.IsNullOrWhiteSpace(model.OTTypeCode) ? "WEEKDAY" : model.OTTypeCode);
-
-            return await _approvalProvider.BuildHierarchyAsync(context, ct);
-        }
-
         public async Task<OTValidationResultDto> ValidateHoursAsync(
             OTRequestUpsertDto model, CancellationToken ct = default)
         {
