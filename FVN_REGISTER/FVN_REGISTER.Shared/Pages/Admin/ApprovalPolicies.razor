@@ -135,7 +135,7 @@ else
                 <TitleContent>
                     <MudStack Row="true" AlignItems="AlignItems.Center">
                         <MudText Typo="Typo.subtitle1"><b>@group.Key</b></MudText>
-                        <MudChip Size="Size.Small" Variant="Variant.Outlined">
+                        <MudChip Size="Size.Small" T="string" Variant="Variant.Outlined">
                             @group.Items.Count policy
                         </MudChip>
                     </MudStack>
@@ -158,7 +158,7 @@ else
                             <MudTd><b>@context.RequestTypeName</b></MudTd>
                             <MudTd>@context.PositionCode — @context.PositionName</MudTd>
                             <MudTd>
-                                <MudChip Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">
+                                <MudChip T="string"  Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">
                                     Level @context.Level
                                 </MudChip>
                             </MudTd>
@@ -167,7 +167,7 @@ else
                             <MudTd>@context.RoleName</MudTd>
                             <MudTd>@(context.Required ? "Có" : "Không")</MudTd>
                             <MudTd>
-                                <MudChip Size="Size.Small"
+                                <MudChip T="string" Size="Size.Small"
                                          Color="@(context.IsActive ? Color.Success : Color.Default)"
                                          Variant="Variant.Outlined">
                                     @(context.IsActive ? "Active" : "Inactive")
