@@ -58,10 +58,11 @@ IMPORTANT:
 :r 26_WorkCalendarAction.sql
 :r 27_WorkCalendarActionIndexesSeed.sql
 :r 28_Verify_WorkCalendarAction.sql
+:r 29_ExecutionReconciliation.sql
 :r 99_Verify.sql
 
 PRINT N'============================================================';
-PRINT N'FVN_REGISTER SQL deployment 01..28 + 99 verification completed.';
+PRINT N'FVN_REGISTER SQL deployment 01..29 + 99 verification completed.';
 PRINT N'============================================================';
 GO
 
