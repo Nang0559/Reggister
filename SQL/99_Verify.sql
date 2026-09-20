@@ -307,3 +307,11 @@ IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03TripActual_Trip
     THROW 53032, N'F03TripActual must reference F03TripRequests.', 1;
 PRINT N'F03TripActual verification completed.';
 GO
+
+
+/* Execution HR feedback / resolution */
+IF OBJECT_ID(N'dbo.F03ExecutionResolutions',N'U') IS NULL THROW 52124, N'Missing F03ExecutionResolutions', 1;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03ExecutionResolutions_Reconciliation' AND object_id=OBJECT_ID(N'dbo.F03ExecutionResolutions')) THROW 52125, N'Missing UX_F03ExecutionResolutions_Reconciliation', 1;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionResolutions_Reconciliation') THROW 52126, N'Missing FK_F03ExecutionResolutions_Reconciliation', 1;
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03ExecutionResolutions_Decision') THROW 52127, N'Missing CK_F03ExecutionResolutions_Decision', 1;
+PRINT N'Execution HR feedback/resolution verified.';
