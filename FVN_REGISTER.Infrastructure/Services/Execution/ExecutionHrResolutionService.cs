@@ -153,11 +153,18 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         await _db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        await NotifyEmployeeEvidenceReviewAsync(
-            reconciliation,
-            reviewStatus,
-            note,
-            cancellationToken);
+        try
+        {
+            await NotifyEmployeeEvidenceReviewAsync(
+                reconciliation,
+                reviewStatus,
+                note,
+                cancellationToken);
+        }
+        catch
+        {
+            // Evidence review remains committed even if realtime notification delivery fails.
+        }
 
         return new ExecutionEvidenceDto(
             evidence.Id,
@@ -361,13 +368,20 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         await _db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 
-        await CreateUserNotificationAsync(
-            reconciliation,
-            employee.EmployeeCode,
-            decision,
-            reason,
-            resolution.Id,
-            cancellationToken);
+        try
+        {
+            await CreateUserNotificationAsync(
+                reconciliation,
+                employee.EmployeeCode,
+                decision,
+                reason,
+                resolution.Id,
+                cancellationToken);
+        }
+        catch
+        {
+            // Resolution is authoritative; notification delivery is retried by the notification subsystem.
+        }
 
         return new ExecutionHrResolutionDto(
             resolution.Id,
