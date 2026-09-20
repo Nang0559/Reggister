@@ -319,3 +319,14 @@ Deadline phải lấy từ work period service, không hard-code ngày cuối th
 - Recalculation phải filter EmployeeId/ParticipantId trước khi update.
 - PendingConfirmation không được tự động coi là NotWorked trước deadline.
 - AutoConfirmedNotWorked không xóa lịch sử OT Approved.
+
+
+## Shared Calendar vs Approval
+
+Approval engine vẫn là nguồn quyết định trạng thái nghiệp vụ. Calendar chỉ phản chiếu trạng thái thông qua Calendar Provider.
+
+OT, Leave, Trip hoặc module mới không được tạo approval logic riêng chỉ để phục vụ calendar.
+
+Nếu calendar có RequiresAction=true, action phải route về module owner. Ví dụ OT missing attendance → OT/Attendance confirmation service; Leave cần xác nhận → Leave service; Trip cần xác nhận → Trip service.
+
+Calendar policy không được bypass approval, authorization hoặc data scope.
