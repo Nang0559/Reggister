@@ -227,12 +227,16 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         if (string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Reconciliation đã Resolved, không thể review evidence.");
 
-        var reviewEnabled = await _db.ExecutionPolicies.AsNoTracking()
-            .AnyAsync(x => x.IsActive != false
-                && x.ModuleCode == reconciliation.ModuleCode
-                && x.ReviewMode != 0, cancellationToken);
+        var policy = await _db.ExecutionPolicies.AsNoTracking()
+            .Where(x => x.IsActive != false && x.ModuleCode == reconciliation.ModuleCode)
+            .Select(x => new
+            {
+                x.ReviewMode,
+                x.CorrectionMode
+            })
+            .SingleOrDefaultAsync(cancellationToken);
 
-        if (!reviewEnabled)
+        if (policy is null || policy.ReviewMode == 0)
             throw new InvalidOperationException(
                 $"Module '{reconciliation.ModuleCode}' chưa bật HR Execution Review.");
 
@@ -446,8 +450,12 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         await _db.SaveChangesAsync(cancellationToken);
 
         if (decision == "OK"
-            && string.Equals(reconciliation.ModuleCode, "ATTENDANCE", StringComparison.OrdinalIgnoreCase))
+            && policy.CorrectionMode != (byte)ExecutionCorrectionMode.None)
         {
+            if (policy.CorrectionMode != (byte)ExecutionCorrectionMode.AttendanceRecalculate)
+                throw new InvalidOperationException(
+                    $"CorrectionMode={policy.CorrectionMode} chưa có correction handler.");
+
             var payrollPeriod = await _db.PayrollCalculationPeriods
                 .AsNoTracking()
                 .Where(x => x.IsActive != false
