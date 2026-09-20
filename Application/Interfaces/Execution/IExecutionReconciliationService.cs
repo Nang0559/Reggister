@@ -28,6 +28,7 @@ public interface IExecutionReconciliationService
 
     Task<ExecutionEvidenceDto> AddEvidenceAsync(
         string employeeCode,
+        int userId,
         long confirmationId,
         ExecutionEvidenceRequest request,
         CancellationToken cancellationToken = default);
