@@ -254,7 +254,7 @@ else if (_form != null)
         await RefreshLimitPreviewAsync();
     }
 
-    private void RemoveEmployee(OTEmployeeDto employee)
+    private async void RemoveEmployee(OTEmployeeDto employee)
     {
         _employees.Remove(employee);
         // Approval route is determined by requester position and remains unchanged.
