@@ -197,6 +197,37 @@ flowchart TB
     ENUM --> SUBJECT
 ```
 
+## 10. Trip Actual — Approved → Execution
+
+Khi toàn bộ approval bắt buộc của F03TripRequest chuyển sang Approved, hệ thống tự tạo đúng một F03TripActual.
+
+Quy tắc nghiệp vụ:
+
+- ActualStartDate = F03TripRequest.StartDate.
+- ActualEndDate = F03TripRequest.EndDate.
+- EmployeeCode được snapshot từ người đăng ký đã được duyệt.
+- Không cho đổi người trên F03TripActual.
+- Nếu phát sinh thay đổi người công tác, phải tạo một F03TripRequest mới, đi qua approval lại và sau khi Approved sẽ tạo F03TripActual mới.
+- Tạo actual là idempotent theo TripRequestId; callback approval chạy lại không tạo bản ghi thứ hai.
+- F03TripActual là nguồn Actual/Execution cho Execution Reconciliation; F03TripRequests vẫn là nguồn Planned/Approved.
+
+Luồng chuẩn:
+
+```text
+F03TripRequest
+ Draft → Pending → InProgress → Approved
+                              │
+                              ▼
+                       F03TripActual
+                       Scheduled
+                              │
+                    ┌─────────┴─────────┐
+                    ▼                   ▼
+               InProgress          Completed
+```
+
+F03TripActual không thay thế approval history và không cho phép chuyển người thực hiện sang người khác.
+
 ## 10. Database
 
 Repository chưa sử dụng EF migration folder cho module này. SQL triển khai được đặt tại:
