@@ -97,7 +97,17 @@ builder.Services
     .ValidateOnStart();
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddDbContext<FVNWEBAPPContext>(options => options.UseSqlServer(connectionString));
+
+if (string.IsNullOrWhiteSpace(connectionString))
+{
+    throw new InvalidOperationException(
+        "ConnectionStrings:DefaultConnection is required. " +
+        "For Development, set it with .NET User Secrets or Jwt/ConnectionStrings environment variables. " +
+        "For Production, use ConnectionStrings__DefaultConnection.");
+}
+
+builder.Services.AddDbContext<FVNWEBAPPContext>(options =>
+    options.UseSqlServer(connectionString));
 builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<FVNWEBAPPContext>());
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
