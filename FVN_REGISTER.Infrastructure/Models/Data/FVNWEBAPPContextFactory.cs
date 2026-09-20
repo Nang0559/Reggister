@@ -1,6 +1,7 @@
 ﻿// FVN_REGISTER.Infrastructure/FVNWEBAPPContextFactory.cs
 namespace FVN_REGISTER.Infrastructure
 {
+    using System.Reflection;
     using Microsoft.EntityFrameworkCore;
     using Microsoft.EntityFrameworkCore.Design;
     using Microsoft.Extensions.Configuration;
@@ -17,12 +18,14 @@ namespace FVN_REGISTER.Infrastructure
         {
             var basePath = Path.Combine(Directory.GetCurrentDirectory(), "..", "FVN_REGISTER.API");
 
+            var apiAssembly = Assembly.Load("FVN_REGISTER.API");
+
             var configuration = new ConfigurationBuilder()
                 .SetBasePath(basePath)
                 .AddJsonFile("appsettings.json")
                 .AddJsonFile("appsettings.Development.json", optional: true)
                 .AddEnvironmentVariables()
-                .AddUserSecrets("FVN_REGISTER_API", optional: true)
+                .AddUserSecrets(apiAssembly, optional: true)
                 .Build();
 
             var connectionString = configuration.GetConnectionString("DefaultConnection");
