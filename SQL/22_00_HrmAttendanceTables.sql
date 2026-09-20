@@ -169,19 +169,21 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE object_id=OBJECT_ID(N'dbo.F03HrmO
 GO
 
 
-// ============================================================================
-// CURRENT-STATE STORAGE HARDENING
-//
-// F03HrmAttendanceCalculated / F03HrmOTActual are result tables, not an
-// append-only calculation log.  A calculation batch identifies the latest
-// calculation that produced a row, while the physical result store keeps only
-// one row per employee/date.  This prevents startup catch-up + daily reruns +
-// manual recalculation from multiplying the attendance volume.
-//
-// Historical/audit information is represented by CalculationBatchId on the
-// current row.  The calculation engine must replace the affected date/scope
-// atomically; see 22_03.
-// ============================================================================
+/*
+===============================================================================
+CURRENT-STATE STORAGE HARDENING
+
+F03HrmAttendanceCalculated / F03HrmOTActual are result tables, not an
+append-only calculation log. A calculation batch identifies the latest
+calculation that produced a row, while the physical result store keeps only
+one row per employee/date. This prevents startup catch-up + daily reruns +
+manual recalculation from multiplying the attendance volume.
+
+Historical/audit information is represented by CalculationBatchId on the
+current row. The calculation engine replaces the affected date/scope
+atomically; see 22_03.
+===============================================================================
+*/
 
 IF EXISTS
 (
