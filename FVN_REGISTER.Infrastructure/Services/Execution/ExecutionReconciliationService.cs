@@ -708,6 +708,24 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             && x.ParticipantId == reconciliation.ParticipantId,
             cancellationToken);
 
+        if (string.Equals(reconciliation.LastModifiedSource, "EXECUTION_CANCELLED", StringComparison.OrdinalIgnoreCase))
+        {
+            if (projection is not null)
+            {
+                projection.IsActive = false;
+                projection.RequiresAction = false;
+                projection.Marker = null;
+                projection.Severity = 0;
+                projection.StatusCode = "Cancelled";
+                projection.Summary = $"Đã hủy {reconciliation.ModuleCode}.";
+                projection.ModifiedBy = reconciliation.ModifiedBy;
+                projection.ModifiedAt = DateTime.Now;
+                projection.LastModifiedSource = "EXECUTION_CANCELLED";
+            }
+
+            return;
+        }
+
         if (projection is not null
             && string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase)
             && string.Equals(projection.LastModifiedSource, "HR_EXECUTION_REVIEW", StringComparison.OrdinalIgnoreCase))
