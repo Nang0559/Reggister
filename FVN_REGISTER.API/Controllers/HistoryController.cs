@@ -45,7 +45,7 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (UserInfo == null) return Unauthorized();
             if (!TryParseRequestKind(kind, out var requestKind))
-                return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave hoặc ot."));
+                return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave, ot, trip hoặc equipment."));
 
             var filter = new HistoryFilterDto
             {
