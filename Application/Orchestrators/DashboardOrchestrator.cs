@@ -1,4 +1,5 @@
-﻿using FVN_REGISTER.Application.Interfaces.Approvals;
+﻿using FVN_REGISTER.Application.Interfaces.Actions;
+using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Statics;
 using FVN_REGISTER.Application.Interfaces.Dashboards;
@@ -25,17 +26,20 @@ namespace FVN_REGISTER.Application.Orchestrators
     {
         private readonly IEnumerable<IModuleDashboardProvider> _providers;
         private readonly IApprovalInboxService _approvalInbox;
+        private readonly IActionItemService _actions;
         private readonly IAuthorizationService _authorization;
         private readonly ILogger<DashboardOrchestrator> _logger;
 
         public DashboardOrchestrator(
             IEnumerable<IModuleDashboardProvider> providers,
             IApprovalInboxService approvalInbox,
+            IActionItemService actions,
             ILogger<DashboardOrchestrator> logger,
             IAuthorizationService authorization)
         {
             _providers = providers;
             _approvalInbox = approvalInbox;
+            _actions = actions;
             _logger = logger;
             _authorization = authorization;
         }
@@ -100,6 +104,13 @@ namespace FVN_REGISTER.Application.Orchestrators
                 }
 
                 response.Widgets = DashboardWidgetPolicy.Arrange(user, rawWidgets);
+
+                // Shared Action inbox is part of the authenticated user's dashboard.
+                // Action status does not replace any business workflow status.
+                var actionCount = await _actions.GetCountAsync(user.EmployeeCode, user.UserId, ct);
+                var actions = await _actions.GetMineAsync(user.EmployeeCode, user.UserId, includeCompleted: false, ct);
+                response.ActionCount = actionCount;
+                response.Actions = actions.Take(5).ToList();
 
                 // Pending inbox is useful only to users who can approve.
                 if (response.ShowManagerView)
