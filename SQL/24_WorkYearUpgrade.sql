@@ -27,7 +27,7 @@ BEGIN
         Remark nvarchar(500) NULL
     );
 
-    CREATE UNIQUE INDEX IX_F03WorkYear_Year
+    CREATE UNIQUE INDEX IX_F03WorkYears_Year
         ON dbo.F03WorkYears(WorkYear);
 END;
 GO
