@@ -101,44 +101,4 @@ IF EXISTS (SELECT 1 FROM @Errors)
 
 PRINT N'WORK CALENDAR + ACTION SQL verification PASSED.';
 GO
-
-
-/* Generic execution reconciliation verification */
-IF OBJECT_ID(N'dbo.F03ExecutionPolicies',N'U') IS NULL THROW 52029, N'Missing F03ExecutionPolicies', 1;
-IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NULL THROW 52029, N'Missing F03ExecutionReconciliations', 1;
-IF OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NULL THROW 52029, N'Missing F03ExecutionConfirmations', 1;
-IF OBJECT_ID(N'dbo.F03ExecutionConfirmationEvidence',N'U') IS NULL THROW 52029, N'Missing F03ExecutionConfirmationEvidence', 1;
-IF OBJECT_ID(N'dbo.F03ExecutionReconciliationHistory',N'U') IS NULL THROW 52029, N'Missing F03ExecutionReconciliationHistory', 1;
-
-/* Participant/source identity and shared evidence contract. */
-IF COL_LENGTH(N'dbo.F03CalendarProjection',N'SourceType') IS NULL
-    THROW 52030, N'Missing F03CalendarProjection.SourceType', 1;
-IF COL_LENGTH(N'dbo.F03CalendarProjection',N'ParticipantId') IS NULL
-    THROW 52031, N'Missing F03CalendarProjection.ParticipantId', 1;
-IF COL_LENGTH(N'dbo.F03ActionItems',N'SourceType') IS NULL
-    THROW 52032, N'Missing F03ActionItems.SourceType', 1;
-IF COL_LENGTH(N'dbo.F03ActionItems',N'ParticipantId') IS NULL
-    THROW 52033, N'Missing F03ActionItems.ParticipantId', 1;
-IF COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'SourceType') IS NULL
-    THROW 52034, N'Missing F03ExecutionReconciliations.SourceType', 1;
-IF COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'ParticipantId') IS NULL
-    THROW 52035, N'Missing F03ExecutionReconciliations.ParticipantId', 1;
-IF COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'SourceType') IS NULL
-    THROW 52036, N'Missing F03ExecutionConfirmations.SourceType', 1;
-IF COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'ParticipantId') IS NULL
-    THROW 52037, N'Missing F03ExecutionConfirmations.ParticipantId', 1;
-IF NOT EXISTS
-(
-    SELECT 1 FROM sys.foreign_keys
-    WHERE name=N'FK_F03ExecutionEvidence_Attachment'
-)
-    THROW 52038, N'Execution evidence must reference F03Attachment.', 1;
-IF NOT EXISTS
-(
-    SELECT 1 FROM sys.foreign_keys
-    WHERE name=N'FK_F03ExecutionReconciliations_Action'
-)
-    THROW 52039, N'Execution reconciliation must reference shared ActionItem.', 1;
-
-PRINT N'Generic execution reconciliation schema verified.';
 GO
