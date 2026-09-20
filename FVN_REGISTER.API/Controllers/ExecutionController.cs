@@ -70,11 +70,7 @@ public sealed class ExecutionController : BaseApiController
         if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
-        var employeeId = await ResolveCurrentEmployeeIdAsync(UserInfo.EmployeeCode, ct);
-        if (employeeId != request.EmployeeId)
-            return Forbid();
-
-        var result = await _execution.UpsertAsync(request, ct);
+        var result = await _execution.UpsertAsync(UserInfo.EmployeeCode, request, ct);
         return Ok(ApiResponse<object>.Ok(result));
     }
 
@@ -104,13 +100,4 @@ public sealed class ExecutionController : BaseApiController
         return Ok(ApiResponse<object>.Ok(result));
     }
 
-    private async Task<int> ResolveCurrentEmployeeIdAsync(string employeeCode, CancellationToken ct)
-    {
-        var db = HttpContext.RequestServices.GetRequiredService<FVN_REGISTER.Infrastructure.FVNWEBAPPContext>();
-        return await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.SingleOrDefaultAsync(
-            db.Employees.AsNoTracking()
-                .Where(x => x.IsActive != false && x.EmployeeCode == employeeCode)
-                .Select(x => (int?)x.Id), ct)
-            ?? throw new KeyNotFoundException("Không tìm thấy nhân viên của tài khoản hiện tại.");
-    }
 }
