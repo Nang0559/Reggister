@@ -83,6 +83,22 @@ public sealed class WorkCalendarController : BaseApiController
         return Ok(ApiResponse<object>.Ok(result));
     }
 
+    [HttpGet("me/availability")]
+    public async Task<IActionResult> GetAvailability(
+        [FromQuery] DateOnly date,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
+
+        var result = await _calendar.GetAvailabilityAsync(
+            UserInfo.EmployeeCode,
+            date.ToDateTime(TimeOnly.MinValue),
+            ct);
+
+        return Ok(ApiResponse<object>.Ok(result));
+    }
+
     private async Task<HashSet<string>> GetAuthorizedModulesAsync(
         FVN_REGISTER.Contract.Dtos.Authentication.UserIdentityDto user,
         CancellationToken ct)
