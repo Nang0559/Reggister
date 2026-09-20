@@ -68,8 +68,6 @@ using FVN_REGISTER.Infrastructure.Utils;
 using FVN_REGISTER.Infrastructure.Services;
 using FVN_REGISTER.Infrastructure.Services.Departments;
 using FVN_REGISTER.Application.Policies;
-using FVN_REGISTER.API.Services.OT;
-using FVN_REGISTER.API.Services.Histories;
 using FVN_REGISTER.Contract.Responses;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -117,6 +115,7 @@ builder.Services.AddScoped<IEscalationRuleService, EscalationRuleService>();
 builder.Services.AddScoped<ILeaveValidator, LeaveValidator>();
 builder.Services.AddScoped<ILeaveEscalationService, LeaveEscalationService>();
 builder.Services.AddScoped<ILeaveService, LeaveService>();
+builder.Services.AddScoped<ILeaveOrchestrator, LeaveOrchestrator>();
 builder.Services.AddScoped<ILeaveEntitlementService, LeaveEntitlementService>();
 
 // Reports
@@ -129,6 +128,7 @@ builder.Services.AddScoped<IReportDispatcher, ReportDispatcher>();
 builder.Services.AddScoped<IOTQueryService, OTQueryService>();
 builder.Services.AddScoped<IOTValidator, OTValidator>();
 builder.Services.AddScoped<IOTService, OTService>();
+builder.Services.AddScoped<IOTOrchestrator, OTOrchestrator>();
 builder.Services.AddScoped<IDepartmentStatusService, DepartmentStatusService>();
 builder.Services.AddScoped<IOTTypeManagementService, OTTypeManagementService>();
 builder.Services.AddScoped<IOTLimitRuleManagementService, OTLimitRuleManagementService>();
