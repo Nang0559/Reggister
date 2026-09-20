@@ -83,6 +83,19 @@ builder.Services.AddMemoryCache();
 builder.Services.Configure<AuthDebugOptions>(builder.Configuration.GetSection("AuthDebug"));
 builder.Services.Configure<AppOptions>(opts => opts.SiteUrl = builder.Configuration["SiteUrl"] ?? "https://localhost:7264");
 
+builder.Services
+    .AddOptions<JwtOptions>()
+    .Bind(builder.Configuration.GetSection(JwtOptions.SectionName))
+    .Validate(x => !string.IsNullOrWhiteSpace(x.SecretKey),
+        "Jwt:SecretKey is required. Supply it through configuration or environment variable Jwt__SecretKey.")
+    .Validate(x => Encoding.UTF8.GetByteCount(x.SecretKey) >= 32,
+        "Jwt:SecretKey must be at least 32 bytes.")
+    .Validate(x => !string.IsNullOrWhiteSpace(x.Issuer), "Jwt:Issuer is required.")
+    .Validate(x => !string.IsNullOrWhiteSpace(x.Audience), "Jwt:Audience is required.")
+    .Validate(x => x.AccessTokenHours > 0, "Jwt:AccessTokenHours must be greater than zero.")
+    .Validate(x => x.RememberMeDays > 0, "Jwt:RememberMeDays must be greater than zero.")
+    .ValidateOnStart();
+
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddDbContext<FVNWEBAPPContext>(options => options.UseSqlServer(connectionString));
 builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<FVNWEBAPPContext>());
@@ -225,12 +238,15 @@ builder.Services.AddAuthentication(options =>
 .AddJwtBearer(options =>
 {
     options.MapInboundClaims = false;
+    var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
+        ?? throw new InvalidOperationException("JWT configuration is missing.");
+
     options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true, ValidIssuer = builder.Configuration["Jwt:Issuer"],
-        ValidateAudience = true, ValidAudience = builder.Configuration["Jwt:Audience"],
+        ValidateIssuer = true, ValidIssuer = jwtOptions.Issuer,
+        ValidateAudience = true, ValidAudience = jwtOptions.Audience,
         ValidateIssuerSigningKey = true,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(builder.Configuration["Jwt:SecretKey"]!)),
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtOptions.SecretKey)),
         ValidateLifetime = true, ClockSkew = TimeSpan.FromMinutes(5),
         NameClaimType = "name", RoleClaimType = "role"
     };
