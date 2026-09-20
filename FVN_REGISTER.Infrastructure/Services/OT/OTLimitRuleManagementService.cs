@@ -213,10 +213,10 @@ public sealed class OTLimitRuleManagementService : BaseService<OTLimitRuleManage
         int? currentId,
         CancellationToken ct)
     {
-        if (!Enum.IsDefined(model.LimitType))
+        if (!Enum.IsDefined(typeof(OTLimitType), model.LimitType)
             return "Loại giới hạn OT không hợp lệ.";
 
-        if (!Enum.IsDefined(model.ScopeType))
+        if (!Enum.IsDefined(typeof(OTLimitScopeType), model.ScopeType)
             return "Phạm vi hạn mức OT không hợp lệ.";
 
         if (model.LimitHours <= 0 || model.LimitHours > 999)
