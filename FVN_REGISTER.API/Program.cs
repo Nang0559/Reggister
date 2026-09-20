@@ -185,6 +185,7 @@ builder.Services.AddScoped<IOTEscalationService, OTEscalationService>();
 
 // Trip
 builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Trips.ITripService, FVN_REGISTER.Infrastructure.Services.Trips.TripService>();
+builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Trips.ITripActualService, FVN_REGISTER.Infrastructure.Services.Trips.TripActualService>();
 
 // Equipment
 builder.Services.AddScoped<IEquipmentService, EquipmentService>();
