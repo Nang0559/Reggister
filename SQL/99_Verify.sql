@@ -299,6 +299,7 @@ PRINT N'Work Calendar / Annual Leave verification passed.';
 IF OBJECT_ID(N'dbo.F03PayrollCalculationPeriods',N'U') IS NULL THROW 51400,N'Missing F03PayrollCalculationPeriods.',1;
 IF OBJECT_ID(N'dbo.F03PayrollInputs',N'U') IS NULL THROW 51401,N'Missing F03PayrollInputs.',1;
 IF OBJECT_ID(N'dbo.usp_PreparePayrollPeriod',N'P') IS NULL THROW 51402,N'Missing usp_PreparePayrollPeriod.',1;
+IF OBJECT_ID(N'dbo.usp_LockPayrollPeriod',N'P') IS NULL THROW 51414,N'Missing usp_LockPayrollPeriod.',1;
 IF OBJECT_ID(N'dbo.usp_EnsurePayrollPeriod',N'P') IS NULL THROW 51403,N'Missing usp_EnsurePayrollPeriod.',1;
 IF COL_LENGTH(N'dbo.F03PayrollCalculationPeriods',N'LastModifiedSource') IS NULL THROW 51404,N'Missing PayrollPeriod.LastModifiedSource.',1;
 IF COL_LENGTH(N'dbo.F03PayrollCalculationPeriods',N'CalculatedBy') IS NULL THROW 51405,N'Missing PayrollPeriod.CalculatedBy.',1;
