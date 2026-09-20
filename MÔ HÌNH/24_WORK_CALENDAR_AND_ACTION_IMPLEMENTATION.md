@@ -57,6 +57,7 @@ Action của execution:
 - reconciliation chưa `Resolved` thì Action không được expire;
 - Action cũ từng `Expired` nhưng reconciliation vẫn unresolved được repair về `InProgress`;
 - employee không thể đóng Action execution để bypass reconciliation.
+- Action overdue chỉ chuyển `Open → InProgress` một lần; không ghi `ModifiedAt` mỗi chu kỳ.
 
 **Action.Completed ≠ business Approved/Matched.**
 
@@ -66,6 +67,7 @@ Notification là delivery/read state.
 
 - Notification dùng `ActionId` để deep-link về work item.
 - Notification failure không rollback business transaction.
+- Evidence mới tạo notification cho HR có ReviewMode bật và không gửi cho chính employee.
 - Failure phải được log để quan sát/retry; không dùng `catch { }` im lặng.
 - Evidence mới tạo notification cho HR có scope phù hợp.
 - Notification không được quyết định business state.
@@ -94,6 +96,7 @@ Quyết định confirmation có yêu cầu evidence hay không.
 
 - `0`: không đưa module vào HR Review queue.
 - `!= 0`: Mismatch/AwaitingConfirmation được đưa vào HR Review và Resolve phải đi qua policy này.
+- Queue HR áp dụng đúng capability + data scope: Own / Employee / Department / All.
 
 ### AutoResolveMode
 
@@ -161,11 +164,14 @@ Hai khái niệm này được lưu độc lập.
 
 ## 9. Correction
 
+Correction được quyết định bởi `ExecutionPolicy.CorrectionMode`, không hard-code theo ModuleCode.
+
 `F03ExecutionCorrections` không còn bị hard-code chỉ cho `ATTENDANCE`.
 
 - Mọi HR Resolution OK có thể tạo correction/audit record theo ModuleCode.
-- Attendance có downstream recalculation thực tế.
-- OT/Leave/Trip vẫn giữ business module làm source-of-truth; generic correction record ghi nhận resolution và là điểm mở rộng cho producer tương ứng.
+- `None`: không tạo correction.
+- `AttendanceRecalculate`: chạy attendance recalculation + payroll-period gate.
+- OT/Leave/Trip mặc định không bị chặn bởi payroll period nếu policy không bật correction.
 - Correction có `Pending/Applied/Failed/Cancelled`.
 
 Không được coi việc tạo correction là thay thế business module update.
@@ -208,7 +214,7 @@ Execution worker hiện:
 
 - xử lý cửa sổ gần hiện tại;
 - đồng thời quét unresolved ngoài cửa sổ khi `ReconciliationMode=2`;
-- xử lý approved/cancelled source;
+- xử lý approved/cancelled source; cancelled chỉ đóng reconciliation đã tồn tại, không tạo row Resolved mới.
 - không bỏ lại reconciliation chỉ vì actual về muộn.
 
 ## 13. HR UI
