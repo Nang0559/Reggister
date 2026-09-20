@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using System.Text.Json;
 using FVN_REGISTER.Application.Interfaces.Actions;
 using FVN_REGISTER.Application.Interfaces.Execution;
+using FVN_REGISTER.Application.Interfaces.Notifications;
 using Microsoft.EntityFrameworkCore.Storage;
 using FVN_REGISTER.Application.Models.Actions;
 using FVN_REGISTER.Contract.Dtos.Execution;
@@ -17,11 +18,16 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
 
     private readonly FVNWEBAPPContext _db;
     private readonly IActionItemWriter _actionWriter;
+    private readonly INotificationService _notificationService;
 
-    public ExecutionReconciliationService(FVNWEBAPPContext db, IActionItemWriter actionWriter)
+    public ExecutionReconciliationService(
+        FVNWEBAPPContext db,
+        IActionItemWriter actionWriter,
+        INotificationService notificationService)
     {
         _db = db;
         _actionWriter = actionWriter;
+        _notificationService = notificationService;
     }
 
     public async Task<ExecutionReconciliationDto?> GetAsync(string employeeCode, long reconciliationId, CancellationToken cancellationToken = default)
@@ -71,6 +77,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
 
         var isNew = entity is null;
         var previousStatus = entity?.ReconciliationStatus;
+        var previousActionId = entity?.ActionId;
 
         if (entity is null)
         {
@@ -199,6 +206,13 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         }
 
         await transaction.CommitAsync(cancellationToken);
+
+        if ((isNew || previousActionId != entity.ActionId)
+            && entity.ActionId.HasValue
+            && !string.Equals(entity.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
+        {
+            await NotifyActionCreatedAsync(entity, employeeCode, cancellationToken);
+        }
 
         return await _db.ExecutionReconciliations.AsNoTracking()
             .Where(x => x.Id == entity.Id)
@@ -348,6 +362,49 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         _db.ExecutionConfirmationEvidence.Add(evidence);
         await _db.SaveChangesAsync(cancellationToken);
         return ToEvidenceDto(evidence);
+    }
+
+    private async Task NotifyActionCreatedAsync(
+        F03ExecutionReconciliation reconciliation,
+        string employeeCode,
+        CancellationToken cancellationToken)
+    {
+        var user = await _db.Users.AsNoTracking()
+            .Where(x => x.EmployeeCode == employeeCode && x.IsActive != false)
+            .Select(x => new { x.Id, x.EmployeeCode })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (user is null) return;
+
+        var module = reconciliation.ModuleCode.ToUpperInvariant() switch
+        {
+            "OT" => RequestModule.Overtime,
+            "LEAVE" => RequestModule.Leave,
+            "TRIP" => RequestModule.Trip,
+            _ => RequestModule.Leave
+        };
+
+        await _notificationService.CreateAsync(new FVN_REGISTER.Contract.Dtos.Notifications.CreateNotificationDto
+        {
+            UserId = user.Id,
+            EmployeeCode = user.EmployeeCode,
+            Module = module,
+            RelatedRequestId = int.TryParse(reconciliation.SourceId, out var requestId) ? requestId : 0,
+            Action = NotificationAction.Pending,
+            Title = $"Cần xác nhận đối soát {reconciliation.ModuleCode}",
+            Body = $"Ngày {reconciliation.WorkDate:dd/MM/yyyy} — {$"Cần xác nhận {reconciliation.ModuleCode} / {reconciliation.SourceId}."}",
+            ActionUrl = $"/execution?reconciliationId={reconciliation.Id}",
+            ActionId = reconciliation.ActionId,
+            NotificationType = "EXECUTION_ACTION",
+            Metadata = JsonSerializer.Serialize(new
+            {
+                reconciliation.Id,
+                reconciliation.ModuleCode,
+                reconciliation.SourceType,
+                reconciliation.SourceId,
+                reconciliation.ParticipantId
+            })
+        }, cancellationToken);
     }
 
     private async Task<int> ResolveEmployeeIdAsync(string employeeCode, CancellationToken cancellationToken)
