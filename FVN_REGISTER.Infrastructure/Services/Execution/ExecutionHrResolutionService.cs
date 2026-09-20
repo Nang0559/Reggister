@@ -181,6 +181,15 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         if (string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Reconciliation đã Resolved, không thể review evidence.");
 
+        var reviewEnabled = await _db.ExecutionPolicies.AsNoTracking()
+            .AnyAsync(x => x.IsActive != false
+                && x.ModuleCode == reconciliation.ModuleCode
+                && x.ReviewMode != 0, cancellationToken);
+
+        if (!reviewEnabled)
+            throw new InvalidOperationException(
+                $"Module '{reconciliation.ModuleCode}' chưa bật HR Execution Review.");
+
         var targetEmployeeCode = await _db.Employees.AsNoTracking()
             .Where(x => x.Id == reconciliation.EmployeeId && x.IsActive != false)
             .Select(x => x.EmployeeCode)
