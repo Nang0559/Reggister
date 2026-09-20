@@ -46,21 +46,38 @@ public sealed class ActionItemLifecycleBackgroundWorker : BackgroundService
 
                     if (reconciliation?.ReconciliationStatus == "Resolved")
                     {
-                        action.Status = ActionItemStatus.Completed;
-                        action.CompletedAt = now;
-                        action.LastModifiedSource = "ACTION_LIFECYCLE";
+                        if (action.Status != ActionItemStatus.Completed)
+                        {
+                            action.Status = ActionItemStatus.Completed;
+                            action.CompletedAt = now;
+                            action.ExpiredAt = null;
+                            action.ModifiedAt = now;
+                            action.LastModifiedSource = "ACTION_LIFECYCLE";
+                        }
+                    }
+                    else if (reconciliation is not null)
+                    {
+                        // DueAt is an overdue signal, not a business terminal state.
+                        // Keep the action actionable, but only mutate it once.
+                        if (action.Status == ActionItemStatus.Open)
+                        {
+                            action.Status = ActionItemStatus.InProgress;
+                            action.ExpiredAt = null;
+                            action.ModifiedAt = now;
+                            action.LastModifiedSource = "ACTION_LIFECYCLE_OVERDUE";
+                        }
                     }
                     else
                     {
-                        // An unresolved execution is authoritative: the Action
-                        // remains actionable even after DueAt. Never silently expire
-                        // the Action while payroll/HR still depends on it.
-                        action.Status = ActionItemStatus.InProgress;
-                        action.ExpiredAt = null;
-                        action.LastModifiedSource = "ACTION_LIFECYCLE";
+                        // Orphan actions have no business reconciliation to keep them alive.
+                        if (action.Status != ActionItemStatus.Expired)
+                        {
+                            action.Status = ActionItemStatus.Expired;
+                            action.ExpiredAt = now;
+                            action.ModifiedAt = now;
+                            action.LastModifiedSource = "ACTION_LIFECYCLE_ORPHAN_EXPIRED";
+                        }
                     }
-
-                    action.ModifiedAt = now;
                 }
 
                 // Repair actions that were expired by an older worker version.
