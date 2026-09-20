@@ -151,8 +151,12 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
 
         if (confirmationRequired && !string.Equals(entity.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
         {
-            // ActionItemWriter assigns DueAt only when creating the action.
-            // Never calculate a fresh deadline on reconciliation reruns.
+            // Compute the deadline only when this reconciliation has no action yet.
+            // Re-runs must preserve the original DueAt.
+            var initialDueAt = entity.ActionId.HasValue || policy?.DueHours is not > 0
+                ? (DateTime?)null
+                : DateTime.Now.AddHours(policy.DueHours.Value);
+
             entity.ActionId = await _actionWriter.EnsureOpenAsync(new ActionItemDraft(
                 entity.ModuleCode,
                 entity.SourceId,
@@ -165,7 +169,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 $"Cần xác nhận {entity.ModuleCode} / {entity.SourceId}.",
                 1,
                 100,
-                null,
+                initialDueAt,
                 "/execution",
                 null,
                 JsonSerializer.Serialize(new
