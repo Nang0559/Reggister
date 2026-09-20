@@ -53,6 +53,7 @@
                     <MudDivider />
                     <MudMenuItem Icon="@Icons.Material.Filled.PersonOutline" OnClick="@(() => _nav.NavigateTo("/profile"))">Hồ sơ của tôi</MudMenuItem>
                     <MudMenuItem Icon="@Icons.Material.Filled.LockReset" OnClick="@(() => _nav.NavigateTo("/change-password"))">Đổi mật khẩu</MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.Devices" OnClick="@(() => _nav.NavigateTo("/admin/sessions"))">Thiết bị & phiên đăng nhập</MudMenuItem>
                     @if (_user.User?.PermissionCode.CanRequestLeave() == true)
                     {
                         <MudDivider />

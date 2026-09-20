@@ -17,8 +17,4 @@ public interface IApprovalSelectionService
         int requestId,
         CancellationToken ct = default);
 
-    Task ClearAsync(
-        RequestModule requestType,
-        int requestId,
-        CancellationToken ct = default);
 }

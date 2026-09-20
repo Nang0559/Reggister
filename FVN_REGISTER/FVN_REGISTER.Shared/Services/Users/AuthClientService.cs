@@ -68,6 +68,20 @@ namespace FVN_REGISTER.Shared.Services.Users
             catch (Exception ex) { _logger.LogError(ex, "UpdateProfile failed"); return ApiResponse<object>.Fail("Lỗi cập nhật thông tin."); }
         }
 
+        public async Task<ApiResponse<List<SessionDto>>> GetSessionsAsync(CancellationToken ct = default)
+        {
+            try { return await _authHttp.GetAsync<List<SessionDto>>("api/auth/sessions", ct); }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex) { _logger.LogError(ex, "GetSessions failed"); return ApiResponse<List<SessionDto>>.Fail("Không tải được danh sách thiết bị."); }
+        }
+
+        public async Task<ApiResponse<object>> RevokeSessionAsync(int sessionId, CancellationToken ct = default)
+        {
+            try { return await _authHttp.DeleteAsync<object>($"api/auth/sessions/{sessionId}", ct); }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested) { throw; }
+            catch (Exception ex) { _logger.LogError(ex, "RevokeSession failed: {SessionId}", sessionId); return ApiResponse<object>.Fail("Không thể đăng xuất thiết bị."); }
+        }
+
         public async Task Logout(CancellationToken ct = default)
         {
             var refreshToken = await _tokenStorage.GetRefreshTokenAsync();

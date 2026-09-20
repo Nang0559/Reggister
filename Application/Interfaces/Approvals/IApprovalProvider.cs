@@ -14,7 +14,6 @@ namespace FVN_REGISTER.Application.Interfaces.Approvals
         Task<List<ApprovalStepSnapshotDto>> BuildHierarchyAsync(ApprovalBuildContext ctx, CancellationToken ct);
         Task<ServiceResult<List<ApprovalStepSnapshotDto>>> BuildHierarchyResultAsync(
             ApprovalBuildContext ctx, CancellationToken ct, bool strict = true);
-        Task<ApprovalSnapshotDto> BuildSnapshotAsync(TSubject subject, ApprovalBuildContext ctx, CancellationToken ct);
         Task<ServiceResult<ApprovalSnapshotDto>> BuildSnapshotResultAsync(
             TSubject subject, ApprovalBuildContext ctx, CancellationToken ct);
         Task<TSubject?> GetSubjectAsync(int requestId, CancellationToken ct);
