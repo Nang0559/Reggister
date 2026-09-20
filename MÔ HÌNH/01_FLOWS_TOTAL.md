@@ -313,3 +313,11 @@ WorkCalendarDto
 ```
 
 The calendar is a read projection. Final authorization and business validation remain in the corresponding module service/validator.
+
+
+## 6B — Shared Work Calendar + Action/Task
+Work Calendar là framework dùng chung cho OT, Leave, Trip và module tương lai. Calendar không sở hữu business workflow.
+
+Business module → Calendar Provider → Shared Calendar Engine → Calendar Projection. Nếu `RequiresAction = true` thì cùng một `ActionId` được dùng cho Calendar Alert, Task List, Notification và Dashboard.
+
+Nguyên tắc: **Calendar = projection/navigation; Action = việc cần làm; Notification = delivery/read; Business Module = source of truth và workflow owner.** Chi tiết SQL, contract, API, idempotency và thứ tự triển khai nằm tại `24_WORK_CALENDAR_AND_ACTION_IMPLEMENTATION.md`.
