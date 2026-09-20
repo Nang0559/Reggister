@@ -5,7 +5,10 @@ using FVN_REGISTER.Application.Interfaces.Execution;
 using FVN_REGISTER.Application.Interfaces.Notifications;
 using Microsoft.EntityFrameworkCore.Storage;
 using FVN_REGISTER.Application.Models.Actions;
+using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Execution;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.WorkCalendar;
 using FVN_REGISTER.Core.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -19,17 +22,20 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
     private readonly FVNWEBAPPContext _db;
     private readonly IActionItemWriter _actionWriter;
     private readonly INotificationService _notificationService;
+    private readonly IAuthorizationService _authorization;
     private readonly ILogger<ExecutionReconciliationService> _logger;
 
     public ExecutionReconciliationService(
         FVNWEBAPPContext db,
         IActionItemWriter actionWriter,
         INotificationService notificationService,
+        IAuthorizationService authorization,
         ILogger<ExecutionReconciliationService> logger)
     {
         _db = db;
         _actionWriter = actionWriter;
         _notificationService = notificationService;
+        _authorization = authorization;
         _logger = logger;
     }
 
@@ -433,6 +439,21 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
 
         _db.ExecutionConfirmationEvidence.Add(evidence);
         await _db.SaveChangesAsync(cancellationToken);
+
+        try
+        {
+            await NotifyHrEvidenceAddedAsync(confirmation.ReconciliationId, evidence.Id, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Evidence persistence is authoritative; notification delivery is retriable/observable.
+            _logger.LogError(
+                ex,
+                "Execution evidence HR notification failed for ReconciliationId={ReconciliationId}, EvidenceId={EvidenceId}.",
+                confirmation.ReconciliationId,
+                evidence.Id);
+        }
+
         return ToEvidenceDto(evidence);
     }
 
@@ -474,6 +495,89 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
     }
 
 
+
+
+    private async Task NotifyHrEvidenceAddedAsync(
+        long reconciliationId,
+        long evidenceId,
+        CancellationToken cancellationToken)
+    {
+        var reconciliation = await _db.ExecutionReconciliations.AsNoTracking()
+            .Where(x => x.Id == reconciliationId && x.IsActive != false)
+            .Select(x => new
+            {
+                x.Id,
+                x.ModuleCode,
+                x.SourceId,
+                x.EmployeeId,
+                x.WorkDate,
+                x.ActionId
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (reconciliation is null)
+            return;
+
+        var employee = await _db.Employees.AsNoTracking()
+            .Where(x => x.Id == reconciliation.EmployeeId && x.IsActive != false)
+            .Select(x => new { x.EmployeeCode, x.DeptCode, x.EmployeeName })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (employee is null)
+            return;
+
+        var users = await _db.Users.AsNoTracking()
+            .Where(x => x.IsActive != false)
+            .Select(x => new UserIdentityDto
+            {
+                UserId = x.Id,
+                EmployeeCode = x.EmployeeCode,
+                DeptCode = x.DeptCode,
+                Permission = x.PermissionCode,
+                FullName = x.FullName,
+                LevelApprove = x.LevelApprove,
+                IsLoggedIn = true
+            })
+            .ToListAsync(cancellationToken);
+
+        var module = MapNotificationModule(reconciliation.ModuleCode);
+
+        foreach (var user in users)
+        {
+            if (!await _authorization.HasAsync(user, SecurityFunctionCodes.ExecutionReview, cancellationToken))
+                continue;
+
+            if (!await _authorization.CanAccessAsync(
+                    user,
+                    SecurityFunctionCodes.ExecutionReview,
+                    employee.EmployeeCode,
+                    employee.DeptCode,
+                    cancellationToken))
+                continue;
+
+            await _notificationService.CreateAsync(
+                new FVN_REGISTER.Contract.Dtos.Notifications.CreateNotificationDto
+                {
+                    UserId = user.UserId,
+                    EmployeeCode = user.EmployeeCode,
+                    Module = module,
+                    Action = NotificationAction.Pending,
+                    Title = $"Evidence mới cần review: {reconciliation.ModuleCode}",
+                    Body = $"{employee.EmployeeCode} - {employee.EmployeeName}: evidence #{evidenceId} cho ngày {reconciliation.WorkDate:dd/MM/yyyy}.",
+                    ActionUrl = $"/execution/hr?reconciliationId={reconciliation.Id}",
+                    ActionId = reconciliation.ActionId,
+                    NotificationType = "EXECUTION_EVIDENCE_REVIEW",
+                    Metadata = JsonSerializer.Serialize(new
+                    {
+                        reconciliation.Id,
+                        EvidenceId = evidenceId,
+                        reconciliation.ModuleCode,
+                        EmployeeCode = employee.EmployeeCode
+                    })
+                },
+                cancellationToken);
+        }
+    }
 
     private static RequestModule MapNotificationModule(string moduleCode)
     {
