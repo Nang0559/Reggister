@@ -205,7 +205,7 @@ namespace FVN_REGISTER.API.Services.OT
                         e.OTRequest.RequestStatus != ApprovalStatus.Cancelled &&
                         e.OTRequest.OTDate >= yearStart &&
                         e.OTRequest.OTDate < yearEnd &&
-                        (e.EmployeeCode != null || e.OTRequest.DeptCode == deptCode || blockDeptCodes.Contains(e.OTRequest.DeptCode)))
+                        (e.EmployeeCode != null || e.OTRequest.DeptCode == deptCode || blockDeptCodes.Contains(e.OTRequest.DeptCode ?? string.Empty)))
                     .Select(e => new
                     {
                         e.EmployeeCode,
@@ -254,7 +254,7 @@ namespace FVN_REGISTER.API.Services.OT
 
                 if (!string.IsNullOrWhiteSpace(blockCode))
                 {
-                    var blockUsed = usedData.Where(x => blockDeptCodes.Contains(x.DeptCode)).ToList();
+                    var blockUsed = usedData.Where(x => blockDeptCodes.Contains(x.DeptCode ?? string.Empty)).ToList();
                     ValidateAggregateLimit(activeRules, OTLimitScopeType.Block, blockCode, OTLimitType.Weekly,
                         blockUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
                         model.Employees.Sum(x => x.OTHours));
