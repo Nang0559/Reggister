@@ -76,7 +76,8 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
         return (await db.ExecutionReconciliations.AsNoTracking()
             .Where(x => x.IsActive != false
                 && x.ModuleCode == moduleCode
-                && x.ReconciliationStatus != "Resolved")
+                && (x.ReconciliationStatus == "Mismatch"
+                    || x.ReconciliationStatus == "AwaitingConfirmation"))
             .Select(x => x.SourceId)
             .Distinct()
             .ToListAsync(ct))
@@ -122,6 +123,20 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
             {
                 var workDate = DateOnly.FromDateTime(row.OTDate);
                 var cancelled = row.RequestStatus == ApprovalStatus.Cancelled;
+                if (cancelled)
+                {
+                    var existing = await db.ExecutionReconciliations.AsNoTracking()
+                        .AnyAsync(x => x.IsActive != false
+                            && x.ModuleCode == "OT"
+                            && x.SourceType == "OT_EMPLOYEE"
+                            && x.SourceId == $"{row.OTCode}:{row.EmployeeCode}"
+                            && x.EmployeeId == ResolveEmployeeIdSync(db, row.EmployeeCode)
+                            && x.WorkDate == workDate, ct);
+
+                    if (!existing)
+                        continue;
+                }
+
                 var actual = row.ActualHours;
                 var planned = row.OTHours;
 
