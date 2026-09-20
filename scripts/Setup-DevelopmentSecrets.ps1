@@ -6,9 +6,17 @@ if (-not (Get-Command dotnet -ErrorAction SilentlyContinue)) {
     throw "dotnet SDK was not found in PATH."
 }
 
-$jwtSecret = [Convert]::ToBase64String(
-    [System.Security.Cryptography.RandomNumberGenerator]::GetBytes(48)
-)
+$randomBytes = New-Object byte[] 48
+$rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+
+try {
+    $rng.GetBytes($randomBytes)
+}
+finally {
+    $rng.Dispose()
+}
+
+$jwtSecret = [Convert]::ToBase64String($randomBytes)
 
 dotnet user-secrets set "Jwt:SecretKey" $jwtSecret --project $project
 dotnet user-secrets set "Jwt:Issuer" "FVNRGTApi" --project $project
