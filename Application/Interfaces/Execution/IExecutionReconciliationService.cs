@@ -16,6 +16,7 @@ public interface IExecutionReconciliationService
         CancellationToken cancellationToken = default);
 
     Task<ExecutionReconciliationDto> UpsertAsync(
+        string employeeCode,
         ExecutionReconciliationUpsertRequest request,
         CancellationToken cancellationToken = default);
 
