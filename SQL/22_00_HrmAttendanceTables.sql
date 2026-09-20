@@ -18,7 +18,6 @@ The calculation engine is deployed separately:
   22_01  InterSectionTime3
   22_02  HRM-compatible per-staff calculation
   22_03  range orchestration + FVN result persistence
-  22_04  read model
 ===============================================================================
 */
 
