@@ -1,6 +1,7 @@
 
 using FVN_REGISTER.Application.Interfaces.Emails;
 using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Application.Interfaces.Trips;
 
 using FVN_REGISTER.Contract.Dtos.Approvals;
 
@@ -26,8 +27,14 @@ public sealed class TripApprovalProvider
         IApprovalRouteService routeService,
         IApprovalSelectionService selectionService,
         ILogger<TripApprovalProvider> logger,
-        IOptionsMonitor<AuthDebugOptions> options)
-        : base(uow, email, notification, userResolver, routeService, selectionService, logger, options) { }
+        IOptionsMonitor<AuthDebugOptions> options,
+        ITripActualService tripActualService)
+        : base(uow, email, notification, userResolver, routeService, selectionService, logger, options)
+    {
+        _tripActualService = tripActualService;
+    }
+
+    private readonly ITripActualService _tripActualService;
 
     public override async Task<TripRequestSubject?> GetSubjectAsync(int requestId, CancellationToken ct)
     {
@@ -77,6 +84,9 @@ public sealed class TripApprovalProvider
                     : ApprovalStatus.Pending;
 
         await _uow.SaveChangesAsync(ct);
+
+        if (entity.RequestStatus == ApprovalStatus.Approved)
+            await _tripActualService.EnsureCreatedFromApprovedRequestAsync(requestId, ct);
     }
 
     public override async Task NotifyStepCompletedAsync(
