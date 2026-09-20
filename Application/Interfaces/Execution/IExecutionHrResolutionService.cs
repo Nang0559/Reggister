@@ -5,6 +5,7 @@ namespace FVN_REGISTER.Application.Interfaces.Execution;
 public interface IExecutionHrResolutionService
 {
     Task<IReadOnlyList<ExecutionHrReviewItemDto>> GetPendingAsync(
+        int userId,
         string? moduleCode,
         string? status,
         DateOnly? from,
