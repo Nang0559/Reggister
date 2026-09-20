@@ -13,7 +13,7 @@ namespace FVN_REGISTER.Infrastructure.Models.Data.Configurations.Common
             entity.HasKey(e => e.Id).HasName("PK_F03WorkYears");
 
             // Index: Đảm bảo không trùng lặp năm làm việc
-            entity.HasIndex(e => e.WorkYear, "IX_F03WorkYear_Year").IsUnique();
+            entity.HasIndex(e => e.WorkYear, "IX_F03WorkYears_Year").IsUnique();
 
             // Cấu hình các trường bắt buộc
             entity.Property(e => e.WorkYear).IsRequired();
