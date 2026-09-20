@@ -3,8 +3,8 @@ namespace FVN_REGISTER.Contract.Dtos.Payroll;
 public sealed record PayrollPeriodDto(
     int Id,
     string PeriodCode,
-    DateTime FromDate,
-    DateTime ToDate,
+    DateOnly FromDate,
+    DateOnly ToDate,
     string Status,
     DateTime? CalculatedAt,
     int? CalculatedBy,
@@ -21,10 +21,10 @@ public sealed record PayrollInputDto(
     int EmployeeId,
     string EmployeeCode,
     string? EmployeeName,
-    DateTime WorkDate,
-    int WorkMinutes,
+    DateOnly WorkDate,
+    decimal WorkMinutes,
     decimal LeaveTotal,
-    int OTMinutes,
+    decimal OTMinutes,
     DateTime SnapshotAt);
 
 public sealed record PayrollExportDto(
