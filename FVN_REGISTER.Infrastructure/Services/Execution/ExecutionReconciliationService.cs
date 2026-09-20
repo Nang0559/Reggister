@@ -211,7 +211,14 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             && entity.ActionId.HasValue
             && !string.Equals(entity.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
         {
-            await NotifyActionCreatedAsync(entity, employeeCode, cancellationToken);
+            try
+            {
+                await NotifyActionCreatedAsync(entity, employeeCode, cancellationToken);
+            }
+            catch
+            {
+                // Notification delivery is secondary; reconciliation/action commit remains authoritative.
+            }
         }
 
         return await _db.ExecutionReconciliations.AsNoTracking()
