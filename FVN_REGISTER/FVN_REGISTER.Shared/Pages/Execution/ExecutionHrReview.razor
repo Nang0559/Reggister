@@ -6,6 +6,7 @@
 @inject IHttpClientWithAuth Http
 @inject FVN_REGISTER.Shared.Services.Execution.IExecutionReconciliationClientService ExecutionService
 @inject ISnackbar Snackbar
+@inject IHttpClientWithAuth Http
 @rendermode InteractiveServer
 
 <PageTitle>HR xử lý đối soát</PageTitle>
@@ -48,7 +49,7 @@
     }
 
     <MudPaper Outlined="true" Class="pa-4 mt-4 payroll-no-print">
-        <MudTextField @bind-Value="_reason" Label="Lý do xử lý" Placeholder="Bắt buộc khi Resolve" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="_resolveReason" Label="Lý do Resolve" Placeholder="Bắt buộc khi Resolve" Variant="Variant.Outlined" Class="mb-3" />
     </MudPaper>
 
     <MudPaper Outlined="true" Class="pa-4 mt-4">
@@ -64,7 +65,7 @@
                 <MudTh></MudTh>
             </HeaderContent>
             <RowTemplate>
-                <MudTd>@context.WorkDate:dd/MM/yyyy</MudTd>
+                <MudTd>@context.WorkDate.ToString("dd/MM/yyyy")</MudTd>
                 <MudTd><b>@context.EmployeeCode</b><br />@context.EmployeeName</MudTd>
                 <MudTd>@context.ModuleCode</MudTd>
                 <MudTd>@context.PlannedState</MudTd>
@@ -167,7 +168,8 @@
     private bool _loading;
     private bool _busy;
     private string? _error;
-    private string _reason = string.Empty;
+    private string _resolveReason = string.Empty;
+    private string? _evidenceReviewNote;
     private ExecutionReconciliationDetailDto? _detail;
 
     [SupplyParameterFromQuery(Name = "reconciliationId")]
@@ -211,7 +213,8 @@
 
     private async Task OpenDetailAsync(long reconciliationId)
     {
-        var result = await ExecutionService.GetDetailAsync(reconciliationId);
+        var result = await Http.GetAsync<ExecutionReconciliationDetailDto>(
+            $"api/execution/hr/reconciliations/{reconciliationId}/detail");
         if (!result.IsSuccess || result.Data is null)
         {
             Snackbar.Add(result.Message ?? "Không tải được chi tiết.", Severity.Error);
@@ -228,7 +231,7 @@
         _busy = true;
         try
         {
-            var request = new ExecutionEvidenceReviewRequest(status, _reason?.Trim());
+            var request = new ExecutionEvidenceReviewRequest(status, _evidenceReviewNote?.Trim());
             var result = await Http.PostAsync<ExecutionEvidenceDto>(
                 $"api/execution/hr/evidence/{evidenceId}/review", request);
 
@@ -239,6 +242,7 @@
             }
 
             Snackbar.Add($"Evidence đã chuyển sang {status}.", Severity.Success);
+            _evidenceReviewNote = null;
             if (_detail is not null)
                 await OpenDetailAsync(_detail.Reconciliation.Id);
             await LoadAsync();
@@ -251,7 +255,7 @@
 
     private async Task ResolveAsync(ExecutionHrReviewItemDto item, string decision)
     {
-        if (string.IsNullOrWhiteSpace(_reason))
+        if (string.IsNullOrWhiteSpace(_resolveReason))
         {
             Snackbar.Add("Phải nhập lý do xử lý.", Severity.Warning);
             return;
@@ -260,7 +264,7 @@
         _busy = true;
         try
         {
-            var request = new ExecutionHrResolutionRequest(decision, _reason.Trim(), "REFRESH");
+            var request = new ExecutionHrResolutionRequest(decision, _resolveReason.Trim(), "REFRESH");
             var r = await Http.PostAsync<ExecutionHrResolutionDto>(
                 $"api/execution/hr/reconciliations/{item.Id}/resolve", request);
 
@@ -271,7 +275,7 @@
             }
 
             Snackbar.Add($"Đã xử lý {item.EmployeeCode} / {item.ModuleCode} = {decision}.", Severity.Success);
-            _reason = string.Empty;
+            _resolveReason = string.Empty;
             await LoadAsync();
         }
         finally
