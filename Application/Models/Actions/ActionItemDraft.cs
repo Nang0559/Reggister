@@ -17,4 +17,5 @@ public sealed record ActionItemDraft(
     string? ReferenceNo,
     string? PayloadJson,
     string SourceType = "MODULE",
-    string? ParticipantId = null);
+    string? ParticipantId = null,
+    int? ActorUserId = null);
