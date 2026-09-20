@@ -170,7 +170,9 @@ public sealed class ActionItemService : IActionItemService
 
         if (reconciliation is not null
             && !string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
-            return false;
+            throw new InvalidOperationException(
+                $"Không thể đóng action vì reconciliation đang ở trạng thái '{reconciliation.ReconciliationStatus}'. " +
+                "Cần hoàn tất bước xác nhận hoặc HR giải quyết trước khi đóng action.");
 
         entity.Status = target;
 
