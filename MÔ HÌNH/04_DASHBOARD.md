@@ -171,3 +171,20 @@ Không trả EF entities từ provider/API.
 - OT provider: đã được mô tả.
 - Trip provider: chưa build.
 - Kiểu `Detail` và cơ chế runtime type-check cần được xác nhận trong implementation hiện tại.
+
+
+## 12. Personal Work Calendar — Attendance + OT Reconciliation
+
+Dashboard cá nhân không tự tính lại attendance/OT. Nó đọc projection từ D3 và hiển thị theo EmployeeId của user đăng nhập.
+
+| Trạng thái | Hiển thị | Ý nghĩa |
+|---|---|---|
+| Matched | 🟢 | OT thực tế khớp OT effective đã duyệt |
+| Mismatch | 🔴 | OT thực tế lệch OT effective |
+| ActualWithoutApproval | 🔴 | Có OT thực tế nhưng không có OT được duyệt |
+| ApprovedWithoutActual | ❓ | Đã duyệt OT nhưng chưa có attendance/actual; cần xác nhận |
+| CancelledByNoAttendance | Không tính OT | Đã quá deadline xác nhận và mặc định không đi làm |
+
+Ngày đỏ phải click được để lazy-load detail. Ngày ? phải click được để mở form xác nhận.
+
+Security invariant: endpoint /me không nhận UserId từ client. Backend lấy identity hiện tại từ authenticated claims và chỉ query participant/attendance của user đó.
