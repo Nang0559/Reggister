@@ -70,6 +70,13 @@
         </MudNavGroup>
     }
 
+    @if (Can(SecurityFunctionCodes.ExecutionReview))
+    {
+        <MudNavGroup Title="Đối soát HR" Icon="@Icons.Material.Filled.Rule" Expanded="false">
+            <MudNavLink href="/execution/hr" Icon="@Icons.Material.Filled.FactCheck">Hàng chờ HR</MudNavLink>
+        </MudNavGroup>
+    }
+
     @if (Can(SecurityFunctionCodes.PayrollView))
     {
         <MudNavGroup Title="Tính lương" Icon="@Icons.Material.Filled.Payments" Expanded="false">
