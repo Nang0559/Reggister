@@ -270,7 +270,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 entity,
                 previousStatus,
                 currentStatus,
-                isNew ? "CREATED" : "UPSERT",
+                isNew ? "CREATED" : requestedStatus == "Resolved" && previousStatus is not null ? "CANCELLED_CLOSED" : "UPSERT",
                 null,
                 effectiveActorUserId,
                 employeeId,
