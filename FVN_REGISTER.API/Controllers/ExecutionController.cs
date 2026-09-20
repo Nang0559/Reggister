@@ -62,6 +62,18 @@ public sealed class ExecutionController : BaseApiController
             : Ok(ApiResponse<object>.Ok(result));
     }
 
+    [HttpGet("me/{reconciliationId:long}/detail")]
+    public async Task<IActionResult> GetDetail(long reconciliationId, CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
+
+        var result = await _execution.GetDetailAsync(UserInfo.EmployeeCode, reconciliationId, ct);
+        return result is null
+            ? NotFound(ApiResponse<object>.Fail("Không tìm thấy reconciliation."))
+            : Ok(ApiResponse<object>.Ok(result));
+    }
+
     [HttpPost("me/{reconciliationId:long}/confirmation")]
     public async Task<IActionResult> SubmitConfirmation(
         long reconciliationId,
