@@ -1,5 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Infrastructure.Models.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -72,6 +73,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
     {
         var yesterday = DateTime.Today.AddDays(-1).Date;
         var payrollStart = await GetPayrollPeriodStartAsync(yesterday, stoppingToken);
+        if (!payrollStart.HasValue) return;
 
         _logger.LogInformation(
             "[HRM_ATTENDANCE_WORKER] Catch-up company-wide: {From} -> {To}",
@@ -86,6 +88,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         var yesterday = DateTime.Today.AddDays(-1).Date;
 
         var payrollStart = await GetPayrollPeriodStartAsync(yesterday, ct);
+        if (!payrollStart.HasValue) return;
         _logger.LogInformation(
             "[HRM_ATTENDANCE_WORKER] Daily company-wide calculation: {Date}",
             yesterday.ToString("dd/MM/yyyy"));
@@ -154,7 +157,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         }
     }
 
-    private async Task<DateTime> GetPayrollPeriodStartAsync(DateTime date, CancellationToken ct)
+    private async Task<DateTime?> GetPayrollPeriodStartAsync(DateTime date, CancellationToken ct)
     {
         await using var scope = _serviceProvider.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
@@ -170,7 +173,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
                 _logger.LogInformation(
                     "[HRM_ATTENDANCE_WORKER] Bỏ qua ngày {Date}: kỳ {PeriodCode} đã {Status}.",
                     date.ToString("dd/MM/yyyy"), period.PeriodCode, period.Status);
-                return date.AddDays(1);
+                return null;
             }
 
             return period.FromDate.ToDateTime(TimeOnly.MinValue);
