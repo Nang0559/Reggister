@@ -107,8 +107,14 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         if (string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Reconciliation đã Resolved, không thể review evidence.");
 
-        if (string.Equals(employeeCode, reconciliation.EmployeeId.ToString(), StringComparison.OrdinalIgnoreCase))
-            throw new UnauthorizedAccessException("Không thể review evidence của chính mình.");
+        var targetEmployeeCode = await _db.Employees.AsNoTracking()
+            .Where(x => x.Id == reconciliation.EmployeeId && x.IsActive != false)
+            .Select(x => x.EmployeeCode)
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy nhân viên của evidence.");
+
+        if (string.Equals(employeeCode, targetEmployeeCode, StringComparison.OrdinalIgnoreCase))
+            throw new UnauthorizedAccessException("HR không được review evidence của chính mình.");
 
         evidence.ReviewStatus = reviewStatus;
         evidence.ReviewedBy = userId;
@@ -407,8 +413,15 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         string? note,
         CancellationToken cancellationToken)
     {
+        var targetEmployeeCode = await _db.Employees.AsNoTracking()
+            .Where(x => x.Id == reconciliation.EmployeeId && x.IsActive != false)
+            .Select(x => x.EmployeeCode)
+            .SingleOrDefaultAsync(cancellationToken);
+
+        if (string.IsNullOrWhiteSpace(targetEmployeeCode)) return;
+
         var user = await _db.Users.AsNoTracking()
-            .Where(x => x.EmployeeCode == reconciliation.EmployeeId.ToString() && x.IsActive != false)
+            .Where(x => x.EmployeeCode == targetEmployeeCode && x.IsActive != false)
             .Select(x => new { x.Id, x.EmployeeCode })
             .FirstOrDefaultAsync(cancellationToken);
 
