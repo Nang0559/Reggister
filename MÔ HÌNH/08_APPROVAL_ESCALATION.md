@@ -12,8 +12,9 @@
    - gửi **email + in-app/SignalR** cho approver mới.
 4. Reject thủ công:
    - ghi `Rejected`;
-   - kết thúc request với `Rejected`;
-   - gửi kết quả cho người tạo đơn.
+   - với Leave hoặc OT Master request mới: kết thúc request theo workflow;
+   - với OT adjustment revision: **chỉ kết thúc revision đang xin điều chỉnh**, không làm thay đổi EffectiveApprovedRevision của participant và không ảnh hưởng participant khác;
+   - gửi kết quả cho employee/creator trong đúng scope.
 5. Timeout để leo cấp:
    - ghi `Escalated`, **không ghi `Rejected`**;
    - request tiếp tục workflow;
@@ -136,11 +137,15 @@ sequenceDiagram
 |---|---|---|---|
 | `Pending` | Calculator | Step đang chờ | Không |
 | `Approved` | Approver/Admin | Duyệt step | Chỉ khi toàn bộ required step Approved |
-| `Rejected` | Approver/Admin/System hard deadline | Từ chối thật sự hoặc hard deadline | Có |
+| `Rejected` | Approver/Admin/System hard deadline | Từ chối thật sự; với OT adjustment thì chỉ kết thúc revision trong scope | Có, theo subject/revision |
 | `Returned` | Workflow hỗ trợ sửa | Trả lại theo rule | Tùy workflow |
 | `Escalated` | Background worker | Hết thời gian chờ, chuyển cấp | Không |
 
 **Invariant quan trọng:** `Escalated` không được map sang `Rejected`.
+
+
+
+> **OT revision exception:** quy tắc "Reject kết thúc request" của approval engine chỉ áp dụng ở request/subject đang được approve. Với OT adjustment, subject là revision của một participant; Reject không được cascade lên OT Master hoặc participant khác và không được xóa EffectiveApprovedRevision cũ.
 
 ## 6. Timeout clock
 
