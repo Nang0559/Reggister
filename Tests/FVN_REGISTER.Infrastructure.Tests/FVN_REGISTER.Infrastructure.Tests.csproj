@@ -19,7 +19,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="....FVN_REGISTER.InfrastructureFVN_REGISTER.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\FVN_REGISTER.Infrastructure\FVN_REGISTER.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>
