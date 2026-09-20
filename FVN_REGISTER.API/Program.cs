@@ -128,7 +128,6 @@ builder.Services.AddScoped<IEscalationRuleService, EscalationRuleService>();
 builder.Services.AddScoped<ILeaveValidator, LeaveValidator>();
 builder.Services.AddScoped<ILeaveEscalationService, LeaveEscalationService>();
 builder.Services.AddScoped<ILeaveService, LeaveService>();
-builder.Services.AddScoped<ILeaveOrchestrator, LeaveOrchestrator>();
 builder.Services.AddScoped<ILeaveEntitlementService, LeaveEntitlementService>();
 
 // Reports
@@ -141,7 +140,6 @@ builder.Services.AddScoped<IReportDispatcher, ReportDispatcher>();
 builder.Services.AddScoped<IOTQueryService, OTQueryService>();
 builder.Services.AddScoped<IOTValidator, OTValidator>();
 builder.Services.AddScoped<IOTService, OTService>();
-builder.Services.AddScoped<IOTOrchestrator, OTOrchestrator>();
 builder.Services.AddScoped<IDepartmentStatusService, DepartmentStatusService>();
 builder.Services.AddScoped<IOTTypeManagementService, OTTypeManagementService>();
 builder.Services.AddScoped<IOTLimitRuleManagementService, OTLimitRuleManagementService>();
