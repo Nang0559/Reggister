@@ -102,7 +102,7 @@ if (string.IsNullOrWhiteSpace(connectionString))
 {
     throw new InvalidOperationException(
         "ConnectionStrings:DefaultConnection is required. " +
-        "For Development, set it with .NET User Secrets or Jwt/ConnectionStrings environment variables. " +
+        "For Development, set it with .NET User Secrets or the ConnectionStrings__DefaultConnection environment variable. " +
         "For Production, use ConnectionStrings__DefaultConnection.");
 }
 
