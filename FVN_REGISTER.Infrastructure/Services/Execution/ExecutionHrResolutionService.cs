@@ -10,11 +10,18 @@ namespace FVN_REGISTER.Infrastructure.Services.Execution;
 
 public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 {
+    private readonly IHrmAttendanceCalculationService _attendanceCalculation;
     public const int HrExecutionReviewFunctionCode = 2107;
 
     private readonly FVNWEBAPPContext _db;
 
-    public ExecutionHrResolutionService(FVNWEBAPPContext db) => _db = db;
+    public ExecutionHrResolutionService(
+        FVNWEBAPPContext db,
+        IHrmAttendanceCalculationService attendanceCalculation)
+    {
+        _db = db;
+        _attendanceCalculation = attendanceCalculation;
+    }
 
     public async Task<IReadOnlyList<ExecutionHrReviewItemDto>> GetPendingAsync(
         string? moduleCode,
@@ -179,6 +186,26 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         });
 
         await _db.SaveChangesAsync(cancellationToken);
+
+        // Attendance is a calculated result, never a manual source-of-truth.
+        // HR-OK creates a correction request by recalculating the affected
+        // employee/day through the existing HRM-compatible procedure.
+        if (decision == "OK" && reconciliation.ModuleCode.Equals("ATTENDANCE", StringComparison.OrdinalIgnoreCase))
+        {
+            var calc = await _attendanceCalculation.CalculateAsync(
+                new FVN_REGISTER.Contract.Dtos.HrmSync.HrmAttendanceCalculationRequestDto
+                {
+                    DeptCode = null,
+                    FromDate = reconciliation.WorkDate.ToDateTime(TimeOnly.MinValue),
+                    ToDate = reconciliation.WorkDate.ToDateTime(TimeOnly.MinValue)
+                },
+                $"HR-EXECUTION-RESOLUTION:{resolution.Id}",
+                cancellationToken);
+
+            if (!calc.IsSuccess)
+                throw new InvalidOperationException(
+                    $"Đã ghi nhận HR Resolution nhưng không thể tính lại công ngày {reconciliation.WorkDate:dd/MM/yyyy}: {calc.Message}");
+        }
 
         await CreateUserNotificationAsync(
             reconciliation,
