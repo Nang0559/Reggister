@@ -3,6 +3,8 @@ using FVN_REGISTER.Contract.Dtos.HrmSync;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.Data.SqlClient;
+using FVN_REGISTER.Infrastructure.Models.Data;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Data;
 namespace FVN_REGISTER.Infrastructure.Services.HrmSync;
@@ -10,7 +12,8 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
 {
  private readonly IUnitOfWork _uow;
  private readonly ILogger<HrmAttendanceCalculationService> _logger;
- public HrmAttendanceCalculationService(IUnitOfWork uow,ILogger<HrmAttendanceCalculationService> logger){_uow=uow;_logger=logger;}
+ private readonly FVNWEBAPPContext _db;
+ public HrmAttendanceCalculationService(IUnitOfWork uow,ILogger<HrmAttendanceCalculationService> logger,FVNWEBAPPContext db){_uow=uow;_logger=logger;_db=db;}
  public async Task<ServiceResult<HrmAttendanceCalculationResultDto>> CalculateAsync(HrmAttendanceCalculationRequestDto request,string? triggeredBy=null,CancellationToken ct=default)
  {
   if(request.FromDate.Date>request.ToDate.Date) return ServiceResult<HrmAttendanceCalculationResultDto>.Fail("FromDate không được lớn hơn ToDate.");
@@ -24,6 +27,22 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
   {
    var rows=await _uow.SqlQueryRawAsync<HrmAttendanceCalculationResultDto>("EXEC dbo.usp_CalculateHrmAttendance @DeptCode,@FromDate,@ToDate,@TriggeredBy",ct,pDept,pFrom,pTo,pBy);
    var result=rows.FirstOrDefault();
+   if(result != null && result.IsSuccess)
+   {
+    var from=DateOnly.FromDateTime(request.FromDate.Date);
+    var to=DateOnly.FromDateTime(request.ToDate.Date);
+    var periods=await _db.PayrollCalculationPeriods
+      .Where(x=>x.IsActive!=false && x.Status=="Calculated" && x.FromDate<=to && x.ToDate>=from)
+      .ToListAsync(ct);
+    foreach(var period in periods)
+    {
+      period.Status="Open";
+      period.ModifiedAt=DateTime.Now;
+      period.ModifiedBy=0;
+      period.LastModifiedSource="HRM_ATTENDANCE_RECALC";
+    }
+    if(periods.Count>0) await _db.SaveChangesAsync(ct);
+   }
    return result==null?ServiceResult<HrmAttendanceCalculationResultDto>.Fail("Không nhận được kết quả tính giờ."):ServiceResult<HrmAttendanceCalculationResultDto>.Ok(result);
   }
   catch(Exception ex){_logger.LogError(ex,"HRM-compatible attendance calculation failed. Dept={Dept}, From={From}, To={To}",dept,request.FromDate,request.ToDate);return ServiceResult<HrmAttendanceCalculationResultDto>.Fail("Tính giờ HRM-compatible thất bại.");}
