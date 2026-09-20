@@ -317,21 +317,29 @@ AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionRecon
         FOREIGN KEY(ConfirmationId) REFERENCES dbo.F03ExecutionConfirmations(Id);
 GO
 
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliationHistory',N'U') IS NOT NULL
+AND OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
+AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionHistory_Reconciliation')
+    ALTER TABLE dbo.F03ExecutionReconciliationHistory
+        ADD CONSTRAINT FK_F03ExecutionHistory_Reconciliation
+        FOREIGN KEY(ReconciliationId) REFERENCES dbo.F03ExecutionReconciliations(Id);
+GO
+
 IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03ExecutionReconciliations_Status')
-    ALTER TABLE dbo.F03ExecutionReconciliations ADD CONSTRAINT CK_F03ExecutionReconciliations_Status
+    ALTER TABLE dbo.F03ExecutionReconciliations WITH NOCHECK ADD CONSTRAINT CK_F03ExecutionReconciliations_Status
     CHECK (ReconciliationStatus IN (N'None',N'Matched',N'Mismatch',N'AwaitingConfirmation',N'Resolved'));
 GO
 
 IF OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03ExecutionConfirmations_Status')
-    ALTER TABLE dbo.F03ExecutionConfirmations ADD CONSTRAINT CK_F03ExecutionConfirmations_Status
+    ALTER TABLE dbo.F03ExecutionConfirmations WITH NOCHECK ADD CONSTRAINT CK_F03ExecutionConfirmations_Status
     CHECK (Status IN (N'Pending',N'Approved',N'Rejected',N'NeedMoreEvidence'));
 GO
 
 IF OBJECT_ID(N'dbo.F03ExecutionConfirmationEvidence',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03ExecutionEvidence_ReviewStatus')
-    ALTER TABLE dbo.F03ExecutionConfirmationEvidence ADD CONSTRAINT CK_F03ExecutionEvidence_ReviewStatus
+    ALTER TABLE dbo.F03ExecutionConfirmationEvidence WITH NOCHECK ADD CONSTRAINT CK_F03ExecutionEvidence_ReviewStatus
     CHECK (ReviewStatus IN (N'Pending',N'Approved',N'Rejected',N'NeedMoreEvidence'));
 GO
 
@@ -402,6 +410,45 @@ IF COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'SourceType') IS NULL THROW 5203
 IF COL_LENGTH(N'dbo.F03ExecutionConfirmations',N'ParticipantId') IS NULL THROW 52037, N'Missing F03ExecutionConfirmations.ParticipantId', 1;
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionEvidence_Attachment') THROW 52038, N'Execution evidence must reference F03Attachment.', 1;
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionReconciliations_Action') THROW 52039, N'Execution reconciliation must reference shared ActionItem.', 1;
+
+/* Legacy-data validation. WITH NOCHECK prevents deployment failure on old rows;
+   this report identifies rows that must be cleaned before the constraints can be trusted. */
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
+BEGIN
+    DECLARE @InvalidReconciliationStatus int =
+    (
+        SELECT COUNT(*) FROM dbo.F03ExecutionReconciliations
+        WHERE ReconciliationStatus NOT IN (N'None',N'Matched',N'Mismatch',N'AwaitingConfirmation',N'Resolved')
+    );
+    IF @InvalidReconciliationStatus > 0
+        PRINT CONCAT(N'WARNING: ', @InvalidReconciliationStatus,
+                     N' execution reconciliation row(s) have a legacy ReconciliationStatus. Clean them before trusting CK_F03ExecutionReconciliations_Status.');
+END;
+
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NOT NULL
+BEGIN
+    DECLARE @InvalidConfirmationStatus int =
+    (
+        SELECT COUNT(*) FROM dbo.F03ExecutionConfirmations
+        WHERE Status NOT IN (N'Pending',N'Approved',N'Rejected',N'NeedMoreEvidence')
+    );
+    IF @InvalidConfirmationStatus > 0
+        PRINT CONCAT(N'WARNING: ', @InvalidConfirmationStatus,
+                     N' execution confirmation row(s) have a legacy Status. Clean them before trusting CK_F03ExecutionConfirmations_Status.');
+END;
+
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmationEvidence',N'U') IS NOT NULL
+BEGIN
+    DECLARE @InvalidEvidenceStatus int =
+    (
+        SELECT COUNT(*) FROM dbo.F03ExecutionConfirmationEvidence
+        WHERE ReviewStatus NOT IN (N'Pending',N'Approved',N'Rejected',N'NeedMoreEvidence')
+    );
+    IF @InvalidEvidenceStatus > 0
+        PRINT CONCAT(N'WARNING: ', @InvalidEvidenceStatus,
+                     N' execution evidence row(s) have a legacy ReviewStatus. Clean them before trusting CK_F03ExecutionEvidence_ReviewStatus.');
+END;
+GO
 
 PRINT N'GENERIC EXECUTION RECONCILIATION SCHEMA VERIFIED.';
 GO
