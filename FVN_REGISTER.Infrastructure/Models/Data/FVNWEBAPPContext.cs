@@ -12,6 +12,7 @@ using FVN_REGISTER.Core.Entities.OT;
 using FVN_REGISTER.Core.Entities.Security;
 using FVN_REGISTER.Core.Entities.Trips;
 using FVN_REGISTER.Core.Entities.Views;
+using FVN_REGISTER.Core.Entities.WorkCalendar;
 using Microsoft.EntityFrameworkCore;
 
 public class FVNWEBAPPContext : DbContext
@@ -25,7 +26,12 @@ public class FVNWEBAPPContext : DbContext
     public DbSet<F03TripRequest> TripRequests { get; set; } public DbSet<F03StagingTrip> StagingTrips { get; set; }
     public DbSet<F03EquipmentAsset> EquipmentAssets { get; set; } public DbSet<F03EquipmentFieldDefinition> EquipmentFieldDefinitions { get; set; } public DbSet<F03EquipmentImportBatch> EquipmentImportBatches { get; set; } public DbSet<F03EquipmentImportRow> EquipmentImportRows { get; set; } public DbSet<F03EquipmentRequest> EquipmentRequests { get; set; } public DbSet<F03EquipmentRepairHistory> EquipmentRepairHistories { get; set; }
     public DbSet<F03StagingDepartment> StagingDepartments { get; set; } public DbSet<F03StagingEmployee> StagingEmployees { get; set; } public DbSet<F03StagingLeaveType> StagingLeaveTypes { get; set; } public DbSet<F03StagingOTType> StagingOTTypes { get; set; } public DbSet<F03StagingPosition> StagingPositions { get; set; } public DbSet<F03SyncReviewFlag> SyncReviewFlags { get; set; } public DbSet<HrmLeaveTypeChangeLog> HrmLeaveTypeChangeLogs { get; set; }
-    public DbSet<F03AppNotification> AppNotifications { get; set; } public DbSet<F03AuditLog> AuditLogs { get; set; } public DbSet<F03Attachment> Attachments { get; set; } public DbSet<F03EmailQueue> EmailQueues { get; set; } public DbSet<F03EmailLog> EmailLogs { get; set; } public DbSet<F03EmailTemplate> EmailTemplates { get; set; } public DbSet<F03EmailProfile> EmailProfiles { get; set; }
+    public DbSet<F03AppNotification> AppNotifications { get; set; }
+    public DbSet<F03CalendarModuleDefinition> CalendarModuleDefinitions { get; set; }
+    public DbSet<F03CalendarModulePolicy> CalendarModulePolicies { get; set; }
+    public DbSet<F03CalendarProjection> CalendarProjections { get; set; }
+    public DbSet<F03ActionItem> ActionItems { get; set; }
+    public DbSet<F03ActionPolicy> ActionPolicies { get; set; } public DbSet<F03AuditLog> AuditLogs { get; set; } public DbSet<F03Attachment> Attachments { get; set; } public DbSet<F03EmailQueue> EmailQueues { get; set; } public DbSet<F03EmailLog> EmailLogs { get; set; } public DbSet<F03EmailTemplate> EmailTemplates { get; set; } public DbSet<F03EmailProfile> EmailProfiles { get; set; }
     public DbSet<F03PublicInformation> PublicInformations { get; set; } public DbSet<F03HrmUserRoleRule> HrmUserRoleRules { get; set; } public DbSet<F03BusinessRule> BusinessRules { get; set; } public DbSet<F03CompanyHoliday> CompanyHolidays { get; set; } public DbSet<F03WorkYear> WorkYears { get; set; } public DbSet<F03EscalationLog> EscalationLogs { get; set; } public DbSet<F03EscalationRule> EscalationRules { get; set; } public DbSet<F03UserLog> UserLogs { get; set; }
     public DbSet<VF03EmployeeApprover> VEmployeeApprovers { get; set; } public DbSet<VF03employee> VF03Employees { get; set; } public DbSet<vF03EmployeeAttendance> VF03EmployeeAttendances { get; set; } public DbSet<VF03LeaveRequest> VF03LeaveRequests { get; set; } public DbSet<VF03LeaveRequestDetail> VF03LeaveRequestDetails { get; set; } public DbSet<VF03leaveType> VF03LeaveTypes { get; set; } public DbSet<VF03OTRequest> VF03OTRequests { get; set; } public DbSet<VF03OTRequestDetail> VF03OTRequestDetails { get; set; } public DbSet<VF03OTSummary> VF03OTSummaries { get; set; } public DbSet<VF03LeaveBalance> VF03LeaveBalances { get; set; } public DbSet<VF03user> VF03Users { get; set; } public DbSet<VwCurrentlyPresentEmployee> VwCurrentlyPresentEmployees { get; set; } public DbSet<VwShiftCheckInOut> VwShiftCheckInOuts { get; set; }
 
