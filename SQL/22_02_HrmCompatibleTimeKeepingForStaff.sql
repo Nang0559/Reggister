@@ -1,7 +1,8 @@
 CREATE OR ALTER PROCEDURE dbo.usp_HrmCompatibleTimeKeepingForStaff
 	@StaffID int,	
 	@D Datetime
- ASCREATE TABLE #tblBaoCao ([BCNgay] [datetime] NOT NULL,
+ AS
+	CREATE TABLE #tblBaoCao ([BCNgay] [datetime] NOT NULL,
 	[BCDay] [int] NULL,
 	[BCMonth] [int] NULL,
 	[BCYear] [int] NULL,
