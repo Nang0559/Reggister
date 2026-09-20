@@ -144,6 +144,7 @@ builder.Services.AddScoped<ICalendarModuleProvider>(sp =>
 builder.Services.AddScoped<ICalendarModuleProvider>(sp =>
     new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "TRIP"));
 builder.Services.AddScoped<IActionItemService, ActionItemService>();
+builder.Services.AddScoped<IActionItemWriter, ActionItemWriter>();
 builder.Services.AddScoped<IWorkYearManagementService, WorkYearManagementService>();
 builder.Services.AddScoped<ICompanyHolidayManagementService, CompanyHolidayManagementService>();
 builder.Services.AddScoped<IAttachmentService, AttachmentService>();
