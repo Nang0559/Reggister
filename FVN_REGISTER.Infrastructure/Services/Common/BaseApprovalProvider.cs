@@ -65,7 +65,7 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
         bool strict = true)
     {
         var routeResult = await _routeService.GetPreviewAsync(
-            RequestType, ctx.EmployeeCode, ctx.DeptCode, ctx.PositionCode, ct);
+            RequestType, ctx.EmployeeCode, ct);
 
         if (!routeResult.Success || routeResult.Data == null)
         {
