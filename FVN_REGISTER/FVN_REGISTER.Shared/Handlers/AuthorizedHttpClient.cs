@@ -136,7 +136,7 @@ namespace FVN_REGISTER.Shared.Handlers
 
                 var payload = await response.Content.ReadFromJsonAsync<ApiResponse<System.Text.Json.JsonElement>>(cancellationToken: ct);
                 if (payload?.IsSuccess != true || payload.Data.ValueKind != JsonValueKind.Object) return false;
-                if (!payload.Data.TryGetProperty("token", out var tokenNode)) return false;
+                if (!payload.Data.TryGetProperty("token", out var tokenNode) && !payload.Data.TryGetProperty("Token", out tokenNode)) return false;
                 var token = tokenNode.GetString();
                 if (string.IsNullOrWhiteSpace(token)) return false;
 
