@@ -5,30 +5,30 @@ namespace FVN_REGISTER.Application.Interfaces.Actions;
 public interface IActionItemService
 {
     Task<IReadOnlyList<ActionItemDto>> GetMineAsync(
-        int employeeId,
+        string employeeCode,
         int userId,
         bool includeCompleted = false,
         CancellationToken cancellationToken = default);
 
     Task<ActionCountDto> GetCountAsync(
-        int employeeId,
+        string employeeCode,
         int userId,
         CancellationToken cancellationToken = default);
 
     Task<ActionItemDto?> GetAsync(
-        int employeeId,
+        string employeeCode,
         int userId,
         Guid actionId,
         CancellationToken cancellationToken = default);
 
     Task<bool> CompleteAsync(
-        int employeeId,
+        string employeeCode,
         int userId,
         Guid actionId,
         CancellationToken cancellationToken = default);
 
     Task<bool> DismissAsync(
-        int employeeId,
+        string employeeCode,
         int userId,
         Guid actionId,
         CancellationToken cancellationToken = default);
