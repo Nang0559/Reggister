@@ -81,7 +81,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         ExecutionEvidenceReviewRequest request,
         CancellationToken cancellationToken = default)
     {
-        await EnsureHrPermissionAsync(userId, cancellationToken);
+        await EnsureHrPermissionAsync(userId, requireAllScope: false, cancellationToken);
 
         var reviewStatus = NormalizeEvidenceReviewStatus(request.ReviewStatus);
         var note = request.ReviewNote?.Trim();
@@ -107,6 +107,9 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         if (string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
             throw new InvalidOperationException("Reconciliation đã Resolved, không thể review evidence.");
 
+        if (string.Equals(employeeCode, reconciliation.EmployeeId.ToString(), StringComparison.OrdinalIgnoreCase))
+            throw new UnauthorizedAccessException("Không thể review evidence của chính mình.");
+
         evidence.ReviewStatus = reviewStatus;
         evidence.ReviewedBy = userId;
         evidence.ReviewedAt = DateTime.Now;
@@ -127,8 +130,26 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             reconciliation.LastModifiedSource = "HR_EXECUTION_EVIDENCE_REVIEW";
         }
 
+        _db.ExecutionReconciliationHistory.Add(new F03ExecutionReconciliationHistory
+        {
+            ReconciliationId = reconciliation.Id,
+            FromStatus = reconciliation.ReconciliationStatus,
+            ToStatus = reconciliation.ReconciliationStatus,
+            EventType = $"EVIDENCE_{reviewStatus.ToUpperInvariant()}",
+            Reason = note,
+            ActorUserId = userId,
+            ActorEmployeeId = reconciliation.EmployeeId,
+            CreatedAt = DateTime.Now
+        });
+
         await _db.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
+
+        await NotifyEmployeeEvidenceReviewAsync(
+            reconciliation,
+            reviewStatus,
+            note,
+            cancellationToken);
 
         return new ExecutionEvidenceDto(
             evidence.Id,
@@ -181,9 +202,12 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         var now = DateTime.Now;
         var employee = await _db.Employees.AsNoTracking()
             .Where(x => x.Id == reconciliation.EmployeeId && x.IsActive != false)
-            .Select(x => new { x.EmployeeCode, x.EmployeeName })
+            .Select(x => new { x.EmployeeCode, x.EmployeeName, x.DeptCode })
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy nhân viên của phản hồi.");
+
+        if (string.Equals(employee.EmployeeCode, employeeCode, StringComparison.OrdinalIgnoreCase))
+            throw new UnauthorizedAccessException("HR không được tự giải quyết phản hồi của chính mình.");
 
         var confirmation = reconciliation.ConfirmationId.HasValue
             ? await _db.ExecutionConfirmations.FirstOrDefaultAsync(
@@ -375,6 +399,45 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             if (!string.Equals(scope, FVN_REGISTER.Core.Constants.AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase))
                 throw new UnauthorizedAccessException("Execution Review phải được cấp Scope=All.");
         }
+    }
+
+    private async Task NotifyEmployeeEvidenceReviewAsync(
+        F03ExecutionReconciliation reconciliation,
+        string reviewStatus,
+        string? note,
+        CancellationToken cancellationToken)
+    {
+        var user = await _db.Users.AsNoTracking()
+            .Where(x => x.EmployeeCode == reconciliation.EmployeeId.ToString() && x.IsActive != false)
+            .Select(x => new { x.Id, x.EmployeeCode })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (user is null) return;
+
+        var module = reconciliation.ModuleCode.ToUpperInvariant() switch
+        {
+            "OT" => RequestModule.Overtime,
+            "LEAVE" => RequestModule.Leave,
+            "TRIP" => RequestModule.Trip,
+            "ATTENDANCE" => RequestModule.Attendance,
+            _ => RequestModule.Leave
+        };
+
+        await _notificationService.CreateAsync(new FVN_REGISTER.Contract.Dtos.Notifications.CreateNotificationDto
+        {
+            UserId = user.Id,
+            EmployeeCode = user.EmployeeCode,
+            Module = module,
+            Action = reviewStatus == "Approved" ? NotificationAction.Approved : NotificationAction.Rejected,
+            Title = $"Evidence {reviewStatus}",
+            Body = note ?? $"Evidence {reviewStatus}.",
+            ActionUrl = $"/execution?reconciliationId={reconciliation.Id}",
+            ActionId = reconciliation.ActionId,
+            Metadata = JsonSerializer.Serialize(new { reconciliation.Id, reviewStatus, note }),
+            NotificationType = "EXECUTION_EVIDENCE_REVIEW",
+            IsRead = false,
+            IsHighPriority = reviewStatus != "Approved"
+        }, cancellationToken);
     }
 
     private async Task<int> ResolveActorEmployeeIdAsync(
