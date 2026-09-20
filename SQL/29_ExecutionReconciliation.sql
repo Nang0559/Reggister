@@ -162,6 +162,66 @@ BEGIN
 END;
 GO
 
+IF OBJECT_ID(N'dbo.F03ExecutionResolutions',N'U') IS NULL
+BEGIN
+    CREATE TABLE dbo.F03ExecutionResolutions
+    (
+        Id bigint IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03ExecutionResolutions PRIMARY KEY,
+        IsActive bit NOT NULL CONSTRAINT DF_F03ExecutionResolutions_IsActive DEFAULT 1,
+        CreatedBy int NOT NULL CONSTRAINT DF_F03ExecutionResolutions_CreatedBy DEFAULT 0,
+        CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03ExecutionResolutions_CreatedAt DEFAULT GETDATE(),
+        ModifiedBy int NULL,
+        ModifiedAt datetime2(0) NULL,
+        LastModifiedSource nvarchar(50) NULL,
+
+        ReconciliationId bigint NOT NULL,
+        Decision nvarchar(20) NOT NULL,
+        Reason nvarchar(2000) NOT NULL,
+        CalendarAction nvarchar(30) NOT NULL CONSTRAINT DF_F03ExecutionResolutions_CalendarAction DEFAULT N'KEEP',
+        ResolvedByUserId int NOT NULL,
+        ResolvedByEmployeeId int NOT NULL,
+        ResolvedAt datetime2(0) NOT NULL CONSTRAINT DF_F03ExecutionResolutions_ResolvedAt DEFAULT GETDATE(),
+        AppliedChangeJson nvarchar(max) NULL
+    );
+END;
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03ExecutionResolutions_Reconciliation' AND object_id=OBJECT_ID(N'dbo.F03ExecutionResolutions'))
+    CREATE UNIQUE INDEX UX_F03ExecutionResolutions_Reconciliation
+        ON dbo.F03ExecutionResolutions(ReconciliationId);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03ExecutionResolutions_EmployeeDate' AND object_id=OBJECT_ID(N'dbo.F03ExecutionResolutions'))
+    CREATE INDEX IX_F03ExecutionResolutions_EmployeeDate
+        ON dbo.F03ExecutionResolutions(ResolvedByEmployeeId,ResolvedAt,Decision);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionResolutions_Reconciliation')
+    ALTER TABLE dbo.F03ExecutionResolutions
+        ADD CONSTRAINT FK_F03ExecutionResolutions_Reconciliation
+        FOREIGN KEY(ReconciliationId) REFERENCES dbo.F03ExecutionReconciliations(Id);
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03ExecutionResolutions_Decision')
+    ALTER TABLE dbo.F03ExecutionResolutions ADD CONSTRAINT CK_F03ExecutionResolutions_Decision
+        CHECK (Decision IN (N'OK',N'NG'));
+GO
+
+IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03ExecutionResolutions_CalendarAction')
+    ALTER TABLE dbo.F03ExecutionResolutions ADD CONSTRAINT CK_F03ExecutionResolutions_CalendarAction
+        CHECK (CalendarAction IN (N'KEEP',N'REFRESH',N'CANCEL'));
+GO
+
+/* HR execution-review permission. 2107 is intentionally separate from OT/Leave user actions. */
+IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2107)
+BEGIN
+    INSERT dbo.F03Functions
+        (CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+    VALUES
+        (0,2107,N'Execution Review',N'Xem và giải quyết phản hồi đối soát thực tế của nhân viên.',N'EXECUTION',N'REVIEW',N'HR',2107);
+END;
+GO
+
 /* Existing-installation compatibility MUST run before any index that references upgraded columns. */
 IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
 BEGIN
@@ -248,8 +308,7 @@ IF OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionEvidence_Confirmation')
     ALTER TABLE dbo.F03ExecutionConfirmationEvidence ADD CONSTRAINT FK_F03ExecutionEvidence_Confirmation
     FOREIGN KEY(ConfirmationId) REFERENCES dbo.F03ExecutionConfirmations(Id);
-GOGO
-
+GO
 /* Lifecycle integrity constraints. */
 IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionReconciliations_Confirmation')
