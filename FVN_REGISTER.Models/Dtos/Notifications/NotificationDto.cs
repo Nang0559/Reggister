@@ -16,5 +16,6 @@ namespace FVN_REGISTER.Contract.Dtos.Notifications
         public string ActionUrl { get; set; } = string.Empty;
         public bool IsRead { get; set; }
         public DateTime CreatedAt { get; set; }
+        public Guid? ActionId { get; set; }
     }
 }
