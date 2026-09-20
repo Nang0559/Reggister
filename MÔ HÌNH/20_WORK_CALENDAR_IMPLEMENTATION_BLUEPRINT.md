@@ -215,3 +215,247 @@ Chỉ phản ánh → không tạo business entity mới. Business rule → modu
 20_WORK_CALENDAR_IMPLEMENTATION_BLUEPRINT = SQL + Code implementation source of truth.
 
 Khi có mâu thuẫn, rà lại tài liệu nghiệp vụ gốc trước khi thay đổi contract. Không tự tạo behavior mới chỉ vì thuận tiện khi code.
+
+## 26. Shared Action / Task Inbox — việc cần làm không chỉ nằm trên Calendar
+
+Calendar không phải nơi duy nhất để người dùng nhìn thấy việc cần xử lý.
+
+Bất kỳ Calendar item nào có `RequiresAction = true` phải có khả năng được đưa vào Shared Task / Action Inbox.
+
+Luồng chuẩn:
+
+    Module business → Calendar Provider → CalendarAlertItem → Action/Task projection
+       → Calendar + Notification + Task List → User xử lý → Module owner workflow
+
+### 26.1. Một action có một nguồn duy nhất
+
+Không tạo ba bản ghi độc lập cho notification, calendar alert và task list. Cả ba UI tham chiếu cùng một `ActionItem`.
+
+```text
+ActionItem
+    ├── Calendar Alert
+    ├── Notification
+    └── Task List
+```
+
+Fields chuẩn:
+
+```text
+ActionId, ModuleCode, SourceId, EmployeeId, WorkDate, ActionType,
+Title, Summary, Severity, Priority, RequiresAction, Status, DueAt,
+DetailRoute, CreatedAt, UpdatedAt, CompletedAt
+```
+
+Có thể mở rộng `AssignedToUserId`, `AssignedToEmployeeId`, `ReferenceNo`, `PayloadJson`. Payload chỉ phục vụ điều hướng/hiển thị, không biến ActionItem thành bản sao business entity.
+
+### 26.2. Notification chỉ là delivery channel
+
+Notification không lưu business workflow.
+
+```text
+ActionItem
+   ├── Calendar Alert
+   ├── Notification
+   └── Task List
+```
+
+Ví dụ OT thiếu chấm công: ActionItem có `ModuleCode=OT`, `ActionType=ATTENDANCE_CONFIRMATION`, `RequiresAction=true`, title/summary ngắn và `DetailRoute` về workflow OT.
+
+User có thể đồng thời thấy:
+
+```text
+🔔 Notification: Bạn có 1 việc cần xác nhận
+📋 Việc cần làm: 24/08 — Xác nhận OT thiếu chấm công
+📅 Calendar: 24/08 → ?
+```
+
+Ba nơi cùng trỏ về một `ActionId`.
+
+### 26.3. Action status
+
+```csharp
+public enum ActionItemStatus
+{
+    Open = 0,
+    InProgress = 10,
+    Completed = 20,
+    Dismissed = 30,
+    Expired = 40,
+    Cancelled = 90
+}
+```
+
+`Completed` của Action không thay thế business status. Ví dụ `ActionItem.Completed` khác `OT Confirmation.Completed`.
+
+### 26.4. Action type
+
+ActionType phải mở cho module mới:
+
+```text
+OT.ATTENDANCE_CONFIRMATION
+OT.REVIEW_MISMATCH
+LEAVE.CONFIRMATION
+LEAVE.REVIEW
+TRIP.CONFIRMATION
+TRIP.REVIEW
+FUTURE_MODULE.ACTION
+```
+
+Không hard-code ActionType chỉ cho OT.
+
+### 26.5. Quy tắc tạo Action
+
+```text
+RequiresAction = false → Calendar marker/summary → Không tạo Task
+RequiresAction = true  → Calendar Alert → ActionItem → Notification → Task List
+```
+
+Không biến mọi Calendar item thành task.
+
+### 26.6. Deduplication
+
+Một business issue chỉ có một Action đang mở.
+
+Khóa logic đề xuất:
+
+```text
+ModuleCode + SourceId + ActionType + AssignedToEmployeeId
+```
+
+Worker chạy lại phải tìm Action Open/InProgress hiện hữu và update projection thay vì tạo duplicate.
+
+### 26.7. Due date / quá hạn
+
+Action có thể có `DueAt`, `Severity`, `Priority`. Ví dụ OT confirmation có deadline kỳ công. Khi quá hạn, module owner/Action worker xử lý transition nghiệp vụ; Calendar chỉ phản ánh kết quả.
+
+### 26.8. API
+
+```http
+GET  /api/actions/me
+GET  /api/actions/me/count
+GET  /api/actions/me/{actionId}
+POST /api/actions/me/{actionId}/complete
+POST /api/actions/me/{actionId}/dismiss
+```
+
+Notification:
+
+```http
+GET  /api/notifications/me
+GET  /api/notifications/me/unread-count
+POST /api/notifications/me/{notificationId}/read
+```
+
+Action là việc cần làm; Notification chỉ là delivery/read state.
+
+### 26.9. Login / Dashboard
+
+DashboardOrchestrator nên lấy đồng thời:
+
+```text
+Authenticated User
+       ↓
+DashboardOrchestrator
+       ├── Calendar summary
+       ├── Action count
+       ├── Notification count
+       └── Other dashboard blocks
+```
+
+User không phải mở Calendar mới biết có việc cần xử lý.
+
+### 26.10. Admin policy
+
+Calendar policy và Action policy phải tách nhau.
+
+```text
+CalendarModulePolicy → cách hiển thị trên Calendar
+ActionPolicy         → có tạo task, priority, due date, notification, escalation
+```
+
+Nếu Action trở thành framework dùng chung toàn hệ thống, nên có `ActionDefinition/ActionPolicy` riêng thay vì nhồi tất cả vào Calendar policy.
+
+### 26.11. SQL bổ sung
+
+Nếu hệ thống chưa có Task framework dùng chung, có thể tạo `F03ActionItems`:
+
+```text
+Id
+ActionId UNIQUE
+ModuleCode
+SourceId
+EmployeeId
+AssignedToUserId
+AssignedToEmployeeId
+WorkDate
+ActionType
+Title
+Summary
+Severity
+Priority
+Status
+DueAt
+DetailRoute
+ReferenceNo
+PayloadJson
+CreatedAt
+UpdatedAt
+CompletedAt
+DismissedAt
+```
+
+Index:
+
+```text
+UX_ActionItems_ActionId
+IX_ActionItems_AssignedToUser_Status
+IX_ActionItems_Employee_Status
+IX_ActionItems_DueAt
+IX_ActionItems_Module_Source
+```
+
+Unique active-action logic có thể áp dụng ở application/database tùy SQL Server design; mục tiêu là không có duplicate Open/InProgress cho cùng business issue.
+
+Nếu chưa có Notification framework, có thể có `F03Notifications`:
+
+```text
+Id
+ActionId
+RecipientUserId
+NotificationType
+Title
+Message
+IsRead
+ReadAt
+CreatedAt
+```
+
+Quan hệ: `ActionItem 1 ─── N Notification`.
+
+### 26.12. Ranh giới trách nhiệm
+
+```text
+Calendar
+    ↓ Discover / Project / Link / Navigate
+
+Action
+    ↓ Create / Assign / Complete / Dismiss / Expire / Escalate / Audit
+
+Business Module
+    ↓ Approve / Reject / Confirm / Recalculate / Finalize
+```
+
+Calendar không sở hữu Action workflow và Action không thay thế business workflow.
+
+### 26.13. Definition of Done bổ sung
+
+- [ ] `RequiresAction` có thể tạo ActionItem.
+- [ ] Một ActionItem được dùng chung cho Calendar + Notification + Task List.
+- [ ] Worker chạy lại không tạo duplicate task.
+- [ ] Action status không thay thế business status.
+- [ ] Module mới có thể đăng ký ActionType.
+- [ ] User thấy số việc cần làm ngay tại Dashboard/login.
+- [ ] Notification chỉ là delivery/read state.
+- [ ] Calendar không phải nơi duy nhất phát hiện việc cần xử lý.
+- [ ] DueAt/expiry được module hoặc Action worker xử lý.
+- [ ] Action hoàn thành phải đồng bộ với business owner khi workflow yêu cầu.
