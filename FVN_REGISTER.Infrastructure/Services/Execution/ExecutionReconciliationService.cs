@@ -115,9 +115,21 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             {
                 x.ConfirmationMode,
                 x.EvidenceMode,
+                x.ReviewMode,
+                x.AutoResolveMode,
                 x.DueHours
             })
             .FirstOrDefaultAsync(cancellationToken);
+
+        if (policy?.AutoResolveMode != 0
+            && string.Equals(entity.ReconciliationStatus, "Matched", StringComparison.OrdinalIgnoreCase))
+        {
+            entity.ReconciliationStatus = "Resolved";
+            entity.ResolvedAt = DateTime.Now;
+            entity.ResolvedBy = effectiveActorUserId;
+            entity.RequiresConfirmation = false;
+            entity.RequiresEvidence = false;
+        }
 
         var confirmationRequired = entity.RequiresConfirmation
             && (policy is null || policy.ConfirmationMode != 0);
