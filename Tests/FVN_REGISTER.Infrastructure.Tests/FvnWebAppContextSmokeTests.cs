@@ -18,6 +18,58 @@ public sealed class FvnWebAppContextSmokeTests
     }
 
     [Fact]
+    public void ExecutionReconciliation_sql_script_has_valid_batch_separators_and_history_fk()
+    {
+        var root = FindRepositoryRoot();
+        var sqlPath = Path.Combine(root, "SQL", "29_ExecutionReconciliation.sql");
+        Assert.True(File.Exists(sqlPath), $"Missing SQL script: {sqlPath}");
+
+        var sql = File.ReadAllText(sqlPath);
+        Assert.DoesNotContain("GOGO", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("GO", sql, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("FK_F03ExecutionHistory_Reconciliation", sql, StringComparison.Ordinal);
+        Assert.Contains("FK_F03ExecutionEvidence_Confirmation", sql, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Execution_schema_contains_history_fk_when_integration_connection_is_configured()
+    {
+        var connectionString = Environment.GetEnvironmentVariable("FVN_REGISTER_SQL_CONNECTION");
+        if (string.IsNullOrWhiteSpace(connectionString))
+            return;
+
+        await using var connection = new SqlConnection(connectionString);
+        await connection.OpenAsync();
+
+        await using var command = connection.CreateCommand();
+        command.CommandText = @"
+SELECT COUNT(*)
+FROM sys.foreign_keys
+WHERE name IN
+(
+    N'FK_F03ExecutionHistory_Reconciliation',
+    N'FK_F03ExecutionEvidence_Confirmation'
+);";
+
+        var count = Convert.ToInt32(await command.ExecuteScalarAsync());
+        Assert.Equal(2, count);
+    }
+
+    private static string FindRepositoryRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (File.Exists(Path.Combine(directory.FullName, "FVN_REGISTER.sln")))
+                return directory.FullName;
+
+            directory = directory.Parent;
+        }
+
+        throw new DirectoryNotFoundException("Could not locate repository root.");
+    }
+
+    [Fact]
     public void Model_contains_every_DbSet_entity()
     {
         using var db = CreateContext();
