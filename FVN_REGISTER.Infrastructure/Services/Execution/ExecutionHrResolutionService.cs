@@ -294,18 +294,20 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 
         if (decision == "OK")
         {
-            var payrollPeriod = await _db.PayrollCalculationPeriods
-                .AsNoTracking()
-                .Where(x => x.IsActive && x.FromDate <= reconciliation.WorkDate && x.ToDate >= reconciliation.WorkDate)
-                .OrderByDescending(x => x.Id)
-                .FirstOrDefaultAsync(cancellationToken);
-
-            if (payrollPeriod?.Status is "Locked" or "Exported")
-                throw new InvalidOperationException(
-                    $"Ngày {reconciliation.WorkDate:dd/MM/yyyy} thuộc kỳ lương {payrollPeriod.PeriodCode} đã {payrollPeriod.Status}. Phải xử lý qua Payroll Adjustment/Reopen.");
-
-            if (reconciliation.ModuleCode.Equals("ATTENDANCE", StringComparison.OrdinalIgnoreCase))
+        if (reconciliation.ModuleCode.Equals("ATTENDANCE", StringComparison.OrdinalIgnoreCase))
             {
+                var payrollPeriod = await _db.PayrollCalculationPeriods
+                    .AsNoTracking()
+                    .Where(x => x.IsActive != false && x.FromDate <= reconciliation.WorkDate && x.ToDate >= reconciliation.WorkDate)
+                    .OrderByDescending(x => x.Id)
+                    .FirstOrDefaultAsync(cancellationToken)
+                    ?? throw new InvalidOperationException(
+                        $"Chưa có kỳ lương chứa ngày {reconciliation.WorkDate:dd/MM/yyyy}. Không thể thực hiện correction.");
+
+                if (payrollPeriod.Status is "Locked" or "Exported")
+                    throw new InvalidOperationException(
+                        $"Ngày {reconciliation.WorkDate:dd/MM/yyyy} thuộc kỳ lương {payrollPeriod.PeriodCode} đã {payrollPeriod.Status}. Không thể correction.");
+
                 var calc = await _attendanceCalculation.CalculateAsync(
                     new FVN_REGISTER.Contract.Dtos.HrmSync.HrmAttendanceCalculationRequestDto
                     {
@@ -320,7 +322,6 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                     throw new InvalidOperationException(
                         $"Không thể tính lại công ngày {reconciliation.WorkDate:dd/MM/yyyy}: {calc.Message}");
             }
-        }
 
         var oldStatus = reconciliation.ReconciliationStatus;
         reconciliation.ReconciliationStatus = "Resolved";
