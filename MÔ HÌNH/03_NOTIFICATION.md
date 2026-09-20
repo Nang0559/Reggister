@@ -230,3 +230,9 @@ Application chỉ biết contract. Infrastructure chứa EF/SignalR implementati
 - `EmployeeCode → UserId` được resolve ở backend qua `IEmployeeUserResolver`.
 - Timeout escalation không ghi `DecisionType.Rejected`.
 - Cả manual approval và auto-escalation đều notify approver mới qua email + in-app/SignalR.
+
+
+## 11. Notification tích hợp Shared Action / Task
+Notification không phải một task độc lập. Với CalendarItem có `RequiresAction = true`, hệ thống tạo hoặc cập nhật một `ActionItem` dùng chung `ActionId`; Action đó được hiển thị ở Calendar, Task List, Notification và Dashboard.
+
+`ActionItem.Completed` không đồng nghĩa business workflow đã hoàn tất. Người dùng phải được điều hướng về module sở hữu nghiệp vụ để approve/confirm/recalculate/finalize. Notification chỉ quản lý delivery/read state.
