@@ -298,6 +298,30 @@ PRINT N'99_Verify: PASS';
 GO
 
 
+/* Execution Review security verification. */
+IF NOT EXISTS
+(
+    SELECT 1 FROM dbo.F03Functions
+    WHERE FunctionCode = 2802
+      AND FunctionName = N'Execution.Review'
+      AND ModuleCode = N'EXECUTION'
+      AND ActionCode = N'REVIEW'
+      AND ScopeCode = N'All'
+      AND ISNULL(IsActive, 1) = 1
+)
+    THROW 53020, N'Execution.Review function 2802 is missing or incorrectly seeded.', 1;
+
+IF EXISTS
+(
+    SELECT 1 FROM dbo.F03Functions
+    WHERE FunctionCode = 2107
+      AND FunctionName = N'Execution Review'
+)
+    THROW 53021, N'Legacy/conflicting Execution Review function 2107 remains.', 1;
+
+PRINT N'Execution Review security verification completed.';
+GO
+
 /* Trip execution source-of-truth verification. */
 IF OBJECT_ID(N'dbo.F03TripActual',N'U') IS NULL
     THROW 53030, N'Missing F03TripActual.', 1;
