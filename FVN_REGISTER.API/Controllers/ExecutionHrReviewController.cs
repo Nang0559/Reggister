@@ -3,6 +3,7 @@ using FVN_REGISTER.Application.Interfaces.Execution;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Execution;
 using FVN_REGISTER.Contract.Responses;
+using FVN_REGISTER.Core.Exceptions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
@@ -43,9 +44,13 @@ public sealed class ExecutionHrReviewController : BaseApiController
             var result = await _service.GetPendingAsync(userId, moduleCode, status, from, to, ct);
             return Ok(ApiResponse<object>.Ok(result));
         }
-        catch (UnauthorizedAccessException ex)
+        catch (ForbiddenAccessException ex)
         {
             return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<object>.Fail(ex.Message));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(ApiResponse<object>.Fail(ex.Message));
         }
     }
 
@@ -68,9 +73,13 @@ public sealed class ExecutionHrReviewController : BaseApiController
                 ct);
             return Ok(ApiResponse<object>.Ok(result));
         }
-        catch (UnauthorizedAccessException ex)
+        catch (ForbiddenAccessException ex)
         {
             return StatusCode(StatusCodes.Status403Forbidden, ApiResponse<object>.Fail(ex.Message));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Unauthorized(ApiResponse<object>.Fail(ex.Message));
         }
         catch (KeyNotFoundException ex)
         {
