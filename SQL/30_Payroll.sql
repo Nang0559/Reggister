@@ -114,6 +114,32 @@ BEGIN
 END;
 GO
 
+CREATE OR ALTER PROCEDURE dbo.usp_LockPayrollPeriod
+ @PeriodId int,
+ @ActorUserId int
+AS
+BEGIN
+ SET NOCOUNT ON; SET XACT_ABORT ON;
+ BEGIN TRAN;
+ DECLARE @Status nvarchar(20);
+ SELECT @Status=Status
+ FROM dbo.F03PayrollCalculationPeriods WITH (UPDLOCK,HOLDLOCK)
+ WHERE Id=@PeriodId AND IsActive=1;
+
+ IF @Status IS NULL THROW 52210,N'Không tìm thấy kỳ lương.',1;
+ IF @Status<>N'Calculated' THROW 52211,N'Kỳ lương không còn ở trạng thái Calculated.',1;
+
+ UPDATE dbo.F03PayrollCalculationPeriods
+ SET Status=N'Locked',LockedAt=GETDATE(),LockedBy=@ActorUserId,
+     ModifiedBy=@ActorUserId,ModifiedAt=GETDATE(),LastModifiedSource=N'PAYROLL_LOCK'
+ WHERE Id=@PeriodId AND Status=N'Calculated';
+
+ IF @@ROWCOUNT<>1 THROW 52212,N'Kỳ lương đã thay đổi bởi giao dịch khác.',1;
+ COMMIT;
+ SELECT * FROM dbo.F03PayrollCalculationPeriods WHERE Id=@PeriodId;
+END;
+GO
+
 CREATE OR ALTER PROCEDURE dbo.usp_PreparePayrollPeriod
  @PeriodId int,
  @ActorUserId int = 0
