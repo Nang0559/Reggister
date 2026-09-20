@@ -157,6 +157,24 @@ BEGIN
      THROW 52203,N'Kỳ lương phải theo chu kỳ ngày 21 đến ngày 20.',1;
  IF @Status IN(N'Locked',N'Exported') THROW 52201,N'Kỳ lương đã khóa/xuất, không được thay đổi.',1;
 
+ DECLARE @MissingEmployeeRows int;
+ SELECT @MissingEmployeeRows=COUNT(*)
+ FROM dbo.F03HrmAttendanceCalculated a
+ LEFT JOIN dbo.F03Employees e ON e.EmployeeCode=a.EmployeeCode AND e.IsActive=1
+ WHERE a.WorkDate BETWEEN @FromDate AND @ToDate AND e.Id IS NULL;
+ IF @MissingEmployeeRows>0
+     THROW 52204,N'Payroll snapshot có dòng chấm công không map được F03Employees.EmployeeCode.',1;
+
+ IF EXISTS
+ (
+     SELECT e.EmployeeCode
+     FROM dbo.F03Employees e
+     WHERE e.IsActive=1 AND e.EmployeeCode IS NOT NULL
+     GROUP BY e.EmployeeCode
+     HAVING COUNT(*)>1
+ )
+     THROW 52205,N'F03Employees có EmployeeCode active bị trùng; không thể tạo Payroll Input.',1;
+
  DELETE FROM dbo.F03PayrollInputs WHERE PayrollPeriodId=@PeriodId;
 
  INSERT dbo.F03PayrollInputs(PayrollPeriodId,EmployeeId,WorkDate,WorkMinutes,LeaveTotal,OTMinutes,Source,SnapshotAt,CreatedBy,LastModifiedSource)
