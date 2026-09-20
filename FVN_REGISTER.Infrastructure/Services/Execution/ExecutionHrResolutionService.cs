@@ -475,7 +475,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                 ReconciliationId = reconciliation.Id,
                 ResolutionId = resolution.Id,
                 ModuleCode = reconciliation.ModuleCode,
-                CorrectionType = "ATTENDANCE_RECALCULATION",
+                CorrectionType = policy.CorrectionMode.ToString(),
                 EmployeeId = reconciliation.EmployeeId,
                 WorkDate = reconciliation.WorkDate,
                 Status = "Pending",
