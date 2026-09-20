@@ -57,6 +57,11 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             HrExecutionReviewFunctionCode,
             cancellationToken);
 
+        if (string.IsNullOrWhiteSpace(scope)
+            || string.Equals(scope, AuthorizationScopeCodes.None, StringComparison.OrdinalIgnoreCase))
+            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException(
+                "Execution Review chưa được cấp data scope.");
+
         var query = _db.ExecutionReconciliations.AsNoTracking()
             .Where(x => x.IsActive != false
                 && x.ReconciliationStatus != "Resolved"
