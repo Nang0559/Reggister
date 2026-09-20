@@ -108,3 +108,26 @@ flowchart LR
 ## Work Calendar integration
 
 The OT and Leave registration screens use the shared Work Calendar. Company holidays are displayed as calendar information; OT and Leave quota validation remains the responsibility of their respective validators. Trip uses the same calendar projection and is not subject to OT/Leave quota rules.
+
+
+## 8. OT revision và hạn mức theo Employee
+
+Hạn mức OT phải tính theo effective OT của từng participant/employee, không tính toàn bộ OT Master như một đơn vị duy nhất sau khi có revision.
+
+Khi A điều chỉnh OT trong đơn nhiều người: OT Master = 1; A Effective Revision = R2; B Effective Revision = R1; C Effective Revision = R1.
+
+Validator/query hạn mức của A chỉ sử dụng effective revision của A. Revision Pending có thể được dùng để kiểm tra request mới theo rule chống đăng ký chồng, nhưng không thay thế approved effective revision cho dashboard/payroll cho đến khi được approve.
+
+## 9. OT Approved nhưng không có attendance
+
+Không đưa ngày đó ngay vào ActualHours = 0 để kết luận không đi làm. Phải tạo AttendanceConfirmationStatus = PendingConfirmation và hiển thị ? trên calendar.
+
+- Employee chọn Đi làm → bắt buộc evidence → HC xác nhận.
+- Employee chọn Không đi làm → ConfirmedNotWorked.
+- Không phản hồi đến ngày khóa công 20 → AutoConfirmedNotWorked.
+
+Sau ConfirmedNotWorked hoặc AutoConfirmedNotWorked, effective OT của employee cho ngày đó không được cộng vào OT đã sử dụng/payroll projection. Bản ghi approval ban đầu vẫn được giữ để audit.
+
+## 10. Không ảnh hưởng participant khác
+
+Mọi command/recalculation liên quan revision phải có phạm vi: OTMasterId + ParticipantId/EmployeeId + RevisionId. Không được dùng OTMasterId đơn độc để cập nhật ActualHours, effective OT hoặc calendar của tất cả nhân viên.
