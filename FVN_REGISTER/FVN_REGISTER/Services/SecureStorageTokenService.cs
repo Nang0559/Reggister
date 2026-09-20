@@ -26,7 +26,7 @@ public sealed class SecureTokenService : ITokenStorage
 
     public Task RemoveRefreshTokenAsync()
     {
-        SecureStorage.Default.Remove(RefreshTokenKey);
+        SecureStorage.Default.Remove(AuthConstants.RefreshTokenKey);
         return Task.CompletedTask;
     }
 
@@ -41,7 +41,7 @@ public sealed class SecureTokenService : ITokenStorage
         SecureStorage.Default.Remove(AuthConstants.TokenKey);
 
     private static void RemoveRefreshToken() =>
-        SecureStorage.Default.Remove(RefreshTokenKey);
+        SecureStorage.Default.Remove(AuthConstants.RefreshTokenKey);
 
     public void MarkJsReady()
     {

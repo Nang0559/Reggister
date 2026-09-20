@@ -83,7 +83,7 @@ public sealed class LocalStorageTokenService : ITokenStorage
         if (!string.IsNullOrWhiteSpace(_cachedRefreshToken)) return _cachedRefreshToken;
         try
         {
-            _cachedRefreshToken = (await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", RefreshTokenKey))?.Trim('"').Trim();
+            _cachedRefreshToken = (await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", AuthConstants.RefreshTokenKey))?.Trim('"').Trim();
         }
         catch (Exception ex) when (ex is InvalidOperationException or JSException)
         {
