@@ -34,6 +34,41 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
+            // Không chạy full HRM sync ngay khi API vừa khởi động:
+            // sync là tác vụ nền nặng và không được cạnh tranh tài nguyên với
+            // authentication/dashboard của người dùng đầu tiên.
+            var runOnStartup = _configuration.GetValue<bool>("HrmSync:RunOnStartup");
+            if (runOnStartup)
+            {
+                var startupDelaySeconds = _configuration.GetValue<int?>("HrmSync:StartupDelaySeconds") ?? 30;
+                if (startupDelaySeconds > 0)
+                {
+                    try
+                    {
+                        await Task.Delay(
+                            TimeSpan.FromSeconds(Math.Min(startupDelaySeconds, 3600)),
+                            stoppingToken);
+                    }
+                    catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                    {
+                        return;
+                    }
+                }
+            }
+            else
+            {
+                // Mặc định: nhường toàn bộ startup path cho người dùng,
+                // chạy lần đầu sau đúng một chu kỳ polling.
+                try
+                {
+                    await Task.Delay(GetPollInterval(), stoppingToken);
+                }
+                catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+                {
+                    return;
+                }
+            }
+
             // Polling thay cho trigger cross-database: HRM không bị phụ thuộc vào FVN_REGISTER.
             while (!stoppingToken.IsCancellationRequested)
             {

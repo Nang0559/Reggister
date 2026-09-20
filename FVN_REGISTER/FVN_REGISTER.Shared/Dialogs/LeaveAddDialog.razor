@@ -17,10 +17,66 @@
     <DialogContent>
         <MudForm @ref="_form">
             <MudGrid Spacing="2">
-                <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_startDate" @bind-Date:after="RebuildDetails" Label="Từ ngày *" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
-                <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_endDate" @bind-Date:after="RebuildDetails" Label="Đến ngày *" Variant="Variant.Outlined" Margin="Margin.Dense" /></MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_startDate"
+                                   @bind-Date:after="RebuildDetails"
+                                   Label="Từ ngày *"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudDatePicker @bind-Date="_endDate"
+                                   @bind-Date:after="RebuildDetails"
+                                   Label="Đến ngày *"
+                                   Variant="Variant.Outlined"
+                                   Margin="Margin.Dense" />
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string"
+                               Value="_defaultLeaveTypeCode"
+                               ValueChanged="ChangeDefaultLeaveType"
+                               Label="Loại nghỉ *"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Disabled="@(!Model.LeaveTypes.Any())">
+                        @foreach (var type in Model.LeaveTypes)
+                        {
+                            <MudSelectItem Value="@type.LeaveTypeCode">@type.LeaveTypeName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="HalfDayType"
+                               Value="@_defaultHalfDayOption"
+                               ValueChanged="ChangeDefaultHalfDay"
+                               Label="Thời lượng"
+                               Variant="Variant.Outlined"
+                               Margin="Margin.Dense"
+                               Disabled="@(!_details.Any())">
+                        <MudSelectItem Value="@HalfDayType.None">Cả ngày</MudSelectItem>
+                        <MudSelectItem Value="@HalfDayType.Morning">Nửa ngày - Sáng</MudSelectItem>
+                        <MudSelectItem Value="@HalfDayType.Afternoon">Nửa ngày - Chiều</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
             </MudGrid>
-            <MudTextField @bind-Value="_reason" Label="Lý do nghỉ *" Lines="3" Required="true" RequiredError="Vui lòng nhập lý do" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mt-3" />
+
+            @if (!Model.LeaveTypes.Any())
+            {
+                <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined" Class="mt-3">
+                    Chưa có loại nghỉ đang hoạt động. Vui lòng cấu hình F03LeaveType trước khi gửi đơn.
+                </MudAlert>
+            }
+
+            <MudTextField @bind-Value="_reason"
+                          Label="Lý do nghỉ *"
+                          Lines="3"
+                          Required="true"
+                          RequiredError="Vui lòng nhập lý do"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Class="mt-3" />
 
             @if (_details.Any())
             {
@@ -34,12 +90,12 @@
                                 <tr>
                                     <td>@detail.LeaveDate.ToString("dd/MM/yyyy")</td>
                                     <td>
-                                        <MudSelect T="string" Value="detail.LeaveTypeCode" ValueChanged="@(code => ChangeLeaveType(detail, code))" Dense="true" Margin="Margin.Dense">
-                                            @foreach (var type in Model.LeaveTypes)
-                                            {
-                                                <MudSelectItem Value="@type.LeaveTypeCode">@type.LeaveTypeName</MudSelectItem>
-                                            }
-                                        </MudSelect>
+                                        @{
+                                            var detailType = Model.LeaveTypes.FirstOrDefault(x => x.LeaveTypeCode == detail.LeaveTypeCode);
+                                        }
+                                        <MudText Typo="Typo.body2">
+                                            @(detailType?.LeaveTypeName ?? detail.LeaveTypeCode)
+                                        </MudText>
                                     </td>
                                     <td>
                                         <MudSelect T="HalfDayType" Value="@(detail.HalfDayOption ?? HalfDayType.None)" ValueChanged="@(value => ChangeHalfDay(detail, value))" Dense="true" Margin="Margin.Dense">
@@ -80,6 +136,8 @@
     private DateTime? _startDate;
     private DateTime? _endDate;
     private string _reason = string.Empty;
+    private string? _defaultLeaveTypeCode;
+    private HalfDayType _defaultHalfDayOption = HalfDayType.None;
     private bool _saving;
     private readonly List<LeaveRequestDetailUpsertDto> _details = new();
     private ApprovalRoutePreviewDto? _approvalRoute;
@@ -98,8 +156,11 @@
     {
         _details.Clear();
         if (!_startDate.HasValue || !_endDate.HasValue || _startDate > _endDate) return;
-        var defaultType = Model.LeaveTypes.FirstOrDefault();
+        var defaultType = Model.LeaveTypes.FirstOrDefault(x => x.LeaveTypeCode == _defaultLeaveTypeCode)
+            ?? Model.LeaveTypes.FirstOrDefault();
         if (defaultType == null) return;
+
+        _defaultLeaveTypeCode = defaultType.LeaveTypeCode;
 
         for (var date = _startDate.Value.Date; date <= _endDate.Value.Date; date = date.AddDays(1))
         {
@@ -109,13 +170,31 @@
             {
                 LeaveDate = date,
                 LeaveTypeCode = defaultType.LeaveTypeCode,
-                IsHalfDay = false,
-                HalfDayOption = HalfDayType.None
+                IsHalfDay = _defaultHalfDayOption != HalfDayType.None,
+                HalfDayOption = _defaultHalfDayOption
             });
         }
     }
 
-    private void ChangeLeaveType(LeaveRequestDetailUpsertDto detail, string code) => detail.LeaveTypeCode = code;
+    private void ChangeDefaultLeaveType(string? code)
+    {
+        _defaultLeaveTypeCode = code;
+        if (string.IsNullOrWhiteSpace(code))
+            return;
+
+        foreach (var detail in _details)
+            detail.LeaveTypeCode = code;
+    }
+
+    private void ChangeDefaultHalfDay(HalfDayType value)
+    {
+        _defaultHalfDayOption = value;
+        foreach (var detail in _details)
+        {
+            detail.HalfDayOption = value;
+            detail.IsHalfDay = value != HalfDayType.None;
+        }
+    }
 
     private void ChangeHalfDay(LeaveRequestDetailUpsertDto detail, HalfDayType value)
     {
@@ -128,6 +207,11 @@
         if (_startDate == null || _endDate == null || _startDate > _endDate) { Snackbar.Add("Khoảng ngày nghỉ không hợp lệ.", Severity.Warning); return; }
         if (string.IsNullOrWhiteSpace(_reason)) { Snackbar.Add("Vui lòng nhập lý do nghỉ.", Severity.Warning); return; }
         if (!_details.Any()) { Snackbar.Add("Khoảng ngày không có ngày làm việc hợp lệ.", Severity.Warning); return; }
+        if (string.IsNullOrWhiteSpace(_defaultLeaveTypeCode))
+        {
+            Snackbar.Add("Vui lòng chọn loại nghỉ.", Severity.Warning);
+            return;
+        }
 
         var selections = _approvalSelector?.GetSelections() ?? new();
         if (selections.Any(x => string.IsNullOrWhiteSpace(x.ApproverCode)))
@@ -143,7 +227,7 @@
             {
                 StartDate = _startDate.Value.Date,
                 EndDate = _endDate.Value.Date,
-                LeaveTypeCode = _details[0].LeaveTypeCode,
+                LeaveTypeCode = _defaultLeaveTypeCode!,
                 Reason = _reason.Trim(),
                 Details = _details.ToList(),
                 ApprovalSelections = selections

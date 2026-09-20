@@ -1,4 +1,3 @@
-
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Histories;
 using FVN_REGISTER.Application.Interfaces.Users;
@@ -45,7 +44,7 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (UserInfo == null) return Unauthorized();
             if (!TryParseRequestKind(kind, out var requestKind))
-                return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave hoặc ot."));
+                return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave, ot, trip hoặc equipment."));
 
             var filter = new HistoryFilterDto
             {
@@ -68,7 +67,7 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (UserInfo == null) return Unauthorized();
             if (!TryParseRequestKind(kind, out var requestKind))
-                return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave hoặc ot."));
+                return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave, ot, trip hoặc equipment."));
 
             var result = await _dispatcher.GetDetailAsync(requestKind, id, UserInfo, ct);
             return HandleResult(result);
@@ -82,7 +81,7 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (UserInfo == null) return Unauthorized();
             if (!TryParseRequestKind(kind, out var requestKind))
-                return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave hoặc ot."));
+                return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave, ot, trip hoặc equipment."));
 
             var result = await _dispatcher.GetBalanceAsync(
                 requestKind, year ?? DateTime.Now.Year, UserInfo, ct);
@@ -98,7 +97,7 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (UserInfo == null) return Unauthorized();
             if (!TryParseRequestKind(kind, out var requestKind))
-                return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave hoặc ot."));
+                return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave, ot, trip hoặc equipment."));
             if (!ModelState.IsValid)
                 return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
 

@@ -6,6 +6,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using FVN_REGISTER.Application.Maps;
+using FVN_REGISTER.Core.Enums;
 
 namespace FVN_REGISTER.Infrastructure.Services.OT
 {
@@ -63,7 +64,11 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         {
             try
             {
-                if (await IsDuplicateScopeAsync(model.LimitType, model.DeptCode, model.PositionCode, excludeId: null, ct))
+                var scopeError = ValidateScope(model);
+                if (scopeError != null)
+                    return ServiceResult.Fail(scopeError);
+
+                if (await IsDuplicateScopeAsync(model, excludeId: null, ct))
                     return ServiceResult.Fail(
                         "Đã tồn tại rule cùng loại hạn mức + cùng phạm vi Phòng ban/Vị trí. Vui lòng sửa rule đó thay vì tạo mới.");
 
@@ -88,10 +93,14 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         {
             try
             {
+                var scopeError = ValidateScope(model);
+                if (scopeError != null)
+                    return ServiceResult.Fail(scopeError);
+
                 var entity = await _uow.Repository<F03OTLimitRule>().GetByIdAsync(model.Id, ct);
                 if (entity == null) return ServiceResult.Fail("Không tìm thấy hạn mức OT.");
 
-                if (await IsDuplicateScopeAsync(model.LimitType, model.DeptCode, model.PositionCode, excludeId: model.Id, ct))
+                if (await IsDuplicateScopeAsync(model, excludeId: model.Id, ct))
                     return ServiceResult.Fail("Phạm vi này đã có rule khác cùng loại hạn mức.");
 
                 model.ApplyTo(entity, currentUserId);
@@ -141,17 +150,17 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
         {
             var candidates = await _uow.Repository<F03OTLimitRule>().Query()
                 .AsNoTracking()
-                .Where(x => x.LimitType == limitType)
+                .Where(x => x.IsActive == true && x.LimitType == limitType)
                 .Where(x =>
-                    (x.DeptCode == null && x.PositionCode == null) ||                              // toàn công ty
-                    (x.DeptCode == deptCode && x.PositionCode == null) ||                           // theo Dept
-                    (x.PositionCode == positionCode && x.DeptCode == null) ||                       // theo Position
-                    (x.DeptCode == deptCode && x.PositionCode == positionCode))                     // theo cả 2
+                    x.ScopeType == OTLimitScopeType.Employee &&
+                    (x.EmployeeCode == null || x.EmployeeCode == string.Empty) &&
+                    (x.DeptCode == null || x.DeptCode == deptCode) &&
+                    (x.PositionCode == null || x.PositionCode == positionCode))
                 .ToListAsync(ct);
 
             return candidates
                 .Select(x => new { Entity = x, Priority = GetScopePriority(x.DeptCode, x.PositionCode) })
-                .OrderBy(x => x.Priority) // 1 = cụ thể nhất
+                .OrderBy(x => x.Priority)
                 .Select(x => x.Entity.ToDto())
                 .ToList();
         }
@@ -166,13 +175,43 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
             return 4; // toàn công ty — mặc định, ưu tiên thấp nhất
         }
 
+        private static string? ValidateScope(OTLimitRuleUpsertDto model)
+        {
+            if (model.ScopeType == OTLimitScopeType.Department &&
+                string.IsNullOrWhiteSpace(model.ScopeCode))
+                return "Rule phạm vi Phòng ban phải có ScopeCode.";
+
+            if (model.ScopeType == OTLimitScopeType.Block &&
+                string.IsNullOrWhiteSpace(model.ScopeCode))
+                return "Rule phạm vi Khối phải có ScopeCode.";
+
+            if (model.ScopeType != OTLimitScopeType.Employee &&
+                !string.IsNullOrWhiteSpace(model.EmployeeCode))
+                return "EmployeeCode chỉ được dùng cho rule phạm vi Employee.";
+
+            if (model.ScopeType == OTLimitScopeType.Department &&
+                !string.IsNullOrWhiteSpace(model.PositionCode))
+                return "Rule phạm vi Phòng ban không được gắn PositionCode.";
+
+            if (model.ScopeType == OTLimitScopeType.Block &&
+                (!string.IsNullOrWhiteSpace(model.PositionCode) ||
+                 !string.IsNullOrWhiteSpace(model.DeptCode)))
+                return "Rule phạm vi Khối chỉ dùng ScopeCode.";
+
+            return null;
+        }
+
         private async Task<bool> IsDuplicateScopeAsync(
-            OTLimitType limitType, string? deptCode, string? positionCode, int? excludeId, CancellationToken ct)
+            OTLimitRuleUpsertDto model, int? excludeId, CancellationToken ct)
         {
             var query = _uow.Repository<F03OTLimitRule>().Query()
-                .Where(x => x.LimitType == limitType
-                         && x.DeptCode == deptCode
-                         && x.PositionCode == positionCode);
+                .Where(x => x.IsActive == true
+                    && x.LimitType == model.LimitType
+                    && x.ScopeType == model.ScopeType
+                    && x.ScopeCode == model.ScopeCode
+                    && x.EmployeeCode == model.EmployeeCode
+                    && x.PositionCode == model.PositionCode
+                    && x.DeptCode == model.DeptCode);
 
             if (excludeId.HasValue)
                 query = query.Where(x => x.Id != excludeId.Value);

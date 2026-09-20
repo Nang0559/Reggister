@@ -21,6 +21,9 @@ namespace FVN_REGISTER.Contract.Dtos.Histories
         // OT detail
         public OTDetailPayload? OT { get; set; }
 
+        public TripDetailPayload? Trip { get; set; }
+        public EquipmentDetailPayload? Equipment { get; set; }
+
         // Approval timeline — dùng chung
         public List<ApprovalStepDto> ApprovalSteps { get; set; } = new();
     }

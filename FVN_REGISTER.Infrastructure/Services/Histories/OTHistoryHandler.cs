@@ -1,5 +1,7 @@
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Histories;
+using FVN_REGISTER.Contract.Dtos.Notifications;
+using FVN_REGISTER.Contract.Dtos.OT;
 using FVN_REGISTER.Core.Extensions;
 
 using Microsoft.EntityFrameworkCore;
@@ -133,9 +135,71 @@ public class OTHistoryHandler : BaseHistoryHandler<F03OTRequest>
         });
     }
 
-    public override Task<ServiceResult<HistoryItemDetailDto>> GetDetailAsync(
+    public override async Task<ServiceResult<HistoryItemDetailDto>> GetDetailAsync(
         int id, UserIdentityDto user, CancellationToken ct)
-        => throw new NotImplementedException("Cần implement GetDetailAsync cho OT.");
+    {
+        var row = await (from request in Db.OvertimeRequests
+                          .AsNoTracking()
+                          .Include(x => x.Employees)
+                         join employee in Db.Employees.AsNoTracking()
+                             on request.EmployeeCode equals employee.EmployeeCode into employeeJoin
+                         from employee in employeeJoin.DefaultIfEmpty()
+                         where request.Id == id &&
+                               request.IsActive == true &&
+                               request.EmployeeCode == user.EmployeeCode
+                         select new { request, employee })
+            .FirstOrDefaultAsync(ct);
+
+        if (row == null)
+            return ServiceResult<HistoryItemDetailDto>.Fail("Không tìm thấy đơn tăng ca.");
+
+        var employees = row.request.Employees
+            .OrderBy(x => x.EmployeeCode)
+            .Select(x => new OTEmployeeDto
+            {
+                EmployeeCode = x.EmployeeCode,
+                EmployeeName = x.EmployeeName ?? string.Empty,
+                DeptCode = x.DeptCode,
+                DeptName = x.DeptName,
+                CvCode = x.CvCode,
+                OTTypeCode = x.OTTypeCode,
+                StartTime = x.StartTime?.TimeOfDay ?? row.request.StartTime.TimeOfDay,
+                EndTime = x.EndTime?.TimeOfDay ?? row.request.EndTime.TimeOfDay,
+                OTHours = x.OTHours,
+                OTRateMultiplier = x.OTRateMultiplier,
+                OTReasonCategoryCode = x.OTReasonCategoryCode ?? string.Empty,
+                OTReasonDetail = x.OTReasonDetail,
+                Note = x.Note,
+                ValidationStatus = x.ValidationStatus,
+                ValidationMessage = x.ValidationMessage
+            })
+            .ToList();
+
+        return ServiceResult<HistoryItemDetailDto>.Ok(new HistoryItemDetailDto
+        {
+            Id = id,
+            Kind = RequestModule.Overtime.ToString(),
+            RequestStatus = row.request.RequestStatus.ToString(),
+            StatusDisplay = row.request.RequestStatus.ToDisplayName(),
+            StatusColor = GetStatusColor(row.request.RequestStatus),
+            SubmittedAt = row.request.CreatedAt ?? DateTime.Now,
+            CanCancel = ActiveStatuses.Contains(row.request.RequestStatus),
+            OT = new OTDetailPayload
+            {
+                OTCode = row.request.OTCode,
+                EmployeeName = row.employee?.EmployeeName,
+                DeptName = row.employee?.DeptCode,
+                OTDate = DateOnly.FromDateTime(row.request.OTDate),
+                StartTime = row.request.StartTime.TimeOfDay,
+                EndTime = row.request.EndTime.TimeOfDay,
+                TotalOTHours = row.request.TotalOTHours,
+                OTTypeName = null,
+                OTReasonSummary = row.request.OTReasonSummary,
+                Employees = employees
+            },
+            ApprovalSteps = await GetApprovalStepsAsync(id, ct)
+        });
+    }
 
     private static string GetStatusColor(ApprovalStatus status) => status switch
     {

@@ -161,6 +161,11 @@
 
 @code {
     private MudForm? _form;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadApprovalRouteAsync();
+    }
     private DateTime? _startDate = DateTime.Today;
     private DateTime? _endDate = DateTime.Today;
     private string _destination = string.Empty;
@@ -282,6 +287,17 @@
         _note = null;
         _validationMessage = null;
     }
+    private async Task LoadApprovalRouteAsync()
+    {
+        var result = await ApprovalRouteService.GetPreviewAsync(RequestModule.Trip);
+        if (result.IsSuccess)
+            _approvalRoute = result.Data;
+        else
+            Snackbar.Add(result.Message ?? "Không tải được luồng phê duyệt.", Severity.Warning);
+
+        await InvokeAsync(StateHasChanged);
+    }
+
     private Task OnCalendarDateSelected(DateTime date)
     {
         _startDate = date.Date;

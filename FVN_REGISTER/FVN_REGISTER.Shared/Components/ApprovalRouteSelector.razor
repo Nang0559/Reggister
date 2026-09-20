@@ -10,6 +10,13 @@
             Người phê duyệt
         </MudText>
 
+        @if (_route.Levels.Count == 0)
+        {
+            <MudAlert Severity="Severity.Error" Dense="true">
+                Chưa cấu hình cấp phê duyệt cho chức vụ hiện tại. Không thể gửi đơn.
+            </MudAlert>
+        }
+
         @foreach (var level in _route.Levels.OrderBy(x => x.Sequence))
         {
             <MudStack Class="mb-3">

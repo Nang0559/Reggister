@@ -2,43 +2,78 @@
 
 ## Runtime
 
-JWT -> Current User -> IAuthorizationService -> Effective Permission Snapshot -> DashboardOrchestrator -> allowed providers -> DashboardResponse -> Blazor Web.
+```
+JWT
+  -> Current User
+  -> IAuthorizationService
+  -> Effective Permission Snapshot
+  -> DashboardOrchestrator
+  -> allowed providers
+  -> DashboardResponse
+  -> Blazor Web
+```
 
-DashboardOrchestrator now checks RequiredFunctionCode before invoking a provider. Unauthorized module providers therefore do not execute their data queries.
+DashboardOrchestrator checks each provider's `RequiredFunctionCode` before invoking it. An unauthorized provider therefore must not execute its data query.
 
 ## Provider contract
 
-Each IModuleDashboardProvider declares RequiredFunctionCode.
+Each `IModuleDashboardProvider` declares a required security function.
 
-Current providers:
-- Leave -> SecurityFunctionCodes.LeaveView
-- OT -> SecurityFunctionCodes.OTView
+The current codebase contains dashboard providers for:
 
-The dashboard itself requires DashboardView.
+- Leave -> `SecurityFunctionCodes.LeaveView`
+- OT -> `SecurityFunctionCodes.OTView`
+- Trip
+- Equipment
 
-## Target dashboard
+Trip and Equipment are therefore no longer described as merely future provider implementations. Their actual UI exposure and capability behavior still require runtime certification in Phase 10.
 
-Personal:
+The dashboard itself requires `DashboardView`.
+
+## Target capability areas
+
+### Personal
+
 - Leave
 - OT
 - Trip
 - Equipment
 - Notifications
 
-Workflow:
+### Workflow
+
 - Leave approval
 - OT approval
 - Trip approval
 - Equipment approval
 
-Department:
-- employee/absence statistics
-- OT status
-- pending approvals
+### Department
 
-Administration:
+- Employee/absence statistics
+- OT status
+- Pending approvals
+
+### Administration
+
 - HRM sync status
 - Security Center
-- system health
+- System health
 
-Future Trip and Equipment dashboard providers should follow the same capability contract instead of adding module-specific branches to DashboardOrchestrator.
+## Certification rule
+
+Documentation does not treat a provider as production-ready merely because its class exists.
+
+For each provider Phase 10 must verify:
+
+1. RequiredFunctionCode.
+2. Permission evaluation.
+3. Data scope.
+4. Query execution.
+5. Dashboard response.
+6. UI rendering.
+7. Empty/error state.
+8. Export/report relationship where applicable.
+
+No provider may bypass the central authorization/data-scope contract by adding a module-specific authorization branch to `DashboardOrchestrator`.
+
+See `MÔ HÌNH/23_PRODUCT_READINESS_PLAN.md` for the complete production readiness sequence.

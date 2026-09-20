@@ -12,6 +12,14 @@ namespace FVN_REGISTER.Contract.Dtos.LimitRuleDtos
         [Display(Name = "Loại giới hạn (*)")]
         public OTLimitType LimitType { get; set; }
 
+        public OTLimitScopeType ScopeType { get; set; } = OTLimitScopeType.Employee;
+
+        [MaxLength(50)]
+        public string? ScopeCode { get; set; }
+
+        [MaxLength(50)]
+        public string? EmployeeCode { get; set; }
+
         [Range(0, 999, ErrorMessage = "Giá trị không hợp lệ")]
         [Display(Name = "Giá trị giới hạn")]
         public decimal LimitValue { get; set; }

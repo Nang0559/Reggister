@@ -45,45 +45,25 @@ namespace FVN_REGISTER.API.Services.OT
             try
             {
                 if (hours <= 0)
-                {
-                    result.IsValid = false;
-                    result.Errors.Add("Giờ OT phải lớn hơn 0.");
-                    return result;
-                }
+                    return Invalid("Giờ OT phải lớn hơn 0.");
 
                 var otType = await GetOTTypeAsync(otTypeCode, ct);
                 if (otType == null)
-                {
-                    result.IsValid = false;
-                    result.Errors.Add($"Loại OT '{otTypeCode}' không tồn tại.");
-                    return result;
-                }
+                    return Invalid($"Loại OT '{otTypeCode}' không tồn tại.");
 
-                var limitRules = await _uow.Repository<F03OTLimitRule>().Query()
+                var emp = await _uow.Repository<F03Employee>().Query()
+                    .AsNoTracking()
+                    .Where(e => e.EmployeeCode == employeeCode && e.IsActive == true)
+                    .Select(e => new { e.EmployeeCode, e.EmployeeName, e.DeptCode, e.PositionCode })
+                    .FirstOrDefaultAsync(ct);
+
+                if (emp == null)
+                    return Invalid($"Không tìm thấy nhân viên {employeeCode}.");
+
+                var rules = await _uow.Repository<F03OTLimitRule>().Query()
                     .AsNoTracking()
                     .Where(x => x.IsActive == true)
                     .ToListAsync(ct);
-
-                bool isWeekday = await IsWeekdayTypeAsync(otType, ct);
-                decimal defaultDailyLimit = isWeekday ? 4m : 12m;
-                decimal dailyLimit = GetLimit(limitRules, OTLimitType.Daily, defaultDailyLimit);
-                decimal? weeklyLimit = GetConfiguredLimit(limitRules, OTLimitType.Weekly);
-                decimal monthlyLimit = GetLimit(limitRules, OTLimitType.Monthly, 40m);
-                decimal yearlyLimit = GetLimit(limitRules, OTLimitType.Yearly, 200m);
-                decimal yearlySpecialLimit = GetLimit(limitRules, OTLimitType.Special, 300m);
-
-                // Giới hạn ngày luôn so với giờ ĐANG XIN (chưa xảy ra) → không liên quan ActualHours
-                if (hours > dailyLimit)
-                {
-                    result.IsValid = false;
-                    result.Errors.Add($"Vượt giới hạn {dailyLimit}h/ngày ({otType.OTTypeName}).");
-                }
-
-                int year = otDate.Year;
-                int month = otDate.Month;
-                int weekOffset = (7 + (int)otDate.DayOfWeek - (int)DayOfWeek.Monday) % 7;
-                DateTime weekStart = otDate.Date.AddDays(-weekOffset);
-                DateTime weekEnd = weekStart.AddDays(7);
 
                 var query = _uow.Repository<F03OTEmployee>().Query()
                     .AsNoTracking()
@@ -97,75 +77,58 @@ namespace FVN_REGISTER.API.Services.OT
                 if (excludeOTRequestId.HasValue)
                     query = query.Where(e => e.OTRequestId != excludeOTRequestId.Value);
 
-                // (B) — lấy cả OTHours lẫn ActualHours, quyết định ưu tiên ở tầng C# (Select
-                // ternary dịch được sang SQL CASE WHEN, không cần load thừa dữ liệu).
                 var usedData = await query
                     .Select(e => new
                     {
-                        EffectiveHours = (e.ActualHours.HasValue && e.ActualHours.Value > 0)
-                            ? e.ActualHours.Value
-                            : e.OTHours,
+                        EffectiveHours = e.ActualHours.HasValue && e.ActualHours.Value > 0
+                            ? e.ActualHours.Value : e.OTHours,
                         e.OTRequest.OTDate
                     })
                     .ToListAsync(ct);
 
-                decimal weekUsed = usedData
-                    .Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd)
-                    .Sum(x => x.EffectiveHours);
+                var weekOffset = (7 + (int)otDate.DayOfWeek - (int)DayOfWeek.Monday) % 7;
+                var weekStart = otDate.Date.AddDays(-weekOffset);
+                var weekEnd = weekStart.AddDays(7);
+                var monthStart = new DateTime(otDate.Year, otDate.Month, 1);
+                var monthEnd = monthStart.AddMonths(1);
+                var yearStart = new DateTime(otDate.Year, 1, 1);
+                var yearEnd = yearStart.AddYears(1);
 
-                if (weeklyLimit.HasValue && weekUsed + hours > weeklyLimit.Value)
+                var checks = new[]
                 {
-                    result.IsValid = false;
-                    result.Errors.Add(
-                        $"Vượt {weeklyLimit.Value}h/tuần (đã dùng: {weekUsed}h, thêm: {hours}h).");
+                    (OTLimitType.Daily, usedData.Where(x => x.OTDate.Date == otDate.Date).Sum(x => x.EffectiveHours)),
+                    (OTLimitType.Weekly, usedData.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours)),
+                    (OTLimitType.Monthly, usedData.Where(x => x.OTDate >= monthStart && x.OTDate < monthEnd).Sum(x => x.EffectiveHours)),
+                    (OTLimitType.Yearly, usedData.Where(x => x.OTDate >= yearStart && x.OTDate < yearEnd).Sum(x => x.EffectiveHours))
+                };
+
+                foreach (var check in checks)
+                {
+                    var rule = ResolveEmployeeRule(rules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode, check.Item1);
+                    if (rule == null)
+                        continue;
+
+                    var projected = check.Item2 + hours;
+                    if (projected > rule.LimitHours)
+                    {
+                        result.IsValid = false;
+                        result.Errors.Add(
+                            $"Vượt {rule.LimitHours}h/{check.Item1} (đã dùng: {check.Item2}h, thêm: {hours}h).");
+                    }
+                    else if (projected > rule.LimitHours * 0.9m)
+                    {
+                        result.Warnings.Add(
+                            $"Sắp đạt giới hạn {check.Item1}: {projected}h / {rule.LimitHours}h.");
+                    }
                 }
 
-                decimal monthUsed = usedData
-                    .Where(x => x.OTDate.Month == month && x.OTDate.Year == year)
-                    .Sum(x => x.EffectiveHours);
-
-                if (monthUsed + hours > monthlyLimit)
-                {
-                    result.IsValid = false;
-                    result.Errors.Add(
-                        $"Vượt {monthlyLimit}h/tháng (đã dùng: {monthUsed}h, thêm: {hours}h).");
-                }
-
-                decimal yearUsed = usedData.Where(x => x.OTDate.Year == year).Sum(x => x.EffectiveHours);
-                decimal totalYear = yearUsed + hours;
-
-                if (totalYear > yearlySpecialLimit)
-                {
-                    result.IsValid = false;
-                    result.Errors.Add(
-                        $"Vượt giới hạn tối đa {yearlySpecialLimit}h/năm " +
-                        $"(đã dùng: {yearUsed}h, thêm: {hours}h). " +
-                        "Cần thủ tục đặc biệt và không thể vượt quá.");
-                }
-                else if (totalYear > yearlyLimit)
-                {
-                    result.Warnings.Add(
-                        $"Đã vượt {yearlyLimit}h/năm tiêu chuẩn " +
-                        $"(đã dùng: {yearUsed}h, thêm: {hours}h). " +
-                        "Cần thủ tục đặc biệt theo QĐ-HC-03.");
-                }
-
-                if (result.IsValid)
-                {
-                    if (monthUsed + hours > monthlyLimit * 0.9m)
-                        result.Warnings.Add($"Sắp đạt giới hạn tháng ({monthUsed + hours}h / {monthlyLimit}h).");
-
-                    if (totalYear > yearlyLimit * 0.9m && totalYear <= yearlyLimit)
-                        result.Warnings.Add($"Sắp đạt giới hạn năm ({totalYear}h / {yearlyLimit}h).");
-                }
-
+                result.IsValid = result.Errors.Count == 0;
+                result.Message = result.IsValid ? "Hợp lệ." : "Vượt giới hạn giờ OT.";
                 return result;
             }
             catch (Exception ex)
             {
-                result.IsValid = false;
-                result.Errors.Add($"Lỗi validate: {ex.Message}");
-                return result;
+                return Invalid($"Lỗi validate: {ex.Message}");
             }
         }
 
@@ -191,78 +154,116 @@ namespace FVN_REGISTER.API.Services.OT
                 if (requestHours <= 0)
                     return Fail("Giờ kết thúc phải sau giờ bắt đầu.");
 
-                var limitRules = await _uow.Repository<F03OTLimitRule>().Query()
-                    .AsNoTracking().Where(x => x.IsActive==true).ToListAsync(ct);
+                var empCodes = model.Employees.Select(e => e.EmployeeCode).Distinct().ToList();
+                var employeeContexts = await _uow.Repository<F03Employee>().Query()
+                    .AsNoTracking()
+                    .Where(e => empCodes.Contains(e.EmployeeCode) && e.IsActive == true)
+                    .Select(e => new { e.EmployeeCode, e.EmployeeName, e.DeptCode, e.PositionCode })
+                    .ToListAsync(ct);
 
-                bool isWeekday = await IsWeekdayTypeAsync(otType, ct);
-                decimal defaultDailyLimit = isWeekday ? 4m : 12m;
-                decimal dailyLimit = GetLimit(limitRules, OTLimitType.Daily, defaultDailyLimit);
-                decimal? weeklyLimit = GetConfiguredLimit(limitRules, OTLimitType.Weekly);
-                decimal monthlyLimit = GetLimit(limitRules, OTLimitType.Monthly, 40m);
-                decimal yearlyLimit = GetLimit(limitRules, OTLimitType.Yearly, 200m);
-                decimal yearlySpecialLimit = GetLimit(limitRules, OTLimitType.Special, 300m);
+                if (employeeContexts.Count != empCodes.Count)
+                    return Fail("Có nhân viên trong đơn OT không tồn tại hoặc đã ngừng hoạt động.");
 
-                // ⚠️ CHỜ XÁC NHẬN: emp.OTReasonCategoryCode không tồn tại trong OTEmployeeUpsertDto
-                // (chỉ có emp.Reason string tự do). Tạm bỏ đoạn check "hạng mục lý do" —
-                // KHÔI PHỤC lại đúng field thật sau khi bạn xác nhận shape Employees dùng ở đây.
-                // foreach (var emp in model.Employees) { check lý do ở đây nếu cần }
+                var deptCodes = employeeContexts.Select(e => e.DeptCode).Distinct().ToList();
+                if (deptCodes.Count != 1)
+                    return Fail("Đăng ký OT nhiều nhân viên chỉ được phép trong cùng một phòng ban.");
 
-                var empCodes = model.Employees.Select(e => e.EmployeeCode).ToList();
-                int year = model.OTDate.Year;
-                int month = model.OTDate.Month;
-                int weekOffset = (7 + (int)model.OTDate.DayOfWeek - (int)DayOfWeek.Monday) % 7;
-                DateTime weekStart = model.OTDate.Date.AddDays(-weekOffset);
-                DateTime weekEnd = weekStart.AddDays(7);
+                var deptCode = deptCodes[0];
+                var blockCode = await _uow.Repository<F03Department>().Query()
+                    .AsNoTracking()
+                    .Where(d => d.DeptCode == deptCode && d.IsActive == true)
+                    .Select(d => d.BlockCode)
+                    .FirstOrDefaultAsync(ct);
+
+                var activeRules = await _uow.Repository<F03OTLimitRule>().Query()
+                    .AsNoTracking()
+                    .Where(r => r.IsActive == true)
+                    .ToListAsync(ct);
+
+                var yearStart = new DateTime(model.OTDate.Year, 1, 1);
+                var yearEnd = yearStart.AddYears(1);
+                var weekOffset = (7 + (int)model.OTDate.DayOfWeek - (int)DayOfWeek.Monday) % 7;
+                var weekStart = model.OTDate.Date.AddDays(-weekOffset);
+                var weekEnd = weekStart.AddDays(7);
+                var monthStart = new DateTime(model.OTDate.Year, model.OTDate.Month, 1);
+                var monthEnd = monthStart.AddMonths(1);
+
+                var blockDeptCodes = string.IsNullOrWhiteSpace(blockCode)
+                    ? new List<string>()
+                    : await _uow.Repository<F03Department>().Query()
+                        .AsNoTracking()
+                        .Where(d => d.IsActive == true && d.BlockCode == blockCode)
+                        .Select(d => d.DeptCode)
+                        .ToListAsync(ct);
 
                 var usedData = await _uow.Repository<F03OTEmployee>().Query()
                     .AsNoTracking()
                     .Where(e =>
-                        empCodes.Contains(e.EmployeeCode) &&
+                        e.IsActive == true &&
                         e.OTRequest.IsActive == true &&
                         e.OTRequest.RequestStatus != ApprovalStatus.Rejected &&
-                        e.OTRequest.RequestStatus != ApprovalStatus.Cancelled)
+                        e.OTRequest.RequestStatus != ApprovalStatus.Cancelled &&
+                        e.OTRequest.OTDate >= yearStart &&
+                        e.OTRequest.OTDate < yearEnd &&
+                        (e.EmployeeCode != null || e.OTRequest.DeptCode == deptCode || blockDeptCodes.Contains(e.OTRequest.DeptCode)))
                     .Select(e => new
                     {
                         e.EmployeeCode,
+                        e.OTRequest.DeptCode,
                         EffectiveHours = (e.ActualHours.HasValue && e.ActualHours.Value > 0)
                             ? e.ActualHours.Value : e.OTHours,
                         e.OTRequest.OTDate
                     })
                     .ToListAsync(ct);
 
-                foreach (var emp in model.Employees)
+                foreach (var emp in employeeContexts)
                 {
-                    // ⚠️ CHỜ XÁC NHẬN: OTEmployeeUpsertDto không có StartTime/EndTime riêng —
-                    // chỉ có OTHours trực tiếp (Required, Range 0.1-24). Nghĩa là mỗi nhân viên
-                    // KHÔNG tự khai giờ riêng, luôn dùng model.OTHours do chính họ nhập.
-                    decimal empHours = emp.OTHours;   // SỬA — bỏ nhánh StartTime/EndTime vì Dto không có
-
-                    if (empHours > dailyLimit)
-                        return Fail($"Nhân viên {emp.EmployeeCode}: vượt giới hạn {dailyLimit}h/ngày ({otType.OTTypeName}).");
+                    var requested = model.Employees
+                        .Where(x => x.EmployeeCode == emp.EmployeeCode)
+                        .Sum(x => x.OTHours);
 
                     var empUsed = usedData.Where(x => x.EmployeeCode == emp.EmployeeCode).ToList();
 
-                    decimal weekUsed = empUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd)
-                        .Sum(x => x.EffectiveHours);
+                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode,
+                        OTLimitType.Daily, empUsed.Where(x => x.OTDate.Date == model.OTDate.Date).Sum(x => x.EffectiveHours),
+                        requested, model.OTDate, emp.EmployeeName);
 
-                    if (weeklyLimit.HasValue && weekUsed + empHours > weeklyLimit.Value)
-                        return Fail($"Nhân viên {emp.EmployeeCode}: vượt {weeklyLimit.Value}h/tuần (đã dùng: {weekUsed}h, thêm: {empHours}h).");
+                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode,
+                        OTLimitType.Weekly, empUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
+                        requested, model.OTDate, emp.EmployeeName);
 
-                    decimal monthUsed = empUsed.Where(x => x.OTDate.Month == month && x.OTDate.Year == year)
-                        .Sum(x => x.EffectiveHours);
+                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode,
+                        OTLimitType.Monthly, empUsed.Where(x => x.OTDate >= monthStart && x.OTDate < monthEnd).Sum(x => x.EffectiveHours),
+                        requested, model.OTDate, emp.EmployeeName);
 
-                    if (monthUsed + empHours > monthlyLimit)
-                        return Fail($"Nhân viên {emp.EmployeeCode}: vượt {monthlyLimit}h/tháng " +
-                            $"(đã dùng: {monthUsed}h, thêm: {empHours}h).");
+                    ValidateScopedLimit(activeRules, emp.EmployeeCode, emp.PositionCode, emp.DeptCode,
+                        OTLimitType.Yearly, empUsed.Where(x => x.OTDate >= yearStart && x.OTDate < yearEnd).Sum(x => x.EffectiveHours),
+                        requested, model.OTDate, emp.EmployeeName);
+                }
 
-                    decimal yearUsed = empUsed.Where(x => x.OTDate.Year == year).Sum(x => x.EffectiveHours);
+                var deptUsed = usedData.Where(x => x.DeptCode == deptCode).ToList();
+                ValidateAggregateLimit(activeRules, OTLimitScopeType.Department, deptCode, OTLimitType.Weekly,
+                    deptUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
+                    model.Employees.Sum(x => x.OTHours));
+                ValidateAggregateLimit(activeRules, OTLimitScopeType.Department, deptCode, OTLimitType.Monthly,
+                    deptUsed.Where(x => x.OTDate >= monthStart && x.OTDate < monthEnd).Sum(x => x.EffectiveHours),
+                    model.Employees.Sum(x => x.OTHours));
+                ValidateAggregateLimit(activeRules, OTLimitScopeType.Department, deptCode, OTLimitType.Yearly,
+                    deptUsed.Where(x => x.OTDate >= yearStart && x.OTDate < yearEnd).Sum(x => x.EffectiveHours),
+                    model.Employees.Sum(x => x.OTHours));
 
-                    if (yearUsed + empHours > yearlySpecialLimit)
-                        return Fail($"Nhân viên {emp.EmployeeCode}: vượt giới hạn tối đa {yearlySpecialLimit}h/năm " +
-                            $"(đã dùng: {yearUsed}h, thêm: {empHours}h). Không thể đăng ký thêm.");
-
-                    if (yearUsed + empHours > yearlyLimit)
-                        return Fail($"Nhân viên {emp.EmployeeCode}: đã vượt {yearlyLimit}h/năm tiêu chuẩn; cần thủ tục đặc biệt trước khi đăng ký phần OT vượt chuẩn.");
+                if (!string.IsNullOrWhiteSpace(blockCode))
+                {
+                    var blockUsed = usedData.Where(x => blockDeptCodes.Contains(x.DeptCode)).ToList();
+                    ValidateAggregateLimit(activeRules, OTLimitScopeType.Block, blockCode, OTLimitType.Weekly,
+                        blockUsed.Where(x => x.OTDate >= weekStart && x.OTDate < weekEnd).Sum(x => x.EffectiveHours),
+                        model.Employees.Sum(x => x.OTHours));
+                    ValidateAggregateLimit(activeRules, OTLimitScopeType.Block, blockCode, OTLimitType.Monthly,
+                        blockUsed.Where(x => x.OTDate >= monthStart && x.OTDate < monthEnd).Sum(x => x.EffectiveHours),
+                        model.Employees.Sum(x => x.OTHours));
+                    ValidateAggregateLimit(activeRules, OTLimitScopeType.Block, blockCode, OTLimitType.Yearly,
+                        blockUsed.Where(x => x.OTDate >= yearStart && x.OTDate < yearEnd).Sum(x => x.EffectiveHours),
+                        model.Employees.Sum(x => x.OTHours));
                 }
 
                 // ⚠️ CHỜ XÁC NHẬN: model.ApprovalSteps do client gửi lên — dùng để làm gì?
@@ -300,6 +301,67 @@ namespace FVN_REGISTER.API.Services.OT
             {
                 return Fail($"Lỗi validate đơn OT: {ex.Message}");
             }
+        }
+
+        private static void ValidateScopedLimit(
+            List<F03OTLimitRule> rules,
+            string employeeCode,
+            string positionCode,
+            string deptCode,
+            OTLimitType type,
+            decimal used,
+            decimal requested,
+            DateTime otDate,
+            string employeeName)
+        {
+            var rule = ResolveEmployeeRule(rules, employeeCode, positionCode, deptCode, type);
+            if (rule == null)
+                return;
+
+            if (used + requested > rule.LimitHours)
+                throw new InvalidOperationException(
+                    $"Nhân viên {employeeCode} - {employeeName}: vượt giới hạn OT {rule.LimitHours}h/{type} (đã dùng: {used}h, thêm: {requested}h).");
+        }
+
+        private static void ValidateAggregateLimit(
+            List<F03OTLimitRule> rules,
+            OTLimitScopeType scopeType,
+            string scopeCode,
+            OTLimitType type,
+            decimal used,
+            decimal requested)
+        {
+            var rule = rules.FirstOrDefault(r =>
+                r.ScopeType == scopeType &&
+                r.LimitType == type &&
+                r.ScopeCode == scopeCode);
+
+            if (rule == null)
+                return;
+
+            if (used + requested > rule.LimitHours)
+                throw new InvalidOperationException(
+                    $"{scopeType} {scopeCode}: vượt giới hạn OT {rule.LimitHours}h/{type} (đã dùng: {used}h, thêm: {requested}h).");
+        }
+
+        private static F03OTLimitRule? ResolveEmployeeRule(
+            List<F03OTLimitRule> rules,
+            string employeeCode,
+            string? positionCode,
+            string deptCode,
+            OTLimitType type)
+        {
+            return rules
+                .Where(r => r.ScopeType == OTLimitScopeType.Employee
+                    && r.LimitType == type
+                    && (string.IsNullOrWhiteSpace(r.EmployeeCode) || r.EmployeeCode == employeeCode)
+                    && (r.DeptCode == null || r.DeptCode == deptCode)
+                    && (r.PositionCode == null || r.PositionCode == positionCode))
+                .OrderByDescending(r => !string.IsNullOrWhiteSpace(r.EmployeeCode))
+                .ThenByDescending(r => r.PositionCode != null && r.DeptCode != null)
+                .ThenByDescending(r => r.DeptCode != null)
+                .ThenByDescending(r => r.PositionCode != null)
+                .FirstOrDefault();
         }
 
         // ════════════════════════════════════════════════════════════════════
@@ -340,6 +402,16 @@ namespace FVN_REGISTER.API.Services.OT
             List<F03OTLimitRule> rules, OTLimitType limitType)
             => rules.FirstOrDefault(r => r.LimitType == limitType)?.LimitHours
                ?? rules.FirstOrDefault(r => r.LimitType == limitType)?.LimitValue;
+
+        private static OTValidationResultDto Invalid(string message)
+        {
+            return new OTValidationResultDto
+            {
+                IsValid = false,
+                Message = message,
+                Errors = new List<string> { message }
+            };
+        }
 
         private static ServiceResult Fail(string msg) => ServiceResult.Fail(msg);
     }

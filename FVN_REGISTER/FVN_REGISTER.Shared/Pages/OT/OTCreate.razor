@@ -46,9 +46,9 @@ else if (_form != null)
             <MudCard Elevation="2" Class="pa-4">
                 <MudText Typo="Typo.subtitle1" Class="mb-3">Thông tin đơn</MudText>
                 <MudGrid>
-                    <MudItem xs="12" sm="4"><MudDatePicker @bind-Date="_date" Label="Ngày OT (*)" Variant="Variant.Outlined" Required="true" /></MudItem>
-                    <MudItem xs="6" sm="4"><MudTimePicker @bind-Time="_start" Label="Giờ bắt đầu" Variant="Variant.Outlined" AmPm="false" /></MudItem>
-                    <MudItem xs="6" sm="4"><MudTimePicker @bind-Time="_end" Label="Giờ kết thúc" Variant="Variant.Outlined" AmPm="false" /></MudItem>
+                    <MudItem xs="12" sm="4"><MudDatePicker Value="_date" ValueChanged="OnDateChanged" Label="Ngày OT (*)" Variant="Variant.Outlined" Required="true" /></MudItem>
+                    <MudItem xs="6" sm="4"><MudTimePicker Value="_start" ValueChanged="OnStartChanged" Label="Giờ bắt đầu" Variant="Variant.Outlined" AmPm="false" /></MudItem>
+                    <MudItem xs="6" sm="4"><MudTimePicker Value="_end" ValueChanged="OnEndChanged" Label="Giờ kết thúc" Variant="Variant.Outlined" AmPm="false" /></MudItem>
                     <MudItem xs="12" sm="6">
                         <MudSelect T="string" @bind-Value="_form.OTTypeCode" Label="Loại OT (*)" Variant="Variant.Outlined" Required="true">
                             @foreach (var type in _otTypes)
@@ -84,6 +84,61 @@ else if (_form != null)
                     </MudTable>
                 }
             </MudCard>
+
+            @if (_limitPreview != null)
+            {
+                <MudCard Elevation="2" Class="mt-4 pa-4">
+                    <MudText Typo="Typo.subtitle1" Class="mb-2">Giới hạn OT — sau đăng ký</MudText>
+                    @if (_limitPreview.Errors.Any())
+                    {
+                        <MudAlert Severity="Severity.Error" Dense="true" Class="mb-3">
+                            @foreach (var error in _limitPreview.Errors)
+                            {
+                                <div>@error</div>
+                            }
+                        </MudAlert>
+                    }
+
+                    <MudTable Items="_limitPreview.Employees" Dense="true" Hover="true" Bordered="true">
+                        <HeaderContent>
+                            <MudTh>Nhân viên</MudTh>
+                            <MudTh>Tuần</MudTh>
+                            <MudTh>Tháng</MudTh>
+                            <MudTh>Năm</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>
+                                <b>@context.EmployeeName</b>
+                                <MudText Typo="Typo.caption">@context.EmployeeCode</MudText>
+                            </MudTd>
+                            <MudTd>@LimitText(context.UsedHoursThisWeek, context.WeeklyLimit, context.ProjectedHoursThisWeek)</MudTd>
+                            <MudTd>@LimitText(context.UsedHoursThisMonth, context.MonthlyLimit, context.ProjectedHoursThisMonth)</MudTd>
+                            <MudTd>@LimitText(context.UsedHoursThisYear, context.YearlyLimit, context.ProjectedHoursThisYear)</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+
+                    @if (_limitPreview.Department != null)
+                    {
+                        <MudDivider Class="my-3" />
+                        <MudText Typo="Typo.subtitle2">Phòng: @_limitPreview.Department.ScopeName</MudText>
+                        <MudText Typo="Typo.body2">
+                            Tuần: @LimitText(_limitPreview.Department.UsedHoursThisWeek, _limitPreview.Department.WeeklyLimit, _limitPreview.Department.ProjectedHoursThisWeek)
+                            · Tháng: @LimitText(_limitPreview.Department.UsedHoursThisMonth, _limitPreview.Department.MonthlyLimit, _limitPreview.Department.ProjectedHoursThisMonth)
+                            · Năm: @LimitText(_limitPreview.Department.UsedHoursThisYear, _limitPreview.Department.YearlyLimit, _limitPreview.Department.ProjectedHoursThisYear)
+                        </MudText>
+                    }
+
+                    @if (_limitPreview.Block != null && (!_limitPreview.Block.IsExceeded || _limitPreview.Block.WeeklyLimit.HasValue || _limitPreview.Block.MonthlyLimit.HasValue || _limitPreview.Block.YearlyLimit.HasValue))
+                    {
+                        <MudText Typo="Typo.subtitle2" Class="mt-2">Khối: @_limitPreview.Block.ScopeName</MudText>
+                        <MudText Typo="Typo.body2">
+                            Tuần: @LimitText(_limitPreview.Block.UsedHoursThisWeek, _limitPreview.Block.WeeklyLimit, _limitPreview.Block.ProjectedHoursThisWeek)
+                            · Tháng: @LimitText(_limitPreview.Block.UsedHoursThisMonth, _limitPreview.Block.MonthlyLimit, _limitPreview.Block.ProjectedHoursThisMonth)
+                            · Năm: @LimitText(_limitPreview.Block.UsedHoursThisYear, _limitPreview.Block.YearlyLimit, _limitPreview.Block.ProjectedHoursThisYear)
+                        </MudText>
+                    }
+                </MudCard>
+            }
 
             @if (_approvalRoute != null)
             {
@@ -131,6 +186,7 @@ else if (_form != null)
     private ApprovalRouteSelector? _approvalSelector;
     private List<OTSummaryDto> _recent = new();
     private OTBalanceDto? _balance;
+    private OTLimitPreviewDto? _limitPreview;
     private DateTime? _date = DateTime.Today;
     private TimeSpan? _start = new(17, 30, 0);
     private TimeSpan? _end = new(20, 30, 0);
@@ -195,12 +251,14 @@ else if (_form != null)
             });
         }
         // Approval route depends on the requester position, not on OT participants.
+        await RefreshLimitPreviewAsync();
     }
 
     private void RemoveEmployee(OTEmployeeDto employee)
     {
         _employees.Remove(employee);
         // Approval route is determined by requester position and remains unchanged.
+        await RefreshLimitPreviewAsync();
     }
 
     private async Task Submit()
@@ -228,27 +286,31 @@ else if (_form != null)
             return;
         }
 
-        // Kiểm tra giờ OT trước khi gửi. Validate từng nhân viên
-        // qua POST /api/ot/validate trước khi gọi POST /api/ot/create.
-        foreach (var employee in _employees)
+        // Preview + validate toàn bộ request một lần:
+        // employee + department aggregate + block aggregate.
+        var preview = await OTService.GetOTLimitPreviewAsync(_form, _cts.Token);
+        if (!preview.IsSuccess || preview.Data == null)
         {
-            var validation = await OTService.ValidateOTHoursAsync(
-                employee.EmployeeCode,
-                _form.OTDate,
-                employee.OTHours,
-                _form.OTTypeCode,
-                _cts.Token);
+            Snackbar.Add(preview.Message ?? "Không kiểm tra được giới hạn OT.", Severity.Error);
+            return;
+        }
 
-            if (!validation.IsSuccess || validation.Data == null || !validation.Data.IsValid)
-            {
-                var message = validation.Data?.Message
-                    ?? validation.Data?.Errors.FirstOrDefault()
-                    ?? validation.Message
-                    ?? $"Giờ OT của {employee.EmployeeCode} không hợp lệ.";
+        _limitPreview = preview.Data;
+        if (!_limitPreview.IsValid)
+        {
+            Snackbar.Add(_limitPreview.Errors.FirstOrDefault() ?? "Đơn OT vượt giới hạn.", Severity.Warning);
+            return;
+        }
 
-                Snackbar.Add(message, Severity.Warning);
-                return;
-            }
+        var validation = await OTService.ValidateOTRequestAsync(_form, _cts.Token);
+        if (!validation.IsSuccess || validation.Data == null || !validation.Data.IsValid)
+        {
+            var message = validation.Data?.Errors.FirstOrDefault()
+                ?? validation.Data?.Message
+                ?? validation.Message
+                ?? "Đơn OT không hợp lệ.";
+            Snackbar.Add(message, Severity.Warning);
+            return;
         }
 
         _submitting = true;
@@ -261,6 +323,56 @@ else if (_form != null)
         finally { _submitting = false; }
     }
 
+    private async Task RefreshLimitPreviewAsync()
+    {
+        if (_form == null || !_employees.Any())
+        {
+            _limitPreview = null;
+            return;
+        }
+
+        _form.OTDate = _date ?? DateTime.Today;
+        _form.StartTime = _start ?? TimeSpan.Zero;
+        _form.EndTime = _end ?? TimeSpan.Zero;
+        foreach (var employee in _employees)
+        {
+            employee.OTHours = CalculateHours(_start, _end);
+            employee.OTTypeCode = _form.OTTypeCode;
+        }
+        _form.Employees = _employees;
+
+        var result = await OTService.GetOTLimitPreviewAsync(_form, _cts.Token);
+        if (result.IsSuccess)
+            _limitPreview = result.Data;
+    }
+
+    private async Task OnDateChanged(DateTime? value)
+    {
+        _date = value;
+        if (_form != null && value.HasValue)
+            _form.OTDate = value.Value.Date;
+        await RefreshLimitPreviewAsync();
+    }
+
+    private async Task OnStartChanged(TimeSpan? value)
+    {
+        _start = value;
+        await RefreshLimitPreviewAsync();
+    }
+
+    private async Task OnEndChanged(TimeSpan? value)
+    {
+        _end = value;
+        await RefreshLimitPreviewAsync();
+    }
+
+    private static string LimitText(decimal used, decimal? limit, decimal? projected)
+    {
+        if (!limit.HasValue)
+            return $"{used:N1}h / không áp dụng";
+        return $"{used:N1}h → {projected:N1}h / {limit:N1}h";
+    }
+
     private async Task LoadApprovalRouteAsync()
     {
         var result = await ApprovalRouteService.GetPreviewAsync(RequestModule.Overtime, _cts.Token);
@@ -271,11 +383,12 @@ else if (_form != null)
     private static decimal CalculateHours(TimeSpan? start, TimeSpan? end) =>
         start.HasValue && end.HasValue && end > start ? (decimal)(end.Value - start.Value).TotalHours : 0m;
 
-    private Task OnCalendarDateSelected(DateTime date)
+    private async Task OnCalendarDateSelected(DateTime date)
     {
         _date = date.Date;
         if (_form != null) _form.OTDate = date.Date;
-        return InvokeAsync(StateHasChanged);
+        await RefreshLimitPreviewAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     private Task OnCalendarEventSelected(WorkCalendarEventDto item)

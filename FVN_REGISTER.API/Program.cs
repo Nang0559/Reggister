@@ -164,6 +164,8 @@ builder.Services.AddScoped<INotificationFactory, NotificationFactory>();
 builder.Services.AddScoped<IApprovalHistoryService, ApprovalHistoryService>();
 builder.Services.AddScoped<IHistoryHandler, LeaveHistoryHandler>();
 builder.Services.AddScoped<IHistoryHandler, OTHistoryHandler>();
+builder.Services.AddScoped<IHistoryHandler, TripHistoryHandler>();
+builder.Services.AddScoped<IHistoryHandler, EquipmentHistoryHandler>();
 builder.Services.AddScoped<IHistoryDispatcher, HistoryDispatcher>();
 builder.Services.AddScoped<IEmailTemplateManagementService, EmailTemplateManagementService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
@@ -188,11 +190,8 @@ builder.Services.AddScoped<IApprovalWorkflowOrchestrator<TripRequestSubject>, Ap
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<EquipmentRequestSubject>, ApprovalWorkflowOrchestrator<EquipmentRequestSubject>>();
 builder.Services.AddScoped<IApprovalEngineResolver, ApprovalEngineResolver>();
 builder.Services.AddScoped<IApprovalGroupingPolicy, ApprovalGroupingPolicy>();
+// Unified approval inbox: pending items are resolved through the approval workflow/engine path.
 builder.Services.AddScoped<IApprovalInboxService, ApprovalInboxService>();
-builder.Services.AddScoped<IApprovalListDataSource<LeaveRequestDto>, LeaveApprovalListDataSource>();
-builder.Services.AddScoped<IApprovalListDataSource<OTRequestDto>, OTApprovalListDataSource>();
-builder.Services.AddScoped<ApprovalListService<LeaveRequestDto>>();
-builder.Services.AddScoped<ApprovalListService<OTRequestDto>>();
 
 // HRM Sync
 builder.Services.AddScoped<IHrmSourceReader<HrmDepartmentSourceRow>, HrmDepartmentSourceReader>();

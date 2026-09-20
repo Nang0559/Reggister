@@ -81,6 +81,12 @@ public sealed class OTClientService : IOTClientService
     public Task<ApiResponse<OTValidationResultDto>> ValidateOTHoursAsync(string employeeCode, DateTime otDate, decimal hours, string otType, CancellationToken ct = default)
         => _http.PostAsync<OTValidationResultDto>($"{Base}/validate", new { EmployeeCode = employeeCode, OTDate = otDate, Hours = hours, OTType = otType }, ct);
 
+    public Task<ApiResponse<OTValidationResultDto>> ValidateOTRequestAsync(OTRequestUpsertDto request, CancellationToken ct = default)
+        => _http.PostAsync<OTValidationResultDto>($"{Base}/validate-request", request, ct);
+
+    public Task<ApiResponse<OTLimitPreviewDto>> GetOTLimitPreviewAsync(OTRequestUpsertDto request, CancellationToken ct = default)
+        => _http.PostAsync<OTLimitPreviewDto>($"{Base}/limit-preview", request, ct);
+
     public Task<ApiResponse<object>> UpdateEmployeeOTInfoAsync(int otRequestId, List<OTEmployeeDto> employees, CancellationToken ct = default)
         => _http.PutAsync<object>($"{Base}/{otRequestId}/employees/update", employees, ct);
 

@@ -465,6 +465,36 @@ END;
 GO
 
 /*
+    Remove the obsolete pre-Snapshot approval step table.
+
+    The canonical approval runtime uses:
+        F03ApprovalSnapshots
+        F03ApprovalStepSnapshots
+        F03ApprovalHistories
+
+    F03ApprovalSteps has no writer in the current application and must not
+    remain as a second source of approval truth.
+*/
+IF OBJECT_ID(N'dbo.F03ApprovalSteps', N'U') IS NOT NULL
+BEGIN
+    DECLARE @sql nvarchar(max) = N'';
+
+    SELECT @sql = @sql +
+        N'ALTER TABLE ' +
+        QUOTENAME(OBJECT_SCHEMA_NAME(parent_object_id)) + N'.' +
+        QUOTENAME(OBJECT_NAME(parent_object_id)) +
+        N' DROP CONSTRAINT ' + QUOTENAME(name) + N';'
+    FROM sys.foreign_keys
+    WHERE referenced_object_id = OBJECT_ID(N'dbo.F03ApprovalSteps');
+
+    IF @sql <> N''
+        EXEC sp_executesql @sql;
+
+    DROP TABLE dbo.F03ApprovalSteps;
+END;
+GO
+
+/*
     Remove the previously introduced non-canonical mapping table.
     PositionCode is now the only requester-position key.
 */

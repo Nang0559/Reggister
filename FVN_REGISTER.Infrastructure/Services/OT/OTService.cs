@@ -175,6 +175,20 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                 var empRepo = Uow.Repository<F03OTEmployee>();
                 var codes = updates.Select(u => u.EmployeeCode).ToList();
                 var rows = await empRepo.Query().Where(x => x.OTRequestId == otRequestId && codes.Contains(x.EmployeeCode) && x.IsActive == true).ToListAsync(ct);
+
+                foreach (var u in updates)
+                {
+                    var validation = await _validator.ValidateEmployeeHoursAsync(
+                        u.EmployeeCode,
+                        entity.OTDate,
+                        u.OTHours,
+                        entity.OTTypeCode ?? string.Empty,
+                        ct,
+                        excludeOTRequestId: otRequestId);
+
+                    if (!validation.IsValid)
+                        return ServiceResult.Fail(validation.Errors.FirstOrDefault() ?? $"Giờ OT của {u.EmployeeCode} vượt giới hạn.");
+                }
                 foreach (var u in updates)
                 {
                     var row = rows.FirstOrDefault(x => x.EmployeeCode == u.EmployeeCode);
@@ -264,6 +278,20 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                     return ServiceResult.Fail("Đơn đã xử lý, không thể thêm nhân viên.");
                 var empRepo = Uow.Repository<F03OTEmployee>();
                 var existingCodes = await empRepo.Query().Where(x => x.OTRequestId == otRequestId && x.IsActive == true).Select(x => x.EmployeeCode).ToListAsync(ct);
+
+                foreach (var e in newEmployees.Where(e => !existingCodes.Contains(e.EmployeeCode)))
+                {
+                    var validation = await _validator.ValidateEmployeeHoursAsync(
+                        e.EmployeeCode,
+                        entity.OTDate,
+                        e.OTHours,
+                        entity.OTTypeCode ?? string.Empty,
+                        ct);
+
+                    if (!validation.IsValid)
+                        return ServiceResult.Fail(validation.Errors.FirstOrDefault() ?? $"Giờ OT của {e.EmployeeCode} vượt giới hạn.");
+                }
+
                 foreach (var e in newEmployees.Where(e => !existingCodes.Contains(e.EmployeeCode)))
                 {
                     await empRepo.AddAsync(new F03OTEmployee

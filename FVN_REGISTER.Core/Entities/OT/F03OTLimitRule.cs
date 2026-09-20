@@ -11,6 +11,14 @@ namespace FVN_REGISTER.Core.Entities.OT
         // Sử dụng Enum để thay thế cho string "Daily", "Weekly"...
         public OTLimitType LimitType { get; set; }
 
+        public OTLimitScopeType ScopeType { get; set; } = OTLimitScopeType.Employee;
+
+        [StringLength(50)]
+        public string? ScopeCode { get; set; }
+
+        [StringLength(50)]
+        public string? EmployeeCode { get; set; }
+
         [Column(TypeName = "decimal(5,2)")]
         public decimal LimitValue { get; set; }
 

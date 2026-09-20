@@ -10,6 +10,9 @@ namespace FVN_REGISTER.Application.Maps
         {
             Id = e.Id,
             LimitType = e.LimitType,
+            ScopeType = e.ScopeType,
+            ScopeCode = e.ScopeCode,
+            EmployeeCode = e.EmployeeCode,
             LimitValue = e.LimitValue,
             PositionCode = e.PositionCode,
             DeptCode = e.DeptCode,
@@ -20,6 +23,9 @@ namespace FVN_REGISTER.Application.Maps
         public static F03OTLimitRule ToEntity(this OTLimitRuleUpsertDto m, int currentUserId) => new()
         {
             LimitType = m.LimitType,
+            ScopeType = m.ScopeType,
+            ScopeCode = m.ScopeCode,
+            EmployeeCode = m.EmployeeCode,
             LimitValue = m.LimitValue,
             PositionCode = m.PositionCode,
             DeptCode = m.DeptCode,
@@ -34,6 +40,9 @@ namespace FVN_REGISTER.Application.Maps
         public static void ApplyTo(this OTLimitRuleUpsertDto m, F03OTLimitRule entity, int currentUserId)
         {
             entity.LimitType = m.LimitType;
+            entity.ScopeType = m.ScopeType;
+            entity.ScopeCode = m.ScopeCode;
+            entity.EmployeeCode = m.EmployeeCode;
             entity.LimitValue = m.LimitValue;
             entity.PositionCode = m.PositionCode;
             entity.DeptCode = m.DeptCode;

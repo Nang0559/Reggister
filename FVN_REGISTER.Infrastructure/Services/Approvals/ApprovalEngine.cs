@@ -216,6 +216,16 @@ public class ApprovalEngine<TSubject> : IApprovalEngine<TSubject>
             var subject = await _provider.GetSubjectAsync(snapshot.RequestId, ct);
             if (subject == null) continue;
 
+            // The request status is the source of truth for cancellation/terminal
+            // state. Never expose a snapshot step as pending when the request itself
+            // is no longer active.
+            if (subject.OverallStatus is not
+                (ApprovalStatus.Pending
+                or ApprovalStatus.InProgress
+                or ApprovalStatus.Escalated
+                or ApprovalStatus.NeedsRevision))
+                continue;
+
             var item = await _provider.ToPendingItemAsync(
                 subject, calculated, canApprove: true, ct);
             result.Add(item);
