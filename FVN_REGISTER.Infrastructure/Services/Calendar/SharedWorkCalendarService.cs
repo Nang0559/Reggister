@@ -91,6 +91,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         int userId,
         DateOnly from,
         DateOnly to,
+        IReadOnlySet<string>? allowedModules = null,
         CancellationToken cancellationToken = default)
     {
         var result = await GetMonthAsync(employeeCode, userId, from, to, allowedModules, cancellationToken);
