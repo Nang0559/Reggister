@@ -101,3 +101,13 @@ IF EXISTS (SELECT 1 FROM @Errors)
 
 PRINT N'WORK CALENDAR + ACTION SQL verification PASSED.';
 GO
+
+
+/* Generic execution reconciliation verification */
+IF OBJECT_ID(N'dbo.F03ExecutionPolicies',N'U') IS NULL THROW 52029, N'Missing F03ExecutionPolicies', 1;
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NULL THROW 52029, N'Missing F03ExecutionReconciliations', 1;
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmations',N'U') IS NULL THROW 52029, N'Missing F03ExecutionConfirmations', 1;
+IF OBJECT_ID(N'dbo.F03ExecutionConfirmationEvidence',N'U') IS NULL THROW 52029, N'Missing F03ExecutionConfirmationEvidence', 1;
+IF OBJECT_ID(N'dbo.F03ExecutionReconciliationHistory',N'U') IS NULL THROW 52029, N'Missing F03ExecutionReconciliationHistory', 1;
+PRINT N'Generic execution reconciliation schema verified.';
+GO
