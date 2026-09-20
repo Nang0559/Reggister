@@ -54,6 +54,7 @@ IMPORTANT:
 :r 26_WorkCalendarAction.sql
 :r 27_WorkCalendarActionIndexesSeed.sql
 :r 28_Verify_WorkCalendarAction.sql
+:r ../Database/Trips/002_Create_F03TripActual.sql
 :r 29_ExecutionReconciliation.sql
 :r 30_Payroll.sql
 :r 31_Hrm_User_Approval_Provisioning.sql
@@ -61,7 +62,6 @@ IMPORTANT:
 :r 33_DocumentationConsistency.sql
 :r 34_OT_Leave_Limits.sql
 :r 35_WorkCalendar.sql
-:r ../Database/Trips/002_Create_F03TripActual.sql
 :r 99_Verify.sql
 
 PRINT N'============================================================';
