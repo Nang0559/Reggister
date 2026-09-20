@@ -22,7 +22,7 @@
     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="@_loading">Làm mới</MudButton>
 </MudStack>
 
-<MudTabs Elevation="1" Rounded="true" PanelClass="pa-4">
+<MudTabs Elevation="1" Rounded="true" TabPanelsClass="pa-4">
     <MudTabPanel Text="Năm làm việc" Icon="@Icons.Material.Filled.Event">
         <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
             <MudText Typo="Typo.h6">Đăng ký năm làm việc</MudText>
@@ -66,7 +66,7 @@
 
     <MudTabPanel Text="Ngày nghỉ công ty" Icon="@Icons.Material.Filled.FreeBreakfast">
         <MudPaper Class="pa-4 mb-4" Outlined="true">
-            <MudGrid AlignItems="AlignItems.Center">
+            <MudGrid Class="align-center">
                 <MudItem xs="12" sm="4"><MudDatePicker @bind-Date="_holidayDate" Label="Ngày nghỉ" Variant="Variant.Outlined" /></MudItem>
                 <MudItem xs="12" sm="4"><MudTextField @bind-Value="_holidayDescription" Label="Mô tả" Variant="Variant.Outlined" /></MudItem>
                 <MudItem xs="12" sm="2"><MudSwitch @bind-Value="_holidayPaid" Color="Color.Primary" Label="Tính phép" /></MudItem>
