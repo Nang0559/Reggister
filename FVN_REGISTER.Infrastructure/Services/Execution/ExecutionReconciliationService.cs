@@ -140,7 +140,8 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         }
 
         var confirmationRequired = entity.RequiresConfirmation
-            && (policy is null || policy.ConfirmationMode != 0);
+            && policy is not null
+            && policy.ConfirmationMode != 0;
 
         entity.RequiresConfirmation = confirmationRequired;
         entity.RequiresEvidence = confirmationRequired
@@ -386,13 +387,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
 
         if (user is null) return;
 
-        var module = reconciliation.ModuleCode.ToUpperInvariant() switch
-        {
-            "OT" => RequestModule.Overtime,
-            "LEAVE" => RequestModule.Leave,
-            "TRIP" => RequestModule.Trip,
-            _ => RequestModule.Leave
-        };
+        var module = MapNotificationModule(reconciliation.ModuleCode);
 
         await _notificationService.CreateAsync(new FVN_REGISTER.Contract.Dtos.Notifications.CreateNotificationDto
         {
@@ -415,6 +410,26 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 reconciliation.ParticipantId
             })
         }, cancellationToken);
+    }
+
+
+
+    private static RequestModule MapNotificationModule(string moduleCode)
+    {
+        switch (moduleCode?.Trim().ToUpperInvariant())
+        {
+            case "OT":
+                return RequestModule.Overtime;
+            case "LEAVE":
+                return RequestModule.Leave;
+            case "TRIP":
+                return RequestModule.Trip;
+            case "EQUIPMENT":
+                return RequestModule.Equipment;
+            default:
+                throw new InvalidOperationException(
+                    $"Không có mapping Notification Module cho Execution ModuleCode '{moduleCode}'.");
+        }
     }
 
     private async Task<int> ResolveEmployeeIdAsync(string employeeCode, CancellationToken cancellationToken)
