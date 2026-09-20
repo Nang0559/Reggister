@@ -1,3 +1,4 @@
+using System.Text.Json;
 using FVN_REGISTER.Application.Interfaces.Execution;
 using FVN_REGISTER.Contract.Dtos.Execution;
 using FVN_REGISTER.Core.Entities.Leaves;
@@ -78,7 +79,7 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
         DateOnly to,
         CancellationToken ct)
     {
-        var rows = await db.OTEmployees.AsNoTracking()
+        var rows = await db.OvertimeEmployees.AsNoTracking()
             .Where(x => x.OTRequest.RequestStatus == ApprovalStatus.Approved
                 && x.OTRequest.IsActive != false
                 && x.OTRequest.OTDate >= from.ToDateTime(TimeOnly.MinValue)
@@ -144,7 +145,7 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
         DateOnly to,
         CancellationToken ct)
     {
-        var rows = await db.LeaveRequests.AsNoTracking()
+        var rows = await db.VF03LeaveRequests.AsNoTracking()
             .Where(x => x.IsActive == true
                 && x.RequestStatus == ApprovalStatus.Approved
                 && x.EndDate >= from.ToDateTime(TimeOnly.MinValue)
@@ -174,7 +175,7 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
 
             for (var date = start; date <= end; date = date.AddDays(1))
             {
-                var attendance = await db.EmployeeAttendances.AsNoTracking()
+                var attendance = await db.VF03EmployeeAttendances.AsNoTracking()
                     .Where(x => x.EmployeeId == row.EmployeeCode && x.Date == date)
                     .Select(x => new { x.CheckInTime, x.CheckOutTime })
                     .FirstOrDefaultAsync(ct);
