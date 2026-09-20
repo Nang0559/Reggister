@@ -165,3 +165,13 @@ Controller Authorize ≠ Data Scope.
 Report View ≠ Export.
 Export ≠ quyền sửa.
 SQL View ≠ Authorization.
+
+## 16. Attendance / OT reconciliation reporting
+
+Báo cáo OT theo nhân viên phải phân biệt ba lớp: Registered/Approved — giờ của effective approved revision theo từng employee; Actual — giờ OT thực tế sau reconciliation; Confirmation/Audit — trường hợp approved nhưng không có attendance, evidence, HR confirmation hoặc auto-close ngày 20.
+
+Một OT Master nhiều người vẫn chỉ xuất một document number, nhưng mỗi employee có thể có effective revision khác nhau. Report không được lấy giờ chung của OT Master để áp cho toàn bộ participant.
+
+Các cột chi tiết nên có: OTMasterNo, EmployeeCode, EmployeeName, RevisionNo, PreviousRevisionNo, ApprovedStart, ApprovedEnd, ApprovedHours, ActualStart, ActualEnd, ActualHours, OTStatus, AttendanceConfirmationStatus, EvidenceStatus, FinalOTHours.
+
+FinalOTHours chỉ là read model; business mutation vẫn thuộc OT/Attendance service.
