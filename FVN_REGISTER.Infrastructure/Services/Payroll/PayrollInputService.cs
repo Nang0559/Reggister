@@ -41,8 +41,6 @@ public sealed class PayrollInputService : IPayrollInputService
         if (period.Status is "Locked" or "Exported")
             throw new InvalidOperationException("Kỳ lương đã khóa/xuất, không được chuẩn bị lại.");
 
-        await EnsurePayrollReadyAsync(periodId, period, ct);
-
         var result = await _db.Database.SqlQueryRaw<PayrollPrepareResult>(
             "EXEC dbo.usp_PreparePayrollPeriod @PeriodId={0}, @ActorUserId={1}",
             periodId, actorUserId).FirstOrDefaultAsync(ct);
@@ -67,7 +65,7 @@ public sealed class PayrollInputService : IPayrollInputService
         if (inputCount == 0)
             throw new InvalidOperationException("Không thể khóa kỳ lương rỗng.");
 
-        await EnsurePayrollReadyAsync(periodId, period, ct);
+        await EnsurePayrollReadyAsync(period, ct);
 
         var stale = await _db.ExecutionReconciliations.AsNoTracking()
             .AnyAsync(x => x.IsActive != false
@@ -96,24 +94,28 @@ public sealed class PayrollInputService : IPayrollInputService
         if (period.Status is not ("Locked" or "Exported"))
             throw new InvalidOperationException("Chỉ được xuất kỳ lương sau khi đã khóa.");
 
+        await EnsurePayrollReadyAsync(period, ct);
+
         var rows = await GetInputsAsync(periodId, ct);
         if (rows.Count == 0)
             throw new InvalidOperationException("Kỳ lương không có Payroll Input để xuất.");
 
         var sb = new StringBuilder();
         sb.AppendLine("EmployeeCode,EmployeeName,WorkDate,WorkMinutes,LeaveTotal,OTMinutes,SnapshotAt");
-        foreach (var r in rows)
+
+        foreach (var row in rows)
         {
-            sb.Append(Escape(r.EmployeeCode)).Append(',')
-              .Append(Escape(r.EmployeeName)).Append(',')
-              .Append(r.WorkDate.ToString("yyyy-MM-dd")).Append(',')
-              .Append(r.WorkMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append(',')
-              .Append(r.LeaveTotal.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append(',')
-              .Append(r.OTMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append(',')
-              .Append(r.SnapshotAt.ToString("yyyy-MM-dd HH:mm:ss")).AppendLine();
+            sb.Append(Escape(row.EmployeeCode)).Append(',')
+              .Append(Escape(row.EmployeeName)).Append(',')
+              .Append(row.WorkDate.ToString("yyyy-MM-dd")).Append(',')
+              .Append(row.WorkMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append(',')
+              .Append(row.LeaveTotal.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append(',')
+              .Append(row.OTMinutes.ToString(System.Globalization.CultureInfo.InvariantCulture)).Append(',')
+              .Append(row.SnapshotAt.ToString("yyyy-MM-dd HH:mm:ss")).AppendLine();
         }
 
         var now = DateTime.Now;
+
         if (period.Status != "Exported")
         {
             period.Status = "Exported";
@@ -126,9 +128,13 @@ public sealed class PayrollInputService : IPayrollInputService
         }
 
         return new PayrollExportDto(
-            period.Id, period.PeriodCode, period.ExportedAt ?? now, rows.Count,
-            $"Payroll_{period.PeriodCode}.csv", "text/csv; charset=utf-8",
-            new UTF8Encoding(encoderShouldEmitUTF8Identifier: true).GetBytes(sb.ToString()));
+            period.Id,
+            period.PeriodCode,
+            period.ExportedAt ?? now,
+            rows.Count,
+            $"Payroll_{period.PeriodCode}.csv",
+            "text/csv; charset=utf-8",
+            new UTF8Encoding(true).GetBytes(sb.ToString()));
     }
 
     public async Task<IReadOnlyList<PayrollInputDto>> GetInputsAsync(int periodId, CancellationToken ct = default)
@@ -138,23 +144,27 @@ public sealed class PayrollInputService : IPayrollInputService
         return await _db.PayrollInputs.AsNoTracking()
             .Where(x => x.PayrollPeriodId == periodId && x.IsActive != false)
             .Join(_db.Employees.AsNoTracking(),
-                x => x.EmployeeId,
-                e => e.Id,
-                (x, e) => new PayrollInputDto(
-                    x.Id, x.PayrollPeriodId, x.EmployeeId,
-                    e.EmployeeCode, e.EmployeeName, x.WorkDate,
-                    x.WorkMinutes, x.LeaveTotal, x.OTMinutes, x.SnapshotAt))
+                input => input.EmployeeId,
+                employee => employee.Id,
+                (input, employee) => new PayrollInputDto(
+                    input.Id,
+                    input.PayrollPeriodId,
+                    input.EmployeeId,
+                    employee.EmployeeCode,
+                    employee.EmployeeName,
+                    input.WorkDate,
+                    input.WorkMinutes,
+                    input.LeaveTotal,
+                    input.OTMinutes,
+                    input.SnapshotAt))
             .OrderBy(x => x.EmployeeCode)
             .ThenBy(x => x.WorkDate)
             .ToListAsync(ct);
     }
 
-    private async Task<F03PayrollCalculationPeriod> GetPeriodAsync(int periodId, CancellationToken ct)
-        => await _db.PayrollCalculationPeriods.FirstOrDefaultAsync(
-            x => x.Id == periodId && x.IsActive != false, ct)
-            ?? throw new KeyNotFoundException("Không tìm thấy kỳ lương.");
-
-    private async Task EnsurePayrollReadyAsync(int periodId, F03PayrollCalculationPeriod period, CancellationToken ct)
+    private async Task EnsurePayrollReadyAsync(
+        F03PayrollCalculationPeriod period,
+        CancellationToken ct)
     {
         var unresolved = await _db.ExecutionReconciliations.AsNoTracking()
             .AnyAsync(x => x.IsActive != false
@@ -166,7 +176,15 @@ public sealed class PayrollInputService : IPayrollInputService
 
         if (unresolved)
             throw new InvalidOperationException(
-                "Không được in/xuất bảng công-OT: kỳ lương còn Execution Reconciliation chưa được giải quyết.");
+                "Kỳ lương còn Execution Reconciliation Mismatch/AwaitingConfirmation chưa được giải quyết.");
+    }
+
+    private async Task<F03PayrollCalculationPeriod> GetPeriodAsync(
+        int periodId,
+        CancellationToken ct)
+        => await _db.PayrollCalculationPeriods.FirstOrDefaultAsync(
+            x => x.Id == periodId && x.IsActive != false, ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy kỳ lương.");
 
     private static void Ensure21To20(F03PayrollCalculationPeriod period)
     {
@@ -176,11 +194,20 @@ public sealed class PayrollInputService : IPayrollInputService
     }
 
     private static PayrollPeriodDto Map(F03PayrollCalculationPeriod x)
-        => new(x.Id, x.PeriodCode, x.FromDate, x.ToDate, x.Status,
-            x.CalculatedAt, x.CalculatedBy, x.LockedAt, x.LockedBy,
-            x.ExportedAt, x.ExportedBy);
+        => new(
+            x.Id,
+            x.PeriodCode,
+            x.FromDate,
+            x.ToDate,
+            x.Status,
+            x.CalculatedAt,
+            x.CalculatedBy,
+            x.LockedAt,
+            x.LockedBy,
+            x.ExportedAt,
+            x.ExportedBy);
 
-    private static string Escape(string value)
+    private static string Escape(string? value)
         => """ + (value ?? string.Empty).Replace(""", """") + """;
 
     private sealed class PayrollPrepareResult
