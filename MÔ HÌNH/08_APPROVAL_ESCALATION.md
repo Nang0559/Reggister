@@ -209,3 +209,108 @@ Không resolve `UserId` ở Shared/UI. Backend chịu trách nhiệm `EmployeeCo
 - [x] Worker interval is 15 minutes, reducing post-threshold delay compared with a 4-hour polling cycle.
 - [x] Current-step history prevents duplicate escalation on later worker ticks.
 - [ ] Full solution build and runtime/integration test must still be executed in the project environment.
+
+
+## 11. OT Multi-Employee Master + Employee-scoped Revision
+
+Approval engine chung vẫn được giữ, nhưng OT có thêm participant scope. Một request OT nhiều người chỉ có một OT Master. Mỗi participant có revision/effective approval riêng.
+
+```mermaid
+classDiagram
+    class OTMaster {
+        +Guid Id
+        +string DocumentNo
+        +DateOnly WorkDate
+    }
+    class OTParticipant {
+        +Guid Id
+        +Guid OTMasterId
+        +int EmployeeId
+        +Guid? EffectiveRevisionId
+    }
+    class OTRevision {
+        +Guid Id
+        +Guid ParticipantId
+        +int RevisionNo
+        +DateTime Start
+        +DateTime End
+        +string Status
+    }
+    class ApprovalSnapshot {
+        +Guid Id
+        +Guid SubjectId
+        +Guid? TargetParticipantId
+        +string Scope
+    }
+    OTMaster "1" --> "*" OTParticipant
+    OTParticipant "1" --> "*" OTRevision
+    OTRevision "1" --> "0..1" ApprovalSnapshot
+```
+
+### Rule bắt buộc
+
+1. Không tạo OT Master mới khi một participant sửa OT.
+2. Tạo revision mới chỉ cho participant đang sửa.
+3. Approval snapshot của revision điều chỉnh phải có TargetParticipantId/EmployeeId và Scope = EmployeeOnly.
+4. Approver nhìn thấy toàn bộ OT Master để có context, nhưng participant khác phải read-only/mờ và không thuộc approval scope.
+5. Approve revision mới → revision mới trở thành EffectiveApprovedRevision chỉ của participant đó.
+6. Reject revision mới → giữ nguyên EffectiveApprovedRevision trước đó.
+7. Recalculate actual OT chỉ cho participant đó; participant khác trong cùng master không bị cập nhật.
+8. Tất cả revision/approval decision phải append-only/audit được.
+
+### Approval UI semantics
+
+```text
+OT-20260915-001
+
+ĐANG XIN APPROVE LẠI: Nguyễn Văn A
+Cũ: 17:00 → 20:00
+Mới: 17:00 → 21:00
+
+Nguyễn Văn B  17:00 → 20:00  [mờ - không thuộc scope]
+Nguyễn Văn C  17:00 → 20:00  [mờ - không thuộc scope]
+```
+
+Approval action phải nhận RevisionId/participant scope từ server-side subject, không nhận danh sách employee do UI tự quyết định.
+
+## 12. Effective OT và rejection semantics
+
+```mermaid
+flowchart TD
+    R1[Employee A Revision 1 - Approved] --> R2[A Revision 2 - Pending]
+    R2 -->|Approve| E2[Effective = Revision 2]
+    R2 -->|Reject| E1[Effective = Revision 1]
+    E2 --> CALC[Recalculate A only]
+    E1 --> CALC2[Keep old OT for A]
+    CALC --> B[B/C/D unchanged]
+    CALC2 --> B
+```
+
+Không được dùng Rejected để xóa approved revision cũ. Rejected chỉ kết thúc revision đang xin điều chỉnh.
+
+## 13. Approval notification cho re-approval
+
+Notification gửi approver phải chứa tối thiểu: OT Master number; Employee đang xin điều chỉnh; revision cũ; revision mới; lý do điều chỉnh; TargetEmployeeId/TargetParticipantId để backend giữ scope.
+
+## 14. Attendance confirmation sau Approved OT
+
+Nếu OT effective đã Approved nhưng ngày đó không có attendance/actual data thì AttendanceConfirmation = PendingConfirmation và calendar = ?. Employee có hai lựa chọn: WorkedWithEvidence (upload evidence và gửi HC/HR xác nhận) hoặc ConfirmedNotWorked. Đến ngày khóa công 20 nếu vẫn PendingConfirmation, worker chuyển thành AutoConfirmedNotWorked.
+
+### Evidence
+
+Evidence là dữ liệu nghiệp vụ/audit, không chỉ là file UI. Tối thiểu phải lưu ConfirmationId, EmployeeId, WorkDate, OTParticipantId, Claim, EvidenceFileId/EvidenceReference, SubmittedAt, ConfirmedByHR, ConfirmedAt, HRNote.
+
+## 15. Deadline ngày 20
+
+Deadline phải lấy từ work period service, không hard-code ngày cuối tháng dương lịch. Ví dụ kỳ công 21/08 → 20/09: ngày khóa xác nhận = 20/09; sau thời điểm khóa, PendingConfirmation → AutoConfirmedNotWorked; effective OT của participant = 0/không tính; calendar cá nhân cập nhật theo effective result; approval/evidence/audit history không bị xóa.
+
+## 16. Invariants bổ sung
+
+- OTMaster unique cho một lần đăng ký; không nhân bản master khi re-approval.
+- (OTParticipant, RevisionNo) unique.
+- Chỉ một revision Approved/Effective tại một thời điểm cho mỗi participant.
+- Một revision Pending chỉ có một approval workflow active.
+- Approval scope của revision điều chỉnh phải là đúng participant.
+- Recalculation phải filter EmployeeId/ParticipantId trước khi update.
+- PendingConfirmation không được tự động coi là NotWorked trước deadline.
+- AutoConfirmedNotWorked không xóa lịch sử OT Approved.
