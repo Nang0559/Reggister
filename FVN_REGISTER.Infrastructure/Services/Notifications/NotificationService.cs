@@ -46,6 +46,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Notifications
                 IsHighPriority = dto.IsHighPriority,
                 Metadata = dto.Metadata,
                 ActionId = dto.ActionId,
+                NotificationType = dto.NotificationType,
                 IsRead = false
             };
 
