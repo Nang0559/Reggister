@@ -132,6 +132,10 @@ IF COL_LENGTH(N'dbo.F03ApprovalPolicies',N'GroupCode') IS NOT NULL
     OR COL_LENGTH(N'dbo.F03ApprovalPolicies',N'RequesterPositionCode') IS NOT NULL
     THROW 51239,'Legacy approval requester/group columns remain in F03ApprovalPolicies.',1;
 
+/* Legacy pre-Snapshot approval step table must not remain. */
+IF OBJECT_ID(N'dbo.F03ApprovalSteps',N'U') IS NOT NULL
+    THROW 51247,'Legacy F03ApprovalSteps must be removed; canonical approval uses snapshots + history.',1;
+
 IF OBJECT_ID(N'dbo.F03ApprovalPositionGroups',N'U') IS NOT NULL
     THROW 51240,'Legacy F03ApprovalPositionGroups must not exist.',1;
 
