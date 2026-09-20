@@ -79,14 +79,13 @@ public sealed class PayrollInputService : IPayrollInputService
         if (stale)
             throw new InvalidOperationException("Snapshot Payroll Input đã cũ. Hãy Prepare lại kỳ lương trước khi khóa.");
 
-        period.Status = "Locked";
-        period.LockedAt = DateTime.Now;
-        period.LockedBy = actorUserId;
-        period.ModifiedBy = actorUserId;
-        period.ModifiedAt = DateTime.Now;
-        period.LastModifiedSource = "PAYROLL_LOCK";
-        await _db.SaveChangesAsync(ct);
-        return Map(period);
+        var locked = await _db.PayrollCalculationPeriods
+            .FromSqlInterpolated($"EXEC dbo.usp_LockPayrollPeriod @PeriodId={periodId}, @ActorUserId={actorUserId}")
+            .AsNoTracking()
+            .FirstOrDefaultAsync(ct)
+            ?? throw new InvalidOperationException("Không thể khóa kỳ lương.");
+
+        return Map(locked);
     }
 
     public async Task<PayrollExportDto> ExportAsync(int periodId, int actorUserId, CancellationToken ct = default)
