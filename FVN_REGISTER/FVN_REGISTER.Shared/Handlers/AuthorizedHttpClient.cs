@@ -159,17 +159,40 @@ namespace FVN_REGISTER.Shared.Handlers
                 url,
                 ct);
 
-        public Task<ApiResponse<byte[]>> PostFileAsync(
+        public async Task<ApiResponse<byte[]>> PostFileAsync(
             string url,
             object data,
             CancellationToken ct = default)
-            => SendAsync<byte[]>(
-                () => new HttpRequestMessage(HttpMethod.Post, url)
+        {
+            try
+            {
+                using var request = new HttpRequestMessage(HttpMethod.Post, url)
                 {
                     Content = JsonContent.Create(data)
-                },
-                url,
-                ct);
+                };
+                await AttachTokenAsync(request);
+
+                using var response = await _httpClient.SendAsync(request, ct);
+                if (!response.IsSuccessStatusCode)
+                {
+                    var message = await response.Content.ReadAsStringAsync(ct);
+                    return ApiResponse<byte[]>.Fail(
+                        string.IsNullOrWhiteSpace(message) ? "Export failed" : message);
+                }
+
+                var bytes = await response.Content.ReadAsByteArrayAsync(ct);
+                return ApiResponse<byte[]>.Ok(bytes);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "[HTTP] POST file download error: {Url}", url);
+                return ApiResponse<byte[]>.Fail("Download error");
+            }
+        }
 
         public Task<ApiResponse<T>> PostAsync<T>(
             string url,
