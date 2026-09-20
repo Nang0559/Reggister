@@ -188,3 +188,37 @@ Dashboard cá nhân không tự tính lại attendance/OT. Nó đọc projection
 Ngày đỏ phải click được để lazy-load detail. Ngày ? phải click được để mở form xác nhận.
 
 Security invariant: endpoint /me không nhận UserId từ client. Backend lấy identity hiện tại từ authenticated claims và chỉ query participant/attendance của user đó.
+
+
+## 13. Shared Personal Work Calendar — Multi-module
+
+Personal Work Calendar không còn là feature riêng của Attendance/OT. Đây là projection dùng chung cho các module có đăng ký Calendar Provider: OT, Leave, Trip và module mới.
+
+### Calendar policy
+
+Admin cấu hình theo ModuleCode:
+
+| Policy | Ý nghĩa |
+|---|---|
+| IsEnabled | module có xuất hiện trên lịch hay không |
+| DisplayMode | marker / summary / detail-on-click |
+| NoteMode | có tạo ghi chú dưới lịch hay không |
+| ConfirmationMode | có cần user/HR xác nhận hay không |
+| ReconciliationMode | cách so planned/approved với actual/execution |
+| Priority | thứ tự ưu tiên khi nhiều module cùng ngày |
+
+Module mới chỉ cần đăng ký provider + definition; không sửa DashboardOrchestrator/CalendarAggregator dùng chung. Admin bật policy thì module mới được áp dụng.
+
+### Calendar không làm vỡ ô lịch
+
+Calendar cell chỉ hiển thị marker + trạng thái tổng quan + short summary. Không đặt approval history, evidence, revision, participant, actual in/out hoặc note dài vào cell.
+
+Dưới lịch có CalendarAlertItem/confirmation list. Item có WorkDate, ModuleCode, Severity, Summary, RequiresAction, DetailRoute.
+
+Một ngày có nhiều module thì giữ marker độc lập và gom cảnh báo ở bảng dưới. Click ngày mở tổng quan; click alert mở detail của module.
+
+### Boundary
+
+Calendar chỉ đọc projection và điều phối navigation/confirmation. Authorization và business mutation vẫn thuộc module owner.
+
+/api/calendar/me lấy EmployeeId từ authenticated identity; không nhận UserId tùy ý từ client.
