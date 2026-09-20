@@ -2864,4 +2864,5 @@ BEGIN
 		BCNgayLe,BCNgayLeNV,BCDaXacNhanLamThem,DLocked
 	FROM #tblBaoCao
 	WHERE BCMaNV=@StaffID AND BCNgay=@D;
-
+END;
+GO
