@@ -15,4 +15,6 @@ public sealed record ActionItemDraft(
     DateTime? DueAt,
     string? DetailRoute,
     string? ReferenceNo,
-    string? PayloadJson);
+    string? PayloadJson,
+    string SourceType = "MODULE",
+    string? ParticipantId = null);
