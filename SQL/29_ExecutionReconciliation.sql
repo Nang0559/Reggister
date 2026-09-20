@@ -33,7 +33,8 @@ BEGIN
         EvidenceMode tinyint NOT NULL CONSTRAINT DF_F03ExecutionPolicies_EvidenceMode DEFAULT 2,
         ReviewMode tinyint NOT NULL CONSTRAINT DF_F03ExecutionPolicies_ReviewMode DEFAULT 1,
         DueHours int NULL,
-        AutoResolveMode tinyint NOT NULL CONSTRAINT DF_F03ExecutionPolicies_AutoResolveMode DEFAULT 0
+        AutoResolveMode tinyint NOT NULL CONSTRAINT DF_F03ExecutionPolicies_AutoResolveMode DEFAULT 0,
+        CorrectionMode tinyint NOT NULL CONSTRAINT DF_F03ExecutionPolicies_CorrectionMode DEFAULT 0
     );
 END;
 GO
@@ -271,6 +272,9 @@ END;
 IF OBJECT_ID(N'dbo.F03ExecutionPolicies',N'U') IS NOT NULL
 AND COL_LENGTH(N'dbo.F03ExecutionPolicies',N'LastModifiedSource') IS NULL
     ALTER TABLE dbo.F03ExecutionPolicies ADD LastModifiedSource nvarchar(50) NULL;
+IF OBJECT_ID(N'dbo.F03ExecutionPolicies',N'U') IS NOT NULL
+AND COL_LENGTH(N'dbo.F03ExecutionPolicies',N'CorrectionMode') IS NULL
+    ALTER TABLE dbo.F03ExecutionPolicies ADD CorrectionMode tinyint NOT NULL CONSTRAINT DF_F03ExecutionPolicies_CorrectionMode DEFAULT 0 WITH VALUES;
 IF OBJECT_ID(N'dbo.F03ExecutionReconciliations',N'U') IS NOT NULL
 AND COL_LENGTH(N'dbo.F03ExecutionReconciliations',N'LastModifiedSource') IS NULL
     ALTER TABLE dbo.F03ExecutionReconciliations ADD LastModifiedSource nvarchar(50) NULL;
