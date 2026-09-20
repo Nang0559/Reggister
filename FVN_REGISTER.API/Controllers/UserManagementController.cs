@@ -80,8 +80,11 @@ public class UserManagementController : BaseApiController
         if (!await CanAsync(SecurityFunctionCodes.UserManagementEdit, ct))
             return Forbid();
 
+        var user = UserInfo;
+        if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+
         return HandleResult(
-            await _userMgt.UpdateAsync(request, UserInfo!.UserId, ct));
+            await _userMgt.UpdateAsync(request, user.UserId, ct));
     }
 
     [HttpDelete("{id:int}")]
