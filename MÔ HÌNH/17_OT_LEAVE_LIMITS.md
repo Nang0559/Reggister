@@ -108,3 +108,7 @@ flowchart LR
 ## Work Calendar integration
 
 The OT and Leave registration screens use the shared Work Calendar. Company holidays are displayed as calendar information; OT and Leave quota validation remains the responsibility of their respective validators. Trip uses the same calendar projection and is not subject to OT/Leave quota rules.
+
+
+## 9. Shared Work Calendar + Action
+OT/Leave provider đóng góp marker/summary vào Shared Work Calendar. Nếu trạng thái cần người dùng xác nhận hoặc xử lý thì `RequiresAction = true` và tạo `ActionItem`, ví dụ `OT.ATTENDANCE_CONFIRMATION`. Quota validation vẫn thuộc OT/Leave validator; Calendar và Action không thay thế validation.
