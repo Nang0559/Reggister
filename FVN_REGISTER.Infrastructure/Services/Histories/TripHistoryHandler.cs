@@ -54,7 +54,7 @@ public sealed class TripHistoryHandler : BaseHistoryHandler<F03TripRequest>
             EmployeeCode = x.request.EmployeeCode,
             EmployeeName = x.employee?.EmployeeName ?? string.Empty,
             DeptCode = x.employee?.DeptCode,
-            SubmittedAt = x.request.CreatedAt ?? DateTime.Now,
+            SubmittedAt = x.request.CreatedAt ,
             RequestStatus = x.request.RequestStatus.ToString(),
             StatusDisplay = x.request.RequestStatus.ToDisplayName(),
             StatusColor = GetStatusColor(x.request.RequestStatus),
@@ -92,7 +92,7 @@ public sealed class TripHistoryHandler : BaseHistoryHandler<F03TripRequest>
             RequestStatus = row.request.RequestStatus.ToString(),
             StatusDisplay = row.request.RequestStatus.ToDisplayName(),
             StatusColor = GetStatusColor(row.request.RequestStatus),
-            SubmittedAt = row.request.CreatedAt ?? DateTime.Now,
+            SubmittedAt = row.request.CreatedAt ,
             CanCancel = ActiveStatuses.Contains(row.request.RequestStatus),
             Trip = new TripDetailPayload
             {

@@ -182,7 +182,7 @@ public class OTHistoryHandler : BaseHistoryHandler<F03OTRequest>
             RequestStatus = row.request.RequestStatus.ToString(),
             StatusDisplay = row.request.RequestStatus.ToDisplayName(),
             StatusColor = GetStatusColor(row.request.RequestStatus),
-            SubmittedAt = row.request.CreatedAt ?? DateTime.Now,
+            SubmittedAt = row.request.CreatedAt ,
             CanCancel = ActiveStatuses.Contains(row.request.RequestStatus),
             OT = new OTDetailPayload
             {

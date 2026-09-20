@@ -29,7 +29,7 @@ public sealed class EquipmentHistoryHandler : BaseHistoryHandler<F03EquipmentReq
                 select new { request, employee };
 
         if (filter.Year.HasValue)
-            q = q.Where(x => (x.request.CreatedAt ?? DateTime.Now).Year == filter.Year.Value);
+            q = q.Where(x => (x.request.CreatedAt ).Year == filter.Year.Value);
         if (!string.IsNullOrWhiteSpace(filter.Status) &&
             Enum.TryParse<ApprovalStatus>(filter.Status, true, out var status))
             q = q.Where(x => x.request.RequestStatus == status);
@@ -57,7 +57,7 @@ public sealed class EquipmentHistoryHandler : BaseHistoryHandler<F03EquipmentReq
             EmployeeCode = x.request.EmployeeCode,
             EmployeeName = x.employee?.EmployeeName ?? string.Empty,
             DeptCode = x.employee?.DeptCode,
-            SubmittedAt = x.request.CreatedAt ?? DateTime.Now,
+            SubmittedAt = x.request.CreatedAt ,
             RequestStatus = x.request.RequestStatus.ToString(),
             StatusDisplay = x.request.RequestStatus.ToDisplayName(),
             StatusColor = GetStatusColor(x.request.RequestStatus),
@@ -93,7 +93,7 @@ public sealed class EquipmentHistoryHandler : BaseHistoryHandler<F03EquipmentReq
             RequestStatus = row.request.RequestStatus.ToString(),
             StatusDisplay = row.request.RequestStatus.ToDisplayName(),
             StatusColor = GetStatusColor(row.request.RequestStatus),
-            SubmittedAt = row.request.CreatedAt ?? DateTime.Now,
+            SubmittedAt = row.request.CreatedAt ,
             CanCancel = ActiveStatuses.Contains(row.request.RequestStatus),
             Equipment = new EquipmentDetailPayload
             {
