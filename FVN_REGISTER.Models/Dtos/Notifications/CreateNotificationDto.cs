@@ -28,5 +28,8 @@ namespace FVN_REGISTER.Contract.Dtos.Notifications
 
         // Bổ sung: Dữ liệu mở rộng (JSON) nếu cần thêm thông tin phụ trợ (VD: Tên người duyệt)
         public string? Metadata { get; set; }
+
+        // Shared work item identity; legacy notifications may leave this null.
+        public Guid? ActionId { get; set; }
     }
 }
