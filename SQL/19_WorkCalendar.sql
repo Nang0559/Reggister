@@ -30,69 +30,69 @@ Annual leave rule:
   - The calculation date for a WorkYear is WorkYear.EndDate.
   - F03LeaveBalances stores the calculated annual entitlement snapshot.
 
-Legacy compatibility:
-  - F03WorkYear -> F03WorkYears
-  - F03CompanyHoliday -> F03CompanyHolidays
-  - IsPaidLeave -> TinhPhep
+Canonical table names:
+  - F03WorkYears
+  - F03CompanyHolidays
+  - TinhPhep is the canonical holiday flag
 ===============================================================================
 */
 
-IF OBJECT_ID(N'dbo.F03WorkYears',N'U') IS NOT NULL
-   AND OBJECT_ID(N'dbo.F03WorkYear',N'U') IS NULL
+/* Canonical WorkYear / holiday objects. Older singular names are migrated forward only. */
+IF OBJECT_ID(N'dbo.F03WorkYears',N'U') IS NULL
+   AND OBJECT_ID(N'dbo.F03WorkYear',N'U') IS NOT NULL
 BEGIN
-    EXEC sys.sp_rename N'dbo.F03WorkYears', N'F03WorkYear';
+    EXEC sys.sp_rename N'dbo.F03WorkYear', N'F03WorkYears';
+END;
+GO
+
+IF OBJECT_ID(N'dbo.F03CompanyHolidays',N'U') IS NULL
+   AND OBJECT_ID(N'dbo.F03CompanyHoliday',N'U') IS NOT NULL
+BEGIN
+    EXEC sys.sp_rename N'dbo.F03CompanyHoliday', N'F03CompanyHolidays';
 END;
 GO
 
 IF OBJECT_ID(N'dbo.F03CompanyHolidays',N'U') IS NOT NULL
-   AND OBJECT_ID(N'dbo.F03CompanyHoliday',N'U') IS NULL
+   AND COL_LENGTH(N'dbo.F03CompanyHolidays',N'TinhPhep') IS NULL
+   AND COL_LENGTH(N'dbo.F03CompanyHolidays',N'IsPaidLeave') IS NOT NULL
 BEGIN
-    EXEC sys.sp_rename N'dbo.F03CompanyHolidays', N'F03CompanyHoliday';
+    EXEC sys.sp_rename N'dbo.F03CompanyHolidays.IsPaidLeave', N'TinhPhep', N'COLUMN';
 END;
 GO
 
-IF OBJECT_ID(N'dbo.F03CompanyHoliday',N'U') IS NOT NULL
-   AND COL_LENGTH(N'dbo.F03CompanyHoliday',N'TinhPhep') IS NULL
-   AND COL_LENGTH(N'dbo.F03CompanyHoliday',N'IsPaidLeave') IS NOT NULL
-BEGIN
-    EXEC sys.sp_rename N'dbo.F03CompanyHoliday.IsPaidLeave', N'TinhPhep', N'COLUMN';
-END;
-GO
-
-IF OBJECT_ID(N'dbo.F03WorkYear',N'U') IS NOT NULL
+IF OBJECT_ID(N'dbo.F03WorkYears',N'U') IS NOT NULL
    AND NOT EXISTS (
        SELECT 1 FROM sys.indexes
        WHERE name=N'UX_F03WorkYears_WorkYear'
-         AND object_id=OBJECT_ID(N'dbo.F03WorkYear'))
+         AND object_id=OBJECT_ID(N'dbo.F03WorkYears'))
 BEGIN
-    CREATE UNIQUE INDEX UX_F03WorkYear_WorkYear
-        ON dbo.F03WorkYear(WorkYear);
+    CREATE UNIQUE INDEX UX_F03WorkYears_WorkYear
+        ON dbo.F03WorkYears(WorkYear);
 END;
 GO
 
-IF OBJECT_ID(N'dbo.F03CompanyHoliday',N'U') IS NOT NULL
+IF OBJECT_ID(N'dbo.F03CompanyHolidays',N'U') IS NOT NULL
    AND NOT EXISTS (
        SELECT 1 FROM sys.indexes
        WHERE name=N'UX_F03CompanyHolidays_Date'
-         AND object_id=OBJECT_ID(N'dbo.F03CompanyHoliday'))
+         AND object_id=OBJECT_ID(N'dbo.F03CompanyHolidays'))
 BEGIN
-    CREATE UNIQUE INDEX UX_F03CompanyHoliday_Date
-        ON dbo.F03CompanyHoliday(HolidayDate);
+    CREATE UNIQUE INDEX UX_F03CompanyHolidays_Date
+        ON dbo.F03CompanyHolidays(HolidayDate);
 END;
 GO
 
-IF OBJECT_ID(N'dbo.F03CompanyHoliday',N'U') IS NOT NULL
+IF OBJECT_ID(N'dbo.F03CompanyHolidays',N'U') IS NOT NULL
    AND NOT EXISTS (
        SELECT 1 FROM sys.indexes
        WHERE name=N'IX_F03CompanyHolidays_YearDate'
-         AND object_id=OBJECT_ID(N'dbo.F03CompanyHoliday'))
+         AND object_id=OBJECT_ID(N'dbo.F03CompanyHolidays'))
 BEGIN
-    CREATE INDEX IX_F03CompanyHoliday_YearDate
-        ON dbo.F03CompanyHoliday(Year,HolidayDate)
+    CREATE INDEX IX_F03CompanyHolidays_YearDate
+        ON dbo.F03CompanyHolidays(Year,HolidayDate)
         INCLUDE (Description,TinhPhep);
 END;
 GO
-
 IF OBJECT_ID(N'dbo.F03LeaveBalances',N'U') IS NOT NULL
 BEGIN
     IF COL_LENGTH(N'dbo.F03LeaveBalances',N'BaseLeaveDays') IS NULL
