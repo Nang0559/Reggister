@@ -143,12 +143,12 @@ Các script liên quan:
     ↓
 06_Seed.sql
     ↓
-19_WorkCalendar.sql
+35_WorkCalendar.sql
     ↓
 99_Verify.sql
 ```
 
-`19_WorkCalendar.sql` hỗ trợ migration tên legacy:
+`35_WorkCalendar.sql` hỗ trợ migration tên legacy:
 
 ```text
 F03WorkYears        -> F03WorkYear
