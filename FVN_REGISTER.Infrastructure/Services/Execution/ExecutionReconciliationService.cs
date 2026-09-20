@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using System.Text.Json;
 using FVN_REGISTER.Application.Interfaces.Actions;
 using FVN_REGISTER.Application.Interfaces.Execution;
+using Microsoft.EntityFrameworkCore.Storage;
 using FVN_REGISTER.Application.Models.Actions;
 using FVN_REGISTER.Contract.Dtos.Execution;
 using FVN_REGISTER.Core.Entities.WorkCalendar;
@@ -51,6 +52,9 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         if (request.EmployeeId != employeeId)
             throw new UnauthorizedAccessException("Reconciliation không thuộc nhân viên hiện tại.");
 
+        await using var transaction = await _db.Database.BeginTransactionAsync(
+            System.Data.IsolationLevel.Serializable, cancellationToken);
+
         var entity = await _db.ExecutionReconciliations.FirstOrDefaultAsync(x =>
             x.ModuleCode == request.ModuleCode &&
             x.SourceType == request.SourceType &&
@@ -73,14 +77,20 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             _db.ExecutionReconciliations.Add(entity);
         }
 
-        entity.PlannedState = request.PlannedState;
-        entity.ActualState = request.ActualState;
-        entity.ReconciliationStatus = request.ReconciliationStatus;
-        entity.RequiresConfirmation = request.RequiresConfirmation;
-        entity.RequiresEvidence = request.RequiresEvidence;
-        entity.DetailJson = request.DetailJson;
+        // Resolved is terminal. A repeated projection/reconciliation run must not
+        // regress a completed business lifecycle back to an open state.
+        if (!string.Equals(entity.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(request.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
+        {
+            entity.PlannedState = request.PlannedState;
+            entity.ActualState = request.ActualState;
+            entity.ReconciliationStatus = NormalizeStatus(request.ReconciliationStatus);
+            entity.RequiresConfirmation = request.RequiresConfirmation;
+            entity.RequiresEvidence = request.RequiresEvidence;
+            entity.DetailJson = request.DetailJson;
+        }
 
-        if (request.RequiresConfirmation)
+        if (request.RequiresConfirmation && !string.Equals(entity.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
         {
             entity.ActionId = await _actionWriter.EnsureOpenAsync(new ActionItemDraft(
                 request.ModuleCode,
@@ -110,6 +120,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         }
 
         await _db.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
         return await _db.ExecutionReconciliations.AsNoTracking()
             .Where(x => x.Id == entity.Id)
@@ -118,14 +129,23 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
 
     public async Task<ExecutionConfirmationDto> SubmitConfirmationAsync(string employeeCode, long reconciliationId, ExecutionConfirmationRequest request, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(request.Decision)) throw new ArgumentException("Decision không được để trống.");
+        if (string.IsNullOrWhiteSpace(request.Decision))
+            throw new ArgumentException("Decision không được để trống.");
 
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
         var reconciliation = await _db.ExecutionReconciliations.FirstOrDefaultAsync(x =>
             x.Id == reconciliationId && x.IsActive != false && x.EmployeeId == employeeId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy reconciliation.");
 
-        var confirmation = await _db.ExecutionConfirmations.FirstOrDefaultAsync(x => x.ReconciliationId == reconciliation.Id, cancellationToken);
+        if (string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Reconciliation đã Resolved, không thể gửi lại confirmation.");
+
+        if (!reconciliation.RequiresConfirmation)
+            throw new InvalidOperationException("Reconciliation này không yêu cầu confirmation.");
+
+        var confirmation = await _db.ExecutionConfirmations.FirstOrDefaultAsync(
+            x => x.ReconciliationId == reconciliation.Id, cancellationToken);
+
         if (confirmation is null)
         {
             confirmation = new F03ExecutionConfirmation
@@ -142,7 +162,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         }
 
         confirmation.Decision = request.Decision.Trim();
-        confirmation.Comment = request.Comment;
+        confirmation.Comment = request.Comment?.Trim();
         confirmation.EvidenceRequired = request.EvidenceRequired || reconciliation.RequiresEvidence;
         confirmation.Status = "Pending";
         confirmation.SubmittedAt = DateTime.Now;
@@ -155,20 +175,42 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         return ToConfirmationDto(confirmation);
     }
 
-    public async Task<ExecutionEvidenceDto> AddEvidenceAsync(string employeeCode, long confirmationId, ExecutionEvidenceRequest request, CancellationToken cancellationToken = default)
+    public async Task<ExecutionEvidenceDto> AddEvidenceAsync(
+        string employeeCode,
+        int userId,
+        long confirmationId,
+        ExecutionEvidenceRequest request,
+        CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(request.EvidenceType)) throw new ArgumentException("EvidenceType không được để trống.");
+        if (string.IsNullOrWhiteSpace(request.EvidenceType))
+            throw new ArgumentException("EvidenceType không được để trống.");
 
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
         var confirmation = await _db.ExecutionConfirmations.FirstOrDefaultAsync(x =>
             x.Id == confirmationId && x.IsActive != false && x.EmployeeId == employeeId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy confirmation.");
 
+        if (string.Equals(confirmation.Status, "Approved", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(confirmation.Status, "Rejected", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Confirmation đã được review, không thể thêm evidence.");
+
         if (request.FileId.HasValue)
         {
-            var exists = await _db.Attachments.AsNoTracking()
-                .AnyAsync(x => x.Id == request.FileId.Value && x.IsActive != false, cancellationToken);
-            if (!exists) throw new KeyNotFoundException("File đính kèm không tồn tại.");
+            var ownsFile = await _db.Attachments.AsNoTracking()
+                .AnyAsync(x =>
+                    x.Id == request.FileId.Value &&
+                    x.IsActive != false &&
+                    x.CreatedBy == userId, cancellationToken);
+
+            if (!ownsFile)
+                throw new UnauthorizedAccessException("File đính kèm không thuộc người dùng hiện tại.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.ExternalUrl))
+        {
+            if (!Uri.TryCreate(request.ExternalUrl.Trim(), UriKind.Absolute, out var uri)
+                || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps))
+                throw new ArgumentException("ExternalUrl chỉ được phép dùng http hoặc https.");
         }
 
         var evidence = new F03ExecutionConfirmationEvidence
@@ -176,9 +218,9 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             ConfirmationId = confirmation.Id,
             EvidenceType = request.EvidenceType.Trim(),
             FileId = request.FileId,
-            ReferenceNo = request.ReferenceNo,
-            ExternalUrl = request.ExternalUrl,
-            Description = request.Description,
+            ReferenceNo = request.ReferenceNo?.Trim(),
+            ExternalUrl = request.ExternalUrl?.Trim(),
+            Description = request.Description?.Trim(),
             SubmittedBy = employeeId,
             SubmittedAt = DateTime.Now,
             ReviewStatus = "Pending"
@@ -209,6 +251,21 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         if (request.EmployeeId <= 0) throw new ArgumentException("EmployeeId không hợp lệ.");
         if (request.WorkDate == default) throw new ArgumentException("WorkDate không hợp lệ.");
         if (string.IsNullOrWhiteSpace(request.ReconciliationStatus)) throw new ArgumentException("ReconciliationStatus không được để trống.");
+        _ = NormalizeStatus(request.ReconciliationStatus);
+    }
+
+    private static string NormalizeStatus(string status)
+    {
+        var normalized = status.Trim();
+        return normalized.ToLowerInvariant() switch
+        {
+            "none" => "None",
+            "matched" => "Matched",
+            "mismatch" => "Mismatch",
+            "awaitingconfirmation" => "AwaitingConfirmation",
+            "resolved" => "Resolved",
+            _ => throw new ArgumentException($"ReconciliationStatus không hợp lệ: {status}.")
+        };
     }
 
     private static Expression<Func<F03ExecutionReconciliation, ExecutionReconciliationDto>> ToDto() =>
