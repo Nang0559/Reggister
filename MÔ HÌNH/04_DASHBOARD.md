@@ -171,3 +171,9 @@ Không trả EF entities từ provider/API.
 - OT provider: đã được mô tả.
 - Trip provider: chưa build.
 - Kiểu `Detail` và cơ chế runtime type-check cần được xác nhận trong implementation hiện tại.
+
+
+## 12. Dashboard / Login phải hiển thị Việc cần làm
+Dashboard phải hiển thị ngay số lượng và danh sách `ActionItem` Open/InProgress sau authentication, cùng unread notification count và Calendar summary. Người dùng không phải mở Calendar mới phát hiện việc cần xử lý.
+
+`/me` API phải lấy identity từ authenticated claims; không nhận UserId tùy ý từ client. `DashboardOrchestrator` chỉ aggregate qua application contracts/providers, không query EF trực tiếp.
