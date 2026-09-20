@@ -33,9 +33,27 @@ BEGIN
   */
   BEGIN TRANSACTION;
 
+  -- Remove the previous current-state rows for this date/scope first.
   DELETE FROM dbo.F03HrmAttendanceCalculated
   WHERE WorkDate=@D
     AND (@HrmDeptId IS NULL OR HrmDeptId=@HrmDeptId);
+
+  -- OT actual is also current-state; clear the same employee/date scope
+  -- inside the same date transaction so a failed calculation rolls it back.
+  DELETE oa
+  FROM dbo.F03HrmOTActual oa
+  WHERE oa.WorkDate=@D
+    AND
+    (
+        @HrmDeptId IS NULL
+        OR EXISTS
+        (
+            SELECT 1
+            FROM HRM.dbo.tblNhanVien nv
+            WHERE nv.NVMa=oa.HrmEmployeeId
+              AND nv.NVMaBP=@HrmDeptId
+        )
+    );
 
   DECLARE @StaffID int;
   DECLARE staff_cur CURSOR LOCAL FAST_FORWARD FOR
@@ -102,20 +120,19 @@ BEGIN
  END
 
  /*
-    F03HrmOTActual follows the same current-state rule.  Remove the old
-    employee/date rows represented by this calculation batch, then insert
-    the newly calculated values.
+    Persist OT actual for this date before committing the date transaction.
+    The target is current-state by (HrmEmployeeId, WorkDate), so reruns replace
+    the prior row rather than append another batch copy.
  */
- DELETE oa
- FROM dbo.F03HrmOTActual oa
- INNER JOIN dbo.F03HrmAttendanceCalculated a
-     ON a.HrmEmployeeId=oa.HrmEmployeeId
-    AND a.WorkDate=oa.WorkDate
- WHERE a.CalculationBatchId=@BatchId;
-
  INSERT dbo.F03HrmOTActual(CalculationBatchId,WorkDate,HrmEmployeeId,EmployeeCode,DeptCode,ActualStartTime,ActualEndTime,ActualMinutes,ActualOTDayMinutes,ActualOTNightMinutes,RecognizedOTMinutes,SourceAttendanceId)
- SELECT CalculationBatchId,WorkDate,HrmEmployeeId,EmployeeCode,DeptCode,CheckInTime,CheckOutTime,CASE WHEN CheckInTime IS NOT NULL AND CheckOutTime IS NOT NULL THEN DATEDIFF(minute,CheckInTime,CheckOutTime) ELSE 0 END,OTMinutesDay+OTMinutesDayTC,OTMinutesNight+OTMinutesNightTC,OTRecognizedMinutesDay+OTRecognizedMinutesNight,Id
- FROM dbo.F03HrmAttendanceCalculated WHERE CalculationBatchId=@BatchId AND (CheckInTime IS NOT NULL OR CheckOutTime IS NOT NULL);
+ SELECT CalculationBatchId,WorkDate,HrmEmployeeId,EmployeeCode,DeptCode,CheckInTime,CheckOutTime,
+        CASE WHEN CheckInTime IS NOT NULL AND CheckOutTime IS NOT NULL THEN DATEDIFF(minute,CheckInTime,CheckOutTime) ELSE 0 END,
+        OTMinutesDay+OTMinutesDayTC,OTMinutesNight+OTMinutesNightTC,
+        OTRecognizedMinutesDay+OTRecognizedMinutesNight,Id
+ FROM dbo.F03HrmAttendanceCalculated
+ WHERE CalculationBatchId=@BatchId
+   AND WorkDate=@D
+   AND (CheckInTime IS NOT NULL OR CheckOutTime IS NOT NULL);
 
  /* Centralized OT actual synchronization: HRM calculation owns this write. */
  ;WITH LatestActual AS
