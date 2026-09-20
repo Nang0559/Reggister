@@ -80,7 +80,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
             payrollStart.ToString("dd/MM/yyyy"),
             yesterday.ToString("dd/MM/yyyy"));
 
-        await CalculateCompanyWideAsync(payrollStart, yesterday, "HRM-ATTENDANCE-WORKER-CATCHUP", ct);
+        await CalculateCompanyWideAsync(payrollStart.Value, yesterday, "HRM-ATTENDANCE-WORKER-CATCHUP", ct);
     }
 
     private async Task RunYesterdayAsync(CancellationToken ct)
