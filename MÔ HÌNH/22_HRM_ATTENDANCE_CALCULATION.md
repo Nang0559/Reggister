@@ -101,7 +101,7 @@ HrmAttendanceCalculationWorker dùng cùng IHrmAttendanceCalculationService. Man
 
 ## 11. Export
 
-Excel chỉ đọc F03HrmAttendanceCalculated và F03HrmOTActual theo CalculationBatchId, không export trực tiếp từ HRM.dbo.tblBaoCao.
+Excel đọc snapshot F03HrmAttendanceCalculated và projection F03HrmOTActual theo CalculationBatchId, không export trực tiếp từ HRM.dbo.tblBaoCao. Attendance export lấy từ F03HrmAttendanceCalculated; OT export lấy F03HrmOTActual và join về snapshot tương ứng để lấy metadata/display value.
 
 ## 12. Kiểm thử đối chiếu
 
@@ -139,7 +139,6 @@ Không tạo lại công thức Work/OT C# riêng, pipeline reconciliation thay 
 22_01_InterSectionTime3.sql
 22_02_HrmCompatibleTimeKeepingForStaff.sql
 22_03_CalculateHrmAttendance.sql
-22_04_GetHrmAttendanceCalculation.sql
 ```
 
 00_Deploy_All.sql là entry point deploy.
