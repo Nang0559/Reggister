@@ -114,7 +114,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             ?? throw new KeyNotFoundException("Không tìm thấy nhân viên của evidence.");
 
         if (string.Equals(employeeCode, targetEmployeeCode, StringComparison.OrdinalIgnoreCase))
-            throw new UnauthorizedAccessException("HR không được review evidence của chính mình.");
+            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException("HR không được review evidence của chính mình.");
 
         evidence.ReviewStatus = reviewStatus;
         evidence.ReviewedBy = userId;
@@ -215,7 +215,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             ?? throw new KeyNotFoundException("Không tìm thấy nhân viên của phản hồi.");
 
         if (string.Equals(employee.EmployeeCode, employeeCode, StringComparison.OrdinalIgnoreCase))
-            throw new UnauthorizedAccessException("HR không được tự giải quyết phản hồi của chính mình.");
+            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException("HR không được tự giải quyết phản hồi của chính mình.");
 
         var confirmation = reconciliation.ConfirmationId.HasValue
             ? await _db.ExecutionConfirmations.FirstOrDefaultAsync(
@@ -406,13 +406,13 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         };
 
         if (!await _authorization.HasAsync(identity, HrExecutionReviewFunctionCode, cancellationToken))
-            throw new UnauthorizedAccessException("Tài khoản không có quyền Execution Review.");
+            throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException("Tài khoản không có quyền Execution Review.");
 
         if (requireAllScope)
         {
             var scope = await _authorization.GetScopeAsync(userId, HrExecutionReviewFunctionCode, cancellationToken);
             if (!string.Equals(scope, FVN_REGISTER.Core.Constants.AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase))
-                throw new UnauthorizedAccessException("Execution Review phải được cấp Scope=All.");
+                throw new FVN_REGISTER.Core.Exceptions.ForbiddenAccessException("Execution Review phải được cấp Scope=All.");
         }
     }
 
