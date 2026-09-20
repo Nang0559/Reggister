@@ -15,5 +15,4 @@ public sealed class F03PayrollCalculationPeriod : BaseAuditEntity
  public int? LockedBy { get; set; }
  public DateTime? ExportedAt { get; set; }
  public int? ExportedBy { get; set; }
- public string? LastModifiedSource { get; set; }
 }
