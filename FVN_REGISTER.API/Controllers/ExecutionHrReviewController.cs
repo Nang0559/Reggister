@@ -49,6 +49,43 @@ public sealed class ExecutionHrReviewController : BaseApiController
         }
     }
 
+    [HttpPost("evidence/{evidenceId:long}/review")]
+    public async Task<IActionResult> ReviewEvidence(
+        long evidenceId,
+        [FromBody] ExecutionEvidenceReviewRequest request,
+        CancellationToken ct)
+    {
+        if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh người dùng hợp lệ."));
+
+        try
+        {
+            var result = await _service.ReviewEvidenceAsync(
+                userId,
+                UserInfo.EmployeeCode,
+                evidenceId,
+                request,
+                ct);
+            return Ok(ApiResponse<object>.Ok(result));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            return Forbid(ex.Message);
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<object>.Fail(ex.Message));
+        }
+        catch (ArgumentException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return Conflict(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
+
     [HttpPost("reconciliations/{reconciliationId:long}/resolve")]
     public async Task<IActionResult> Resolve(
         long reconciliationId,
