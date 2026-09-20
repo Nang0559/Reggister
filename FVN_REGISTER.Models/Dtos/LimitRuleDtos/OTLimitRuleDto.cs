@@ -35,5 +35,6 @@ namespace FVN_REGISTER.Contract.Dtos.LimitRuleDtos
                     return $"Chức vụ: {PositionCode}";
                 return "Toàn công ty";
             }
-        }\n    }
+        }
+    }
 }
