@@ -165,10 +165,13 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 
         try
         {
-            await NotifyEmployeeEvidenceReviewAsync(
-                reconciliation,
-                reviewStatus,
-                note,
+            await SendNotificationWithRetryAsync(
+                () => NotifyEmployeeEvidenceReviewAsync(
+                    reconciliation,
+                    reviewStatus,
+                    note,
+                    cancellationToken),
+                $"EvidenceReview:{reconciliation.Id}:{evidenceId}",
                 cancellationToken);
         }
         catch (Exception ex)
@@ -413,12 +416,15 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 
         try
         {
-            await CreateUserNotificationAsync(
-                reconciliation,
-                employee.EmployeeCode,
-                decision,
-                reason,
-                resolution.Id,
+            await SendNotificationWithRetryAsync(
+                () => CreateUserNotificationAsync(
+                    reconciliation,
+                    employee.EmployeeCode,
+                    decision,
+                    reason,
+                    resolution.Id,
+                    cancellationToken),
+                $"HrResolution:{reconciliation.Id}:{resolution.Id}",
                 cancellationToken);
         }
         catch (Exception ex)
