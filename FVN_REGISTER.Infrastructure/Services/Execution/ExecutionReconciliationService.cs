@@ -50,7 +50,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         ValidateRequest(request);
 
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
-        var actorUserId = await ResolveUserIdAsync(employeeCode, cancellationToken);
+        var effectiveActorUserId = await ResolveUserIdAsync(employeeCode, cancellationToken);
         if (request.EmployeeId != employeeId)
             throw new UnauthorizedAccessException("Reconciliation không thuộc nhân viên hiện tại.");
 
@@ -78,7 +78,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 ParticipantId = request.ParticipantId?.Trim(),
                 EmployeeId = request.EmployeeId,
                 WorkDate = request.WorkDate,
-                CreatedBy = actorUserId,
+                CreatedBy = effectiveActorUserId,
                 CreatedAt = DateTime.Now
             };
             _db.ExecutionReconciliations.Add(entity);
@@ -100,7 +100,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             entity.RequiresConfirmation = request.RequiresConfirmation;
             entity.RequiresEvidence = request.RequiresEvidence;
             entity.DetailJson = request.DetailJson;
-            entity.ModifiedBy = actorUserId;
+            entity.ModifiedBy = effectiveActorUserId;
             entity.ModifiedAt = DateTime.Now;
             entity.LastModifiedSource = "EXECUTION_RECONCILIATION";
         }
@@ -119,8 +119,8 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             && (policy is null || policy.ConfirmationMode != 0);
 
         entity.RequiresConfirmation = confirmationRequired;
-        entity.RequiresEvidence = entity.RequiresEvidence
-            || (policy?.EvidenceMode ?? 0) != 0;
+        entity.RequiresEvidence = confirmationRequired
+            && (entity.RequiresEvidence || (policy?.EvidenceMode ?? 0) != 0);
 
         if (confirmationRequired && !string.Equals(entity.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
         {
@@ -154,7 +154,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 }),
                 entity.SourceType,
                 entity.ParticipantId,
-                actorUserId), cancellationToken);
+                effectiveActorUserId), cancellationToken);
         }
         else if (!confirmationRequired && entity.ActionId.HasValue)
         {
@@ -173,7 +173,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 currentStatus,
                 isNew ? "CREATED" : "UPSERT",
                 null,
-                actorUserId,
+                effectiveActorUserId,
                 employeeId,
                 cancellationToken);
             await _db.SaveChangesAsync(cancellationToken);
@@ -195,7 +195,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             throw new ArgumentException("Comment tối đa 2000 ký tự.");
 
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
-        var actorUserId = await ResolveUserIdAsync(employeeCode, cancellationToken);
+        var effectiveActorUserId = await ResolveUserIdAsync(employeeCode, cancellationToken);
 
         await using var transaction = await _db.Database.BeginTransactionAsync(
             System.Data.IsolationLevel.Serializable, cancellationToken);
@@ -226,14 +226,14 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 ParticipantId = reconciliation.ParticipantId,
                 EmployeeId = reconciliation.EmployeeId,
                 WorkDate = reconciliation.WorkDate,
-                CreatedBy = actorUserId,
+                CreatedBy = effectiveActorUserId,
                 CreatedAt = DateTime.Now
             };
             _db.ExecutionConfirmations.Add(confirmation);
         }
         else
         {
-            confirmation.ModifiedBy = actorUserId;
+            confirmation.ModifiedBy = effectiveActorUserId;
             confirmation.ModifiedAt = DateTime.Now;
         }
 
@@ -245,7 +245,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         confirmation.LastModifiedSource = "EMPLOYEE_CONFIRMATION";
 
         reconciliation.ReconciliationStatus = "AwaitingConfirmation";
-        reconciliation.ModifiedBy = actorUserId;
+        reconciliation.ModifiedBy = effectiveActorUserId;
         reconciliation.ModifiedAt = DateTime.Now;
         reconciliation.LastModifiedSource = "EMPLOYEE_CONFIRMATION";
 
@@ -261,7 +261,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 reconciliation.ReconciliationStatus,
                 "CONFIRMATION_SUBMITTED",
                 comment,
-                actorUserId,
+                effectiveActorUserId,
                 employeeId,
                 cancellationToken);
             await _db.SaveChangesAsync(cancellationToken);
@@ -282,7 +282,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             throw new ArgumentException("EvidenceType không được để trống.");
 
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
-        var actorUserId = await ResolveUserIdAsync(employeeCode, cancellationToken);
+        var effectiveActorUserId = await ResolveUserIdAsync(employeeCode, cancellationToken);
         var confirmation = await _db.ExecutionConfirmations.FirstOrDefaultAsync(x =>
             x.Id == confirmationId && x.IsActive != false && x.EmployeeId == employeeId, cancellationToken)
             ?? throw new KeyNotFoundException("Không tìm thấy confirmation.");
@@ -318,10 +318,10 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             ReferenceNo = request.ReferenceNo?.Trim(),
             ExternalUrl = request.ExternalUrl?.Trim(),
             Description = request.Description?.Trim(),
-            SubmittedBy = actorUserId,
+            SubmittedBy = effectiveActorUserId,
             SubmittedAt = DateTime.Now,
             ReviewStatus = "Pending",
-            CreatedBy = actorUserId,
+            CreatedBy = effectiveActorUserId,
             CreatedAt = DateTime.Now,
             LastModifiedSource = "EXECUTION_EVIDENCE"
         };
@@ -434,6 +434,13 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             && x.ParticipantId == reconciliation.ParticipantId,
             cancellationToken);
 
+        if (projection is not null
+            && string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase)
+            && string.Equals(projection.LastModifiedSource, "HR_EXECUTION_REVIEW", StringComparison.OrdinalIgnoreCase))
+        {
+            return;
+        }
+
         if (projection is null)
         {
             projection = new F03CalendarProjection
@@ -470,7 +477,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         projection.RequiresAction = reconciliation.RequiresConfirmation
             && !string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase);
         projection.ActionId = reconciliation.ActionId;
-        projection.DetailRoute = $"/execution/{reconciliation.Id}";
+        projection.DetailRoute = $"/execution?reconciliationId={reconciliation.Id}";
         projection.PayloadJson = reconciliation.DetailJson;
         projection.ModifiedBy = reconciliation.ModifiedBy;
         projection.ModifiedAt = DateTime.Now;
@@ -484,7 +491,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         string toStatus,
         string eventType,
         string? reason,
-        int? actorUserId,
+        int? effectiveActorUserId,
         int? actorEmployeeId,
         CancellationToken cancellationToken)
     {
@@ -498,7 +505,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             ToStatus = toStatus,
             EventType = eventType,
             Reason = reason?.Length > 2000 ? reason[..2000] : reason,
-            ActorUserId = actorUserId,
+            ActorUserId = effectiveActorUserId,
             ActorEmployeeId = actorEmployeeId,
             CreatedAt = DateTime.Now
         });
