@@ -33,7 +33,7 @@ IF OBJECT_ID(N'dbo.F03CalendarProjection',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03CalendarProjection_EmployeeDateModuleSource'
                AND object_id=OBJECT_ID(N'dbo.F03CalendarProjection'))
     CREATE UNIQUE INDEX UX_F03CalendarProjection_EmployeeDateModuleSource
-        ON dbo.F03CalendarProjection(EmployeeId,WorkDate,ModuleCode,SourceId);
+        ON dbo.F03CalendarProjection(EmployeeId,WorkDate,ModuleCode,SourceType,SourceId,ParticipantId);
 GO
 
 IF OBJECT_ID(N'dbo.F03CalendarProjection',N'U') IS NOT NULL
@@ -41,7 +41,7 @@ AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03CalendarProjection_
                AND object_id=OBJECT_ID(N'dbo.F03CalendarProjection'))
     CREATE INDEX IX_F03CalendarProjection_EmployeeDate
         ON dbo.F03CalendarProjection(EmployeeId,WorkDate)
-        INCLUDE(ModuleCode,StatusCode,Marker,Summary,Severity,RequiresAction,ActionId,DetailRoute);
+        INCLUDE(ModuleCode,SourceType,SourceId,ParticipantId,StatusCode,Marker,Summary,Severity,RequiresAction,ActionId,DetailRoute);
 GO
 
 IF OBJECT_ID(N'dbo.F03CalendarProjection',N'U') IS NOT NULL
@@ -64,7 +64,7 @@ IF OBJECT_ID(N'dbo.F03ActionItems',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03ActionItems_OpenLogicalKey'
                AND object_id=OBJECT_ID(N'dbo.F03ActionItems'))
     CREATE UNIQUE INDEX UX_F03ActionItems_OpenLogicalKey
-        ON dbo.F03ActionItems(ModuleCode,SourceId,ActionType,AssignedToEmployeeId)
+        ON dbo.F03ActionItems(ModuleCode,SourceType,SourceId,ParticipantId,ActionType,AssignedToEmployeeId)
         WHERE Status IN (0,10);
 GO
 
@@ -96,8 +96,8 @@ IF OBJECT_ID(N'dbo.F03ActionItems',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03ActionItems_ModuleSource'
                AND object_id=OBJECT_ID(N'dbo.F03ActionItems'))
     CREATE INDEX IX_F03ActionItems_ModuleSource
-        ON dbo.F03ActionItems(ModuleCode,SourceId,ActionType)
-        INCLUDE(ActionId,AssignedToEmployeeId,Status,DueAt);
+        ON dbo.F03ActionItems(ModuleCode,SourceType,SourceId,ActionType)
+        INCLUDE(ActionId,ParticipantId,AssignedToEmployeeId,Status,DueAt);
 GO
 
 IF OBJECT_ID(N'dbo.F03ActionPolicies',N'U') IS NOT NULL
