@@ -125,7 +125,6 @@ builder.Services.AddScoped<IReportService, OperationalReportService>();
 builder.Services.AddScoped<IReportDispatcher, ReportDispatcher>();
 
 // OT
-builder.Services.AddScoped<OTQueryService>();
 builder.Services.AddScoped<IOTQueryService, OTQueryService>();
 builder.Services.AddScoped<IOTValidator, OTValidator>();
 builder.Services.AddScoped<IOTService, OTService>();
