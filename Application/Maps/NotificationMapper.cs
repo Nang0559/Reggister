@@ -15,7 +15,8 @@ namespace FVN_REGISTER.Application.Maps
             ApprovalLevel = entity.ApprovalLevel,
             ActionUrl = entity.ActionUrl?? string.Empty,
             IsRead = entity.IsRead,
-            CreatedAt = entity.CreatedAt
+            CreatedAt = entity.CreatedAt,
+            ActionId = entity.ActionId
         };
     }
 }
