@@ -70,6 +70,13 @@
         </MudNavGroup>
     }
 
+    @if (Can(SecurityFunctionCodes.PayrollView))
+    {
+        <MudNavGroup Title="Tính lương" Icon="@Icons.Material.Filled.Payments" Expanded="false">
+            <MudNavLink href="/payroll/table" Icon="@Icons.Material.Filled.TableView">Bảng công tính lương</MudNavLink>
+        </MudNavGroup>
+    }
+
     @if (CanAny(SecurityFunctionCodes.LeaveView, SecurityFunctionCodes.OTView, SecurityFunctionCodes.TripView, SecurityFunctionCodes.EquipmentView, SecurityFunctionCodes.AttendanceView))
     {
         <MudNavGroup Title="Báo cáo & thống kê" Icon="@Icons.Material.Filled.Assessment" Expanded="false">
