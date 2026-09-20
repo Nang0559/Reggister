@@ -156,6 +156,48 @@ Khi HR chọn `OK` cho Attendance:
 6. Payroll Input được tạo bằng `dbo.usp_PreparePayrollPeriod`.
 7. Kế toán đọc `F03PayrollInputs`, không đọc reconciliation/action/notification.
 
+### Điều kiện bắt buộc trước khi in/xuất bảng công - OT
+
+**Không được in, prepare snapshot chính thức, lock hoặc export Payroll nếu trong kỳ 21→20 còn bất kỳ execution nào chưa được giải quyết.**
+
+Hệ thống kiểm tra đồng thời:
+
+- Không còn `F03ExecutionReconciliation` có trạng thái `Mismatch` hoặc `AwaitingConfirmation`.
+- Không còn `F03ExecutionCorrection` ở `Pending` hoặc `Failed`.
+- Resolution đã đóng phải có correction tương ứng ở `Applied` hoặc trường hợp `Cancelled` được audit hợp lệ.
+- Không được có Resolution đã `Resolved` nhưng correction của nó vẫn `Failed`.
+- Payroll Input phải được tạo lại sau lần correction cuối cùng; snapshot cũ không được dùng để khóa kỳ.
+
+Do đó:
+
+```text
+Payroll Period 21 → 20
+        │
+        ▼
+Kiểm tra toàn bộ Execution
+        │
+   ┌────┴────┐
+   │         │
+ CÒN LỖI   TẤT CẢ ĐÃ XỬ LÝ
+   │         │
+ BLOCK       ▼
+   │     HRM Calculation hoàn tất
+   │         │
+   │         ▼
+   │     F03PayrollInputs
+   │         │
+   │         ▼
+   │       PRINT
+   │         │
+   │         ▼
+   │       LOCK
+   │         │
+   │         ▼
+   │      EXPORT
+```
+
+Kiểm tra được thực hiện **cả ở service và stored procedure** `dbo.usp_PreparePayrollPeriod`, để không thể bypass bằng cách gọi SQL trực tiếp.
+
 Nếu kỳ đã khóa/xuất, correction bị chặn và phải đi qua Payroll Adjustment/Reopen.
 
 API:
@@ -180,5 +222,8 @@ API:
 - [x] Payroll Input snapshot lấy từ F03HrmAttendanceCalculated + F03HrmOTActual.
 - [x] Có chặn HR correction đối với kỳ lương Locked/Exported.
 - [x] Có API prepare/lock Payroll Input.
+- [x] Không cho prepare/lock/export bảng công-OT khi còn Execution chưa giải quyết.
+- [x] Kiểm tra Payroll readiness cả ở Application Service và SQL procedure.
+- [x] Không cho dùng snapshot Payroll cũ sau khi Execution đã thay đổi.
 - [ ] Payroll Adjustment/Reopen cho kỳ đã Locked/Exported.
 - [ ] Module-specific source correction handlers cho OT / Leave / Trip phải được nối vào resolution engine trước khi cho phép mutation dữ liệu nguồn.
