@@ -432,7 +432,6 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             "OT" => RequestModule.Overtime,
             "LEAVE" => RequestModule.Leave,
             "TRIP" => RequestModule.Trip,
-            "ATTENDANCE" => RequestModule.Attendance,
             _ => RequestModule.Leave
         };
 
