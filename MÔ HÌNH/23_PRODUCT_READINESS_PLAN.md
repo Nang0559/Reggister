@@ -107,7 +107,7 @@ Tạo một contract duy nhất cho toàn hệ thống. Không sửa business t�
 | P0-005 | Xác nhận Leave top-level `LeaveTypeCode` và detail cùng contract | Leave UI + DTO/service | 🟢 DONE |
 | P0-006 | Xác nhận Trip/OT UI gọi route preview và render selector | UI | 🟠 NEED VERIFY |
 | P0-007 | Xác nhận guide không mô tả chức năng chưa expose ở UI | `MÔ HÌNH/16_USER_GUIDE.md` | 🟠 NEED VERIFY |
-| P0-008 | Xác nhận toàn bộ legacy approval objects/columns đã bị loại bỏ hoặc không còn được runtime sử dụng | SQL + code | 🟢 SQL DONE / 🟠 RUNTIME VERIFY |
+| P0-008 | Xác nhận toàn bộ legacy approval objects/columns/service/data-source/DI đã bị loại bỏ hoặc không còn được runtime sử dụng | SQL + code + DI | 🟢 SQL DONE / 🟠 RUNTIME VERIFY |
 
 ## 0.3 Deliverables
 
@@ -782,5 +782,20 @@ Các mục cần tiếp tục trước Phase 1:
 - Runtime verification của ApprovalSelection → Snapshot → ApprovalEngine.
 - Runtime verification Trip/OT UI.
 - Full User Guide certification.
-- Legacy object/code search ở toàn bộ runtime.
+- Legacy object/code/DI search ở toàn bộ runtime, đặc biệt pending-list legacy abstractions.
 - Sau khi Phase 0 evidence đủ: chuyển Phase 1 và chạy full restore/build/test.
+
+
+### Phase 0 Evidence Update — legacy pending-list runtime cleanup
+
+- Đã xác nhận trên branch `feature/security-rbac-dashboard` rằng pending inbox runtime hiện dùng `ApprovalInboxService.GetPendingAsync` và các approval workflow/engine `GetPendingForApproverAsync`.
+- Đã loại bỏ các legacy pending-list artifacts còn tồn tại trong runtime tree:
+  - `Application/Interfaces/Approvals/IApprovalListDataSource.cs`
+  - `FVN_REGISTER.Infrastructure/Services/Leaves/LeaveApprovalListDataSource.cs`
+  - `FVN_REGISTER.Infrastructure/Services/OT/OTApprovalListDataSource.cs`
+  - hai DI registrations tương ứng trong `FVN_REGISTER.API/Program.cs`
+- `ApprovalListService` generic đã được xóa trước đó; sau cleanup này, tree search không còn file khớp `ApprovalListService` / `IApprovalListDataSource` / `*ApprovalListDataSource`.
+- `IApprovalListClientService` và `ApprovalListController` **không được coi là legacy pending-list engine**: chúng là HTTP/UI façade hiện tại và controller gọi trực tiếp `IApprovalInboxService`.
+- Cập nhật comment của `IApprovalInboxService` để không còn mô tả một `ApprovalListService` generic đã bị loại bỏ.
+
+**Commits:** `5e94e8136b6ca86d367ac97ed2ec3d0775d1eab0`, `f2fb10de6efe8753d3b56cfdf24a2f3552f8750b`, `b14cd5c07553489bf97f6f1a3e800ade7ad4297a`, `f4213418af8dcc5a1b2b561e13bf7d66a8464184`, `c50eda061f40a8caec2780e19536cb89f00ab5ae`.
