@@ -312,6 +312,7 @@ builder.Services.AddHostedService<EmailBackgroundWorker>();
 builder.Services.AddHostedService<EscalationBackgroundWorker>();
 builder.Services.AddHostedService<HrmSyncBackgroundWorker>();
 builder.Services.AddHostedService<HrmAttendanceCalculationWorker>();
+builder.Services.AddHostedService<ExecutionReconciliationBackgroundWorker>();
 
 var app = builder.Build();
 
