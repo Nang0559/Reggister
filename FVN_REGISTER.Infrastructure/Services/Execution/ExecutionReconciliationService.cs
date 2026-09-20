@@ -19,15 +19,18 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
     private readonly FVNWEBAPPContext _db;
     private readonly IActionItemWriter _actionWriter;
     private readonly INotificationService _notificationService;
+    private readonly ILogger<ExecutionReconciliationService> _logger;
 
     public ExecutionReconciliationService(
         FVNWEBAPPContext db,
         IActionItemWriter actionWriter,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        ILogger<ExecutionReconciliationService> logger)
     {
         _db = db;
         _actionWriter = actionWriter;
         _notificationService = notificationService;
+        _logger = logger;
     }
 
     public async Task<ExecutionReconciliationDto?> GetAsync(string employeeCode, long reconciliationId, CancellationToken cancellationToken = default)
@@ -219,9 +222,15 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             {
                 await NotifyActionCreatedAsync(entity, employeeCode, cancellationToken);
             }
-            catch
+            catch (Exception ex)
             {
                 // Notification delivery is secondary; reconciliation/action commit remains authoritative.
+                // The error is logged so operators can diagnose delivery failures.
+                _logger.LogError(
+                    ex,
+                    "Execution action notification failed for ReconciliationId={ReconciliationId}, ActionId={ActionId}.",
+                    entity.Id,
+                    entity.ActionId);
             }
         }
 
