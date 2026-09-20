@@ -13,6 +13,9 @@ public sealed class LocalStorageTokenService : ITokenStorage
 
     // Scoped per Blazor Server circuit. Never share JWTs between users.
     private string? _cachedToken;
+    private string? _cachedRefreshToken;
+
+    private const string RefreshTokenKey = "fvn.refresh_token";
 
     public LocalStorageTokenService(
         IJSRuntime jsRuntime,
@@ -61,6 +64,47 @@ public sealed class LocalStorageTokenService : ITokenStorage
                 _logger.LogDebug(ex, "[TokenStorage] Browser storage access failed.");
             return _cachedToken;
         }
+    }
+
+    public async Task SetRefreshTokenAsync(string refreshToken)
+    {
+        if (string.IsNullOrWhiteSpace(refreshToken)) return;
+        _cachedRefreshToken = refreshToken.Trim('"').Trim();
+        try
+        {
+            await _jsRuntime.InvokeVoidAsync("localStorage.setItem", RefreshTokenKey, _cachedRefreshToken);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException)
+        {
+            if (_debug) _logger.LogDebug(ex, "[TokenStorage] Refresh token storage unavailable.");
+        }
+    }
+
+    public async Task<string?> GetRefreshTokenAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(_cachedRefreshToken)) return _cachedRefreshToken;
+        try
+        {
+            _cachedRefreshToken = (await _jsRuntime.InvokeAsync<string?>("localStorage.getItem", RefreshTokenKey))?.Trim('"').Trim();
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException)
+        {
+            if (_debug) _logger.LogDebug(ex, "[TokenStorage] Refresh token unavailable.");
+        }
+        return _cachedRefreshToken;
+    }
+
+    public async Task RemoveRefreshTokenAsync()
+    {
+        _cachedRefreshToken = null;
+        try { await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", RefreshTokenKey); }
+        catch (Exception ex) when (ex is InvalidOperationException or JSException) { if (_debug) _logger.LogDebug(ex, "[TokenStorage] Refresh token removal unavailable."); }
+    }
+
+    public async Task ClearAsync()
+    {
+        await RemoveTokenAsync();
+        await RemoveRefreshTokenAsync();
     }
 
     public async Task SetTokenAsync(string token)
