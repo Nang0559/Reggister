@@ -315,3 +315,10 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03ExecutionResolutions
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionResolutions_Reconciliation') THROW 52126, N'Missing FK_F03ExecutionResolutions_Reconciliation', 1;
 IF NOT EXISTS (SELECT 1 FROM sys.check_constraints WHERE name=N'CK_F03ExecutionResolutions_Decision') THROW 52127, N'Missing CK_F03ExecutionResolutions_Decision', 1;
 PRINT N'Execution HR feedback/resolution verified.';
+
+
+/* Execution correction pipeline */
+IF OBJECT_ID(N'dbo.F03ExecutionCorrections',N'U') IS NULL THROW 52128, N'Missing F03ExecutionCorrections', 1;
+IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03ExecutionCorrections_Resolution' AND object_id=OBJECT_ID(N'dbo.F03ExecutionCorrections')) THROW 52129, N'Missing UX_F03ExecutionCorrections_Resolution', 1;
+IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionCorrections_Resolution') THROW 52130, N'Missing FK_F03ExecutionCorrections_Resolution', 1;
+PRINT N'Execution correction pipeline verified.';
