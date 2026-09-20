@@ -535,8 +535,17 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         if (employee is null)
             return;
 
+        var reviewEnabled = await _db.ExecutionPolicies.AsNoTracking()
+            .AnyAsync(x => x.IsActive != false
+                && x.ModuleCode == reconciliation.ModuleCode
+                && x.ReviewMode != 0, cancellationToken);
+
+        if (!reviewEnabled)
+            return;
+
         var users = await _db.Users.AsNoTracking()
-            .Where(x => x.IsActive != false)
+            .Where(x => x.IsActive != false
+                && x.EmployeeCode != employee.EmployeeCode)
             .Select(x => new UserIdentityDto
             {
                 UserId = x.Id,
