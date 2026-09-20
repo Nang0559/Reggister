@@ -33,6 +33,8 @@ public sealed class ExecutionLifecycleIntegrationTests
         var sourceId = $"TEST-IDEMPOTENT-{Guid.NewGuid():N}";
         var writer = new ActionItemWriter(db);
 
+        var dueAt = DateTime.Now.AddHours(48);
+
         var draft = new ActionItemDraft(
             "OT",
             sourceId,
@@ -45,7 +47,7 @@ public sealed class ExecutionLifecycleIntegrationTests
             "Idempotency test",
             1,
             100,
-            null,
+            dueAt,
             "/execution",
             null,
             "{}",
