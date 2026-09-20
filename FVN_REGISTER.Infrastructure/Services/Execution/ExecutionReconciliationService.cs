@@ -45,13 +45,17 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             .Select(ToDto()).ToListAsync(cancellationToken);
     }
 
-    public async Task<ExecutionReconciliationDto> UpsertAsync(string employeeCode, ExecutionReconciliationUpsertRequest request, CancellationToken cancellationToken = default)
+    public async Task<ExecutionReconciliationDto> UpsertAsync(
+        string employeeCode,
+        ExecutionReconciliationUpsertRequest request,
+        CancellationToken cancellationToken = default,
+        int? actorUserId = null)
     {
         ValidateRequest(request);
 
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
-        var effectiveActorUserId = await ResolveUserIdAsync(employeeCode, cancellationToken);
-        if (request.EmployeeId != employeeId)
+        var effectiveActorUserId = actorUserId ?? await ResolveUserIdAsync(employeeCode, cancellationToken);
+        if (actorUserId is null && request.EmployeeId != employeeId)
             throw new UnauthorizedAccessException("Reconciliation không thuộc nhân viên hiện tại.");
 
         await using var transaction = await _db.Database.BeginTransactionAsync(
