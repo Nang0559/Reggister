@@ -175,3 +175,20 @@ Một OT Master nhiều người vẫn chỉ xuất một document number, nhưn
 Các cột chi tiết nên có: OTMasterNo, EmployeeCode, EmployeeName, RevisionNo, PreviousRevisionNo, ApprovedStart, ApprovedEnd, ApprovedHours, ActualStart, ActualEnd, ActualHours, OTStatus, AttendanceConfirmationStatus, EvidenceStatus, FinalOTHours.
 
 FinalOTHours chỉ là read model; business mutation vẫn thuộc OT/Attendance service.
+
+
+## 17. Calendar alerts / confirmation reporting
+
+Calendar alert không phải dữ liệu nghiệp vụ mới; nó là read projection từ source của từng module.
+
+Nếu cần báo cáo/audit về cảnh báo hoặc confirmation, report phải truy ngược module owner và phân biệt:
+
+- source business record;
+- calendar projection;
+- employee confirmation;
+- HR/Admin confirmation;
+- final business result.
+
+Không lưu một bản sao toàn bộ Leave/OT/Trip chỉ để render lịch.
+
+Các trường projection dùng chung có thể gồm: WorkDate, ModuleCode, Severity, Summary, RequiresAction, ConfirmationStatus, DetailRoute. Chi tiết nghiệp vụ vẫn đọc từ source module.
