@@ -391,7 +391,6 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                 Decision = decision,
                 Reason = reason
             }),
-            ActionId = reconciliation.ActionId,
             NotificationType = "EXECUTION_HR_RESOLUTION",
             IsRead = false,
             IsHighPriority = decision == "NG"
