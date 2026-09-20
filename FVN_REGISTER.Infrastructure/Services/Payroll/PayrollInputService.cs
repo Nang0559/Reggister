@@ -40,6 +40,8 @@ public sealed class PayrollInputService : IPayrollInputService
         if (period.Status is "Locked" or "Exported")
             throw new InvalidOperationException("Kỳ lương đã khóa/xuất, không được chuẩn bị lại.");
 
+        await EnsurePayrollReadyAsync(periodId, period, ct);
+
         var result = await _db.Database.SqlQueryRaw<PayrollPrepareResult>(
             "EXEC dbo.usp_PreparePayrollPeriod @PeriodId={0}, @ActorUserId={1}",
             periodId, actorUserId).FirstOrDefaultAsync(ct);
@@ -64,15 +66,7 @@ public sealed class PayrollInputService : IPayrollInputService
         if (inputCount == 0)
             throw new InvalidOperationException("Không thể khóa kỳ lương rỗng.");
 
-        var unresolved = await _db.ExecutionReconciliations.AsNoTracking()
-            .AnyAsync(x => x.IsActive != false
-                && x.WorkDate >= period.FromDate
-                && x.WorkDate <= period.ToDate
-                && (x.ReconciliationStatus == "Mismatch"
-                    || x.ReconciliationStatus == "AwaitingConfirmation"), ct);
-
-        if (unresolved)
-            throw new InvalidOperationException("Kỳ lương còn reconciliation Mismatch/AwaitingConfirmation.");
+        await EnsurePayrollReadyAsync(periodId, period, ct);
 
         var stale = await _db.ExecutionReconciliations.AsNoTracking()
             .AnyAsync(x => x.IsActive != false
@@ -159,6 +153,55 @@ public sealed class PayrollInputService : IPayrollInputService
         => await _db.PayrollCalculationPeriods.FirstOrDefaultAsync(
             x => x.Id == periodId && x.IsActive != false, ct)
             ?? throw new KeyNotFoundException("Không tìm thấy kỳ lương.");
+
+    private async Task EnsurePayrollReadyAsync(int periodId, F03PayrollCalculationPeriod period, CancellationToken ct)
+    {
+        var unresolved = await _db.ExecutionReconciliations.AsNoTracking()
+            .AnyAsync(x => x.IsActive != false
+                && x.WorkDate >= period.FromDate
+                && x.WorkDate <= period.ToDate
+                && x.ReconciliationStatus != "Resolved"
+                && x.ReconciliationStatus != "Matched"
+                && x.ReconciliationStatus != "None", ct);
+
+        if (unresolved)
+            throw new InvalidOperationException(
+                "Không được in/xuất bảng công-OT: kỳ lương còn Execution Reconciliation chưa được giải quyết.");
+
+        var pendingCorrection = await _db.ExecutionCorrections.AsNoTracking()
+            .AnyAsync(x => x.IsActive != false
+                && x.WorkDate >= period.FromDate
+                && x.WorkDate <= period.ToDate
+                && x.Status != "Applied"
+                && x.Status != "Cancelled", ct);
+
+        if (pendingCorrection)
+            throw new InvalidOperationException(
+                "Không được in/xuất bảng công-OT: kỳ lương còn Execution Correction Pending/Failed.");
+
+        var failedCorrection = await _db.ExecutionCorrections.AsNoTracking()
+            .AnyAsync(x => x.IsActive != false
+                && x.WorkDate >= period.FromDate
+                && x.WorkDate <= period.ToDate
+                && x.Status == "Failed", ct);
+
+        if (failedCorrection)
+            throw new InvalidOperationException(
+                "Không được in/xuất bảng công-OT: kỳ lương còn Correction Failed.");
+
+        var unresolvedHr = await _db.ExecutionReconciliations.AsNoTracking()
+            .AnyAsync(x => x.IsActive != false
+                && x.WorkDate >= period.FromDate
+                && x.WorkDate <= period.ToDate
+                && x.ReconciliationStatus == "Resolved"
+                && _db.ExecutionCorrections.Any(c => c.IsActive != false
+                    && c.ReconciliationId == x.Id
+                    && c.Status == "Failed"), ct);
+
+        if (unresolvedHr)
+            throw new InvalidOperationException(
+                "Không được in/xuất bảng công-OT: có Resolution đã đóng nhưng correction thất bại.");
+    }
 
     private static void Ensure21To20(F03PayrollCalculationPeriod period)
     {
