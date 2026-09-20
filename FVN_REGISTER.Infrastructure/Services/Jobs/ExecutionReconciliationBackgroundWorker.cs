@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FVN_REGISTER.Application.Interfaces.Execution;
 using FVN_REGISTER.Contract.Dtos.Execution;
+using FVN_REGISTER.Core.Entities.Leaves;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Infrastructure;
 using Microsoft.EntityFrameworkCore;
@@ -57,14 +58,29 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
             .Where(x => x.IsActive != false && x.ReconciliationMode != 0)
             .ToDictionaryAsync(x => x.ModuleCode, StringComparer.OrdinalIgnoreCase, ct);
 
-        if (policies.ContainsKey("OT"))
-            await ReconcileOtAsync(db, reconciliation, from, to, ct);
+        if (policies.TryGetValue("OT", out var otPolicy))
+            await ReconcileOtAsync(db, reconciliation, from, to, otPolicy.ReconciliationMode, ct);
 
-        if (policies.ContainsKey("LEAVE"))
-            await ReconcileLeaveAsync(db, reconciliation, from, to, ct);
+        if (policies.TryGetValue("LEAVE", out var leavePolicy))
+            await ReconcileLeaveAsync(db, reconciliation, from, to, leavePolicy.ReconciliationMode, ct);
 
-        if (policies.ContainsKey("TRIP"))
-            await ReconcileTripAsync(db, reconciliation, from, to, ct);
+        if (policies.TryGetValue("TRIP", out var tripPolicy))
+            await ReconcileTripAsync(db, reconciliation, from, to, tripPolicy.ReconciliationMode, ct);
+    }
+
+    private static async Task<HashSet<string>> GetUnresolvedSourceIdsAsync(
+        FVNWEBAPPContext db,
+        string moduleCode,
+        CancellationToken ct)
+    {
+        return (await db.ExecutionReconciliations.AsNoTracking()
+            .Where(x => x.IsActive != false
+                && x.ModuleCode == moduleCode
+                && x.ReconciliationStatus != "Resolved")
+            .Select(x => x.SourceId)
+            .Distinct()
+            .ToListAsync(ct))
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
     }
 
     private async Task ReconcileOtAsync(
@@ -72,19 +88,27 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
         IExecutionReconciliationService service,
         DateOnly from,
         DateOnly to,
+        byte reconciliationMode,
         CancellationToken ct)
     {
+        var unresolved = reconciliationMode == 2
+            ? await GetUnresolvedSourceIdsAsync(db, "OT", ct)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         var rows = await db.OvertimeEmployees.AsNoTracking()
-            .Where(x => x.OTRequest.RequestStatus == ApprovalStatus.Approved
+            .Where(x => (x.OTRequest.RequestStatus == ApprovalStatus.Approved
+                         || x.OTRequest.RequestStatus == ApprovalStatus.Cancelled)
                 && x.OTRequest.IsActive != false
-                && x.OTRequest.OTDate >= from.ToDateTime(TimeOnly.MinValue)
-                && x.OTRequest.OTDate <= to.ToDateTime(TimeOnly.MaxValue))
+                && (x.OTRequest.OTDate >= from.ToDateTime(TimeOnly.MinValue)
+                    && x.OTRequest.OTDate <= to.ToDateTime(TimeOnly.MaxValue)
+                    || unresolved.Contains(x.OTRequest.OTCode + ":" + x.EmployeeCode)))
             .Select(x => new
             {
                 x.EmployeeCode,
                 x.OTRequestId,
                 x.OTRequest.OTCode,
                 x.OTRequest.OTDate,
+                x.OTRequest.RequestStatus,
                 x.OTHours,
                 x.ActualHours,
                 x.ActualStartTime,
@@ -97,13 +121,15 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
             try
             {
                 var workDate = DateOnly.FromDateTime(row.OTDate);
+                var cancelled = row.RequestStatus == ApprovalStatus.Cancelled;
                 var actual = row.ActualHours;
                 var planned = row.OTHours;
 
-                // Today's OT is still open until the actual-hours feed closes.
-                var status = actual.HasValue
-                    ? Math.Abs(actual.Value - planned) <= 0.1m ? "Matched" : "Mismatch"
-                    : workDate < DateOnly.FromDateTime(DateTime.Today) ? "Mismatch" : "None";
+                var status = cancelled
+                    ? "Resolved"
+                    : actual.HasValue
+                        ? Math.Abs(actual.Value - planned) <= 0.1m ? "Matched" : "Mismatch"
+                        : workDate < DateOnly.FromDateTime(DateTime.Today) ? "Mismatch" : "None";
 
                 await service.UpsertAsync(
                     row.EmployeeCode,
@@ -114,8 +140,10 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                         row.EmployeeCode,
                         await ResolveEmployeeIdAsync(db, row.EmployeeCode, ct),
                         workDate,
-                        $"ApprovedHours={planned:0.##}",
-                        actual.HasValue ? $"ActualHours={actual.Value:0.##}" : "NO_ACTUAL",
+                        cancelled ? "CANCELLED" : $"ApprovedHours={planned:0.##}",
+                        cancelled
+                            ? "CANCELLED"
+                            : actual.HasValue ? $"ActualHours={actual.Value:0.##}" : "NO_ACTUAL",
                         status,
                         status == "Mismatch",
                         status == "Mismatch",
@@ -127,7 +155,8 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                             PlannedHours = planned,
                             ActualHours = actual,
                             row.ActualStartTime,
-                            row.ActualEndTime
+                            row.ActualEndTime,
+                            row.RequestStatus
                         })),
                     ct,
                     actorUserId: 0);
@@ -148,13 +177,20 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
         IExecutionReconciliationService service,
         DateOnly from,
         DateOnly to,
+        byte reconciliationMode,
         CancellationToken ct)
     {
+        var unresolved = reconciliationMode == 2
+            ? await GetUnresolvedSourceIdsAsync(db, "LEAVE", ct)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         var rows = await db.VF03LeaveRequests.AsNoTracking()
             .Where(x => x.IsActive == true
-                && x.RequestStatus == ApprovalStatus.Approved
+                && (x.RequestStatus == ApprovalStatus.Approved
+                    || x.RequestStatus == ApprovalStatus.Cancelled)
                 && x.EndDate >= from.ToDateTime(TimeOnly.MinValue)
-                && x.StartDate <= to.ToDateTime(TimeOnly.MaxValue))
+                && x.StartDate <= to.ToDateTime(TimeOnly.MaxValue)
+                || unresolved.Contains(x.LeaveCode))
             .Select(x => new
             {
                 x.Id,
@@ -163,25 +199,44 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                 x.StartDate,
                 x.EndDate,
                 x.LeaveTypeCode,
-                x.LeaveTypeName
+                x.LeaveTypeName,
+                x.RequestStatus
             })
             .ToListAsync(ct);
 
+        var leaveIds = rows.Select(x => x.Id).Distinct().ToList();
+        var details = await db.Set<F03LeaveDayDetail>().AsNoTracking()
+            .Where(x => leaveIds.Contains(x.LeaveDaysId)
+                && x.IsActive != false
+                && x.IsCountedAsLeave)
+            .ToListAsync(ct);
+
+        var detailByKey = details
+            .GroupBy(x => (x.LeaveDaysId, DateOnly.FromDateTime(x.LeaveDate)))
+            .ToDictionary(x => x.Key, x => x.First());
+
         foreach (var row in rows)
         {
-            var start = DateOnly.FromDateTime(row.StartDate < from.ToDateTime(TimeOnly.MinValue)
-                ? from.ToDateTime(TimeOnly.MinValue)
-                : row.StartDate);
-            var end = DateOnly.FromDateTime(row.EndDate > to.ToDateTime(TimeOnly.MaxValue)
-                ? to.ToDateTime(TimeOnly.MaxValue)
-                : row.EndDate);
+            var rowDetails = details
+                .Where(x => x.LeaveDaysId == row.Id)
+                .OrderBy(x => x.LeaveDate)
+                .ToList();
 
-            for (var date = start; date <= end; date = date.AddDays(1))
+            // F03LeaveDayDetails is the source for counted leave days.
+            // Do not synthesize weekends, holidays or non-counted dates.
+            foreach (var detail in rowDetails)
             {
+                var date = DateOnly.FromDateTime(detail.LeaveDate);
+                if (date < from || date > to)
+                {
+                    var sourceId = $"{row.Id}:{date:yyyyMMdd}";
+                    if (!unresolved.Contains(sourceId))
+                        continue;
+                }
+
                 try
                 {
                     var employeeId = await ResolveEmployeeIdAsync(db, row.EmployeeCode, ct);
-
                     var attendance = await db.VF03EmployeeAttendances.AsNoTracking()
                         .Where(x => x.EmployeeId == row.EmployeeCode && x.Date == date)
                         .Select(x => new { x.CheckInTime, x.CheckOutTime })
@@ -190,7 +245,13 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                     var worked = attendance?.CheckInTime.HasValue == true
                         || attendance?.CheckOutTime.HasValue == true;
 
-                    var status = worked ? "Mismatch" : "Matched";
+                    // Full-day leave with any attendance is a mismatch.
+                    // Half-day leave is retained as planned metadata; a punch alone
+                    // is not treated as a mismatch because the employee is expected
+                    // to work part of that day.
+                    var mismatch = !detail.IsHalfDay && worked;
+                    var cancelled = row.RequestStatus == ApprovalStatus.Cancelled;
+                    var status = cancelled ? "Resolved" : mismatch ? "Mismatch" : "Matched";
 
                     await service.UpsertAsync(
                         row.EmployeeCode,
@@ -201,8 +262,12 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                             null,
                             employeeId,
                             date,
-                            $"ApprovedLeave={row.LeaveTypeCode ?? row.LeaveTypeName ?? "LEAVE"}",
-                            worked ? "WORKED" : "ABSENT",
+                            cancelled
+                                ? "CANCELLED"
+                                : $"ApprovedLeave={detail.LeaveTypeCode};DayValue={detail.DayValue:0.##};HalfDay={detail.IsHalfDay}",
+                            cancelled
+                                ? "CANCELLED"
+                                : worked ? "WORKED" : "ABSENT",
                             status,
                             status == "Mismatch",
                             status == "Mismatch",
@@ -211,9 +276,13 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                                 row.Id,
                                 row.LeaveCode,
                                 row.EmployeeCode,
-                                row.LeaveTypeCode,
+                                detail.LeaveTypeCode,
+                                detail.IsCountedAsLeave,
+                                detail.IsHalfDay,
+                                detail.DayValue,
                                 WorkDate = date,
-                                Attendance = attendance
+                                Attendance = attendance,
+                                row.RequestStatus
                             })),
                         ct,
                         actorUserId: 0);
@@ -235,13 +304,20 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
         IExecutionReconciliationService service,
         DateOnly from,
         DateOnly to,
+        byte reconciliationMode,
         CancellationToken ct)
     {
+        var unresolved = reconciliationMode == 2
+            ? await GetUnresolvedSourceIdsAsync(db, "TRIP", ct)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
         var requests = await db.TripRequests.AsNoTracking()
             .Where(x => x.IsActive == true
-                && x.RequestStatus == ApprovalStatus.Approved
-                && x.EndDate >= from.ToDateTime(TimeOnly.MinValue)
-                && x.StartDate <= to.ToDateTime(TimeOnly.MaxValue))
+                && (x.RequestStatus == ApprovalStatus.Approved
+                    || x.RequestStatus == ApprovalStatus.Cancelled)
+                && (x.EndDate >= from.ToDateTime(TimeOnly.MinValue)
+                    && x.StartDate <= to.ToDateTime(TimeOnly.MaxValue)
+                    || unresolved.Contains(x.TripCode)))
             .Select(x => new
             {
                 x.Id,
@@ -250,7 +326,8 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                 x.StartDate,
                 x.EndDate,
                 x.Destination,
-                x.Purpose
+                x.Purpose,
+                x.RequestStatus
             })
             .ToListAsync(ct);
 
@@ -265,16 +342,24 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
 
                 var actual = actualRows.FirstOrDefault();
                 var today = DateOnly.FromDateTime(DateTime.Today);
-                var endDate = DateOnly.FromDateTime(row.EndDate);
-                var workDate = DateOnly.FromDateTime(row.StartDate);
+                var plannedStart = DateOnly.FromDateTime(row.StartDate);
+                var plannedEnd = DateOnly.FromDateTime(row.EndDate);
+                var workDate = plannedStart;
 
-                // F03TripActual is created as Scheduled at approval time.
-                // It is not evidence of completion. Only Completed after EndDate is Matched.
-                var status = actual is null
-                    ? endDate < today ? "Mismatch" : "None"
-                    : string.Equals(actual.Status, "Completed", StringComparison.OrdinalIgnoreCase)
-                        ? "Matched"
-                        : endDate < today ? "Mismatch" : "None";
+                var cancelled = row.RequestStatus == ApprovalStatus.Cancelled;
+                var hasActual = actual is not null;
+                var completed = hasActual && string.Equals(actual.Status, "Completed", StringComparison.OrdinalIgnoreCase);
+                var different = completed
+                    && (actual!.ActualStartDate?.Date != row.StartDate.Date
+                        || actual.ActualEndDate?.Date != row.EndDate.Date);
+
+                var status = cancelled
+                    ? "Resolved"
+                    : !hasActual
+                        ? plannedEnd < today ? "Mismatch" : "None"
+                        : completed
+                            ? different ? "Mismatch" : "Matched"
+                            : plannedEnd < today ? "Mismatch" : "None";
 
                 await service.UpsertAsync(
                     row.EmployeeCode,
@@ -285,8 +370,14 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                         null,
                         employeeId,
                         workDate,
-                        "Approved",
-                        actual is null ? "NO_ACTUAL" : actual.Status ?? "EXECUTED",
+                        cancelled
+                            ? "CANCELLED"
+                            : $"Approved={plannedStart:yyyy-MM-dd}..{plannedEnd:yyyy-MM-dd}",
+                        cancelled
+                            ? "CANCELLED"
+                            : actual is null
+                                ? "NO_ACTUAL"
+                                : $"Actual={actual.ActualStartDate:yyyy-MM-dd}..{actual.ActualEndDate:yyyy-MM-dd};Status={actual.Status}",
                         status,
                         status == "Mismatch",
                         status == "Mismatch",
@@ -299,7 +390,9 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                             row.EndDate,
                             row.Destination,
                             row.Purpose,
-                            Actual = actual
+                            Actual = actual,
+                            Different = different,
+                            row.RequestStatus
                         })),
                     ct,
                     actorUserId: 0);
