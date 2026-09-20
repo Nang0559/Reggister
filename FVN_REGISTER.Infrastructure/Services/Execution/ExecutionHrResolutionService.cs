@@ -236,6 +236,67 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         _db.Set<F03ExecutionResolution>().Add(resolution);
         await _db.SaveChangesAsync(cancellationToken);
 
+        if (decision == "OK")
+        {
+            var payrollPeriod = await _db.PayrollCalculationPeriods
+                .AsNoTracking()
+                .Where(x => x.IsActive && x.FromDate <= reconciliation.WorkDate && x.ToDate >= reconciliation.WorkDate)
+                .OrderByDescending(x => x.Id)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (payrollPeriod?.Status is "Locked" or "Exported")
+                throw new InvalidOperationException(
+                    $"Ngày {reconciliation.WorkDate:dd/MM/yyyy} thuộc kỳ lương {payrollPeriod.PeriodCode} đã {payrollPeriod.Status}. Phải xử lý qua Payroll Adjustment/Reopen.");
+
+            var correction = new F03ExecutionCorrection
+            {
+                ReconciliationId = reconciliation.Id,
+                ResolutionId = resolution.Id,
+                ModuleCode = reconciliation.ModuleCode.ToUpperInvariant(),
+                CorrectionType = reconciliation.ModuleCode.Equals("ATTENDANCE", StringComparison.OrdinalIgnoreCase)
+                    ? "ATTENDANCE_RECALCULATE"
+                    : "MODULE_RESOLUTION",
+                EmployeeId = reconciliation.EmployeeId,
+                WorkDate = reconciliation.WorkDate,
+                Status = "Pending",
+                RequestedState = reconciliation.PlannedState,
+                Reason = reason,
+                CreatedBy = userId,
+                CreatedAt = now,
+                LastModifiedSource = "HR_EXECUTION_REVIEW"
+            };
+            _db.ExecutionCorrections.Add(correction);
+            await _db.SaveChangesAsync(cancellationToken);
+
+            if (reconciliation.ModuleCode.Equals("ATTENDANCE", StringComparison.OrdinalIgnoreCase))
+            {
+                var calc = await _attendanceCalculation.CalculateAsync(
+                    new FVN_REGISTER.Contract.Dtos.HrmSync.HrmAttendanceCalculationRequestDto
+                    {
+                        DeptCode = null,
+                        FromDate = reconciliation.WorkDate.ToDateTime(TimeOnly.MinValue),
+                        ToDate = reconciliation.WorkDate.ToDateTime(TimeOnly.MinValue)
+                    },
+                    $"HR-EXECUTION-RESOLUTION:{resolution.Id}",
+                    cancellationToken);
+
+                if (!calc.IsSuccess)
+                {
+                    correction.Status = "Failed";
+                    correction.Reason = calc.Message ?? reason;
+                    await _db.SaveChangesAsync(cancellationToken);
+                    throw new InvalidOperationException(
+                        $"Không thể tính lại công ngày {reconciliation.WorkDate:dd/MM/yyyy}: {calc.Message}");
+                }
+
+                correction.Status = "Applied";
+                correction.AppliedAt = DateTime.Now;
+                correction.AppliedBy = userId;
+                correction.AppliedState = "RECALCULATED";
+                await _db.SaveChangesAsync(cancellationToken);
+            }
+        }
+
         var oldStatus = reconciliation.ReconciliationStatus;
         reconciliation.ReconciliationStatus = "Resolved";
         reconciliation.ResolvedAt = now;
