@@ -17,6 +17,7 @@ namespace FVN_REGISTER.API.Controllers;
 public sealed class WorkCalendarController : BaseApiController
 {
     private readonly ISharedWorkCalendarService _calendar;
+    private readonly IWorkCalendarService _workCalendar;
     private readonly IAuthorizationService _authorization;
 
     public WorkCalendarController(
@@ -25,10 +26,12 @@ public sealed class WorkCalendarController : BaseApiController
         ILogger<WorkCalendarController> logger,
         IOptionsMonitor<AuthDebugOptions> options,
         ISharedWorkCalendarService calendar,
+        IWorkCalendarService workCalendar,
         IAuthorizationService authorization)
         : base(currentUser, userLog, logger, options)
     {
         _calendar = calendar;
+        _workCalendar = workCalendar;
         _authorization = authorization;
     }
 
@@ -91,7 +94,7 @@ public sealed class WorkCalendarController : BaseApiController
         if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
-        var result = await _calendar.GetAvailabilityAsync(
+        var result = await _workCalendar.GetAvailabilityAsync(
             UserInfo.EmployeeCode,
             date.ToDateTime(TimeOnly.MinValue),
             ct);
