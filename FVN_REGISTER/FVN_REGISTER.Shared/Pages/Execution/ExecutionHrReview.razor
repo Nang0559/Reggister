@@ -47,6 +47,10 @@
         <MudAlert Severity="Severity.Error" Class="mt-4">@_error</MudAlert>
     }
 
+    <MudPaper Outlined="true" Class="pa-4 mt-4 payroll-no-print">
+        <MudTextField @bind-Value="_reason" Label="Lý do xử lý" Placeholder="Bắt buộc khi Resolve" Variant="Variant.Outlined" Class="mb-3" />
+    </MudPaper>
+
     <MudPaper Outlined="true" Class="pa-4 mt-4">
         <MudTable Items="_items" Dense="true" Hover="true" Bordered="true" Loading="_loading">
             <HeaderContent>
@@ -98,6 +102,7 @@
     private bool _loading;
     private bool _busy;
     private string? _error;
+    private string _reason = string.Empty;
 
     protected override async Task OnInitializedAsync() => await LoadAsync();
 
@@ -132,16 +137,16 @@
 
     private async Task ResolveAsync(ExecutionHrReviewItemDto item, string decision)
     {
-        var reason = await DialogService.ShowPromptAsync(
-            decision == "OK" ? "Lý do xác nhận OK" : "Lý do xử lý NG",
-            "Nhập lý do xử lý:");
-        if (string.IsNullOrWhiteSpace(reason))
+        if (string.IsNullOrWhiteSpace(_reason))
+        {
+            Snackbar.Add("Phải nhập lý do xử lý.", Severity.Warning);
             return;
+        }
 
         _busy = true;
         try
         {
-            var request = new ExecutionHrResolutionRequest(decision, reason.Trim(), "REFRESH");
+            var request = new ExecutionHrResolutionRequest(decision, _reason.Trim(), "REFRESH");
             var r = await Http.PostAsync<ExecutionHrResolutionDto>(
                 $"api/execution/hr/reconciliations/{item.Id}/resolve", request);
 
@@ -152,6 +157,7 @@
             }
 
             Snackbar.Add($"Đã xử lý {item.EmployeeCode} / {item.ModuleCode} = {decision}.", Severity.Success);
+            _reason = string.Empty;
             await LoadAsync();
         }
         finally
