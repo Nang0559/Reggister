@@ -5,5 +5,6 @@ public sealed record CalendarContext(
     int UserId,
     DateOnly From,
     DateOnly To,
+    IReadOnlySet<string>? AllowedModules = null,
     string? DeptCode = null,
     string? PositionCode = null);
