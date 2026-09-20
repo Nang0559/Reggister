@@ -40,10 +40,12 @@
                         @if (context.IsCurrent) { <MudChip T="string" Size="Size.Small" Color="Color.Success">Thiết bị hiện tại</MudChip> }
                         else { <MudChip T="string" Size="Size.Small">Đang hoạt động</MudChip> }
                     </MudTd>
-                    <MudTd Align="Align.Right">
-                        <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
-                                   Disabled="context.IsCurrent || _revokingId == context.Id"
-                                   OnClick="@(() => RevokeAsync(context))">Đăng xuất</MudButton>
+                    <MudTd>
+                        <div class="d-flex justify-end">
+                            <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
+                                       Disabled="context.IsCurrent || _revokingId == context.Id"
+                                       OnClick="@(() => RevokeAsync(context))">Đăng xuất</MudButton>
+                        </div>
                     </MudTd>
                 </RowTemplate>
             </MudTable>
