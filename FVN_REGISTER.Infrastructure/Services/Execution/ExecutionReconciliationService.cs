@@ -42,6 +42,58 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             .FirstOrDefaultAsync(cancellationToken);
     }
 
+    public async Task<ExecutionReconciliationDetailDto?> GetDetailAsync(
+        string employeeCode,
+        long reconciliationId,
+        CancellationToken cancellationToken = default)
+    {
+        var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
+
+        var reconciliation = await _db.ExecutionReconciliations.AsNoTracking()
+            .Where(x => x.Id == reconciliationId
+                && x.IsActive != false
+                && x.EmployeeId == employeeId)
+            .Select(ToDto())
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (reconciliation is null)
+            return null;
+
+        var confirmation = await _db.ExecutionConfirmations.AsNoTracking()
+            .Where(x => x.ReconciliationId == reconciliationId
+                && x.IsActive != false
+                && x.EmployeeId == employeeId)
+            .Select(x => new ExecutionConfirmationDto(
+                x.Id, x.ReconciliationId, x.ModuleCode, x.SourceType, x.SourceId,
+                x.ParticipantId, x.EmployeeId, x.WorkDate, x.Decision, x.Status,
+                x.Comment, x.EvidenceRequired, x.SubmittedAt, x.ReviewedAt, x.ReviewNote))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        var evidence = confirmation is null
+            ? Array.Empty<ExecutionEvidenceDto>()
+            : await _db.ExecutionConfirmationEvidence.AsNoTracking()
+                .Where(x => x.ConfirmationId == confirmation.Id && x.IsActive != false)
+                .OrderByDescending(x => x.SubmittedAt)
+                .Select(x => new ExecutionEvidenceDto(
+                    x.Id, x.ConfirmationId, x.EvidenceType, x.FileId,
+                    x.ReferenceNo, x.ExternalUrl, x.Description,
+                    x.ReviewStatus, x.SubmittedAt, x.ReviewedAt, x.ReviewNote))
+                .ToListAsync(cancellationToken);
+
+        var hrResolution = await _db.Set<F03ExecutionResolution>().AsNoTracking()
+            .Where(x => x.ReconciliationId == reconciliationId && x.IsActive != false)
+            .OrderByDescending(x => x.ResolvedAt)
+            .Select(x => new ExecutionHrResolutionSummaryDto(
+                x.Id, x.Decision, x.Reason, x.CalendarAction, x.ResolvedAt))
+            .FirstOrDefaultAsync(cancellationToken);
+
+        return new ExecutionReconciliationDetailDto(
+            reconciliation,
+            confirmation,
+            evidence,
+            hrResolution);
+    }
+
     public async Task<IReadOnlyList<ExecutionReconciliationDto>> GetMineAsync(string employeeCode, DateOnly from, DateOnly to, CancellationToken cancellationToken = default)
     {
         if (to < from) throw new ArgumentException("Khoảng ngày không hợp lệ.");
