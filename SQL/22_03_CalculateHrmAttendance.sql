@@ -10,6 +10,9 @@ BEGIN
  --   2) manual:     @DeptCode + date range => selected department/date
  -- The per-staff calculation remains dbo.usp_HrmCompatibleTimeKeepingForStaff.
  DECLARE @BatchId uniqueidentifier=NEWID(),@HrmDeptId int=TRY_CONVERT(int,NULLIF(@DeptCode,N''));
+ INSERT dbo.F03HrmAttendanceCalculationRun
+ (CalculationBatchId,DeptCode,FromDate,ToDate,TriggeredBy,CalculationVersion,Status,StartedAt)
+ VALUES(@BatchId,@DeptCode,@FromDate,@ToDate,@TriggeredBy,@CalculationVersion,N'Running',GETDATE());
  CREATE TABLE #Result(
   BCNgay datetime NOT NULL,BCMaNV int NOT NULL,BCMaBP int NOT NULL,BCMaCV int NOT NULL,BCMaCa int NOT NULL,
   BCCuaDen int NULL,BCTGDen datetime NULL,BCCuaVe int NULL,BCTGVe datetime NULL,BCCuaRa int NULL,BCTGRa datetime NULL,BCCuaVao int NULL,BCTGVao datetime NULL,
@@ -21,6 +24,7 @@ BEGIN
   BCTGDKNTheogio float NULL,BCLoaiDKN varchar(10) NULL,BCDangKyLTN float NULL,BCDangKyLTD float NULL,BCTGUuDaiN int NULL,BCTGUuDaiD int NULL,
   BCNgayLe int NULL,BCNgayLeNV int NULL,BCDaXacNhanLamThem bit NULL,DLocked bit NULL
  );
+ BEGIN TRY
  DECLARE @D date=@FromDate;
  WHILE @D<=@ToDate
  BEGIN
@@ -114,25 +118,21 @@ BEGIN
   CLOSE staff_cur;
   DEALLOCATE staff_cur;
 
+  /* Persist OT actual inside the same date transaction as attendance. */
+  INSERT dbo.F03HrmOTActual(CalculationBatchId,WorkDate,HrmEmployeeId,EmployeeCode,DeptCode,ActualStartTime,ActualEndTime,ActualMinutes,ActualOTDayMinutes,ActualOTNightMinutes,RecognizedOTMinutes,SourceAttendanceId)
+  SELECT CalculationBatchId,WorkDate,HrmEmployeeId,EmployeeCode,DeptCode,CheckInTime,CheckOutTime,
+         CASE WHEN CheckInTime IS NOT NULL AND CheckOutTime IS NOT NULL THEN DATEDIFF(minute,CheckInTime,CheckOutTime) ELSE 0 END,
+         OTMinutesDay+OTMinutesDayTC,OTMinutesNight+OTMinutesNightTC,
+         OTRecognizedMinutesDay+OTRecognizedMinutesNight,Id
+  FROM dbo.F03HrmAttendanceCalculated
+  WHERE CalculationBatchId=@BatchId
+    AND WorkDate=@D
+    AND (CheckInTime IS NOT NULL OR CheckOutTime IS NOT NULL);
+
   COMMIT TRANSACTION;
 
   SET @D=DATEADD(day,1,@D);
  END
-
- /*
-    Persist OT actual for this date before committing the date transaction.
-    The target is current-state by (HrmEmployeeId, WorkDate), so reruns replace
-    the prior row rather than append another batch copy.
- */
- INSERT dbo.F03HrmOTActual(CalculationBatchId,WorkDate,HrmEmployeeId,EmployeeCode,DeptCode,ActualStartTime,ActualEndTime,ActualMinutes,ActualOTDayMinutes,ActualOTNightMinutes,RecognizedOTMinutes,SourceAttendanceId)
- SELECT CalculationBatchId,WorkDate,HrmEmployeeId,EmployeeCode,DeptCode,CheckInTime,CheckOutTime,
-        CASE WHEN CheckInTime IS NOT NULL AND CheckOutTime IS NOT NULL THEN DATEDIFF(minute,CheckInTime,CheckOutTime) ELSE 0 END,
-        OTMinutesDay+OTMinutesDayTC,OTMinutesNight+OTMinutesNightTC,
-        OTRecognizedMinutesDay+OTRecognizedMinutesNight,Id
- FROM dbo.F03HrmAttendanceCalculated
- WHERE CalculationBatchId=@BatchId
-   AND WorkDate=@D
-   AND (CheckInTime IS NOT NULL OR CheckOutTime IS NOT NULL);
 
  /* Centralized OT actual synchronization: HRM calculation owns this write. */
  ;WITH LatestActual AS
@@ -154,7 +154,20 @@ BEGIN
  INNER JOIN HRM.dbo.tblNhanVien nv ON RTRIM(nv.NVMaNV)=emp.EmployeeCode
  INNER JOIN LatestActual a ON a.HrmEmployeeId=nv.NVMa AND a.WorkDate=CAST(ot.OTDate AS date) AND a.rn=1
  WHERE emp.IsActive=1 AND a.CalculationBatchId=@BatchId;
+ UPDATE dbo.F03HrmAttendanceCalculationRun
+ SET Status=N'Succeeded',FinishedAt=GETDATE(),
+     EmployeeCount=(SELECT COUNT(DISTINCT HrmEmployeeId) FROM dbo.F03HrmAttendanceCalculated WHERE CalculationBatchId=@BatchId),
+     CalculatedRows=(SELECT COUNT(*) FROM dbo.F03HrmAttendanceCalculated WHERE CalculationBatchId=@BatchId)
+ WHERE CalculationBatchId=@BatchId;
+
  SELECT @BatchId AS CalculationBatchId,@DeptCode AS DeptCode,@FromDate AS FromDate,@ToDate AS ToDate,COUNT(DISTINCT HrmEmployeeId) AS EmployeeCount,COUNT(*) AS CalculatedRows,MIN(CalculatedAt) AS StartedAt,MAX(CalculatedAt) AS FinishedAt,@CalculationVersion AS CalculationVersion
  FROM dbo.F03HrmAttendanceCalculated WHERE CalculationBatchId=@BatchId;
+ END TRY
+ BEGIN CATCH
+     UPDATE dbo.F03HrmAttendanceCalculationRun
+     SET Status=N'Failed',FinishedAt=GETDATE(),ErrorMessage=ERROR_MESSAGE()
+     WHERE CalculationBatchId=@BatchId;
+     THROW;
+ END CATCH
 END;
 GO
