@@ -12,6 +12,9 @@ namespace FVN_REGISTER.Shared.Services.Users
 
         Task Logout(CancellationToken ct = default);
 
+        Task<ApiResponse<List<SessionDto>>> GetSessionsAsync(CancellationToken ct = default);
+        Task<ApiResponse<object>> RevokeSessionAsync(int sessionId, CancellationToken ct = default);
+
         Task<ApiResponse<UserIdentityDto>> GetProfileAsync(CancellationToken ct = default);
 
         Task<ApiResponse<object>> UpdateProfileAsync(
