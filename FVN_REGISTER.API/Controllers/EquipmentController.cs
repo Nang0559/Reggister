@@ -108,6 +108,13 @@ public sealed class EquipmentController : ControllerBase
         return result == null ? NotFound() : Ok(result);
     }
 
+    [HttpGet("import/access")]
+    public async Task<ActionResult<bool>> ImportAccess(CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentImport, ct)) return Forbid();
+        return Ok(true);
+    }
+
     [HttpGet("schema/{deptCode}")]
     public async Task<ActionResult<List<EquipmentFieldDefinitionDto>>> Schema(string deptCode, CancellationToken ct)
     {
