@@ -165,7 +165,7 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
                 selected.ApproverCode,
                 selected.ApproverName,
                 selected.ApproverEmail,
-                true));
+                level.Required));
         }
 
         if (result.Count == 0)
