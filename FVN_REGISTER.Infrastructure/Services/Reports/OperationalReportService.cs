@@ -48,24 +48,14 @@ public sealed class OperationalReportService : BaseReportService<OperationalRepo
         => (q.FromDate?.Date ?? DateTime.Today.AddMonths(-1).Date,
             q.ToDate?.Date ?? DateTime.Today.Date);
 
-    private static bool Manager(UserIdentityDto u) => u.Permission.IsAdmin() || u.Permission.IsApprover() || u.LevelApprove > 0;
 
     private IQueryable<F03TripRequest> Trips(ReportQueryDto q, UserIdentityDto u)
     {
         var (from,to)=Range(q);
         var x=_uow.Repository<F03TripRequest>().Query().AsNoTracking()
             .Where(x=>x.IsActive == true && x.StartDate<=to && x.EndDate>=from);
-        if (u.Permission.IsAdmin())
-        {
-            if (!string.IsNullOrWhiteSpace(q.DeptCode)) x=x.Where(a=>a.DeptCode==q.DeptCode);
-            if (!string.IsNullOrWhiteSpace(q.EmployeeCode)) x=x.Where(a=>a.EmployeeCode==q.EmployeeCode);
-        }
-        else if (Manager(u))
-        {
-            x=x.Where(a=>a.DeptCode==u.DeptCode);
-            if (!string.IsNullOrWhiteSpace(q.EmployeeCode)) x=x.Where(a=>a.EmployeeCode==q.EmployeeCode);
-        }
-        else x=x.Where(a=>a.EmployeeCode==u.EmployeeCode);
+        if (!string.IsNullOrWhiteSpace(q.DeptCode)) x=x.Where(a=>a.DeptCode==q.DeptCode);
+        if (!string.IsNullOrWhiteSpace(q.EmployeeCode)) x=x.Where(a=>a.EmployeeCode==q.EmployeeCode);
         return x;
     }
 
@@ -100,8 +90,8 @@ public sealed class OperationalReportService : BaseReportService<OperationalRepo
     private IQueryable<F03EquipmentAsset> Equipment(ReportQueryDto q, UserIdentityDto u)
     {
         var x=_uow.Repository<F03EquipmentAsset>().Query().AsNoTracking().Where(x=>x.IsActive == true);
-        if(u.Permission.IsAdmin()){if(!string.IsNullOrWhiteSpace(q.DeptCode))x=x.Where(a=>a.DeptCode==q.DeptCode);}
-        else x=x.Where(a=>a.DeptCode==u.DeptCode);
+        if(!string.IsNullOrWhiteSpace(q.DeptCode))x=x.Where(a=>a.DeptCode==q.DeptCode);
+        if(!string.IsNullOrWhiteSpace(q.EmployeeCode))x=x.Where(a=>a.EmployeeCode==q.EmployeeCode);
         return x;
     }
 
@@ -123,8 +113,8 @@ public sealed class OperationalReportService : BaseReportService<OperationalRepo
     {
         var (from,to)=Range(q);
         var x=_uow.Repository<F03EquipmentRepairHistory>().Query().AsNoTracking().Where(x=>x.RepairDate>=from&&x.RepairDate<to.AddDays(1));
-        if(!u.Permission.IsAdmin()) x=x.Where(r=>r.Asset.DeptCode==u.DeptCode);
-        else if(!string.IsNullOrWhiteSpace(q.DeptCode)) x=x.Where(r=>r.Asset.DeptCode==q.DeptCode);
+        if(!string.IsNullOrWhiteSpace(q.DeptCode)) x=x.Where(r=>r.Asset.DeptCode==q.DeptCode);
+        if(!string.IsNullOrWhiteSpace(q.EmployeeCode)) x=x.Where(r=>r.Asset.EmployeeCode==q.EmployeeCode);
         var data=await x.GroupBy(r=>r.Asset.DeptCode).Select(g=>new{DeptCode=g.Key,Repairs=g.Count(),Cost=g.Sum(r=>r.RepairCost??0),Approved=g.Count(r=>r.IsApproved == true)}).OrderBy(x=>x.DeptCode).ToListAsync(ct);
         return Table(ReportType.EquipmentRepairSummary,"Tổng hợp sửa chữa thiết bị",data.Select(x=>new Dictionary<string,object?>{{"DeptCode",x.DeptCode},{"Repairs",x.Repairs},{"Approved",x.Approved},{"RepairCost",x.Cost}}).ToList(),
             new[]{("DeptCode","Mã phòng","text"),("Repairs","Số lần sửa","number"),("Approved","Đã duyệt","number"),("RepairCost","Chi phí sửa chữa","decimal")});
@@ -134,9 +124,8 @@ public sealed class OperationalReportService : BaseReportService<OperationalRepo
     {
         var (from,to)=Range(q);
         var x=_uow.Repository<F03AttendanceStaging>().Query().AsNoTracking().Where(x=>x.WorkDate>=from&&x.WorkDate<to.AddDays(1));
-        if(u.Permission.IsAdmin()){if(!string.IsNullOrWhiteSpace(q.DeptCode))x=x.Where(a=>a.DeptCode==q.DeptCode);if(!string.IsNullOrWhiteSpace(q.EmployeeCode))x=x.Where(a=>a.EmployeeCode==q.EmployeeCode);}
-        else if(Manager(u)){x=x.Where(a=>a.DeptCode==u.DeptCode);if(!string.IsNullOrWhiteSpace(q.EmployeeCode))x=x.Where(a=>a.EmployeeCode==q.EmployeeCode);}
-        else x=x.Where(a=>a.EmployeeCode==u.EmployeeCode);
+        if(!string.IsNullOrWhiteSpace(q.DeptCode))x=x.Where(a=>a.DeptCode==q.DeptCode);
+        if(!string.IsNullOrWhiteSpace(q.EmployeeCode))x=x.Where(a=>a.EmployeeCode==q.EmployeeCode);
         return x;
     }
 
