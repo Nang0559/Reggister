@@ -376,10 +376,16 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 
         await EnsureHrTargetScopeAsync(userId, employee.EmployeeCode, employee.DeptCode, cancellationToken);
 
-        var reviewEnabled = await _db.ExecutionPolicies.AsNoTracking()
-            .AnyAsync(x => x.IsActive != false
-                && x.ModuleCode == reconciliation.ModuleCode
-                && x.ReviewMode != 0, cancellationToken);
+        var policy = await _db.ExecutionPolicies.AsNoTracking()
+            .Where(x => x.IsActive != false && x.ModuleCode == reconciliation.ModuleCode)
+            .Select(x => new
+            {
+                x.ReviewMode,
+                x.CorrectionMode
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        var reviewEnabled = policy is not null && policy.ReviewMode != 0;
 
         if (!reviewEnabled)
             throw new InvalidOperationException(
