@@ -174,6 +174,29 @@ AND NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03AppNotificatio
         FOREIGN KEY(ActionId) REFERENCES dbo.F03ActionItems(ActionId);
 GO
 
+/* Attendance is a read-only calendar module backed by F03HrmAttendanceCalculated. */
+INSERT dbo.F03CalendarModuleDefinitions
+    (IsActive,CreatedBy,ModuleCode,ModuleName,SupportsCalendar,DefaultEnabled)
+SELECT 1,0,N'ATTENDANCE',N'Attendance',1,1
+WHERE NOT EXISTS
+(
+    SELECT 1 FROM dbo.F03CalendarModuleDefinitions x
+    WHERE x.ModuleCode=N'ATTENDANCE'
+);
+GO
+
+INSERT dbo.F03CalendarModulePolicies
+    (IsActive,CreatedBy,ModuleCode,IsEnabled,DisplayMode,NoteMode,
+     ConfirmationMode,ReconciliationMode,Priority,SummaryTemplate,DetailTemplate)
+SELECT 1,0,N'ATTENDANCE',1,3,1,0,0,50,
+       N'Attendance: {StatusCode}',NULL
+WHERE NOT EXISTS
+(
+    SELECT 1 FROM dbo.F03CalendarModulePolicies x
+    WHERE x.ModuleCode=N'ATTENDANCE'
+);
+GO
+
 /* Canonical shared modules. */
 INSERT dbo.F03CalendarModuleDefinitions
     (IsActive,CreatedBy,ModuleCode,ModuleName,SupportsCalendar,DefaultEnabled)
