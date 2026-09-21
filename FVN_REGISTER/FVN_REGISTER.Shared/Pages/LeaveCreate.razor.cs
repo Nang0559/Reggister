@@ -82,9 +82,11 @@ public partial class LeaveCreate : IAsyncDisposable
 
     private async Task OnCalendarEventSelected(CalendarItemDto item)
     {
-        if (item.ModuleCode == "LEAVE" && item.RequestId.HasValue)
+        if (item.ModuleCode == "LEAVE")
         {
-            var leave = _model?.MasterData.LeaveEvents.FirstOrDefault(x => x.RequestId == item.RequestId.Value);
+            var leave = _model?.MasterData.LeaveEvents
+                .FirstOrDefault(x => x.StartDate.Date == item.WorkDate);
+
             if (leave != null)
             {
                 await OpenDetailDialog(leave);
@@ -92,10 +94,14 @@ public partial class LeaveCreate : IAsyncDisposable
             }
         }
 
+        var title = string.IsNullOrWhiteSpace(item.Summary)
+            ? item.StatusCode
+            : item.Summary;
+
         if (item.ModuleCode == "COMPANY")
-            Snackbar.Add($"Ngày nghỉ công ty: {item.Title}", Severity.Info);
+            Snackbar.Add($"Ngày nghỉ công ty: {title}", Severity.Info);
         else
-            Snackbar.Add(item.Title, Severity.Info);
+            Snackbar.Add(title, Severity.Info);
     }
 
     private async Task OpenAddDialog(string? startDate, string? endDate)
