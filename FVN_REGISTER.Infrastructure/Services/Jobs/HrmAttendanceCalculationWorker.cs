@@ -93,7 +93,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
             "[HRM_ATTENDANCE_WORKER] Daily company-wide calculation: {Date}",
             yesterday.ToString("dd/MM/yyyy"));
         await CalculateCompanyWideAsync(
-            yesterday < payrollStart ? payrollStart : yesterday,
+            yesterday < payrollStart.Value ? payrollStart.Value : yesterday,
             yesterday,
             "HRM-ATTENDANCE-WORKER",
             ct);
