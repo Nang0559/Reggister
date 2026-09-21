@@ -99,7 +99,9 @@ public sealed class PublicFormService : IPublicFormService
             return Contract.Responses.ServiceResult<int>.Fail("Biểu mẫu không còn nhận đăng ký.");
         if(!Matches(form,employeeCode,deptCode,positionCode))
             return Contract.Responses.ServiceResult<int>.Fail("Bạn không thuộc đối tượng được phép đăng ký.");
-        if(!form.AllowMultipleSubmit && await _uow.Repository<F03PublicFormSubmission>().Query().AnyAsync(x=>x.FormId==formId&&x.EmployeeCode==employeeCode&&x.Status!="Cancelled",ct))
+        var activeSubmissionQuery=_uow.Repository<F03PublicFormSubmission>().Query().Where(x=>x.FormId==formId&&x.Status!="Cancelled");
+        if(form.MaxSubmissions.HasValue && await activeSubmissionQuery.CountAsync(ct)>=form.MaxSubmissions.Value) return Contract.Responses.ServiceResult<int>.Fail("Biểu mẫu đã đủ số lượng đăng ký.");
+        if(!form.AllowMultipleSubmit && await activeSubmissionQuery.AnyAsync(x=>x.EmployeeCode==employeeCode,ct))
             return Contract.Responses.ServiceResult<int>.Fail("Bạn đã đăng ký biểu mẫu này.");
         var required=form.Questions.Where(q=>q.IsRequired&&q.IsActive).Select(q=>q.Id).ToHashSet();
         var provided=answers.Select(x=>x.QuestionId).ToHashSet();
