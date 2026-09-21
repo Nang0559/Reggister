@@ -89,7 +89,10 @@ namespace FVN_REGISTER.API.Controllers
 
         [HttpGet("sync-proposals")]
         public async Task<IActionResult> GetSyncProposals(CancellationToken ct)
-            => HandleResult(await _approverService.GetSyncProposalsAsync(ct));
+        {
+            if (!await CanAsync(SecurityFunctionCodes.ApproverView, ct)) return Forbid();
+            return HandleResult(await _approverService.GetSyncProposalsAsync(ct));
+        }
 
         [HttpPost("sync-proposals/{flagId:int}/accept")]
         public async Task<IActionResult> AcceptSyncProposal(int flagId, CancellationToken ct)
@@ -126,6 +129,8 @@ namespace FVN_REGISTER.API.Controllers
             await LogActionAsync($"Toggle Approver ID: {id}");
             return HandleResult(result);
         }
-        private async Task<bool> CanAsync(int code, CancellationToken ct) => UserInfo != null && await _authorization.HasAsync(UserInfo, code, ct);
+
+        private async Task<bool> CanAsync(int code, CancellationToken ct) =>
+            UserInfo != null && await _authorization.HasAsync(UserInfo, code, ct);
     }
 }
