@@ -60,6 +60,37 @@ END;
 GO
 
 /*
+    Existing v4 indexes may already exist when this script is re-run after a
+    partial deployment. They depend on DeptCode / ApprovalPositionCode, so
+    remove them before changing column nullability. They are recreated below.
+*/
+IF EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'UX_F03ApprovalPolicies_Request_Dept_Position_Level'
+      AND object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
+)
+BEGIN
+    DROP INDEX UX_F03ApprovalPolicies_Request_Dept_Position_Level
+        ON dbo.F03ApprovalPolicies;
+END;
+GO
+
+IF EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE name = N'IX_F03ApprovalPolicies_Route'
+      AND object_id = OBJECT_ID(N'dbo.F03ApprovalPolicies')
+)
+BEGIN
+    DROP INDEX IX_F03ApprovalPolicies_Route
+        ON dbo.F03ApprovalPolicies;
+END;
+GO
+
+/*
     Old rows have no reliable department / approver-position information.
     Retire them before the new foreign keys are created. Do NOT use a
     sentinel value here: DeptCode and ApprovalPositionCode are nvarchar(20),
