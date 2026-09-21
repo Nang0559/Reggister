@@ -286,7 +286,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             var fromDate = query.FromDate ?? DateTime.Today.AddMonths(-1);
             var toDate = query.ToDate ?? DateTime.Today;
 
-            bool isAdmin = user.Permission.IsAdmin();
 
             var q = _uow.Repository<VF03LeaveRequest>().Query()
                 .AsNoTracking()
@@ -296,9 +295,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
 
             if (!string.IsNullOrEmpty(query.DeptCode))
                 q = q.Where(x => x.DeptCode == query.DeptCode);
-            if (!string.IsNullOrEmpty(query.EmployeeCode))
-                q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
-
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
 
