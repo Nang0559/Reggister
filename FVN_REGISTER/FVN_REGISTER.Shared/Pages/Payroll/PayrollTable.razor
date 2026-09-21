@@ -11,7 +11,7 @@
 <PageTitle>Bảng công tính lương</PageTitle>
 
 <style>
-    @media print {
+    @@media print {
         .payroll-no-print { display: none !important; }
         .payroll-print-area { margin: 0 !important; padding: 0 !important; }
         .mud-table-container { overflow: visible !important; }
@@ -69,7 +69,7 @@
             <MudItem xs="12" sm="6" md="2">
                 <MudPaper Outlined="true" Class="pa-4">
                     <MudText Typo="Typo.overline">TRẠNG THÁI</MudText>
-                    <MudChip Color="@StatusColor" Size="Size.Small">@_period.Status</MudChip>
+                    <MudChip T="string" Color="@StatusColor" Size="Size.Small">@_period.Status</MudChip>
                 </MudPaper>
             </MudItem>
             <MudItem xs="12" sm="6" md="3">
@@ -107,8 +107,8 @@
                     <HeaderContent>
                         <MudTh>Nhân viên</MudTh>
                         <MudTh>Ngày</MudTh>
-                        <MudTh Align="Align.Right">Giờ công (phút)</MudTh>
-                        <MudTh Align="Align.Right">Nghỉ</MudTh>
+                        <MudTh Style="text-align:right">Giờ công (phút)</MudTh>
+                        <MudTh Style="text-align:right">Nghỉ</MudTh>
                         <MudTh Align="Align.Right">OT (phút)</MudTh>
                     </HeaderContent>
                     <RowTemplate>
@@ -241,17 +241,6 @@
         _busy = true;
         try
         {
-            var r = await Http.GetAsync<PayrollPrintResultDto>(
-                $"api/payroll/periods/{_period.Id}/print-data");
-
-            if (!r.IsSuccess || r.Data is null)
-            {
-                Snackbar.Add(r.Message ?? "Bảng công chưa đủ điều kiện để in.", Severity.Warning);
-                return;
-            }
-
-            _period = r.Data.Period;
-            _inputs = r.Data.Inputs;
             await JS.InvokeVoidAsync("window.print");
         }
         finally { _busy = false; }

@@ -1,10 +1,9 @@
+@using Microsoft.Extensions.Logging
 @* File: FVN_REGISTER.Shared/Layout/MainLayout.razor *@
 @using FVN_REGISTER.Core.Constants
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils
-@using FVN_REGISTER.Shared.Utils.Helpers
-@using FVN_REGISTER.Shared.Components
-
+@@using FVN_REGISTER.Shared.Components
 @inherits AppLayoutBase
 @implements IDisposable
 
@@ -95,8 +94,7 @@
             }
 
             await _user.InitializeAsync();
-            Logger.LogInfoIf(
-                Debug,
+            Logger.LogInformation(
                 "[{Component}] Init done. User={UserId}, PermissionCode={PermissionCode}",
                 ComponentName,
                 _user.User?.UserId,

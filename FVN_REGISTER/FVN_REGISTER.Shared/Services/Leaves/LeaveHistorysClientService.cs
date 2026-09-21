@@ -4,7 +4,6 @@ using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Shared.Handlers;
-using FVN_REGISTER.Shared.Utils.Helpers;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
@@ -51,7 +50,7 @@ namespace FVN_REGISTER.Shared.Services.Leaves
                     query.Add($"status={Uri.EscapeDataString(status)}");
 
                 var url = $"api/leavedays/history?{string.Join("&", query)}";
-                _logger.LogDebugIf(Debug, "[LEAVE_HISTORY_CLIENT] GET {Url}", url);
+                _logger.LogDebug("[LEAVE_HISTORY_CLIENT] GET {Url}", url);
 
                 return await _http.GetAsync<PaginationResult<LeaveSummaryDto>>(url, ct);
             }

@@ -69,7 +69,7 @@
                 <MudTd>@context.ModuleCode</MudTd>
                 <MudTd>@context.PlannedState</MudTd>
                 <MudTd>@context.ActualState</MudTd>
-                <MudTd><MudChip Size="Size.Small">@context.ReconciliationStatus</MudChip></MudTd>
+                <MudTd><MudChip T="string" Size="Size.Small">@context.ReconciliationStatus</MudChip></MudTd>
                 <MudTd>@(context.RequiresEvidence ? "Bắt buộc" : "Không")</MudTd>
                 <MudTd>
                     <MudStack Row="true" Spacing="1">
@@ -203,7 +203,7 @@
                 return;
             }
 
-            _items = r.Data ?? Array.Empty<ExecutionHrReviewItemDto>();
+            _items = r.Data ?? new List<ExecutionHrReviewItemDto>();
         }
         catch (Exception ex)
         {
