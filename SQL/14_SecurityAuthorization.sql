@@ -268,6 +268,9 @@ FROM
       WHERE f.ActionCode IN(N'View',N'Create',N'Edit',N'Cancel')
         AND f.ModuleCode IN(N'Leave',N'OT',N'Trip',N'Equipment')
     UNION ALL
+    SELECT @User, f.FunctionCode FROM dbo.F03Functions f
+      WHERE f.FunctionCode=2901
+    UNION ALL
     SELECT @Guest, f.FunctionCode FROM dbo.F03Functions f
       WHERE f.ActionCode=N'View' AND f.ModuleCode IN(N'Leave',N'OT',N'Trip',N'Equipment')
 ) x
