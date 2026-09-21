@@ -77,3 +77,12 @@ IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03PublicForms_StatusWi
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03PublicFormAudiences_Form' AND object_id=OBJECT_ID(N'dbo.F03PublicFormAudiences')) CREATE INDEX IX_F03PublicFormAudiences_Form ON dbo.F03PublicFormAudiences(FormId,ScopeType,ScopeValue,IsActive);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03PublicFormSubmissions_FormEmployee' AND object_id=OBJECT_ID(N'dbo.F03PublicFormSubmissions')) CREATE INDEX IX_F03PublicFormSubmissions_FormEmployee ON dbo.F03PublicFormSubmissions(FormId,EmployeeCode,Status);
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'IX_F03PublicFormAnswers_Submission' AND object_id=OBJECT_ID(N'dbo.F03PublicFormAnswers')) CREATE INDEX IX_F03PublicFormAnswers_Submission ON dbo.F03PublicFormAnswers(SubmissionId);
+
+IF OBJECT_ID(N'dbo.F03Functions',N'U') IS NOT NULL
+BEGIN
+ IF NOT EXISTS(SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2807)
+ INSERT INTO dbo.F03Functions(FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder,IsActive)
+ VALUES(2807,N'Public Registration Form - Manage',N'Tạo, thiết kế, publish, đóng và quản lý biểu mẫu đăng ký động',N'PublicForm',N'Manage',N'All',2807,1);
+ ELSE
+ UPDATE dbo.F03Functions SET FunctionName=N'Public Registration Form - Manage',Detail=N'Tạo, thiết kế, publish, đóng và quản lý biểu mẫu đăng ký động',ModuleCode=N'PublicForm',ActionCode=N'Manage',ScopeCode=N'All',DisplayOrder=2807,IsActive=1 WHERE FunctionCode=2807;
+END;
