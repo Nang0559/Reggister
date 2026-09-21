@@ -6,7 +6,7 @@ namespace FVN_REGISTER.Core.Entities.Views
     public partial class VF03LeaveRequest
     {
         public int Id { get; set; }
-        public string? LeaveCode {  get; set; }
+        // The current SQL view does not expose the legacy LeaveCode column.\n        // Keep the CLR property for DTO/mapping compatibility, but never map/query it through EF.\n        [System.ComponentModel.DataAnnotations.Schema.NotMapped]\n        public string? LeaveCode { get; set; }
         public int? WorkYear { get; set; }
         public string EmployeeCode { get; set; } = null!;
         public string EmployeeName { get; set; } = null!;
