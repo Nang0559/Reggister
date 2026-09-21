@@ -77,7 +77,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
 
         _logger.LogInformation(
             "[HRM_ATTENDANCE_WORKER] Catch-up company-wide: {From} -> {To}",
-            payrollStart.ToString("dd/MM/yyyy"),
+            payrollStart.Value.ToString("dd/MM/yyyy"),
             yesterday.ToString("dd/MM/yyyy"));
 
         await CalculateCompanyWideAsync(payrollStart.Value, yesterday, "HRM-ATTENDANCE-WORKER-CATCHUP", ct);

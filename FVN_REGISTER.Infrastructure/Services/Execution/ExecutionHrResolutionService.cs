@@ -395,11 +395,11 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             })
             .SingleOrDefaultAsync(cancellationToken);
 
-        var reviewEnabled = policy is not null && policy.ReviewMode != 0;
-
-        if (!reviewEnabled)
+        if (policy is null || policy.ReviewMode == 0)
             throw new InvalidOperationException(
                 $"Module '{reconciliation.ModuleCode}' chưa bật HR Execution Review.");
+
+        var correctionMode = policy.CorrectionMode;
 
         var confirmation = reconciliation.ConfirmationId.HasValue
             ? await _db.ExecutionConfirmations.FirstOrDefaultAsync(
@@ -471,11 +471,11 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         await _db.SaveChangesAsync(cancellationToken);
 
         if (decision == "OK"
-            && policy.CorrectionMode != (byte)ExecutionCorrectionMode.None)
+            && correctionMode != (byte)ExecutionCorrectionMode.None)
         {
-            if (policy.CorrectionMode != (byte)ExecutionCorrectionMode.AttendanceRecalculate)
+            if (correctionMode != (byte)ExecutionCorrectionMode.AttendanceRecalculate)
                 throw new InvalidOperationException(
-                    $"CorrectionMode={policy.CorrectionMode} chưa có correction handler.");
+                    $"CorrectionMode={correctionMode} chưa có correction handler.");
 
             var payrollPeriod = await _db.PayrollCalculationPeriods
                 .AsNoTracking()
@@ -496,7 +496,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
                 ReconciliationId = reconciliation.Id,
                 ResolutionId = resolution.Id,
                 ModuleCode = reconciliation.ModuleCode,
-                CorrectionType = policy.CorrectionMode.ToString(),
+                CorrectionType = ((ExecutionCorrectionMode)correctionMode).ToString(),
                 EmployeeId = reconciliation.EmployeeId,
                 WorkDate = reconciliation.WorkDate,
                 Status = "Pending",

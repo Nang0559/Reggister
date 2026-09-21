@@ -936,7 +936,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         projection.CalculatedAt = DateTime.Now;
     }
 
-    private async Task AddHistoryAsync(
+    private Task AddHistoryAsync(
         F03ExecutionReconciliation reconciliation,
         string? fromStatus,
         string toStatus,
@@ -947,7 +947,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         CancellationToken cancellationToken)
     {
         if (reconciliation.Id <= 0)
-            return;
+            return Task.CompletedTask;
 
         _db.ExecutionReconciliationHistory.Add(new F03ExecutionReconciliationHistory
         {
@@ -960,6 +960,8 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             ActorEmployeeId = actorEmployeeId,
             CreatedAt = DateTime.Now
         });
+
+        return Task.CompletedTask;
     }
 
     private static Expression<Func<F03ExecutionReconciliation, ExecutionReconciliationDto>> ToDto() =>
