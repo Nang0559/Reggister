@@ -1,6 +1,7 @@
 using System.Text;
 using FVN_REGISTER.Application.Interfaces.Payroll;
 using FVN_REGISTER.Contract.Dtos.Payroll;
+using FVN_REGISTER.Core.Entities.Payroll;
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Payroll;
