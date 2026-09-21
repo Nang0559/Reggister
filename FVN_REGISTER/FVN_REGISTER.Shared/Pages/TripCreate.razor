@@ -316,14 +316,13 @@
 
     private Task OnCalendarEventSelected(CalendarItemDto item)
     {
-        if (item.ModuleCode == "TRIP" && item.RequestId.HasValue)
-            Navigation.NavigateTo($"/trip/{item.RequestId.Value}");
-        else if (item.ModuleCode == "LEAVE")
-            Snackbar.Add($"Đã có nghỉ phép: {item.Title}", Severity.Info);
-        else if (item.ModuleCode == "OT")
-            Snackbar.Add($"Đã có OT: {item.Title}", Severity.Info);
-        else
-            Snackbar.Add(item.Title, Severity.Info);
+        if (!string.IsNullOrWhiteSpace(item.DetailRoute))
+        {
+            Navigation.NavigateTo(item.DetailRoute);
+            return Task.CompletedTask;
+        }
+
+        Snackbar.Add(item.Summary ?? item.StatusCode, Severity.Info);
         return Task.CompletedTask;
     }
 
