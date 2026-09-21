@@ -378,7 +378,7 @@ GO
 
 /* OT export remains Department scope; never promote it to All. */
 UPDATE dbo.F03Functions SET ScopeCode=N'Department'
-WHERE FunctionCode=2107;
+WHERE FunctionCode IN (2107,2901,2902);
 GO
 
 
