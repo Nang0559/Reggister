@@ -38,7 +38,7 @@ public sealed class HrmAttendanceCalculationController:BaseApiController
  public async Task<IActionResult> Calculate([FromBody] HrmAttendanceCalculationRequestDto request,CancellationToken ct)
  {
   if(UserInfo==null)return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
-  if(!await _authorization.HasAsync(UserInfo,SecurityFunctionCodes.AttendanceView,ct)) return Forbid();
+  if(!await _authorization.HasAsync(UserInfo,SecurityFunctionCodes.AttendanceCalculate,ct)) return Forbid();
   if(request.FromDate.Date>request.ToDate.Date)return BadRequest(ApiResponse<object>.Fail("Khoảng ngày không hợp lệ."));
   var result=await _service.CalculateAsync(request,UserInfo.EmployeeCode,ct);
   return result.IsSuccess?Ok(ApiResponse<HrmAttendanceCalculationResultDto>.Ok(result.Data!)):BadRequest(ApiResponse<object>.Fail(result.Message??"Tính giờ thất bại."));
