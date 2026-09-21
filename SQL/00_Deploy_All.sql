@@ -105,12 +105,12 @@ HOW TO RUN:
    --------------------------------------------------------------------------- */
 :r "$(RepoRoot)\29_ExecutionReconciliation.sql"
 :r "$(RepoRoot)\30_Payroll.sql"
-:r "$(RepoRoot)\31_Hrm_User_Approval_Provisioning.sql"
-:r "$(RepoRoot)\32_ExecutionReviewSecurity.sql"
-:r "$(RepoRoot)\33_DocumentationConsistency.sql"
 :r "$(RepoRoot)\34_OT_Leave_Limits.sql"
 :r "$(RepoRoot)\35_WorkCalendar.sql"
 :r "$(RepoRoot)\36_ApprovalPolicyDepartmentPosition.sql"
+:r "$(RepoRoot)\31_Hrm_User_Approval_Provisioning.sql"
+:r "$(RepoRoot)\32_ExecutionReviewSecurity.sql"
+:r "$(RepoRoot)\33_DocumentationConsistency.sql"
 
 /* ---------------------------------------------------------------------------
    Final cross-foundation verification
