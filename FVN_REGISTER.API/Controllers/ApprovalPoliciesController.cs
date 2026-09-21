@@ -38,6 +38,10 @@ public sealed class ApprovalPoliciesController : BaseApiController
     public async Task<IActionResult> GetPositions(CancellationToken ct)
         => CanManage() ? HandleResult(await _service.GetPositionsAsync(ct)) : Forbid();
 
+    [HttpGet("departments")]
+    public async Task<IActionResult> GetDepartments(CancellationToken ct)
+        => CanManage() ? HandleResult(await _service.GetDepartmentsAsync(ct)) : Forbid();
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] ApprovalPolicyRequest request, CancellationToken ct)
     {
