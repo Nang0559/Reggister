@@ -88,6 +88,35 @@ BEGIN
         ON e.EmployeeCode=u.EmployeeCode
     WHERE (@EmployeeCode IS NULL OR e.EmployeeCode=@EmployeeCode);
 
+    /*
+      Canonical RBAC: PermissionCode is the primary/default role code,
+      but authorization is evaluated from F03UserRoles -> F03RoleFunctions.
+      Therefore every HRM-provisioned user must also receive the matching
+      primary role. Existing role assignments are preserved; only the
+      default role is repaired when missing.
+    */
+    INSERT dbo.F03UserRoles
+        (IdUser,IdRole,IsPrimary,CreatedBy,LastModifiedSource)
+    SELECT
+        u.Id,
+        r.Id,
+        1,
+        @CreatedBy,
+        N'HRM'
+    FROM dbo.F03Users u
+    INNER JOIN dbo.F03Roles r
+        ON r.RoleCode=ISNULL(u.PermissionCode,5)
+       AND r.IsActive=1
+    WHERE (@EmployeeCode IS NULL OR u.EmployeeCode=@EmployeeCode)
+      AND u.IsActive=1
+      AND NOT EXISTS
+      (
+          SELECT 1
+          FROM dbo.F03UserRoles ur
+          WHERE ur.IdUser=u.Id
+            AND ur.IdRole=r.Id
+      );
+
     SELECT
         AffectedEmployee=@EmployeeCode,
         ActiveUsers=(SELECT COUNT(*) FROM dbo.F03Users WHERE IsActive=1);
