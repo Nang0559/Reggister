@@ -181,24 +181,23 @@ public sealed class PayrollInputService : IPayrollInputService
     {
         _ = await GetPeriodAsync(periodId, ct);
 
-        return await _db.PayrollInputs.AsNoTracking()
-            .Where(x => x.PayrollPeriodId == periodId && x.IsActive != false)
-            .Join(_db.Employees.AsNoTracking(),
-                input => input.EmployeeId,
-                employee => employee.Id,
-                (input, employee) => new PayrollInputDto(
-                    input.Id,
-                    input.PayrollPeriodId,
-                    input.EmployeeId,
-                    employee.EmployeeCode,
-                    employee.EmployeeName,
-                    input.WorkDate,
-                    input.WorkMinutes,
-                    input.LeaveTotal,
-                    input.OTMinutes,
-                    input.SnapshotAt))
-            .OrderBy(x => x.EmployeeCode)
-            .ThenBy(x => x.WorkDate)
+        // Sắp xếp trên cột của entity TRƯỚC, rồi mới chiếu sang DTO.
+        return await (
+            from input in _db.PayrollInputs.AsNoTracking()
+            join employee in _db.Employees.AsNoTracking() on input.EmployeeId equals employee.Id
+            where input.PayrollPeriodId == periodId && input.IsActive != false
+            orderby employee.EmployeeCode, input.WorkDate
+            select new PayrollInputDto(
+                input.Id,
+                input.PayrollPeriodId,
+                input.EmployeeId,
+                employee.EmployeeCode,
+                employee.EmployeeName,
+                input.WorkDate,
+                input.WorkMinutes,
+                input.LeaveTotal,
+                input.OTMinutes,
+                input.SnapshotAt))
             .ToListAsync(ct);
     }
 
