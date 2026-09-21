@@ -397,3 +397,11 @@ SELECT r.Id,f.Id FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
 WHERE r.RoleCode IN(1,2) AND f.FunctionCode IN(3081,3082)
 AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
 GO
+
+/* Attendance.View is for management/approval roles; normal User must not inherit the Department scope. */
+DELETE rf
+FROM dbo.F03RoleFunctions rf
+JOIN dbo.F03Roles r ON r.Id=rf.IdRole
+JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
+WHERE r.RoleCode=5 AND f.FunctionCode=2901;
+GO
