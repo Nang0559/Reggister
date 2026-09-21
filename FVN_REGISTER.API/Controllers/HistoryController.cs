@@ -112,9 +112,10 @@ namespace FVN_REGISTER.API.Controllers
                 RequestModule.Leave => SecurityFunctionCodes.LeaveCancel,
                 RequestModule.Overtime => SecurityFunctionCodes.OTCancel,
                 RequestModule.Trip => SecurityFunctionCodes.TripCancel,
+                RequestModule.Equipment => SecurityFunctionCodes.EquipmentCancel,
                 _ => 0
             };
-            if (cancelCode == 0 || !await _authorization.CanAccessAsync(UserInfo, cancelCode, UserInfo.EmployeeCode, UserInfo.DeptCode, ct))
+            if (cancelCode == 0 || !await _authorization.HasAsync(UserInfo, cancelCode, ct))
                 return Forbid();
 
             var result = await _dispatcher.CancelAsync(
