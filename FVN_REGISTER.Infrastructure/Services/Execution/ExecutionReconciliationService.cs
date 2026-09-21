@@ -994,6 +994,11 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
                 && minutes.TryGetInt32(out var value)
                 && value > 0)
                 return $"{value / 60d:0.##}";
+
+            if (doc.RootElement.TryGetProperty("RecognizedOTMinutes", out var recognized)
+                && recognized.TryGetInt32(out var recognizedValue)
+                && recognizedValue > 0)
+                return $"{recognizedValue / 60d:0.##}";
         }
         catch
         {
