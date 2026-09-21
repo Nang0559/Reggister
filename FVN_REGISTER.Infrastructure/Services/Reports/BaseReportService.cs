@@ -162,12 +162,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 SecurityFunctionCodes.EquipmentView,
                 SecurityFunctionCodes.AttendanceView);
 
-            var q = _uow.Repository<F03Department>().Query().AsNoTracking().WhereActiveDept();
+            var q = _uow.Repository<F03Department>().Query().AsNoTracking().Where(d => d.IsActive == true);
 
             if (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(scope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase)
                 || string.Equals(scope, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase))
-                q = q.WhereDeptCode(user.DeptCode);
+                q = q.Where(d => d.DeptCode == user.DeptCode);
 
             var depts = await q
                 .OrderBy(d => d.DeptName)
