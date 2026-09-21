@@ -174,7 +174,7 @@ BEGIN
           SELECT 1
           FROM dbo.F03ApprovalPolicies ap
           WHERE ap.IsActive=1
-            AND ap.PositionCode=p.PositionCode
+            AND ap.ApprovalPositionCode=p.PositionCode
       );
 
     /*
@@ -195,7 +195,7 @@ BEGIN
           SELECT 1
           FROM dbo.F03ApprovalPolicies ap
           WHERE ap.IsActive=1
-            AND ap.PositionCode=p.PositionCode
+            AND ap.ApprovalPositionCode=p.PositionCode
       );
 
     /*
@@ -218,7 +218,7 @@ BEGIN
     INTO #HrmApproverSource
     FROM dbo.F03Employees e
     INNER JOIN dbo.F03ApprovalPolicies ap
-        ON ap.PositionCode=e.PositionCode
+        ON ap.ApprovalPositionCode=e.PositionCode
        AND ap.IsActive=1
     LEFT JOIN dbo.F03Departments d
         ON d.DeptCode=e.DeptCode
