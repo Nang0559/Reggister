@@ -196,7 +196,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             var toDate = query.ToDate ?? DateTime.Today;
 
 
-            var reportScope = await GetEffectiveReportScopeAsync(user, ct, SecurityFunctionCodes.LeaveView);\n\n            var q = _uow.Repository<VF03LeaveRequest>().Query()
+            var reportScope = await GetEffectiveReportScopeAsync(user, ct, SecurityFunctionCodes.LeaveView);
+            var q = _uow.Repository<VF03LeaveRequest>().Query()
                 .AsNoTracking()
                 .Where(x => x.IsActive == true
                          && x.StartDate >= fromDate
