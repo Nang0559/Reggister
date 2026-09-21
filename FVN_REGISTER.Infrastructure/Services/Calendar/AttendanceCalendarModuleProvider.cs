@@ -149,6 +149,7 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
             Summary = summary,
             Severity = severity,
             RequiresAction = requiresAction,
+            InteractionType = requiresAction && reconciliation?.ActionId != null ? "CONFIRMATION" : reconciliation != null ? "DETAIL" : "INFO",
             ActionId = reconciliation?.ActionId,
             DetailRoute = reconciliation is null ? null : $"/execution?reconciliationId={reconciliation.Id}",
             SourceId = reconciliation?.Id.ToString() ?? $"{row.HrmEmployeeId}:{row.WorkDate:yyyy-MM-dd}"
