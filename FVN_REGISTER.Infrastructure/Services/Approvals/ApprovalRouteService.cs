@@ -113,7 +113,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
 
         var levels = new List<ApprovalRouteLevelDto>();
 
-        foreach (var policy in policies.Where(x => x.Required))
+        foreach (var policy in policies)
         {
             var query = _uow.Repository<F03Approver>().Query()
                 .AsNoTracking()
@@ -172,11 +172,18 @@ public sealed class ApprovalRouteService : IApprovalRouteService
 
             if (candidates.Count == 0)
             {
-                return ServiceResult<ApprovalRoutePreviewDto>.Fail(
-                    $"Chưa cấu hình người phê duyệt cho cấp {policy.Level} " +
-                    $"({policy.LevelName} / {policy.RoleName}), " +
-                    $"chức vụ phê duyệt {policy.ApprovalPositionCode}, " +
-                    $"phòng ban {resolvedDeptCode}.");
+                if (policy.Required)
+                {
+                    return ServiceResult<ApprovalRoutePreviewDto>.Fail(
+                        $"Chưa cấu hình người phê duyệt cho cấp {policy.Level} " +
+                        $"({policy.LevelName} / {policy.RoleName}), " +
+                        $"chức vụ phê duyệt {policy.ApprovalPositionCode}, " +
+                        $"phòng ban {resolvedDeptCode}.");
+                }
+
+                // Optional policy without a candidate is simply not materialized
+                // into this request's route.
+                continue;
             }
 
             levels.Add(new ApprovalRouteLevelDto
