@@ -110,7 +110,12 @@ Chỉ được auto-resolve khi policy tồn tại và bật AutoResolve.
 | OT | Approved OT / planned hours | ActualHours + ActualStart/End | `NO_ACTUAL`, chênh lệch hours |
 | Leave | `F03LeaveDayDetails` với `IsCountedAsLeave=true` | Attendance | Full-day leave nhưng có attendance |
 | Trip | Approved Start/End | `F03TripActual` | Missing, incomplete hoặc ActualStart/End khác planned |
+| Attendance | — | `F03HrmAttendanceCalculated` | Calendar hiển thị official attendance và các exception; reconciliation không tạo calculation engine thứ hai |
 | Future | Module provider định nghĩa | Module provider định nghĩa | Module provider định nghĩa |
+
+### Attendance
+
+Attendance trong Calendar là read-only projection từ official HRM calculation result `F03HrmAttendanceCalculated`. Provider `ATTENDANCE` đọc theo employee + WorkDate; không ghi `F03CalendarProjection` và không chạy calculation riêng. `AttendanceView` là capability bắt buộc để endpoint `/api/calendar/me` trả module này.
 
 ### Leave
 
