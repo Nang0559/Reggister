@@ -114,7 +114,6 @@ public sealed class OperationalReportService : BaseReportService<OperationalRepo
         var (from,to)=Range(q);
         var x=_uow.Repository<F03EquipmentRepairHistory>().Query().AsNoTracking().Where(x=>x.RepairDate>=from&&x.RepairDate<to.AddDays(1));
         if(!string.IsNullOrWhiteSpace(q.DeptCode)) x=x.Where(r=>r.Asset.DeptCode==q.DeptCode);
-        if(!string.IsNullOrWhiteSpace(q.EmployeeCode)) x=x.Where(r=>r.Asset.EmployeeCode==q.EmployeeCode);
         var data=await x.GroupBy(r=>r.Asset.DeptCode).Select(g=>new{DeptCode=g.Key,Repairs=g.Count(),Cost=g.Sum(r=>r.RepairCost??0),Approved=g.Count(r=>r.IsApproved == true)}).OrderBy(x=>x.DeptCode).ToListAsync(ct);
         return Table(ReportType.EquipmentRepairSummary,"Tổng hợp sửa chữa thiết bị",data.Select(x=>new Dictionary<string,object?>{{"DeptCode",x.DeptCode},{"Repairs",x.Repairs},{"Approved",x.Approved},{"RepairCost",x.Cost}}).ToList(),
             new[]{("DeptCode","Mã phòng","text"),("Repairs","Số lần sửa","number"),("Approved","Đã duyệt","number"),("RepairCost","Chi phí sửa chữa","decimal")});
