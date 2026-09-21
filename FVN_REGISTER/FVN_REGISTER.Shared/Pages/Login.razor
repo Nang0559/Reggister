@@ -9,6 +9,7 @@
 @inject ICurrentUserClientService CurrentUserService
 @inject CustomAuthStateProvider AuthStateProvider
 @inject IAuthClientService AuthService
+@inject IPasswordResetRequestClientService PasswordResetRequestService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
 
@@ -69,23 +70,39 @@
                           Style="width:100%; border:1px solid var(--mud-palette-lines-default); border-radius:12px">
                     <MudStack Spacing="2">
                         <MudText Typo="Typo.subtitle2" Style="font-weight:700">
-                            Hướng dẫn lấy lại mật khẩu
+                            Gửi yêu cầu quên mật khẩu cho IT
                         </MudText>
 
                         <MudText Typo="Typo.body2">
-                            Tài khoản nhân viên được đồng bộ từ HRM. Khi quên mật khẩu,
-                            vui lòng liên hệ <b>phòng IT FCC</b> để được xác minh và cấp lại mật khẩu.
+                            Nhập mã nhân viên. Hệ thống sẽ gửi yêu cầu đến IT để xác minh và cấp lại
+                            mật khẩu tạm <b>FVN@123</b>. Bạn không cần xóa tài khoản hoặc tạo tài khoản mới.
                         </MudText>
 
-                        <MudAlert Severity="Severity.Info" Dense="true" Variant="Variant.Outlined">
-                            Khi liên hệ IT, vui lòng cung cấp <b>mã nhân viên</b> để IT xác định đúng tài khoản.
-                        </MudAlert>
+                        <MudTextField T="string"
+                                      Label="Mã nhân viên"
+                                      @bind-Value="_forgotEmployeeCode"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Immediate="true"
+                                      Disabled="_sendingResetRequest"
+                                      Adornment="Adornment.Start"
+                                      AdornmentIcon="@Icons.Material.Filled.Badge" />
 
-                        <MudButton Variant="Variant.Outlined"
-                                   Size="Size.Small"
-                                   StartIcon="@Icons.Material.Filled.Campaign"
-                                   Href="/thong-tin-cong-khai">
-                            Xem thông tin liên hệ IT FCC
+                        <MudTextField T="string"
+                                      Label="Ghi chú (không bắt buộc)"
+                                      @bind-Value="_forgotRequestNote"
+                                      Variant="Variant.Outlined"
+                                      Margin="Margin.Dense"
+                                      Lines="2"
+                                      Disabled="_sendingResetRequest" />
+
+                        <MudButton Variant="Variant.Filled"
+                                   Color="Color.Primary"
+                                   FullWidth="true"
+                                   StartIcon="@Icons.Material.Filled.Send"
+                                   OnClick="SubmitForgotPasswordRequestAsync"
+                                   Disabled="_sendingResetRequest || string.IsNullOrWhiteSpace(_forgotEmployeeCode)">
+                            @(_sendingResetRequest ? "Đang gửi..." : "Gửi yêu cầu IT")
                         </MudButton>
 
                         <MudButton Variant="Variant.Text"
@@ -111,12 +128,58 @@
     private bool _isProcessing;
     private bool _passwordVisibility;
     private bool _showForgotPassword;
+    private string _forgotEmployeeCode = string.Empty;
+    private string? _forgotRequestNote;
+    private bool _sendingResetRequest;
     private InputType _passwordInput = InputType.Password;
     private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
 
     private void ToggleForgotPassword()
     {
         _showForgotPassword = !_showForgotPassword;
+    }
+
+    private async Task SubmitForgotPasswordRequestAsync()
+    {
+        var employeeCode = _forgotEmployeeCode.Trim();
+        if (string.IsNullOrWhiteSpace(employeeCode))
+            return;
+
+        _sendingResetRequest = true;
+        try
+        {
+            var result = await PasswordResetRequestService.SubmitAsync(
+                new FVN_REGISTER.Contract.Requests.Users.PasswordResetRequestCreateDto
+                {
+                    EmployeeCode = employeeCode,
+                    RequestNote = string.IsNullOrWhiteSpace(_forgotRequestNote)
+                        ? null
+                        : _forgotRequestNote.Trim()
+                });
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(
+                    "Đã gửi yêu cầu quên mật khẩu đến IT. IT sẽ kiểm tra và cấp lại mật khẩu tạm.",
+                    Severity.Success);
+                _forgotEmployeeCode = string.Empty;
+                _forgotRequestNote = null;
+                _showForgotPassword = false;
+            }
+            else
+            {
+                Snackbar.Add(result.Message ?? "Không thể gửi yêu cầu quên mật khẩu.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "[Login] Forgot password request failed");
+            Snackbar.Add("Không thể gửi yêu cầu đến IT. Vui lòng thử lại.", Severity.Error);
+        }
+        finally
+        {
+            _sendingResetRequest = false;
+        }
     }
 
     private void TogglePasswordVisibility()
