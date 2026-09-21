@@ -52,18 +52,7 @@ Upload -> Detect Excel format -> Stage -> Header/Field mapping -> Validate -> Re
 
 Import không ghi thẳng vào Asset khi upload. Batch có lỗi không được Commit.
 
-## 4. Approval matrix theo bộ phận
-
-Admin cấp function `EquipmentModule` cho từng user thông qua cơ chế `F03Functions → F03UserFunctions` hiện có. Chỉ user có function này (hoặc SuperAdmin/Admin) mới:
-
-- nhìn thấy module trên Dashboard;
-- tạo đăng ký thiết bị;
-- tạo repair request sau khi quét QR;
-- xem thiết bị theo phạm vi bộ phận được cấp quyền.
-
-Quyền module không thay thế quyền approval. Người duyệt vẫn được resolve từ `F03Approvers` với `RequestType = Equipment`.
-
-## 4. Approval matrix theo bộ phận
+## 5. Approval matrix theo bộ phận
 
 `F03Approvers` là master duyệt dùng chung. Admin cấu hình:
 
@@ -87,7 +76,7 @@ flowchart LR
     L1 --> L2 --> L3
 ```
 
-## 5. Đăng ký thiết bị mới
+## 6. Đăng ký thiết bị mới
 
 Thông tin tối thiểu:
 
