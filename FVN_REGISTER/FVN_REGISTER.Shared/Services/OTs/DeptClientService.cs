@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Application.Configuration;
+using FVN_REGISTER.Shared.Utils;
 
 
 namespace FVN_REGISTER.Shared.Services.OTs
@@ -36,7 +37,7 @@ namespace FVN_REGISTER.Shared.Services.OTs
         {
             try
             {
-                _logger.LogDebug("[DEPT_CLIENT] GetDepartments");
+                _logger.LogDebugIf(Debug, "[DEPT_CLIENT] GetDepartments");
                 return await _http.GetAsync<List<DeptOption>>("api/Common/departments", ct);
             }
             catch (Exception ex)
@@ -52,7 +53,7 @@ namespace FVN_REGISTER.Shared.Services.OTs
             // Trả cache nếu còn hạn
             if (_cachedDepts != null && DateTime.Now - _cacheTime < CacheDuration)
             {
-                _logger.LogDebug("[DEPT_CLIENT] Dùng cache departments");
+                _logger.LogDebugIf(Debug, "[DEPT_CLIENT] Dùng cache departments");
                 return _cachedDepts;
             }
 
