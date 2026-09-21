@@ -122,6 +122,6 @@ public sealed class CompanyHolidayManagementController : ControllerBase
     {
         var user = _currentUser.GetCurrentUser();
         return user != null &&
-               await _authorization.HasAsync(user, SecurityFunctionCodes.SecurityView, ct);
+               await _authorization.HasAsync(user, SecurityFunctionCodes.WorkCalendarManage, ct);
     }
 }
