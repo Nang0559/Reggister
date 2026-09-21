@@ -57,7 +57,7 @@ else if (_model != null)
         <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight:750">Trung tâm công việc</MudText>
         <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">Thông báo và phê duyệt dùng chung một Action Center. Thiết bị cũng được mở ngay trong Workspace.</MudAlert>
         <MudGrid Spacing="3" Class="mb-5">
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="3">
                 <MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/work/inbox"))">
                     <MudCardContent Class="pa-5">
                         <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Primary" Size="Size.Large" />
@@ -66,7 +66,7 @@ else if (_model != null)
                     </MudCardContent>
                 </MudCard>
             </MudItem>
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="3">
                 <MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/history/leave"))">
                     <MudCardContent Class="pa-5">
                         <MudIcon Icon="@Icons.Material.Filled.EventAvailable" Color="Color.Success" Size="Size.Large" />
@@ -75,12 +75,21 @@ else if (_model != null)
                     </MudCardContent>
                 </MudCard>
             </MudItem>
-            <MudItem xs="12" sm="4">
+            <MudItem xs="12" sm="3">
                 <MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/history/ot"))">
                     <MudCardContent Class="pa-5">
                         <MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Warning" Size="Size.Large" />
                         <MudText Typo="Typo.h6" Class="mt-3">OT của tôi</MudText>
                         <MudText Typo="Typo.body2" Class="mud-text-secondary">Theo dõi giờ OT và các yêu cầu đã gửi.</MudText>
+                    </MudCardContent>
+                </MudCard>
+            </MudItem>
+            <MudItem xs="12" sm="3">
+                <MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/calendar"))">
+                    <MudCardContent Class="pa-5">
+                        <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Info" Size="Size.Large" />
+                        <MudText Typo="Typo.h6" Class="mt-3">Lịch làm việc</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Xem tổng quan lịch làm việc, chấm công và các đơn trong tháng.</MudText>
                     </MudCardContent>
                 </MudCard>
             </MudItem>
