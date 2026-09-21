@@ -1,0 +1,344 @@
+@page "/admin/public-forms/submissions"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.PublicForms
+@using FVN_REGISTER.Shared.Handlers
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.JSInterop
+@inherits AppComponentBase
+
+@inject IHttpClientWithAuth Http
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<PageTitle>Đăng ký biểu mẫu</PageTitle>
+
+<MudText Typo="Typo.h5"><b>Tổng hợp đăng ký biểu mẫu</b></MudText>
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+    Xem danh sách, tổng hợp và xuất dữ liệu đăng ký theo biểu mẫu.
+</MudText>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudGrid>
+        <MudItem xs="12" sm="5">
+            <MudSelect T="int?" @bind-Value="_formId" Label="Biểu mẫu" Variant="Variant.Outlined">
+                @foreach (var form in _forms)
+                {
+                    <MudSelectItem T="int?" Value="@((int?)form.Id)">
+                        @form.FormCode - @form.Title
+                    </MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" sm="3">
+            <MudTextField @bind-Value="_departmentCode"
+                          Label="Phòng ban"
+                          Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12" sm="2">
+            <MudSelect T="string" @bind-Value="_status" Label="Trạng thái" Variant="Variant.Outlined">
+                <MudSelectItem Value="@string.Empty">Tất cả</MudSelectItem>
+                <MudSelectItem Value="@("Submitted")">Submitted</MudSelectItem>
+                <MudSelectItem Value="@("Approved")">Approved</MudSelectItem>
+                <MudSelectItem Value="@("Rejected")">Rejected</MudSelectItem>
+                <MudSelectItem Value="@("Cancelled")">Cancelled</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" sm="2">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       FullWidth="true"
+                       Disabled="@(!_formId.HasValue)"
+                       OnClick="LoadAsync">
+                Xem
+            </MudButton>
+        </MudItem>
+
+        <MudItem xs="12" sm="3">
+            <MudDatePicker @bind-Date="_fromDate"
+                           Label="Từ ngày"
+                           Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12" sm="3">
+            <MudDatePicker @bind-Date="_toDate"
+                           Label="Đến ngày"
+                           Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12" sm="6">
+            <MudButton Variant="Variant.Outlined"
+                       Color="Color.Success"
+                       Disabled="@(!_formId.HasValue || _loading)"
+                       OnClick="ExportAsync"
+                       Class="mr-2">
+                Xuất Excel
+            </MudButton>
+
+            <MudButton Variant="Variant.Outlined"
+                       Disabled="@(!_formId.HasValue || _loading)"
+                       OnClick="LoadSummaryAsync">
+                Làm mới tổng hợp
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@if (_summary != null)
+{
+    <MudGrid Class="mb-4">
+        <MudItem xs="12" sm="4">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.subtitle2">Tổng số đăng ký</MudText>
+                <MudText Typo="Typo.h4">@_summary.TotalSubmissions</MudText>
+            </MudPaper>
+        </MudItem>
+
+        <MudItem xs="12" sm="8">
+            <MudPaper Class="pa-4" Elevation="1">
+                <MudText Typo="Typo.subtitle2" Class="mb-2">Theo phòng ban</MudText>
+                <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="2">
+                    @foreach (var item in _summary.ByDepartment)
+                    {
+                        <MudChip T="string">@item.DeptCode: @item.Count</MudChip>
+                    }
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    @foreach (var question in _summary.ByQuestion)
+    {
+        <MudPaper Class="pa-4 mb-3" Elevation="1">
+            <MudText Typo="Typo.subtitle1"><b>@question.QuestionText</b></MudText>
+            <MudStack Row="true" Wrap="Wrap.Wrap" Spacing="2" Class="mt-2">
+                @foreach (var choice in question.Choices)
+                {
+                    <MudChip T="string">
+                        @choice.OptionText: @choice.Count
+                    </MudChip>
+                }
+            </MudStack>
+        </MudPaper>
+    }
+}
+
+@if (_result != null)
+{
+    <MudPaper Class="pa-4" Elevation="1">
+        <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+            <MudText Typo="Typo.h6">
+                @_result.FormCode - @_result.FormTitle
+            </MudText>
+            <MudSpacer />
+            <MudText Typo="Typo.caption">
+                Tổng: @_result.TotalCount
+            </MudText>
+        </MudStack>
+
+        <MudTable Items="_result.Items" Dense="true" Hover="true" Bordered="true" FixedHeader="true" Height="600px">
+            <HeaderContent>
+                <MudTh>Mã NV</MudTh>
+                <MudTh>Họ tên</MudTh>
+                <MudTh>Bộ phận</MudTh>
+                <MudTh>Thời gian</MudTh>
+                <MudTh>Trạng thái</MudTh>
+                @foreach (var question in _result.Questions)
+                {
+                    <MudTh>@question.QuestionText</MudTh>
+                }
+            </HeaderContent>
+
+            <RowTemplate>
+                <MudTd>@context.EmployeeCode</MudTd>
+                <MudTd>@context.EmployeeName</MudTd>
+                <MudTd>@context.DeptCode</MudTd>
+                <MudTd>@context.SubmittedAt.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                <MudTd>@context.Status</MudTd>
+                @foreach (var question in _result.Questions)
+                {
+                    <MudTd>
+                        @(context.Answers.FirstOrDefault(x => x.QuestionId == question.Id)?.Value ?? string.Empty)
+                    </MudTd>
+                }
+            </RowTemplate>
+        </MudTable>
+
+        <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+            <MudButton Disabled="@(_page <= 1 || _loading)"
+                       OnClick="@(() => ChangePageAsync(_page - 1))">
+                Trước
+            </MudButton>
+            <MudText Class="mx-3 mt-2">Trang @_page</MudText>
+            <MudButton Disabled="@(_loading || _result.Items.Count < _pageSize)"
+                       OnClick="@(() => ChangePageAsync(_page + 1))">
+                Sau
+            </MudButton>
+        </MudStack>
+    </MudPaper>
+}
+
+@code {
+    private readonly List<PublicFormDto> _forms = new();
+    private int? _formId;
+    private string? _departmentCode;
+    private string _status = string.Empty;
+    private DateTime? _fromDate;
+    private DateTime? _toDate;
+    private PublicFormSubmissionListDto? _result;
+    private PublicFormSubmissionSummaryDto? _summary;
+    private int _page = 1;
+    private const int _pageSize = 50;
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadFormsAsync();
+    }
+
+    private async Task LoadFormsAsync()
+    {
+        var response = await Http.GetAsync<List<PublicFormDto>>("api/public-forms/submissions/forms");
+        if (!response.IsSuccess)
+        {
+            Snackbar.Add(response.Message ?? "Không tải được danh sách biểu mẫu.", Severity.Error);
+            return;
+        }
+
+        _forms.Clear();
+        _forms.AddRange(response.Data ?? new List<PublicFormDto>());
+
+        if (_forms.Count > 0 && !_formId.HasValue)
+            _formId = _forms[0].Id;
+
+        if (_formId.HasValue)
+            await LoadAsync();
+    }
+
+    private PublicFormSubmissionQueryDto BuildQuery()
+        => new()
+        {
+            DepartmentCode = string.IsNullOrWhiteSpace(_departmentCode) ? null : _departmentCode.Trim(),
+            Status = string.IsNullOrWhiteSpace(_status) ? null : _status,
+            FromDate = _fromDate,
+            ToDate = _toDate,
+            Page = _page,
+            PageSize = _pageSize
+        };
+
+    private string BuildQueryString(PublicFormSubmissionQueryDto query)
+    {
+        var values = new List<string>();
+
+        if (!string.IsNullOrWhiteSpace(query.DepartmentCode))
+            values.Add("DepartmentCode=" + Uri.EscapeDataString(query.DepartmentCode));
+
+        if (!string.IsNullOrWhiteSpace(query.Status))
+            values.Add("Status=" + Uri.EscapeDataString(query.Status));
+
+        if (query.FromDate.HasValue)
+            values.Add("FromDate=" + Uri.EscapeDataString(query.FromDate.Value.ToString("yyyy-MM-dd")));
+
+        if (query.ToDate.HasValue)
+            values.Add("ToDate=" + Uri.EscapeDataString(query.ToDate.Value.ToString("yyyy-MM-dd")));
+
+        values.Add("Page=" + query.Page);
+        values.Add("PageSize=" + query.PageSize);
+
+        return string.Join("&", values);
+    }
+
+    private async Task LoadAsync()
+    {
+        if (!_formId.HasValue) return;
+
+        _page = 1;
+        await LoadPageAsync();
+        await LoadSummaryAsync();
+    }
+
+    private async Task ChangePageAsync(int page)
+    {
+        if (!_formId.HasValue || page < 1) return;
+        _page = page;
+        await LoadPageAsync();
+    }
+
+    private async Task LoadPageAsync()
+    {
+        if (!_formId.HasValue) return;
+
+        _loading = true;
+        try
+        {
+            var query = BuildQuery();
+            var response = await Http.GetAsync<PublicFormSubmissionListDto>(
+                $"api/public-forms/{_formId.Value}/submissions?{BuildQueryString(query)}");
+
+            if (response.IsSuccess)
+                _result = response.Data;
+            else
+                Snackbar.Add(response.Message ?? "Không tải được dữ liệu đăng ký.", Severity.Error);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task LoadSummaryAsync()
+    {
+        if (!_formId.HasValue) return;
+
+        var query = BuildQuery();
+        query.Page = 1;
+        query.PageSize = 1;
+
+        var response = await Http.GetAsync<PublicFormSubmissionSummaryDto>(
+            $"api/public-forms/{_formId.Value}/submissions/summary?{BuildQueryString(query)}");
+
+        if (response.IsSuccess)
+            _summary = response.Data;
+        else
+            Snackbar.Add(response.Message ?? "Không tải được tổng hợp.", Severity.Error);
+    }
+
+    private async Task ExportAsync()
+    {
+        if (!_formId.HasValue) return;
+
+        _loading = true;
+        try
+        {
+            var query = BuildQuery();
+            query.Page = 1;
+            query.PageSize = 500;
+
+            var response = await Http.GetFileAsync(
+                $"api/public-forms/{_formId.Value}/submissions/export?{BuildQueryString(query)}");
+
+            if (!response.IsSuccess || response.Data == null)
+            {
+                Snackbar.Add(response.Message ?? "Xuất Excel thất bại.", Severity.Error);
+                return;
+            }
+
+            var fileName = $"PublicForm_{_formId.Value}_Submissions_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+            var base64 = Convert.ToBase64String(response.Data);
+
+            await JS.InvokeVoidAsync(
+                "fvnFileDownload.downloadBase64",
+                fileName,
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                base64);
+
+            Snackbar.Add("Đã xuất Excel.", Severity.Success);
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+}
