@@ -1,5 +1,6 @@
 @page "/execution"
 @using FVN_REGISTER.Contract.Dtos.Execution
+@using Microsoft.AspNetCore.Components.Forms
 @using FVN_REGISTER.Shared.Services.Execution
 @inject IExecutionReconciliationClientService ExecutionService
 @inject ISnackbar Snackbar
@@ -209,6 +210,7 @@
     private string? _externalUrl;
     private string? _evidenceDescription;
     private int? _fileId;
+    private IBrowserFile? _evidenceFile;
     private ExecutionReconciliationDetailDto? _detail;
 
     [SupplyParameterFromQuery(Name = "reconciliationId")]
@@ -283,6 +285,7 @@
         _externalUrl = null;
         _evidenceDescription = null;
         _fileId = null;
+        _evidenceFile = null;
         return Task.CompletedTask;
     }
 
@@ -300,6 +303,21 @@
         {
             Snackbar.Add("Vui lòng nhập loại evidence.", Severity.Warning);
             return;
+        }
+
+        if (_evidenceFile is not null)
+        {
+            var upload = await ExecutionService.UploadEvidenceFileAsync(
+                confirmationId,
+                _evidenceFile);
+
+            if (!upload.IsSuccess || upload.Data <= 0)
+            {
+                Snackbar.Add(upload.Message ?? "Không thể upload file evidence.", Severity.Error);
+                return;
+            }
+
+            _fileId = upload.Data;
         }
 
         var result = await ExecutionService.AddEvidenceAsync(
@@ -322,6 +340,19 @@
         await LoadAsync();
         if (_selected is not null)
             await OpenDetailAsync(_selected.Id);
+    }
+
+    private void OnEvidenceFileSelected(InputFileChangeEventArgs e)
+    {
+        _evidenceFile = e.File;
+        _fileId = null;
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024d:0.##} KB";
+        return $"{bytes / (1024d * 1024d):0.##} MB";
     }
 
     private async Task SubmitConfirmationAsync()
