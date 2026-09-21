@@ -5,7 +5,7 @@ namespace FVN_REGISTER.Core.Entities.WorkCalendar;
 [Table("F03ExecutionPolicies")]
 public sealed class F03ExecutionPolicy : BaseAuditEntity
 {
-    public int Id { get; set; }
+    public new int Id { get; set; }
     [Required, StringLength(50)] public string ModuleCode { get; set; } = string.Empty;
     public byte ReconciliationMode { get; set; } = 1;
     public byte ConfirmationMode { get; set; }
