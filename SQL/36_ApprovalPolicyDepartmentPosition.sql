@@ -42,6 +42,11 @@ BEGIN
 END;
 GO
 
+/* PositionCode is the optional requester-position refinement in v4. */
+ALTER TABLE dbo.F03ApprovalPolicies
+    ALTER COLUMN PositionCode nvarchar(20) NULL;
+GO
+
 IF EXISTS
 (
     SELECT 1
@@ -76,9 +81,8 @@ WHERE
 GO
 
 /*
-    The quarantine sentinel is intentionally not a real department/position.
-    FK constraints therefore require us to create no sentinel rows; instead,
-    old rows must be removed if the database has referential constraints.
+    Legacy rows are removed before the new foreign keys are added because
+    their department and approval position cannot be inferred safely.
 */
 DELETE p
 FROM dbo.F03ApprovalPolicies p
