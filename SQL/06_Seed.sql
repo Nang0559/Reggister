@@ -319,24 +319,106 @@ WHERE e.IsActive = 1
       WHERE b.EmployeeCode=e.EmployeeCode AND b.WorkYear=@SeedLeaveYear
   );
 
--- Functions required by F03UserFunctions mappings
-INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail)
-SELECT 1,0,v.FunctionCode,v.FunctionName,v.Detail
+-- Security functions
+-- FunctionCode is the stable authorization key used by SecurityFunctionCodes.cs.
+-- Keep this seed aligned with the application authorization matrix.
+INSERT dbo.F03Functions
+    (IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+SELECT
+    1,0,v.FunctionCode,v.FunctionName,v.Detail,v.ModuleCode,v.ActionCode,v.ScopeCode,v.DisplayOrder
 FROM (VALUES
-(1001,N'Leave Register',N'Create and manage leave requests'),
-(1002,N'Leave Approval',N'Approve and reject leave requests'),
-(1003,N'Overtime Register',N'Create and manage overtime requests'),
-(1004,N'Trip Register',N'Create and manage business trip requests'),
-(1005,N'Equipment Register',N'Create and manage equipment requests')
-) AS v(FunctionCode,FunctionName,Detail)
-WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.FunctionCode);
+(1001,N'Leave Register (Legacy)',N'Legacy leave register grant',N'Leave',N'LegacyRegister',N'Own',1001),
+(1002,N'Leave Approval (Legacy)',N'Legacy leave approval grant',N'Leave',N'LegacyApprove',N'Department',1002),
+(1003,N'Overtime Register (Legacy)',N'Legacy overtime register grant',N'Overtime',N'LegacyRegister',N'Own',1003),
+(1004,N'Trip Register (Legacy)',N'Legacy business trip register grant',N'Trip',N'LegacyRegister',N'Own',1004),
+(1005,N'Equipment Register (Legacy)',N'Legacy equipment register grant',N'Equipment',N'LegacyRegister',N'Department',1005),
+(2701,N'Dashboard',N'View dashboard',N'Dashboard',N'View',N'All',2701),
+(2001,N'Leave View',N'View leave requests',N'Leave',N'View',N'Own',2001),
+(2002,N'Leave Create',N'Create leave requests',N'Leave',N'Create',N'Own',2002),
+(2003,N'Leave Edit',N'Edit leave requests',N'Leave',N'Edit',N'Own',2003),
+(2004,N'Leave Cancel',N'Cancel leave requests',N'Leave',N'Cancel',N'Own',2004),
+(2005,N'Leave Approve',N'Approve leave requests',N'Leave',N'Approve',N'Department',2005),
+(2006,N'Leave Export',N'Export leave requests',N'Leave',N'Export',N'Department',2006),
+(2101,N'OT View',N'View overtime requests',N'Overtime',N'View',N'Own',2101),
+(2102,N'OT Create',N'Create overtime requests',N'Overtime',N'Create',N'Own',2102),
+(2103,N'OT Edit',N'Edit overtime requests',N'Overtime',N'Edit',N'Own',2103),
+(2104,N'OT Cancel',N'Cancel overtime requests',N'Overtime',N'Cancel',N'Own',2104),
+(2105,N'OT Approve',N'Approve overtime requests',N'Overtime',N'Approve',N'Department',2105),
+(2106,N'OT Reconcile',N'Reconcile overtime execution',N'Overtime',N'Reconcile',N'Department',2106),
+(2107,N'OT Export',N'Export overtime requests',N'Overtime',N'Export',N'Department',2107),
+(2201,N'Trip View',N'View business trips',N'Trip',N'View',N'Own',2201),
+(2202,N'Trip Create',N'Create business trips',N'Trip',N'Create',N'Own',2202),
+(2203,N'Trip Edit',N'Edit business trips',N'Trip',N'Edit',N'Own',2203),
+(2204,N'Trip Cancel',N'Cancel business trips',N'Trip',N'Cancel',N'Own',2204),
+(2205,N'Trip Approve',N'Approve business trips',N'Trip',N'Approve',N'Department',2205),
+(2206,N'Trip Export',N'Export business trips',N'Trip',N'Export',N'Department',2206),
+(2301,N'Equipment View',N'View equipment',N'Equipment',N'View',N'Department',2301),
+(2302,N'Equipment Create',N'Create equipment requests',N'Equipment',N'Create',N'Department',2302),
+(2303,N'Equipment Edit',N'Edit equipment requests',N'Equipment',N'Edit',N'Department',2303),
+(2304,N'Equipment Repair',N'Manage equipment repair',N'Equipment',N'Repair',N'Department',2304),
+(2305,N'Equipment Approve',N'Approve equipment requests',N'Equipment',N'Approve',N'Department',2305),
+(2306,N'Equipment Import',N'Import equipment data',N'Equipment',N'Import',N'Department',2306),
+(2307,N'Equipment Export',N'Export equipment data',N'Equipment',N'Export',N'Department',2307),
+(2401,N'User Management View',N'View users',N'UserManagement',N'View',N'All',2401),
+(2402,N'User Management Create',N'Create users',N'UserManagement',N'Create',N'All',2402),
+(2403,N'User Management Edit',N'Edit users',N'UserManagement',N'Edit',N'All',2403),
+(2404,N'User Management Lock',N'Lock or unlock users',N'UserManagement',N'Lock',N'All',2404),
+(2405,N'User Management Reset Password',N'Reset user passwords',N'UserManagement',N'ResetPassword',N'All',2405),
+(2406,N'User Management Assign Permission',N'Assign user permissions',N'UserManagement',N'AssignPermission',N'All',2406),
+(2501,N'HRM Sync View Status',N'View HRM sync status',N'HrmSync',N'ViewStatus',N'All',2501),
+(2502,N'HRM Sync',N'Run HRM synchronization',N'HrmSync',N'Sync',N'All',2502),
+(2503,N'HRM Sync Review',N'Review HRM synchronization changes',N'HrmSync',N'Review',N'All',2503),
+(2504,N'HRM Sync Retry',N'Retry failed HRM synchronization',N'HrmSync',N'Retry',N'All',2504),
+(2601,N'Security View',N'View security center',N'Security',N'View',N'All',2601),
+(2602,N'Security Manage Roles',N'Manage security roles',N'Security',N'ManageRoles',N'All',2602),
+(2603,N'Security Manage Functions',N'Manage security functions',N'Security',N'ManageFunctions',N'All',2603),
+(2604,N'Security Audit',N'View security audit',N'Security',N'Audit',N'All',2604),
+(2801,N'Public Information Manage',N'Manage public information',N'PublicInformation',N'Manage',N'All',2801),
+(2802,N'Execution Review',N'Review execution reconciliation',N'Execution',N'Review',N'All',2802),
+(2803,N'Payroll View',N'View payroll inputs',N'Payroll',N'View',N'All',2803),
+(2804,N'Payroll Prepare',N'Prepare payroll period',N'Payroll',N'Prepare',N'All',2804),
+(2805,N'Payroll Lock',N'Lock payroll period',N'Payroll',N'Lock',N'All',2805),
+(2806,N'Payroll Export',N'Export payroll inputs',N'Payroll',N'Export',N'All',2806),
+(2901,N'Attendance View',N'View attendance',N'Attendance',N'View',N'Own',2901),
+(2902,N'Attendance Export',N'Export attendance',N'Attendance',N'Export',N'Department',2902)
+) AS v(FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+WHERE NOT EXISTS
+(
+    SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.FunctionCode
+);
 
--- Permission/function mapping
+-- Legacy direct grant retained during the Role -> Function migration.
+-- E0001 is the seeded SuperAdmin test account and must be able to open
+-- Dashboard and the Security Center even when F03UserRoles has not yet
+-- been populated by the HRM role synchronization.
 INSERT dbo.F03UserFunctions(IdUser,IdPermission,IdFunction)
 SELECT u.Id,p.Id,f.Id
-FROM dbo.F03Users u CROSS JOIN dbo.F03Permissions p CROSS JOIN dbo.F03Functions f
-WHERE u.EmployeeCode=N'E0001' AND p.PermissionCode=1 AND f.FunctionCode=1001
-AND NOT EXISTS(SELECT 1 FROM dbo.F03UserFunctions x WHERE x.IdUser=u.Id AND x.IdPermission=p.Id AND x.IdFunction=f.Id);
+FROM dbo.F03Users u
+CROSS JOIN dbo.F03Permissions p
+CROSS JOIN dbo.F03Functions f
+WHERE u.EmployeeCode=N'E0001'
+  AND p.PermissionCode=1
+  AND f.FunctionCode IN
+  (
+      2001,2002,2003,2004,2005,2006,
+      2101,2102,2103,2104,2105,2106,2107,
+      2201,2202,2203,2204,2205,2206,
+      2301,2302,2303,2304,2305,2306,2307,
+      2401,2402,2403,2404,2405,2406,
+      2501,2502,2503,2504,
+      2601,2602,2603,2604,
+      2701,
+      2801,2802,2803,2804,2805,2806,
+      2901,2902
+  )
+  AND NOT EXISTS
+  (
+      SELECT 1
+      FROM dbo.F03UserFunctions x
+      WHERE x.IdUser=u.Id
+        AND x.IdPermission=p.Id
+        AND x.IdFunction=f.Id
+  );
 
 -- Approvers: five test approver rows
 INSERT dbo.F03Approvers(IsActive,CreatedBy,UserId,RequestType,ApproverCode,PositionCode,ApproverName,ApproverEmail,ApproverDeptCode,ApproverDeptName,ApproveForDeptCode,ApproveForDeptName,Level,RoleName)
