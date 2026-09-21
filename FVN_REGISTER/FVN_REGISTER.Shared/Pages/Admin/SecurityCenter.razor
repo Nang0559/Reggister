@@ -1,7 +1,6 @@
 @page "/admin/security"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Security
-@using FVN_REGISTER.Core.Constants
 @using FVN_REGISTER.Contract.Dtos.Usermanagers
 @using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Shared.Services.Users
@@ -310,8 +309,10 @@
     private bool _loadingResetRequests;
     private PermissionSnapshotDto? _myPermissions;
 
+    private const int UserManagementResetPasswordFunctionCode = 2405;
+
     private bool CanResetPassword
-        => _myPermissions?.Has(SecurityFunctionCodes.UserManagementResetPassword) == true;
+        => _myPermissions?.Has(UserManagementResetPasswordFunctionCode) == true;
     private int? _processingResetRequestId;
 
     private IEnumerable<UserAccountDto> FilteredUsers =>
