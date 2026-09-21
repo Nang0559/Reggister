@@ -24,7 +24,7 @@
 @code {
     [Parameter] public string ModuleContext { get; set; } = "ALL";
     [Parameter] public EventCallback<DateTime> OnDateSelected { get; set; }
-    [Parameter] public EventCallback<WorkCalendarEventDto> OnEventSelected { get; set; }
+    [Parameter] public EventCallback<CalendarItemDto> OnEventSelected { get; set; }
 
     private static readonly (string Code, string Name)[] Filters =
     [
@@ -80,7 +80,11 @@
                 end = e.WorkDate.AddDays(1).ToDateTime(TimeOnly.MinValue).ToString("s"),
                 moduleCode = e.ModuleCode,
                 status = e.StatusCode,
-                requestId = TryParseRequestId(e.SourceId),
+                severity = e.Severity,
+                requiresAction = e.RequiresAction,
+                actionId = e.ActionId,
+                detailRoute = e.DetailRoute,
+                sourceId = e.SourceId,
                 display = e.ModuleCode == "COMPANY" ? "background" : "auto"
             })
             .ToList<object>();
@@ -104,19 +108,6 @@
     private static int? TryParseRequestId(string sourceId) =>
         int.TryParse(sourceId, out var id) ? id : null;
 
-    private static WorkCalendarEventDto ToLegacyEvent(CalendarItemDto item) => new()
-    {
-        Id = EventId(item),
-        ModuleCode = item.ModuleCode,
-        EventType = item.ModuleCode,
-        Title = BuildTitle(item),
-        Start = item.WorkDate.ToDateTime(TimeOnly.MinValue),
-        End = item.WorkDate.AddDays(1).ToDateTime(TimeOnly.MinValue),
-        Status = item.StatusCode,
-        IsReadOnly = true,
-        RequestId = TryParseRequestId(item.SourceId)
-    };
-
     private bool Visible(CalendarItemDto e) =>
         _moduleFilter == "ALL" || e.ModuleCode == "COMPANY" || e.ModuleCode == _moduleFilter;
 
@@ -139,7 +130,7 @@
     {
         var item = _data.Items.FirstOrDefault(x => EventId(x) == id);
         if (item != null && OnEventSelected.HasDelegate)
-            await OnEventSelected.InvokeAsync(ToLegacyEvent(item));
+            await OnEventSelected.InvokeAsync(item);
     }
 
     [JSInvokable]
