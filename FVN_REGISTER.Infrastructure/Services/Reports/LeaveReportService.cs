@@ -196,20 +196,20 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             var toDate = query.ToDate ?? DateTime.Today;
 
 
-            var reportScope = await GetEffectiveReportScopeAsync(user, ct, SecurityFunctionCodes.LeaveView);\n            var isAdmin = string.Equals(reportScope, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase);\n            var isManager = string.Equals(reportScope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase);\n\n            var q = _uow.Repository<VF03LeaveRequest>().Query()
+            var reportScope = await GetEffectiveReportScopeAsync(user, ct, SecurityFunctionCodes.LeaveView);\n\n            var q = _uow.Repository<VF03LeaveRequest>().Query()
                 .AsNoTracking()
                 .Where(x => x.IsActive == true
                          && x.StartDate >= fromDate
                          && x.StartDate <= toDate);
 
-            if (isAdmin)
+            if (string.Equals(reportScope, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase))
             {
                 if (!string.IsNullOrEmpty(query.DeptCode))
                     q = q.Where(x => x.DeptCode == query.DeptCode);
                 if (!string.IsNullOrEmpty(query.EmployeeCode))
                     q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
             }
-            else if (isManager)
+            else if (string.Equals(reportScope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
             {
                 q = q.Where(x => x.DeptCode == user.DeptCode);
                 if (!string.IsNullOrEmpty(query.EmployeeCode))
