@@ -1,6 +1,8 @@
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.EmailTemplates;
 using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Contract.Dtos.EmailTemplates;
 using FVN_REGISTER.Contract.Responses;
 using Microsoft.AspNetCore.Authorization;
@@ -15,16 +17,19 @@ namespace FVN_REGISTER.API.Controllers
     public class EmailTemplateController : BaseApiController
     {
         private readonly IEmailTemplateManagementService _templateService;
+        private readonly IAuthorizationService _authorization;
 
         public EmailTemplateController(
             IEmailTemplateManagementService templateService,
             ICurrentUserService currentUser,
             IUserLogService userLog,
+            IAuthorizationService authorization,
             ILogger<EmailTemplateController> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(currentUser, userLog, logger, options)
         {
             _templateService = templateService;
+            _authorization = authorization;
         }
 
         [HttpGet]
@@ -40,6 +45,7 @@ namespace FVN_REGISTER.API.Controllers
             int id,
             CancellationToken ct)
         {
+            if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.EmailTemplateManage, ct)) return Forbid();
             var item = await _templateService.GetByIdAsync(id, ct);
 
             return item == null
@@ -52,6 +58,7 @@ namespace FVN_REGISTER.API.Controllers
             [FromBody] EmailTemplateDto dto,
             CancellationToken ct)
         {
+            if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.EmailTemplateManage, ct)) return Forbid();
             var user = UserInfo;
             if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
 
