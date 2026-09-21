@@ -4,13 +4,12 @@ using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Constants;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 
 namespace FVN_REGISTER.API.Controllers;
 
-[Authorize]
+[Microsoft.AspNetCore.Authorization.Authorize]
 [ApiController]
 [Route("api/payroll")]
 public sealed class PayrollController : BaseApiController
