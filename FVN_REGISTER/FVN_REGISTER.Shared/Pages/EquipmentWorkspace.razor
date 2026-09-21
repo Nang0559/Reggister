@@ -19,7 +19,6 @@
         <MudAlert Severity="Severity.Warning" Variant="Variant.Outlined">
             Tài khoản chưa được cấp quyền <b>Import Excel thiết bị</b>. Vui lòng liên hệ Admin.
         </MudAlert>
-undefined
     <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="mb-5">
         <div>
             <MudText Typo="Typo.h4" Style="font-weight:800">Equipment Workspace</MudText>
@@ -148,10 +147,10 @@ undefined
         _uploading = true;
         try
         {
-            await using var stream = _file.OpenReadStream(10 * 1024 * 1024);
+            await using var stream = _file.OpenReadStream(25 * 1024 * 1024);
             using var content = new MultipartFormDataContent();
             var fileContent = new StreamContent(stream);
-            fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue("application/octet-stream");
             content.Add(fileContent, "file", _file.Name);
             content.Add(new StringContent(_deptCode.Trim()), "deptCode");
 
