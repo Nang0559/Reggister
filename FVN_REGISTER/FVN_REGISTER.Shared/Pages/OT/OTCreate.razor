@@ -399,14 +399,13 @@ else if (_form != null)
 
     private Task OnCalendarEventSelected(CalendarItemDto item)
     {
-        if (item.ModuleCode == "OT" && item.RequestId.HasValue)
-            Nav.NavigateTo($"/ot/detail/{item.RequestId.Value}");
-        else if (item.ModuleCode == "LEAVE")
-            Snackbar.Add($"Đã có nghỉ phép: {item.Title}", Severity.Info);
-        else if (item.ModuleCode == "TRIP")
-            Snackbar.Add($"Đã có công tác: {item.Title}", Severity.Info);
-        else
-            Snackbar.Add(item.Title, Severity.Info);
+        if (!string.IsNullOrWhiteSpace(item.DetailRoute))
+        {
+            Nav.NavigateTo(item.DetailRoute);
+            return Task.CompletedTask;
+        }
+
+        Snackbar.Add(item.Summary ?? item.StatusCode, Severity.Info);
         return Task.CompletedTask;
     }
 
