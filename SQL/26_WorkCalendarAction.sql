@@ -177,11 +177,15 @@ BEGIN
 
     IF COL_LENGTH(N'dbo.F03AppNotifications',N'NotificationType') IS NULL
         ALTER TABLE dbo.F03AppNotifications ADD NotificationType nvarchar(50) NULL;
+END;
+GO
 
+/* Separate batch on purpose: a column added by ALTER TABLE is not visible to
+   statements compiled in the same batch (Msg 207: Invalid column name). */
+IF COL_LENGTH(N'dbo.F03AppNotifications',N'NotificationType') IS NOT NULL
     UPDATE dbo.F03AppNotifications
     SET NotificationType = N'Legacy'
     WHERE NotificationType IS NULL;
-END;
 GO
 
 /* Backfill ActionId into calendar projection is intentionally not automatic:
