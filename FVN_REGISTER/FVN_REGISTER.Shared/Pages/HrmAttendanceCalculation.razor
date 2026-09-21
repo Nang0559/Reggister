@@ -1,6 +1,9 @@
 @page "/hrm/attendance-calculation"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @using FVN_REGISTER.Contract.Dtos.Depts
+@using FVN_REGISTER.Core.Constants
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Contract.Dtos.HrmSync
 @using FVN_REGISTER.Shared.Services.Departments
 @using FVN_REGISTER.Shared.Services.HrmSync
@@ -8,9 +11,11 @@
 @inject IDepartmentManagementClientService Departments
 @inject IHrmAttendanceCalculationClientService Calculation
 @inject ISnackbar Snackbar
+@inject ISecurityClientService SecurityService
 @rendermode InteractiveServer
 
 <MudPaper Class="pa-6">
+ @if (!_canCalculate) { <MudAlert Severity="Severity.Error">Bạn không có quyền thực hiện tính giờ HRM.</MudAlert> } else {
  <MudText Typo="Typo.h5">Tính giờ theo HRM</MudText>
  <MudText Typo="Typo.body2" Class="mb-4">FVN đọc dữ liệu HRM và lưu kết quả tính giờ vào database FVN.</MudText>
  <MudGrid>
@@ -36,6 +41,7 @@
   </MudButton>
  </MudStack>
 }
+}
 </MudPaper>
 
 @code {
@@ -44,10 +50,14 @@
  private DateTime? _fromDate=DateTime.Today;
  private DateTime? _toDate=DateTime.Today;
  private bool _running;
+ private bool _canCalculate;
  private bool _exporting;
  private HrmAttendanceCalculationResultDto? _result;
  protected override async Task OnInitializedAsync()
  {
+  var permissions = await SecurityService.GetMyPermissionsAsync();
+  _canCalculate = permissions.IsSuccess && permissions.Data?.Has(SecurityFunctionCodes.AttendanceCalculate) == true;
+  if (!_canCalculate) return;
   var r=await Departments.GetListAsync(true);
   if(r.IsSuccess&&r.Data is not null) _departments=r.Data;
  }
