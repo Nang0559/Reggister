@@ -57,7 +57,8 @@
             _element,
             _ref,
             BuildEvents(),
-            DateTime.Today.ToString("yyyy-MM-dd"));
+            DateTime.Today.ToString("yyyy-MM-dd"),
+            BuildRegistrationDates());
 
         _initialized = true;
     }
@@ -68,6 +69,13 @@
         if (result.IsSuccess && result.Data != null)
             _data = result.Data;
     }
+
+    private List<string> BuildRegistrationDates() =>
+        _data.RegistrationOpportunities
+            .Where(x => x.IsEnabled)
+            .Select(x => x.WorkDate.ToString("yyyy-MM-dd"))
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
 
     private List<object> BuildEvents()
     {
@@ -113,7 +121,7 @@
     {
         _moduleFilter = code;
         if (_initialized)
-            await JS.InvokeVoidAsync("workCalendar.updateEvents", BuildEvents());
+            await JS.InvokeVoidAsync("workCalendar.updateEvents", BuildEvents(), BuildRegistrationDates());
     }
 
     [JSInvokable]
