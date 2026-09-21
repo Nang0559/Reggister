@@ -16,4 +16,10 @@ public interface IWorkCalendarService
         string employeeCode,
         DateTime date,
         CancellationToken ct = default);
+
+    Task<IReadOnlyList<CalendarRegistrationOpportunityDto>> GetRegistrationOpportunitiesAsync(
+        string employeeCode,
+        DateTime from,
+        DateTime to,
+        CancellationToken ct = default);
 }
