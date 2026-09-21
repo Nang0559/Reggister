@@ -14,10 +14,12 @@ public sealed class PayrollInputService : IPayrollInputService
 
     public async Task<PayrollPeriodDto> GetOrCreateCurrentPeriodAsync(int actorUserId, CancellationToken ct = default)
     {
-        var row = await _db.PayrollCalculationPeriods
+        var rows = await _db.PayrollCalculationPeriods
             .FromSqlInterpolated($"EXEC dbo.usp_EnsurePayrollPeriod @AsOfDate={DateTime.Today}, @ActorUserId={actorUserId}")
             .AsNoTracking()
-            .FirstOrDefaultAsync(ct);
+            .ToListAsync(ct);
+
+        var row = rows.FirstOrDefault();
 
         return row is null
             ? throw new InvalidOperationException("Không thể tạo/xác định kỳ lương hiện tại.")
@@ -42,9 +44,12 @@ public sealed class PayrollInputService : IPayrollInputService
         if (period.Status is "Locked" or "Exported")
             throw new InvalidOperationException("Kỳ lương đã khóa/xuất, không được chuẩn bị lại.");
 
-        var result = await _db.Database.SqlQueryRaw<PayrollPrepareResult>(
+        var results = await _db.Database.SqlQueryRaw<PayrollPrepareResult>(
             "EXEC dbo.usp_PreparePayrollPeriod @PeriodId={0}, @ActorUserId={1}",
-            periodId, actorUserId).FirstOrDefaultAsync(ct);
+            periodId, actorUserId)
+            .ToListAsync(ct);
+
+        var result = results.FirstOrDefault();
 
         return new PayrollPrepareDto(periodId, result?.InputRows ?? 0);
     }
@@ -78,10 +83,12 @@ public sealed class PayrollInputService : IPayrollInputService
         if (stale)
             throw new InvalidOperationException("Snapshot Payroll Input đã cũ. Hãy Prepare lại kỳ lương trước khi khóa.");
 
-        var locked = await _db.PayrollCalculationPeriods
+        var lockedRows = await _db.PayrollCalculationPeriods
             .FromSqlInterpolated($"EXEC dbo.usp_LockPayrollPeriod @PeriodId={periodId}, @ActorUserId={actorUserId}")
             .AsNoTracking()
-            .FirstOrDefaultAsync(ct)
+            .ToListAsync(ct);
+
+        var locked = lockedRows.FirstOrDefault()
             ?? throw new InvalidOperationException("Không thể khóa kỳ lương.");
 
         return Map(locked);
