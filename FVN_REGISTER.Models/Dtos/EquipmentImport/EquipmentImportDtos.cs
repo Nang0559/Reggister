@@ -39,6 +39,14 @@ public sealed class EquipmentImportBatchDto
     public int ValidRows { get; set; }
     public int InvalidRows { get; set; }
     public int ImportedRows { get; set; }
+    public List<EquipmentImportRowDto> Rows { get; set; } = new();
+}
+
+public sealed class EquipmentImportRowDto
+{
+    public int RowNumber { get; set; }
+    public string Status { get; set; } = string.Empty;
+    public string? ErrorMessage { get; set; }
 }
 
 public sealed class EquipmentImportCommitResultDto
