@@ -35,8 +35,11 @@ namespace FVN_REGISTER.API.Controllers
         [HttpGet("all")]
         public async Task<IActionResult> GetAll([FromQuery] DateTime? date, CancellationToken ct)
         {
-            if (UserInfo == null || !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.DepartmentStatusView, null, UserInfo.DeptCode, ct)) return Forbid();
+            if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.DepartmentStatusView, ct)) return Forbid();
             var result = await _deptStatus.GetAllDeptStatusAsync(date ?? DateTime.Today, ct);
+            var scope = await _authorization.GetScopeAsync(UserInfo.UserId, SecurityFunctionCodes.DepartmentStatusView, ct);
+            if (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
+                result = result.Where(x => string.Equals(x.DeptCode, UserInfo.DeptCode, StringComparison.OrdinalIgnoreCase)).ToList();
             return Ok(ApiResponse<object>.Ok(result));
         }
     }
