@@ -16,13 +16,13 @@ else if(_form==null){<MudAlert Severity="Severity.Error">Không tìm thấy bi�
 else
 {
  <MudStack Spacing="2">
-  <MudText Typo="h5"><b>@_form.Title</b></MudText>
+  <MudText Typo="Typo.h5"><b>@_form.Title</b></MudText>
   <MudText Color="Color.Secondary">@_form.Description</MudText>
   @foreach(var q in _form.Questions.OrderBy(x=>x.Sequence))
   {
    <MudPaper Class="pa-4" Elevation="1">
-    <MudText Typo="h6">@q.QuestionText @(q.IsRequired ? "*" : "")</MudText>
-    @if(!string.IsNullOrWhiteSpace(q.HelpText)){<MudText Typo="caption" Color="Color.Secondary">@q.HelpText</MudText>}
+    <MudText Typo="Typo.h6">@q.QuestionText @(q.IsRequired ? "*" : "")</MudText>
+    @if(!string.IsNullOrWhiteSpace(q.HelpText)){<MudText Typo="Typo.caption" Color="Color.Secondary">@q.HelpText</MudText>}
     @if(q.QuestionType=="SingleChoice")
     {
       <MudSelect T="string" Value="@Value(q.Id)" ValueChanged="@(v=>Set(q.Id,v))" Label="Chọn" Variant="Variant.Outlined">
