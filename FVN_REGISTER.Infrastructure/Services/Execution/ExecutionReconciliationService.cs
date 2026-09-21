@@ -12,6 +12,7 @@ using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.WorkCalendar;
 using FVN_REGISTER.Core.Entities.Common;
+using FVN_REGISTER.Core.Entities.Security;
 using FVN_REGISTER.Core.Enums;
 using Microsoft.EntityFrameworkCore;
 
@@ -638,20 +639,86 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         if (!reviewEnabled)
             return;
 
-        var users = await _db.Users.AsNoTracking()
-            .Where(x => x.IsActive != false
-                && x.EmployeeCode != employee.EmployeeCode)
-            .Select(x => new UserIdentityDto
+        // Query candidates by the ExecutionReview function first. Scope is evaluated
+        // from the same grant rows in-memory, so this path avoids N+1 HasAsync/CanAccessAsync calls.
+        var roleCandidates = await (
+            from ur in _db.UserRoles.AsNoTracking()
+            join rf in _db.RoleFunctions.AsNoTracking() on ur.IdRole equals rf.IdRole
+            join f in _db.Functions.AsNoTracking() on rf.IdFunction equals f.Id
+            join u in _db.Users.AsNoTracking() on ur.IdUser equals u.Id
+            where u.IsActive != false
+                && u.EmployeeCode != employee.EmployeeCode
+                && f.IsActive != false
+                && f.FunctionCode == SecurityFunctionCodes.ExecutionReview
+            select new
             {
-                UserId = x.Id,
-                EmployeeCode = x.EmployeeCode,
-                DeptCode = x.DeptCode,
-                Permission = x.PermissionCode,
-                FullName = x.FullName,
-                LevelApprove = x.LevelApprove,
-                IsLoggedIn = true
+                u.Id,
+                u.EmployeeCode,
+                u.DeptCode,
+                u.PermissionCode,
+                u.FullName,
+                u.LevelApprove,
+                f.ScopeCode
             })
             .ToListAsync(cancellationToken);
+
+        var directCandidates = await (
+            from uf in _db.UserFunctions.AsNoTracking()
+            join f in _db.Functions.AsNoTracking() on uf.IdFunction equals f.Id
+            join u in _db.Users.AsNoTracking() on uf.IdUser equals u.Id
+            where u.IsActive != false
+                && u.EmployeeCode != employee.EmployeeCode
+                && f.IsActive != false
+                && f.FunctionCode == SecurityFunctionCodes.ExecutionReview
+            select new
+            {
+                u.Id,
+                u.EmployeeCode,
+                u.DeptCode,
+                u.PermissionCode,
+                u.FullName,
+                u.LevelApprove,
+                f.ScopeCode
+            })
+            .ToListAsync(cancellationToken);
+
+        var candidates = roleCandidates
+            .Concat(directCandidates)
+            .GroupBy(x => new
+            {
+                x.Id,
+                x.EmployeeCode,
+                x.DeptCode,
+                x.PermissionCode,
+                x.FullName,
+                x.LevelApprove
+            })
+            .Select(g => new
+            {
+                g.Key,
+                Scopes = g.Select(x => x.ScopeCode)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList()
+            })
+            .Where(x => x.Scopes.Any(scope =>
+                string.Equals(scope, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase)
+                || (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(x.Key.DeptCode, employee.DeptCode, StringComparison.OrdinalIgnoreCase))
+                || ((string.Equals(scope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase)
+                     || string.Equals(scope, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase))
+                    && string.Equals(x.Key.EmployeeCode, employee.EmployeeCode, StringComparison.OrdinalIgnoreCase))))
+            .Select(x => new UserIdentityDto
+            {
+                UserId = x.Key.Id,
+                EmployeeCode = x.Key.EmployeeCode,
+                DeptCode = x.Key.DeptCode,
+                Permission = x.Key.PermissionCode,
+                FullName = x.Key.FullName,
+                LevelApprove = x.Key.LevelApprove,
+                IsLoggedIn = true
+            })
+            .ToList();
 
         var module = MapNotificationModule(reconciliation.ModuleCode);
 
