@@ -27,16 +27,16 @@ public sealed class CompanyHolidayManagementController : ControllerBase
 
     [HttpGet]
     public async Task<ActionResult<List<CompanyHolidayDto>>> GetAll(CancellationToken ct)
-        => await Can(ct) ? Ok(await _service.GetAllAsync(ct)) : Forbid();
+        => await CanView(ct) ? Ok(await _service.GetAllAsync(ct)) : Forbid();
 
     [HttpGet("years")]
     public async Task<ActionResult<List<int>>> Years(CancellationToken ct)
-        => await Can(ct) ? Ok(await _service.GetWorkYearsAsync(ct)) : Forbid();
+        => await CanView(ct) ? Ok(await _service.GetWorkYearsAsync(ct)) : Forbid();
 
     [HttpGet("template")]
     public async Task<IActionResult> Template(CancellationToken ct)
     {
-        if (!await Can(ct))
+        if (!await CanManage(ct))
             return Forbid();
 
         var result = await _service.DownloadTemplateAsync(ct);
@@ -118,10 +118,16 @@ public sealed class CompanyHolidayManagementController : ControllerBase
         return result.IsSuccess ? Ok(result.Message) : BadRequest(result.Message);
     }
 
-    async Task<bool> Can(CancellationToken ct)
+    async Task<bool> CanView(CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
         return user != null &&
-               await _authorization.HasAsync(user, SecurityFunctionCodes.WorkCalendarManage, ct);
+               await _authorization.HasAsync(user, SecurityFunctionCodes.WorkCalendarView, ct);
+    }
+
+    async Task<bool> CanManage(CancellationToken ct)
+    {
+        var user = _currentUser.GetCurrentUser();
+        return user != null && await _authorization.HasAsync(user, SecurityFunctionCodes.WorkCalendarManage, ct);
     }
 }
