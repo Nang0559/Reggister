@@ -99,9 +99,6 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
             .OrderBy(x => x.Sequence)
             .ThenBy(x => x.Level))
         {
-            if (!level.Required)
-                continue;
-
             if (level.Candidates.Count == 0)
             {
                 var message =
@@ -122,6 +119,11 @@ public abstract class BaseApprovalProvider<TSubject, TProvider> : BaseService<TP
             if (!selectedByLevel.TryGetValue(level.Level, out var selectedCode) ||
                 string.IsNullOrWhiteSpace(selectedCode))
             {
+                // Required levels must have a selected approver. Optional levels
+                // may remain unselected and therefore do not enter the snapshot.
+                if (!level.Required)
+                    continue;
+
                 var message =
                     $"Chưa chọn người phê duyệt cho {RequestType}, " +
                     $"{level.LevelName} (Level {level.Level}).";
