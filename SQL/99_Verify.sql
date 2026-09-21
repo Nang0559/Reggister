@@ -420,6 +420,8 @@ IF EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2107 AND ScopeCode<
     THROW 53054, N'OT.Export must remain Department scoped.', 1;
 IF EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2901 AND ScopeCode<>N'Department')
     THROW 53055, N'Attendance.View must be Department scoped.', 1;
+IF EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf JOIN dbo.F03Roles r ON r.Id=rf.IdRole JOIN dbo.F03Functions f ON f.Id=rf.IdFunction WHERE r.RoleCode=5 AND f.FunctionCode=2901)
+    THROW 53063, N'Normal User must not have Attendance.View Department scope.', 1;
 PRINT N'RBAC hardening verification completed.';
 GO
 
