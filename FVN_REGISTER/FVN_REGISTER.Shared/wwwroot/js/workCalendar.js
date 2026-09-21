@@ -2,9 +2,11 @@
 window.workCalendar = (function () {
     let _calendar = null;
     let _dotNetRef = null;
+    let _registrationDates = new Set();
 
-    function init(element, dotNetRef, events, initialDate) {
+    function init(element, dotNetRef, events, initialDate, registrationDates) {
         _dotNetRef = dotNetRef;
+        _registrationDates = new Set(registrationDates || []);
         if (_calendar) _calendar.destroy();
 
         _calendar = new FullCalendar.Calendar(element, {
@@ -33,7 +35,11 @@ window.workCalendar = (function () {
 
             dayCellClassNames: function (arg) {
                 const d = arg.date.getDay();
-                return (d === 0 || d === 6) ? ['fc-weekend'] : [];
+                const classes = (d === 0 || d === 6) ? ['fc-weekend'] : [];
+                const key = arg.date.toISOString().slice(0, 10);
+                if (_registrationDates.has(key))
+                    classes.push('fc-registration-open');
+                return classes;
             },
 
             eventContent: function (arg) {
@@ -65,8 +71,9 @@ window.workCalendar = (function () {
         _calendar.render();
     }
 
-    function updateEvents(newEvents) {
+    function updateEvents(newEvents, registrationDates) {
         if (!_calendar) return;
+        _registrationDates = new Set(registrationDates || []);
         _calendar.removeAllEvents();
         (newEvents || []).forEach(e => _calendar.addEvent(e));
     }
@@ -77,6 +84,7 @@ window.workCalendar = (function () {
             _calendar = null;
         }
         _dotNetRef = null;
+        _registrationDates = new Set();
     }
 
     return { init, updateEvents, destroy };
