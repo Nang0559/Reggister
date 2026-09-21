@@ -2,6 +2,7 @@ using FVN_REGISTER.Infrastructure;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Entities.WorkCalendar;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
 
 namespace FVN_REGISTER.Infrastructure.Services.Jobs;
 
