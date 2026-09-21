@@ -14,4 +14,8 @@ public interface IPublicFormService
     Task<ServiceResult> PublishAsync(int id, int actorUserId, CancellationToken ct = default);
     Task<ServiceResult> CloseAsync(int id, int actorUserId, CancellationToken ct = default);
     Task<ServiceResult<int>> SubmitAsync(int formId, string employeeCode, string? deptCode, string? positionCode, IReadOnlyCollection<PublicFormAnswerRequest> answers, CancellationToken ct = default);
+    Task<List<PublicFormDto>> GetSubmissionFormsAsync(CancellationToken ct = default);
+    Task<ServiceResult<PublicFormSubmissionListDto>> GetSubmissionsAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default);
+    Task<ServiceResult<PublicFormSubmissionSummaryDto>> GetSubmissionSummaryAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default);
+    Task<ServiceResult<byte[]>> ExportSubmissionsAsync(int formId, PublicFormSubmissionQueryDto query, string scopeCode, CancellationToken ct = default);
 }
