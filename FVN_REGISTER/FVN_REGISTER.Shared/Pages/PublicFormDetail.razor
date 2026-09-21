@@ -55,7 +55,7 @@ else
  private PublicFormDto? _form; private bool _loading=true,_saving; private readonly Dictionary<int,string> _answers=new();
  protected override async Task OnParametersSetAsync(){var r=await Http.GetAsync<PublicFormDto>($"api/public-forms/{Id}");if(r.IsSuccess)_form=r.Data;else Snackbar.Add(r.Message??"Không tải được biểu mẫu.",Severity.Error);_loading=false;}
  private string Value(int id)=>_answers.TryGetValue(id,out var v)?v:string.Empty;
- private void Set(int id,string? value)=>_answers[id]=value??string.Empty;
+ private void Set(int id, object? value)=>_answers[id]=value?.ToString()??string.Empty;
  private decimal? DecimalValue(int id)=>decimal.TryParse(Value(id),System.Globalization.NumberStyles.Any,System.Globalization.CultureInfo.InvariantCulture,out var v)?v:null;
  private bool? BoolValue(int id)=>Value(id)=="true"?true:Value(id)=="false"?false:null;
  private DateTime? DateValue(int id)=>DateTime.TryParse(Value(id),out var v)?v:null;
