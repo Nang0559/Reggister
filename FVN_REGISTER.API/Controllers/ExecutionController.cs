@@ -87,6 +87,33 @@ public sealed class ExecutionController : BaseApiController
         return Ok(ApiResponse<object>.Ok(result));
     }
 
+    [HttpPost("me/confirmations/{confirmationId:long}/evidence/upload")]
+    [RequestSizeLimit(10 * 1024 * 1024)]
+    public async Task<IActionResult> UploadEvidence(
+        long confirmationId,
+        IFormFile file,
+        CancellationToken ct)
+    {
+        if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ."));
+
+        if (file is null || file.Length <= 0)
+            return BadRequest(ApiResponse<object>.Fail("Vui lòng chọn file evidence."));
+
+        await using var stream = file.OpenReadStream();
+        var fileId = await _execution.UploadEvidenceFileAsync(
+            UserInfo.EmployeeCode,
+            userId,
+            confirmationId,
+            file.FileName,
+            file.ContentType,
+            file.Length,
+            stream,
+            ct);
+
+        return Ok(ApiResponse<int>.Ok(fileId));
+    }
+
     [HttpPost("me/confirmations/{confirmationId:long}/evidence")]
     public async Task<IActionResult> AddEvidence(
         long confirmationId,
