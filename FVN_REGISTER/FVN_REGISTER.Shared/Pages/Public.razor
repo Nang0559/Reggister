@@ -1,0 +1,31 @@
+@page "/public"
+@using FVN_REGISTER.Contract.Dtos.PublicInformation
+@using FVN_REGISTER.Shared.Handlers
+@inject IHttpClientWithAuth Http
+
+<PageTitle>Public</PageTitle>
+<MudText Typo="h5" Class="mb-4"><b>Public</b></MudText>
+@if(_loading){<MudProgressLinear Indeterminate="true" />}
+else if(!_items.Any()){<MudAlert Severity="Severity.Info">Hiện chưa có nội dung được công khai.</MudAlert>}
+else
+{
+    <MudStack Spacing="2">
+    @foreach(var item in _items)
+    {
+        <MudPaper Class="pa-4" Elevation="1">
+            <MudStack Row="true" AlignItems="AlignItems.Center">
+                <MudChip T="string" Size="Size.Small">@TypeName(item.Type)</MudChip>
+                @if(item.IsImportant){<MudChip T="string" Size="Size.Small" Color="Color.Error">Quan trọng</MudChip>}
+            </MudStack>
+            <MudText Typo="h6" Class="mt-2">@item.Title</MudText>
+            <MudText Color="Color.Secondary">@item.Summary</MudText>
+            <MudText Class="mt-2" Style="white-space:pre-wrap">@item.Content</MudText>
+        </MudPaper>
+    }
+    </MudStack>
+}
+@code{
+ private List<PublicInformationDto> _items=new(); private bool _loading=true;
+ protected override async Task OnInitializedAsync(){var r=await Http.GetAsync<List<PublicInformationDto>>("api/public-information");if(r.IsSuccess)_items=r.Data??new();_loading=false;}
+ private static string TypeName(string type)=>type switch{"Announcement"=>"Thông báo","News"=>"Tin tức","HRContent"=>"Nội dung HR","CompanyInfo"=>"Thông tin công ty","PublicContent"=>"Nội dung được công khai",_=>type};
+}
