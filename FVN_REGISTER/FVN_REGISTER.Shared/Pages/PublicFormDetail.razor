@@ -25,25 +25,25 @@ else
     @if(!string.IsNullOrWhiteSpace(q.HelpText)){<MudText Typo="Typo.caption" Color="Color.Secondary">@q.HelpText</MudText>}
     @if(q.QuestionType=="SingleChoice")
     {
-      <MudSelect T="string" Value="@Value(q.Id)" ValueChanged="EventCallback.Factory.Create<string>(this, v => Set(q.Id, v))" Label="Chọn" Variant="Variant.Outlined">
+      <MudSelect T="string" Value="@Value(q.Id)" ValueChanged="@StringChanged(q.Id)" Label="Chọn" Variant="Variant.Outlined">
        @foreach(var o in q.Options.Where(x=>x.Id>0)){<MudSelectItem Value="@o.OptionCode">@o.OptionText</MudSelectItem>}
       </MudSelect>
     }
     else if(q.QuestionType=="YesNo")
     {
-      <MudSwitch T="bool?" Value="@BoolValue(q.Id)" ValueChanged="EventCallback.Factory.Create<bool?>(this, v => Set(q.Id, v == true ? "true" : "false"))">Có</MudSwitch>
+      <MudSwitch T="bool?" Value="@BoolValue(q.Id)" ValueChanged="@BoolChanged(q.Id)">Có</MudSwitch>
     }
     else if(q.QuestionType=="Number")
     {
-      <MudNumericField T="decimal?" Value="@DecimalValue(q.Id)" ValueChanged="EventCallback.Factory.Create<decimal?>(this, v => Set(q.Id, v?.ToString(System.Globalization.CultureInfo.InvariantCulture)))" Label="Nhập số" Variant="Variant.Outlined" />
+      <MudNumericField T="decimal?" Value="@DecimalValue(q.Id)" ValueChanged="@DecimalChanged(q.Id)" Label="Nhập số" Variant="Variant.Outlined" />
     }
     else if(q.QuestionType=="Date")
     {
-      <MudDatePicker Date="@DateValue(q.Id)" DateChanged="EventCallback.Factory.Create<DateTime?>(this, v => Set(q.Id, v?.ToString("yyyy-MM-dd")))" Label="Ngày" Variant="Variant.Outlined" />
+      <MudDatePicker Date="@DateValue(q.Id)" DateChanged="@DateChanged(q.Id)" Label="Ngày" Variant="Variant.Outlined" />
     }
     else
     {
-      <MudTextField Value="@Value(q.Id)" ValueChanged="EventCallback.Factory.Create<string>(this, v => Set(q.Id, v))" Lines="@(q.QuestionType=="Textarea"?3:1)" Label="Trả lời" Variant="Variant.Outlined" />
+      <MudTextField Value="@Value(q.Id)" ValueChanged="@StringChanged(q.Id)" Lines="@(q.QuestionType=="Textarea"?3:1)" Label="Trả lời" Variant="Variant.Outlined" />
     }
    </MudPaper>
   }
@@ -59,6 +59,10 @@ else
  private decimal? DecimalValue(int id)=>decimal.TryParse(Value(id),System.Globalization.NumberStyles.Any,System.Globalization.CultureInfo.InvariantCulture,out var v)?v:null;
  private bool? BoolValue(int id)=>Value(id)=="true"?true:Value(id)=="false"?false:null;
  private DateTime? DateValue(int id)=>DateTime.TryParse(Value(id),out var v)?v:null;
+ private EventCallback<string> StringChanged(int id) => EventCallback.Factory.Create<string>(this, v => Set(id, v));
+ private EventCallback<bool?> BoolChanged(int id) => EventCallback.Factory.Create<bool?>(this, v => Set(id, v == true ? "true" : "false"));
+ private EventCallback<decimal?> DecimalChanged(int id) => EventCallback.Factory.Create<decimal?>(this, v => Set(id, v?.ToString(System.Globalization.CultureInfo.InvariantCulture)));
+ private EventCallback<DateTime?> DateChanged(int id) => EventCallback.Factory.Create<DateTime?>(this, v => Set(id, v?.ToString("yyyy-MM-dd")));
  private async Task SubmitAsync()
  {
   if(_form==null)return;
