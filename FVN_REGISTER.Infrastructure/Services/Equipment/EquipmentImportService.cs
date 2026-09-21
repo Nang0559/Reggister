@@ -2,7 +2,7 @@ using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using ClosedXML.Excel;
+using NPOI.SS.UserModel;
 using FVN_REGISTER.Application.Interfaces.Equipment;
 using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Interfaces.Security;
@@ -52,21 +52,79 @@ public sealed class EquipmentImportService : IEquipmentImportService
     {
         var user=RequireUser();await EnsureScopeAsync(user,deptCode,ct);
         if(content==null||!content.CanRead) throw new ArgumentException("File Excel không hợp lệ.");
-        if(!string.Equals(Path.GetExtension(fileName),".xlsx",StringComparison.OrdinalIgnoreCase)) throw new ArgumentException("Chỉ hỗ trợ Excel .xlsx.");
-        if(content.CanSeek)content.Position=0;
-        using var wb=new XLWorkbook(content);var ws=wb.Worksheets.FirstOrDefault()??throw new InvalidOperationException("File Excel không có sheet.");
-        var header=ws.FirstRowUsed()??throw new InvalidOperationException("File Excel không có dữ liệu.");
-        var first=header.RowNumber();var last=ws.LastRowUsed()?.RowNumber()??first;var lastCol=ws.LastColumnUsed()?.ColumnNumber()??0;
-        if(lastCol==0||last<=first)throw new InvalidOperationException("Excel phải có tiêu đề và ít nhất một dòng dữ liệu.");
-        var headers=Enumerable.Range(1,lastCol).Select(i=>ws.Cell(first,i).GetString().Trim()).ToList();
-        if(headers.Any(string.IsNullOrWhiteSpace))throw new InvalidOperationException("Không được để trống tên cột Excel.");
+        var extension = Path.GetExtension(fileName).ToLowerInvariant();
+        var supported = new[] { ".xls", ".xlsx", ".xlsm", ".xlsb" };
+        if (!supported.Contains(extension, StringComparer.OrdinalIgnoreCase))
+            throw new ArgumentException("Chỉ hỗ trợ Excel .xls, .xlsx, .xlsm hoặc .xlsb.");
+        if (content.CanSeek) content.Position = 0;
+        IWorkbook wb;
+        try
+        {
+            wb = WorkbookFactory.Create(content);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException("Không thể đọc file Excel. Hãy kiểm tra file không bị mã hóa/hỏng và đúng định dạng Excel.", ex);
+        }
+
+        using (wb)
+        {
+            var ws = wb.GetSheetAt(0) ?? throw new InvalidOperationException("File Excel không có sheet.");
+            var formatter = new DataFormatter(CultureInfo.InvariantCulture);
+            var evaluator = wb.GetCreationHelper().CreateFormulaEvaluator();
+            var firstRowIndex = ws.FirstRowNum;
+            while (firstRowIndex <= ws.LastRowNum && ws.GetRow(firstRowIndex) == null) firstRowIndex++;
+            if (firstRowIndex > ws.LastRowNum) throw new InvalidOperationException("File Excel không có dữ liệu.");
+
+            var headerRow = ws.GetRow(firstRowIndex);
+            var lastCol = headerRow.LastCellNum;
+            if (lastCol <= 0) throw new InvalidOperationException("Excel phải có tiêu đề và ít nhất một dòng dữ liệu.");
+
+            var headers = Enumerable.Range(0, lastCol)
+                .Select(i => GetCellText(headerRow.GetCell(i), formatter, evaluator))
+                .Select(x => x.Trim())
+                .ToList();
+            if (headers.Any(string.IsNullOrWhiteSpace)) throw new InvalidOperationException("Không được để trống tên cột Excel.");
         var defs=await _uow.Repository<F03EquipmentFieldDefinition>().Query().AsNoTracking().Where(x=>x.DeptCode==deptCode&&x.IsActive==true&&x.IsActiveField&&x.IsImportable).ToListAsync(ct);
         var batch=new F03EquipmentImportBatch{DeptCode=deptCode.Trim(),FileName=Path.GetFileName(fileName),Status="Staged",CreatedBy=user.UserId};
         await _uow.Repository<F03EquipmentImportBatch>().AddAsync(batch,ct);await _uow.SaveChangesAsync(ct);
-        var rows=new List<F03EquipmentImportRow>();var valid=0;var invalid=0;
-        for(var rowNo=first+1;rowNo<=last;rowNo++){ct.ThrowIfCancellationRequested();var data=new Dictionary<string,string?>(StringComparer.OrdinalIgnoreCase);for(var col=1;col<=headers.Count;col++)data[headers[col-1]]=ws.Cell(rowNo,col).GetFormattedString().Trim();if(data.Values.All(string.IsNullOrWhiteSpace))continue;var err=ValidateRow(data,defs);var status=err==null?"Valid":"Invalid";if(err==null)valid++;else invalid++;rows.Add(new F03EquipmentImportRow{BatchId=batch.Id,RowNumber=rowNo,RawJson=JsonSerializer.Serialize(data),Status=status,ErrorMessage=err,CreatedBy=user.UserId});}
-        foreach(var row in rows)await _uow.Repository<F03EquipmentImportRow>().AddAsync(row,ct);
-        batch.TotalRows=rows.Count;batch.ValidRows=valid;batch.InvalidRows=invalid;batch.Status=invalid==0?"Ready":"NeedsReview";await _uow.SaveChangesAsync(ct);await _audit.LogAction("EQUIPMENT_IMPORT_STAGED",user.UserId,$"BatchId={batch.Id}; DeptCode={batch.DeptCode}; FileName={batch.FileName}; Rows={batch.TotalRows}; Valid={batch.ValidRows}; Invalid={batch.InvalidRows}",ct:ct);return MapBatch(batch);
+            var rows = new List<F03EquipmentImportRow>();
+            var valid = 0;
+            var invalid = 0;
+            for (var rowIndex = firstRowIndex + 1; rowIndex <= ws.LastRowNum; rowIndex++)
+            {
+                ct.ThrowIfCancellationRequested();
+                var excelRow = ws.GetRow(rowIndex);
+                if (excelRow == null) continue;
+                var data = new Dictionary<string, string?>(StringComparer.OrdinalIgnoreCase);
+                for (var col = 0; col < headers.Count; col++)
+                    data[headers[col]] = GetCellText(excelRow.GetCell(col), formatter, evaluator).Trim();
+
+                if (data.Values.All(string.IsNullOrWhiteSpace)) continue;
+                var err = ValidateRow(data, defs);
+                var status = err == null ? "Valid" : "Invalid";
+                if (err == null) valid++; else invalid++;
+                rows.Add(new F03EquipmentImportRow
+                {
+                    BatchId = batch.Id,
+                    RowNumber = rowIndex + 1,
+                    RawJson = JsonSerializer.Serialize(data),
+                    Status = status,
+                    ErrorMessage = err,
+                    CreatedBy = user.UserId
+                });
+            }
+            foreach (var row in rows) await _uow.Repository<F03EquipmentImportRow>().AddAsync(row, ct);
+            batch.TotalRows = rows.Count;
+            batch.ValidRows = valid;
+            batch.InvalidRows = invalid;
+            batch.Status = invalid == 0 ? "Ready" : "NeedsReview";
+            await _uow.SaveChangesAsync(ct);
+            await _audit.LogAction("EQUIPMENT_IMPORT_STAGED", user.UserId,
+                $"BatchId={batch.Id}; DeptCode={batch.DeptCode}; FileName={batch.FileName}; Rows={batch.TotalRows}; Valid={batch.ValidRows}; Invalid={batch.InvalidRows}",
+                ct: ct);
+            return MapBatch(batch);
+        }
     }
 
     public async Task<EquipmentImportBatchDto?> GetBatchAsync(int batchId,CancellationToken ct=default)
@@ -98,5 +156,13 @@ public sealed class EquipmentImportService : IEquipmentImportService
     private static string? GetValue(Dictionary<string,string?> data,params string[] names){foreach(var n in names){var h=data.FirstOrDefault(x=>NormalizeKey(x.Key)==NormalizeKey(n));if(!string.IsNullOrWhiteSpace(h.Key)&&!string.IsNullOrWhiteSpace(h.Value))return h.Value.Trim();}return null;}
     private static decimal ParseDecimal(string? v){if(string.IsNullOrWhiteSpace(v))return 0;if(decimal.TryParse(v,NumberStyles.Any,CultureInfo.InvariantCulture,out var d))return d;return decimal.TryParse(v,NumberStyles.Any,new CultureInfo("vi-VN"),out d)?d:0;}
     private static DateTime? ParseDate(string? v){if(string.IsNullOrWhiteSpace(v))return null;var f=new[]{"dd/MM/yyyy","d/M/yyyy","yyyy-MM-dd","MM/dd/yyyy","M/d/yyyy"};if(DateTime.TryParseExact(v.Trim(),f,CultureInfo.InvariantCulture,DateTimeStyles.None,out var d))return d;return DateTime.TryParse(v,new CultureInfo("vi-VN"),DateTimeStyles.None,out d)?d:null;}
+    private static string GetCellText(ICell? cell, DataFormatter formatter, IFormulaEvaluator evaluator)
+    {
+        if (cell == null) return string.Empty;
+        if (DateUtil.IsCellDateFormatted(cell) && cell.CellType != CellType.Formula)
+            return cell.DateCellValue.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+        return formatter.FormatCellValue(cell, evaluator);
+    }
+
     private static string NormalizeKey(string v){var d=v.Trim().Normalize(NormalizationForm.FormD);var sb=new StringBuilder(d.Length);foreach(var c in d)if(System.Globalization.CharUnicodeInfo.GetUnicodeCategory(c)!=System.Globalization.UnicodeCategory.NonSpacingMark)sb.Append(char.ToLowerInvariant(c));return Regex.Replace(sb.ToString().Normalize(NormalizationForm.FormC),@"[^a-z0-9]+","");}
 }
