@@ -17,7 +17,7 @@ public sealed class ActionItemWriter : IActionItemWriter
         CancellationToken cancellationToken = default)
     {
         var policy = await _db.ActionPolicies.AsNoTracking()
-            .Where(x => x.IsActive && x.IsEnabled
+            .Where(x => x.IsActive == true && x.IsEnabled == true
                 && x.ModuleCode == draft.ModuleCode
                 && x.ActionType == draft.ActionType)
             .Select(x => new
