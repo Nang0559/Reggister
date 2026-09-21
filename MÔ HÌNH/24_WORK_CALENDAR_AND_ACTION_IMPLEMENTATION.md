@@ -103,6 +103,45 @@ Quyết định confirmation có yêu cầu evidence hay không.
 Chỉ được auto-resolve khi policy tồn tại và bật AutoResolve.  
 **Không có policy ⇒ không auto-resolve.**
 
+## 7A. OT actual không có đăng ký — Calendar phải phát hiện
+
+Đây là một execution mismatch riêng của OT và **không phụ thuộc việc ngày đó có ca làm việc hay không**.
+
+Nguồn actual duy nhất là `F03HrmAttendanceCalculated`, sau khi HRM attendance calculation đã chạy. Worker đọc:
+
+- `OTMinutesDay`
+- `OTMinutesNight`
+- `OTMinutesDayTC`
+- `OTMinutesNightTC`
+- `OTRecognizedMinutesDay`
+- `OTRecognizedMinutesNight`
+
+Rule:
+
+`Actual OT > 0 AND không có Approved OT request cùng EmployeeCode + WorkDate`
+
+→ tạo reconciliation:
+
+- `ModuleCode = OT`
+- `SourceType = OT_ACTUAL_ONLY`
+- `SourceId = EmployeeCode:yyyyMMdd`
+- `PlannedState = NONE`
+- `ActualState = ActualOTMinutes=...;RecognizedOTMinutes=...`
+- `ReconciliationStatus = Mismatch`
+- `RequiresConfirmation = true`
+
+Reconciliation này được chiếu qua `F03CalendarProjection` của module `OT` với:
+
+- `Marker = "?"`
+- `Severity = 3`
+- `RequiresAction = true`
+- `ActionId` trỏ tới shared Execution Action
+- `DetailRoute = /execution?reconciliationId=...`
+
+Vì vậy Calendar phải hiển thị **`?` màu đỏ và cho phép click** để employee xác nhận. Đây là tín hiệu “có OT thực tế nhưng hệ thống không tìm thấy đơn OT”, không phải một registration opportunity.
+
+Khi sau đó xuất hiện Approved OT request cho cùng employee/ngày, reconciliation `OT_ACTUAL_ONLY` được đóng và projection được gỡ khỏi Calendar; tránh giữ lại dấu `?` cũ.
+
 ## 7. Module mapping hiện tại
 
 | Module | Planned | Actual | Mismatch |
