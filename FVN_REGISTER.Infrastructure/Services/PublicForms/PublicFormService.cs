@@ -87,6 +87,40 @@ public sealed class PublicFormService : IPublicFormService
         e.Status="Closed";e.ClosedAt=DateTime.Now;e.ModifiedBy=actorUserId;e.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);return Contract.Responses.ServiceResult.Ok();
     }
 
+    public async Task<Contract.Responses.ServiceResult<int>> SubmitAsync(int formId,string employeeCode,IReadOnlyCollection<Contract.Requests.PublicForms.PublicFormAnswerRequest> answers,CancellationToken ct=default)
+    {
+        var now=DateTime.Now;
+        var form=await _uow.Repository<F03PublicForm>().Query()
+            .Include(x=>x.Questions).ThenInclude(x=>x.Options)
+            .Include(x=>x.Audiences)
+            .FirstOrDefaultAsync(x=>x.Id==formId,ct);
+        if(form==null) return Contract.Responses.ServiceResult<int>.Fail("Không tìm thấy biểu mẫu.");
+        if(form.Status!="Published" || (form.StartAt.HasValue&&form.StartAt>now) || (form.EndAt.HasValue&&form.EndAt<now))
+            return Contract.Responses.ServiceResult<int>.Fail("Biểu mẫu không còn nhận đăng ký.");
+        if(!Matches(form,employeeCode,null,null))
+            return Contract.Responses.ServiceResult<int>.Fail("Bạn không thuộc đối tượng được phép đăng ký.");
+        if(!form.AllowMultipleSubmit && await _uow.Repository<F03PublicFormSubmission>().Query().AnyAsync(x=>x.FormId==formId&&x.EmployeeCode==employeeCode&&x.Status!="Cancelled",ct))
+            return Contract.Responses.ServiceResult<int>.Fail("Bạn đã đăng ký biểu mẫu này.");
+        var required=form.Questions.Where(q=>q.IsRequired&&q.IsActive).Select(q=>q.Id).ToHashSet();
+        var provided=answers.Select(x=>x.QuestionId).ToHashSet();
+        if(required.Any(id=>!provided.Contains(id))) return Contract.Responses.ServiceResult<int>.Fail("Vui lòng hoàn tất các câu hỏi bắt buộc.");
+        foreach(var a in answers)
+        {
+            var q=form.Questions.FirstOrDefault(x=>x.Id==a.QuestionId&&x.IsActive);
+            if(q==null) return Contract.Responses.ServiceResult<int>.Fail("Có câu hỏi không hợp lệ.");
+            if((q.QuestionType=="SingleChoice"||q.QuestionType=="MultiChoice") && !string.IsNullOrWhiteSpace(a.JsonValue))
+            {
+                var selected=a.JsonValue.Split(',',StringSplitOptions.RemoveEmptyEntries|StringSplitOptions.TrimEntries);
+                if(selected.Any(v=>!q.Options.Any(o=>o.IsActive&&o.OptionCode==v))) return Contract.Responses.ServiceResult<int>.Fail($"Lựa chọn không hợp lệ cho {q.QuestionCode}.");
+            }
+        }
+        var sub=new F03PublicFormSubmission{FormId=formId,EmployeeCode=employeeCode,SubmittedAt=now,Status="Submitted",FormVersion=form.Version};
+        foreach(var a in answers) sub.Answers.Add(new F03PublicFormAnswer{QuestionId=a.QuestionId,TextValue=a.TextValue,NumberValue=a.NumberValue,DateValue=a.DateValue,BoolValue=a.BoolValue,JsonValue=a.JsonValue});
+        await _uow.Repository<F03PublicFormSubmission>().AddAsync(sub,ct);
+        await _uow.SaveChangesAsync(ct);
+        return Contract.Responses.ServiceResult<int>.Ok(sub.Id);
+    }
+
     private static bool Matches(F03PublicForm x,string employeeCode,string? deptCode,string? positionCode)
         => x.Audiences.Any(a => a.IsActive && a.ScopeType=="AllCompany"
             || a.IsActive && a.ScopeType=="Employee" && string.Equals(a.ScopeValue,employeeCode,StringComparison.OrdinalIgnoreCase)
