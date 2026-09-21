@@ -119,18 +119,21 @@ public sealed class OperationalReportService : BaseReportService<OperationalRepo
             new[]{("DeptCode","Mã phòng","text"),("Repairs","Số lần sửa","number"),("Approved","Đã duyệt","number"),("RepairCost","Chi phí sửa chữa","decimal")});
     }
 
-    private IQueryable<F03AttendanceStaging> Attendance(ReportQueryDto q, UserIdentityDto u)
+    private IQueryable<F03HrmAttendanceCalculated> Attendance(ReportQueryDto q, UserIdentityDto u)
     {
         var (from,to)=Range(q);
-        var x=_uow.Repository<F03AttendanceStaging>().Query().AsNoTracking().Where(x=>x.WorkDate>=from&&x.WorkDate<to.AddDays(1));
-        if(!string.IsNullOrWhiteSpace(q.DeptCode))x=x.Where(a=>a.DeptCode==q.DeptCode);
-        if(!string.IsNullOrWhiteSpace(q.EmployeeCode))x=x.Where(a=>a.EmployeeCode==q.EmployeeCode);
+        var x=_uow.Repository<F03HrmAttendanceCalculated>().Query()
+            .AsNoTracking()
+            .Where(x=>x.WorkDate>=from&&x.WorkDate<to.AddDays(1));
+
+        if(!string.IsNullOrWhiteSpace(q.DeptCode)) x=x.Where(a=>a.DeptCode==q.DeptCode);
+        if(!string.IsNullOrWhiteSpace(q.EmployeeCode)) x=x.Where(a=>a.EmployeeCode==q.EmployeeCode);
         return x;
     }
 
     private async Task<ServiceResult<ReportResultDto>> AttendanceByDept(ReportQueryDto q, UserIdentityDto u, CancellationToken ct)
     {
-        var data=await Attendance(q,u).GroupBy(x=>x.DeptCode).Select(g=>new{DeptCode=g.Key,Employees=g.Select(x=>x.EmployeeCode).Distinct().Count(),Days=g.Count(),Hours=g.Sum(x=>x.TotalHours??0),Ot=g.Sum(x=>x.OtHours??0)}).OrderBy(x=>x.DeptCode).ToListAsync(ct);
+        var data=await Attendance(q,u).GroupBy(x=>x.DeptCode).Select(g=>new{DeptCode=g.Key,Employees=g.Select(x=>x.EmployeeCode).Distinct().Count(),Days=g.Count(),Hours=g.Sum(x=>(x.WorkMinutesDay+x.WorkMinutesNight)/60m),Ot=g.Sum(x=>(x.OTRecognizedMinutesDay+x.OTRecognizedMinutesNight)/60m)}).OrderBy(x=>x.DeptCode).ToListAsync(ct);
         return Table(ReportType.AttendanceSummary,"Tổng hợp chấm công theo phòng ban",data.Select(x=>new Dictionary<string,object?>{{"DeptCode",x.DeptCode},{"Employees",x.Employees},{"WorkDays",x.Days},{"TotalHours",x.Hours},{"OTHours",x.Ot}}).ToList(),
             new[]{("DeptCode","Mã phòng","text"),("Employees","Số NV","number"),("WorkDays","Số dòng công","number"),("TotalHours","Tổng giờ","decimal"),("OTHours","Giờ OT","decimal")});
     }
@@ -138,7 +141,7 @@ public sealed class OperationalReportService : BaseReportService<OperationalRepo
     private async Task<ServiceResult<ReportResultDto>> AttendanceDetail(ReportQueryDto q, UserIdentityDto u, CancellationToken ct)
     {
         var data=await Attendance(q,u).OrderByDescending(x=>x.WorkDate).ThenBy(x=>x.EmployeeCode).Skip(Math.Max(0,q.PageNumber-1)*Math.Clamp(q.PageSize,1,500)).Take(Math.Clamp(q.PageSize,1,500)).ToListAsync(ct);
-        return Table(ReportType.AttendanceDetail,"Chi tiết chấm công",data.Select(x=>new Dictionary<string,object?>{{"WorkDate",x.WorkDate},{"EmployeeCode",x.EmployeeCode},{"FullName",x.FullName},{"DeptCode",x.DeptCode},{"ShiftName",x.ShiftName},{"CheckIn",x.CheckInDateTime},{"CheckOut",x.CheckOutDateTime},{"TotalHours",x.TotalHours},{"OTHours",x.OtHours},{"IsHoliday",x.IsHoliday}}).ToList(),
+        return Table(ReportType.AttendanceDetail,"Chi tiết chấm công",data.Select(x=>new Dictionary<string,object?>{{"WorkDate",x.WorkDate},{"EmployeeCode",x.EmployeeCode},{"FullName",x.FullName},{"DeptCode",x.DeptCode},{"ShiftName",x.ShiftAbbr},{"CheckIn",x.CheckInTime},{"CheckOut",x.CheckOutTime},{"TotalHours",(x.WorkMinutesDay+x.WorkMinutesNight)/60m},{"OTHours",(x.OTRecognizedMinutesDay+x.OTRecognizedMinutesNight)/60m},{"IsHoliday",x.HrmHoliday}}).ToList(),
             new[]{("WorkDate","Ngày","date"),("EmployeeCode","Mã NV","text"),("FullName","Họ tên","text"),("DeptCode","Phòng","text"),("ShiftName","Ca","text"),("CheckIn","Vào","date"),("CheckOut","Ra","date"),("TotalHours","Tổng giờ","decimal"),("OTHours","Giờ OT","decimal"),("IsHoliday","Ngày lễ","text")});
     }
 
