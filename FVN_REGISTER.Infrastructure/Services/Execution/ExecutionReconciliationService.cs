@@ -909,22 +909,40 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         }
 
         projection.StatusCode = reconciliation.ReconciliationStatus;
-        projection.Marker = reconciliation.ReconciliationStatus switch
-        {
-            "Mismatch" => "!",
-            "AwaitingConfirmation" => "?",
-            "Resolved" => "OK",
-            _ => null
-        };
-        projection.Summary = reconciliation.ReconciliationStatus switch
-        {
-            "Mismatch" => $"Chênh lệch {reconciliation.ModuleCode}: cần xác nhận.",
-            "AwaitingConfirmation" => $"Đang chờ xác nhận {reconciliation.ModuleCode}.",
-            "Resolved" => $"Đã giải quyết {reconciliation.ModuleCode}.",
-            _ => $"Đối soát {reconciliation.ModuleCode}: {reconciliation.ReconciliationStatus}."
-        };
-        projection.Severity = reconciliation.ReconciliationStatus == "Mismatch" ? (byte)2 :
-            reconciliation.ReconciliationStatus == "AwaitingConfirmation" ? (byte)1 : (byte)0;
+        projection.Marker = reconciliation.SourceType == "OT_ACTUAL_ONLY"
+            ? reconciliation.ReconciliationStatus switch
+            {
+                "Mismatch" => "?",
+                "AwaitingConfirmation" => "?",
+                "Resolved" => "OK",
+                _ => null
+            }
+            : reconciliation.ReconciliationStatus switch
+            {
+                "Mismatch" => "!",
+                "AwaitingConfirmation" => "?",
+                "Resolved" => "OK",
+                _ => null
+            };
+        projection.Summary = reconciliation.SourceType == "OT_ACTUAL_ONLY"
+            ? reconciliation.ReconciliationStatus switch
+            {
+                "Mismatch" => $"Có {GetActualOtSummary(reconciliation.DetailJson)} giờ OT thực tế nhưng chưa có đơn OT — cần xác nhận.",
+                "AwaitingConfirmation" => $"Có OT thực tế chưa có đơn OT — đang chờ xác nhận.",
+                "Resolved" => "OT thực tế đã được đối soát.",
+                _ => $"Đối soát OT: {reconciliation.ReconciliationStatus}."
+            }
+            : reconciliation.ReconciliationStatus switch
+            {
+                "Mismatch" => $"Chênh lệch {reconciliation.ModuleCode}: cần xác nhận.",
+                "AwaitingConfirmation" => $"Đang chờ xác nhận {reconciliation.ModuleCode}.",
+                "Resolved" => $"Đã giải quyết {reconciliation.ModuleCode}.",
+                _ => $"Đối soát {reconciliation.ModuleCode}: {reconciliation.ReconciliationStatus}."
+            };
+        projection.Severity = reconciliation.SourceType == "OT_ACTUAL_ONLY"
+            ? reconciliation.ReconciliationStatus is "Mismatch" or "AwaitingConfirmation" ? (byte)3 : (byte)0
+            : reconciliation.ReconciliationStatus == "Mismatch" ? (byte)2 :
+              reconciliation.ReconciliationStatus == "AwaitingConfirmation" ? (byte)1 : (byte)0;
         projection.RequiresAction = reconciliation.RequiresConfirmation
             && !string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase);
         projection.ActionId = reconciliation.ActionId;
@@ -962,6 +980,28 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         });
 
         return Task.CompletedTask;
+    }
+
+    private static string GetActualOtSummary(string? detailJson)
+    {
+        if (string.IsNullOrWhiteSpace(detailJson))
+            return "Có";
+
+        try
+        {
+            using var doc = JsonDocument.Parse(detailJson);
+            if (doc.RootElement.TryGetProperty("ActualOTMinutes", out var minutes)
+                && minutes.TryGetInt32(out var value)
+                && value > 0)
+                return $"{value / 60d:0.##}";
+        }
+        catch
+        {
+            // DetailJson is diagnostic data; a malformed payload must not break
+            // calendar projection.
+        }
+
+        return "có";
     }
 
     private static Expression<Func<F03ExecutionReconciliation, ExecutionReconciliationDto>> ToDto() =>
