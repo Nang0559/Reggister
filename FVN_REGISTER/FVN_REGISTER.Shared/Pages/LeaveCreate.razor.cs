@@ -80,7 +80,7 @@ public partial class LeaveCreate : IAsyncDisposable
     private Task OnCalendarDateSelected(DateTime date) =>
         OpenAddDialog(date.ToString("yyyy-MM-dd"), date.ToString("yyyy-MM-dd"));
 
-    private async Task OnCalendarEventSelected(WorkCalendarEventDto item)
+    private async Task OnCalendarEventSelected(CalendarItemDto item)
     {
         if (item.ModuleCode == "LEAVE" && item.RequestId.HasValue)
         {
