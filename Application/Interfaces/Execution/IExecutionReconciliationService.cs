@@ -38,4 +38,14 @@ public interface IExecutionReconciliationService
         long confirmationId,
         ExecutionEvidenceRequest request,
         CancellationToken cancellationToken = default);
+
+    Task<int> UploadEvidenceFileAsync(
+        string employeeCode,
+        int userId,
+        long confirmationId,
+        string fileName,
+        string? contentType,
+        long length,
+        Stream content,
+        CancellationToken cancellationToken = default);
 }
