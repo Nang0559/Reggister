@@ -18,6 +18,7 @@ public sealed class HrmAttendanceCalculationController:BaseApiController
  [HttpGet("export/attendance/{batchId:guid}")]
  public async Task<IActionResult> ExportAttendance(Guid batchId, CancellationToken ct)
  {
+  if(UserInfo==null || !await _authorization.HasAsync(UserInfo,SecurityFunctionCodes.AttendanceExport,ct)) return Forbid();
   var result=await _excel.ExportAttendanceAsync(batchId,ct);
   if(!result.IsSuccess||result.Data is null) return BadRequest(ApiResponse<object>.Fail(result.Message??"Xuất chấm công thất bại."));
   return File(result.Data,"application/vnd.ms-excel",$"BangChamCong_{DateTime.Now:yyyyMMdd_HHmmss}.xls");
@@ -26,6 +27,7 @@ public sealed class HrmAttendanceCalculationController:BaseApiController
  [HttpGet("export/ot/{batchId:guid}")]
  public async Task<IActionResult> ExportOt(Guid batchId, CancellationToken ct)
  {
+  if(UserInfo==null || !await _authorization.HasAsync(UserInfo,SecurityFunctionCodes.AttendanceExport,ct)) return Forbid();
   var result=await _excel.ExportOtAsync(batchId,ct);
   if(!result.IsSuccess||result.Data is null) return BadRequest(ApiResponse<object>.Fail(result.Message??"Xuất OT thất bại."));
   return File(result.Data,"application/vnd.ms-excel",$"BangLamThem_{DateTime.Now:yyyyMMdd_HHmmss}.xls");
@@ -35,6 +37,7 @@ public sealed class HrmAttendanceCalculationController:BaseApiController
  public async Task<IActionResult> Calculate([FromBody] HrmAttendanceCalculationRequestDto request,CancellationToken ct)
  {
   if(UserInfo==null)return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+  if(!await _authorization.HasAsync(UserInfo,SecurityFunctionCodes.AttendanceView,ct)) return Forbid();
   if(request.FromDate.Date>request.ToDate.Date)return BadRequest(ApiResponse<object>.Fail("Khoảng ngày không hợp lệ."));
   var result=await _service.CalculateAsync(request,UserInfo.EmployeeCode,ct);
   return result.IsSuccess?Ok(ApiResponse<HrmAttendanceCalculationResultDto>.Ok(result.Data!)):BadRequest(ApiResponse<object>.Fail(result.Message??"Tính giờ thất bại."));
