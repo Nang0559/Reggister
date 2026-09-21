@@ -13,7 +13,7 @@ using IAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuth
 
 namespace FVN_REGISTER.API.Controllers
 {
-    [Authorize(Policy = "Admin")]
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class EmailQueueController : BaseApiController
@@ -83,6 +83,7 @@ namespace FVN_REGISTER.API.Controllers
             int id,
             CancellationToken ct)
         {
+            if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.EmailQueueManage, ct)) return Forbid();
             await _emailService.CancelEmail(id, ct);
 
             return Ok(
@@ -94,6 +95,7 @@ namespace FVN_REGISTER.API.Controllers
             [FromBody] BatchIdsRequestDto req,
             CancellationToken ct)
         {
+            if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.EmailQueueManage, ct)) return Forbid();
             if (!ModelState.IsValid)
             {
                 return BadRequest(
@@ -114,6 +116,7 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> Trigger(
             CancellationToken ct)
         {
+            if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.EmailQueueManage, ct)) return Forbid();
             await _emailService.ProcessQueue(ct);
 
             return Ok(
