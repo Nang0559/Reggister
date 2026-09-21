@@ -125,7 +125,7 @@
         if (OnDateSelected.HasDelegate)
             await OnDateSelected.InvokeAsync(value.Date);
 
-        if (OnRegistrationRequested.HasDelegate)
+        if (!OnDateSelected.HasDelegate && OnRegistrationRequested.HasDelegate)
             await OnRegistrationRequested.InvokeAsync(value.Date);
     }
 
