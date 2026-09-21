@@ -721,7 +721,8 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             })
             .ToList();
 
-        var module = MapNotificationModule(reconciliation.ModuleCode);
+        var module = ExecutionNotificationModuleMapper.ToRequestModule(reconciliation.ModuleCode);
+        var users = candidates.Select(x => x).ToList();
 
         foreach (var user in users)
         {
