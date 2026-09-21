@@ -116,7 +116,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                     .Where(d => approvedLeaveIds.Contains(d.LeaveDaysId))
                     .Select(d => new { d.LeaveTypeCode, d.IsCountedAsLeave, d.DayValue })
                     .ToListAsync(ct))
-                    .Select(d => (d.LeaveTypeCode, d.IsCountedAsLeave, d.DayValue))
+                    .Select(d => (LeaveTypeCode: d.LeaveTypeCode ?? string.Empty, d.IsCountedAsLeave, d.DayValue))
                     .ToList();
 
             var sick = approvedDetails.Where(d => sickCodes.Contains(d.LeaveTypeCode)).Sum(d => d.DayValue);
