@@ -178,3 +178,25 @@ Action permission and data scope are independent:
 Legacy `F03UserFunctions` remain effective. When an old direct grant has no scope metadata, Phase 3 treats it as `Own` rather than expanding access.
 
 The existing HRM → FVN master synchronization boundary is unchanged: HRM remains read-only source-of-truth for HR master data; FVN remains owner of authorization and security state.
+
+
+## Equipment — user-specific capability
+
+Equipment uses the same authorization pipeline but keeps module and import permission separate:
+
+| FunctionCode | Capability | Purpose |
+|---|---|---|
+| 2301 | Equipment.View | module, QR and lookup |
+| 2302 | Equipment.Create | create registration |
+| 2303 | Equipment.Edit | edit/submit request |
+| 2304 | Equipment.Repair | repair request |
+| 2305 | Equipment.Approve | approval |
+| 2306 | Equipment.Import | Excel import |
+| 2307 | Equipment.Export | export |
+| 2308 | Equipment.Cancel | cancel request |
+
+Admin can grant these capabilities directly to an individual user from **User Management -> Edit permission**. The UI exposes two separate Equipment controls: **Sổ quản lý thiết bị** (2301) and **Import Excel thiết bị** (2306).
+
+Therefore a user can use Equipment without being allowed to import Excel. The import API enforces 2306 and department scope server-side; hiding the button is only UX.
+
+900 / EquipmentModule remains a legacy marker and is not an action-capability bypass.
