@@ -4,11 +4,13 @@
 @using FVN_REGISTER.Shared.Handlers
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.JSInterop
+@using FVN_REGISTER.Shared.Services.Users
 @inherits AppComponentBase
 
 @inject IHttpClientWithAuth Http
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
+@inject ICurrentUserClientService CurrentUser
 
 <PageTitle>Đăng ký biểu mẫu</PageTitle>
 
@@ -69,13 +71,16 @@
         </MudItem>
 
         <MudItem xs="12" sm="6">
-            <MudButton Variant="Variant.Outlined"
-                       Color="Color.Success"
-                       Disabled="@(!_formId.HasValue || _loading)"
-                       OnClick="ExportAsync"
-                       Class="mr-2">
-                Xuất Excel
-            </MudButton>
+            @if (CurrentUser.User?.Functions.Contains(2809) == true)
+            {
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Success"
+                           Disabled="@(!_formId.HasValue || _loading)"
+                           OnClick="ExportAsync"
+                           Class="mr-2">
+                    Xuất Excel
+                </MudButton>
+            }
 
             <MudButton Variant="Variant.Outlined"
                        Disabled="@(!_formId.HasValue || _loading)"
