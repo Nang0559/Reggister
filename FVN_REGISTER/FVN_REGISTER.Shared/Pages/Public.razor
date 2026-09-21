@@ -4,7 +4,7 @@
 @inject IHttpClientWithAuth Http
 
 <PageTitle>Public</PageTitle>
-<MudText Typo="h5" Class="mb-4"><b>Public</b></MudText>
+<MudText Typo="Typo.h5" Class="mb-4"><b>Public</b></MudText>
 @if(_loading){<MudProgressLinear Indeterminate="true" />}
 else if(!_items.Any()){<MudAlert Severity="Severity.Info">Hiện chưa có nội dung được công khai.</MudAlert>}
 else
@@ -17,7 +17,7 @@ else
                 <MudChip T="string" Size="Size.Small">@TypeName(item.Type)</MudChip>
                 @if(item.IsImportant){<MudChip T="string" Size="Size.Small" Color="Color.Error">Quan trọng</MudChip>}
             </MudStack>
-            <MudText Typo="h6" Class="mt-2">@item.Title</MudText>
+            <MudText Typo="Typo.h6" Class="mt-2">@item.Title</MudText>
             <MudText Color="Color.Secondary">@item.Summary</MudText>
             <MudText Class="mt-2" Style="white-space:pre-wrap">@item.Content</MudText>
         </MudPaper>
