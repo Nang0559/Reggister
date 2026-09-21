@@ -9,6 +9,7 @@
 @inherits AppComponentBase
 @inject ISecurityClientService SecurityService
 @inject IUserManagementClientService UserService
+@inject IPasswordResetRequestClientService PasswordResetRequestService
 @inject ISnackbar Snackbar
 
 <PageTitle>Security Center - FCC</PageTitle>
@@ -136,6 +137,79 @@
             </MudGrid>
         </MudTabPanel>
 
+        <MudTabPanel Text="Quên mật khẩu" Icon="@Icons.Material.Filled.LockReset">
+            <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+                    <div>
+                        <MudText Typo="Typo.h6">Yêu cầu quên mật khẩu</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">
+                            User gửi yêu cầu từ màn hình Login. IT xác minh và cấp mật khẩu tạm FVN@123.
+                        </MudText>
+                    </div>
+                    <MudSpacer />
+                    <MudChip T="string" Color="@( _resetRequests.Count > 0 ? Color.Warning : Color.Default )">
+                        @_resetRequests.Count chờ xử lý
+                    </MudChip>
+                    <MudButton Variant="Variant.Outlined"
+                               StartIcon="@Icons.Material.Filled.Refresh"
+                               OnClick="LoadPasswordResetRequestsAsync"
+                               Disabled="_loadingResetRequests">
+                        Làm mới
+                    </MudButton>
+                </MudStack>
+
+                @if (_resetRequests.Count == 0)
+                {
+                    <MudAlert Severity="Severity.Info" Variant="Variant.Outlined">
+                        Hiện không có yêu cầu quên mật khẩu đang chờ xử lý.
+                    </MudAlert>
+                }
+                else
+                {
+                    <MudTable T="PasswordResetRequestDto"
+                              Items="_resetRequests"
+                              Dense="true"
+                              Hover="true"
+                              Bordered="true"
+                              Striped="true">
+                        <HeaderContent>
+                            <MudTh>Mã NV</MudTh>
+                            <MudTh>Họ tên</MudTh>
+                            <MudTh>Phòng ban</MudTh>
+                            <MudTh>Thời gian</MudTh>
+                            <MudTh>Ghi chú</MudTh>
+                            <MudTh Style="text-align:center">Xử lý</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd><b>@context.EmployeeCode</b></MudTd>
+                            <MudTd>@context.FullName</MudTd>
+                            <MudTd>@context.DeptCode</MudTd>
+                            <MudTd>@context.RequestedAt.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                            <MudTd>@(string.IsNullOrWhiteSpace(context.RequestNote) ? "-" : context.RequestNote)</MudTd>
+                            <MudTd Style="text-align:center">
+                                <MudButton Variant="Variant.Filled"
+                                           Color="Color.Warning"
+                                           Size="Size.Small"
+                                           StartIcon="@Icons.Material.Filled.LockReset"
+                                           OnClick="@(() => ProcessPasswordResetRequestAsync(context, true))"
+                                           Disabled="_processingResetRequestId == context.Id">
+                                    @(_processingResetRequestId == context.Id ? "Đang xử lý..." : "Reset FVN@123")
+                                </MudButton>
+                                <MudButton Class="ms-2"
+                                           Variant="Variant.Text"
+                                           Color="Color.Error"
+                                           Size="Size.Small"
+                                           OnClick="@(() => ProcessPasswordResetRequestAsync(context, false))"
+                                           Disabled="_processingResetRequestId == context.Id">
+                                    Từ chối
+                                </MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                }
+            </MudPaper>
+        </MudTabPanel>
+
         <MudTabPanel Text="Role → Function / Action" Icon="@Icons.Material.Filled.GridView">
             <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px; overflow-x:auto">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
@@ -225,6 +299,9 @@
     private int? _savingRoleCode;
     private string _resetEmployeeCode = string.Empty;
     private bool _resettingPassword;
+    private List<PasswordResetRequestDto> _resetRequests = new();
+    private bool _loadingResetRequests;
+    private int? _processingResetRequestId;
 
     private IEnumerable<UserAccountDto> FilteredUsers =>
         string.IsNullOrWhiteSpace(_search)
@@ -253,8 +330,61 @@
             _roles = roles.Data ?? new();
             _matrixFunctions = functions.Data ?? new();
             BuildMatrix();
+            await LoadPasswordResetRequestsAsync();
         }
         finally { _loading = false; }
+    }
+
+    private async Task LoadPasswordResetRequestsAsync()
+    {
+        _loadingResetRequests = true;
+        try
+        {
+            var result = await PasswordResetRequestService.GetPendingAsync();
+            if (result.IsSuccess)
+                _resetRequests = result.Data ?? new();
+        }
+        finally
+        {
+            _loadingResetRequests = false;
+        }
+    }
+
+    private async Task ProcessPasswordResetRequestAsync(
+        PasswordResetRequestDto request,
+        bool approve)
+    {
+        _processingResetRequestId = request.Id;
+        try
+        {
+            var result = await PasswordResetRequestService.ProcessAsync(
+                request.Id,
+                new FVN_REGISTER.Contract.Requests.Users.PasswordResetRequestProcessDto
+                {
+                    Approve = approve,
+                    ResultNote = approve
+                        ? "IT đã xác minh và cấp mật khẩu tạm."
+                        : "IT từ chối yêu cầu."
+                });
+
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể xử lý yêu cầu.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(
+                approve
+                    ? $"Đã reset mật khẩu cho {request.EmployeeCode} về FVN@123."
+                    : $"Đã từ chối yêu cầu của {request.EmployeeCode}.",
+                approve ? Severity.Success : Severity.Info);
+
+            await LoadPasswordResetRequestsAsync();
+        }
+        finally
+        {
+            _processingResetRequestId = null;
+        }
     }
 
     private void BuildMatrix()
