@@ -1,4 +1,5 @@
 using FVN_REGISTER.Core.Constants;
+using Xunit;
 
 namespace FVN_REGISTER.Infrastructure.Tests;
 

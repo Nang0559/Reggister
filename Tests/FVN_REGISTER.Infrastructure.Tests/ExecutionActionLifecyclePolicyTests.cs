@@ -1,5 +1,6 @@
 using FVN_REGISTER.Core.Entities.WorkCalendar;
 using FVN_REGISTER.Core.Enums;
+using Xunit;
 
 namespace FVN_REGISTER.Infrastructure.Tests;
 
