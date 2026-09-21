@@ -111,11 +111,11 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
 
             var approvedDetails = approvedLeaveIds.Count == 0
                 ? new List<(string? LeaveTypeCode, bool IsCountedAsLeave, decimal DayValue)>()
-                : await Uow.Repository<F03LeaveDayDetail>().Query()
+                : (await Uow.Repository<F03LeaveDayDetail>().Query()
                     .AsNoTracking()
                     .Where(d => approvedLeaveIds.Contains(d.LeaveDaysId))
                     .Select(d => new { d.LeaveTypeCode, d.IsCountedAsLeave, d.DayValue })
-                    .AsEnumerable()
+                    .ToListAsync(ct))
                     .Select(d => (d.LeaveTypeCode, d.IsCountedAsLeave, d.DayValue))
                     .ToList();
 
