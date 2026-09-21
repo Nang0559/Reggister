@@ -256,6 +256,7 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                 try
                 {
                     var employeeId = await ResolveEmployeeIdAsync(db, row.EmployeeCode, ct);
+                    var cancelled = row.RequestStatus == ApprovalStatus.Cancelled;
 
                     if (cancelled)
                     {
@@ -284,7 +285,6 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                     // is not treated as a mismatch because the employee is expected
                     // to work part of that day.
                     var mismatch = !detail.IsHalfDay && worked;
-                    var cancelled = row.RequestStatus == ApprovalStatus.Cancelled;
                     var status = cancelled ? "Resolved" : mismatch ? "Mismatch" : "Matched";
 
                     await service.UpsertAsync(

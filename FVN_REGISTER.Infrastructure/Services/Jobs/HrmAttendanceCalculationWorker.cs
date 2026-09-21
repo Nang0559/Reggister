@@ -72,7 +72,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
     private async Task RunCatchUpAsync(CancellationToken ct)
     {
         var yesterday = DateTime.Today.AddDays(-1).Date;
-        var payrollStart = await GetPayrollPeriodStartAsync(yesterday, stoppingToken);
+        var payrollStart = await GetPayrollPeriodStartAsync(yesterday, ct);
         if (!payrollStart.HasValue) return;
 
         _logger.LogInformation(
@@ -93,7 +93,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
             "[HRM_ATTENDANCE_WORKER] Daily company-wide calculation: {Date}",
             yesterday.ToString("dd/MM/yyyy"));
         await CalculateCompanyWideAsync(
-            yesterday < payrollStart ? payrollStart : yesterday,
+            yesterday < payrollStart.Value ? payrollStart.Value : yesterday,
             yesterday,
             "HRM-ATTENDANCE-WORKER",
             ct);

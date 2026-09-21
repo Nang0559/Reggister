@@ -15,7 +15,6 @@ using FVN_REGISTER.Core.Entities.Common;
 using FVN_REGISTER.Core.Entities.Security;
 using FVN_REGISTER.Core.Enums;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
 
 namespace FVN_REGISTER.Infrastructure.Services.Execution;
@@ -44,6 +43,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         _notificationService = notificationService;
         _authorization = authorization;
         _logger = logger;
+        _hostEnvironment = hostEnvironment;
     }
 
     public async Task<ExecutionReconciliationDto?> GetAsync(string employeeCode, long reconciliationId, CancellationToken cancellationToken = default)
@@ -83,7 +83,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             .FirstOrDefaultAsync(cancellationToken);
 
         var evidence = confirmation is null
-            ? Array.Empty<ExecutionEvidenceDto>()
+            ? new List<ExecutionEvidenceDto>()
             : await _db.ExecutionConfirmationEvidence.AsNoTracking()
                 .Where(x => x.ConfirmationId == confirmation.Id && x.IsActive != false)
                 .OrderByDescending(x => x.SubmittedAt)
@@ -722,7 +722,8 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             })
             .ToList();
 
-        var module = MapNotificationModule(reconciliation.ModuleCode);
+        var module = ExecutionNotificationModuleMapper.ToRequestModule(reconciliation.ModuleCode);
+        var users = candidates.Select(x => x).ToList();
 
         foreach (var user in users)
         {

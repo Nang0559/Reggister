@@ -27,7 +27,7 @@ public sealed class HrmAttendanceCalculationService : IHrmAttendanceCalculationS
   {
    var rows=await _uow.SqlQueryRawAsync<HrmAttendanceCalculationResultDto>("EXEC dbo.usp_CalculateHrmAttendance @DeptCode,@FromDate,@ToDate,@TriggeredBy",ct,pDept,pFrom,pTo,pBy);
    var result=rows.FirstOrDefault();
-   if(result != null && result.IsSuccess)
+   if(result != null)
    {
     var from=DateOnly.FromDateTime(request.FromDate.Date);
     var to=DateOnly.FromDateTime(request.ToDate.Date);

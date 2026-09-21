@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Linq.Expressions;
 using FVN_REGISTER.Application.Interfaces.Execution;
 using FVN_REGISTER.Application.Services.Execution;
 using FVN_REGISTER.Application.Interfaces.Notifications;
@@ -177,7 +178,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             .FirstOrDefaultAsync(cancellationToken);
 
         var evidence = confirmation is null
-            ? Array.Empty<ExecutionEvidenceDto>()
+            ? new List<ExecutionEvidenceDto>()
             : await _db.ExecutionConfirmationEvidence.AsNoTracking()
                 .Where(x => x.ConfirmationId == confirmation.Id && x.IsActive != false)
                 .OrderByDescending(x => x.SubmittedAt)
@@ -200,6 +201,13 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             evidence,
             hrResolution);
     }
+
+    private static Expression<Func<F03ExecutionReconciliation, ExecutionReconciliationDto>> ToDto() =>
+        x => new ExecutionReconciliationDto(
+            x.Id, x.ModuleCode, x.SourceType, x.SourceId, x.ParticipantId,
+            x.EmployeeId, x.WorkDate, x.PlannedState, x.ActualState,
+            x.ReconciliationStatus, x.RequiresConfirmation, x.RequiresEvidence,
+            x.ConfirmationId, x.ActionId);
 
     public async Task<ExecutionEvidenceDto> ReviewEvidenceAsync(
         int userId,
@@ -378,10 +386,16 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
 
         await EnsureHrTargetScopeAsync(userId, employee.EmployeeCode, employee.DeptCode, cancellationToken);
 
-        var reviewEnabled = await _db.ExecutionPolicies.AsNoTracking()
-            .AnyAsync(x => x.IsActive != false
-                && x.ModuleCode == reconciliation.ModuleCode
-                && x.ReviewMode != 0, cancellationToken);
+        var policy = await _db.ExecutionPolicies.AsNoTracking()
+            .Where(x => x.IsActive != false && x.ModuleCode == reconciliation.ModuleCode)
+            .Select(x => new
+            {
+                x.ReviewMode,
+                x.CorrectionMode
+            })
+            .SingleOrDefaultAsync(cancellationToken);
+
+        var reviewEnabled = policy is not null && policy.ReviewMode != 0;
 
         if (!reviewEnabled)
             throw new InvalidOperationException(
@@ -768,6 +782,40 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             NotificationType = "EXECUTION_HR_RESOLUTION",
             IsHighPriority = decision == "NG"
         }, cancellationToken);
+    }
+
+    private async Task SendNotificationWithRetryAsync(
+        Func<Task> send,
+        string operation,
+        CancellationToken cancellationToken)
+    {
+        const int maxAttempts = 3;
+        Exception? lastException = null;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                await send();
+                return;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+                if (attempt == maxAttempts)
+                    break;
+
+                await Task.Delay(TimeSpan.FromMilliseconds(250 * attempt), cancellationToken);
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"Notification operation '{operation}' failed after {maxAttempts} attempts.",
+            lastException);
     }
 
     private static void ApplyCalendarResolution(
