@@ -131,16 +131,19 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         /// <summary>EF-compatible: lọc DeptCode trực tiếp trên IQueryable.</summary>
         // ★ SỬA: user.IsAdmin()/IsSuperAdmin() → user.Permission.IsAdmin()
         // (IsAdmin() extension đã tự bao gồm SuperAdmin, không cần OR thêm IsSuperAdmin())
-        protected bool ShouldFilterByDept(UserIdentityDto user, out string? effectiveDeptCode)
+        protected async Task<string> GetEffectiveReportScopeAsync(UserIdentityDto user, CancellationToken ct, params int[] functionCodes)
         {
-            bool isAdmin = user.Permission.IsAdmin();
-            if (isAdmin)
-            {
-                effectiveDeptCode = null;
-                return false;
-            }
-            effectiveDeptCode = user.DeptCode;
-            return true;
+            var scopes = await (
+                from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
+                join rf in _uow.Repository<F03RoleFunction>().Query().AsNoTracking() on ur.IdRole equals rf.IdRole
+                join f in _uow.Repository<F03Function>().Query().AsNoTracking() on rf.IdFunction equals f.Id
+                where ur.IdUser == user.UserId
+                   && functionCodes.Contains(f.FunctionCode)
+                   && f.IsActive == true
+                select f.ScopeCode
+            ).ToListAsync(ct);
+
+            return AuthorizationScopePolicy.ResolveEffectiveScope(scopes);
         }
 
         // ════════════════════════════════════════════════════════════════
@@ -150,10 +153,19 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         public async Task<ServiceResult<List<KeyValuePair<string, string>>>> GetLookupDepartmentsAsync(
         UserIdentityDto user, CancellationToken ct = default)
         {
-            var isAdmin = user.Permission.IsAdmin();
+            var scope = await GetEffectiveReportScopeAsync(
+                user, ct,
+                SecurityFunctionCodes.LeaveView,
+                SecurityFunctionCodes.OTView,
+                SecurityFunctionCodes.TripView,
+                SecurityFunctionCodes.EquipmentView,
+                SecurityFunctionCodes.AttendanceView);
+
             var q = _uow.Repository<F03Department>().Query().AsNoTracking().WhereActiveDept();
 
-            if (!isAdmin)
+            if (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(scope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase)
+                || string.Equals(scope, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase))
                 q = q.WhereDeptCode(user.DeptCode);
 
             var depts = await q
@@ -169,20 +181,23 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         string filterText, UserIdentityDto user,
         string? deptCode = null, CancellationToken ct = default)
         {
-            bool isAdmin = user.Permission.IsAdmin();
-            bool isManager = user.Permission.IsApprover() || user.LevelApprove > 0;
+            var scope = await GetEffectiveReportScopeAsync(
+                user, ct,
+                SecurityFunctionCodes.LeaveView,
+                SecurityFunctionCodes.OTView,
+                SecurityFunctionCodes.TripView,
+                SecurityFunctionCodes.EquipmentView,
+                SecurityFunctionCodes.AttendanceView);
 
-            var q = _uow.Repository<F03Employee>().Query().AsNoTracking().Where(e => e.IsActive==true);
+            var q = _uow.Repository<F03Employee>().Query().AsNoTracking().Where(e => e.IsActive == true);
 
-            if (isAdmin)
-            {
-                if (!string.IsNullOrEmpty(deptCode))
-                    q = q.Where(e => e.DeptCode == deptCode);
-            }
-            else if (isManager)
+            if (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
                 q = q.Where(e => e.DeptCode == user.DeptCode);
-            else
+            else if (string.Equals(scope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase)
+                  || string.Equals(scope, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase))
                 q = q.Where(e => e.EmployeeCode == user.EmployeeCode);
+            else if (!string.IsNullOrWhiteSpace(deptCode))
+                q = q.Where(e => e.DeptCode == deptCode);
 
             if (!string.IsNullOrEmpty(filterText))
                 q = q.Where(e => e.EmployeeCode.Contains(filterText)
