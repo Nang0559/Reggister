@@ -1,5 +1,6 @@
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Approvals;
+using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Logging;
 using FVN_REGISTER.Contract.Dtos.Approvals;
@@ -18,21 +19,24 @@ namespace FVN_REGISTER.API.Controllers;
 public sealed class ApprovalPoliciesController : BaseApiController
 {
     private readonly IApprovalPolicyService _service;
+    private readonly IAuthorizationService _authorization;
 
     public ApprovalPoliciesController(
         IApprovalPolicyService service,
         ICurrentUserService currentUser,
         IUserLogService userLog,
+        IAuthorizationService authorization,
         ILogger<ApprovalPoliciesController> logger,
         IOptionsMonitor<AuthDebugOptions> options)
         : base(currentUser, userLog, logger, options)
     {
         _service = service;
+        _authorization = authorization;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct)
-        => CanManage() ? HandleResult(await _service.GetAllAsync(ct)) : Forbid();
+        => await CanManageAsync(ct) ? HandleResult(await _service.GetAllAsync(ct)) : Forbid();
 
     [HttpGet("positions")]
     public async Task<IActionResult> GetPositions(CancellationToken ct)
@@ -67,8 +71,6 @@ public sealed class ApprovalPoliciesController : BaseApiController
         return HandleResult(await _service.DeleteAsync(id, UserInfo!.UserId, ct));
     }
 
-    private bool CanManage()
-        => UserInfo?.PermissionCode is int code
-           && code >= UserPermissionCodes.SuperAdmin
-           && code <= UserPermissionCodes.Editor;
+    private Task<bool> CanManageAsync(CancellationToken ct)
+        => UserInfo != null ? _authorization.HasAsync(UserInfo, SecurityFunctionCodes.ApprovalPolicyManage, ct) : Task.FromResult(false);
 }
