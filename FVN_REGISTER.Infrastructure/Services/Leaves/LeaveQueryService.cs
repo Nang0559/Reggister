@@ -91,7 +91,34 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             var phep = await Uow.Repository<VF03LeaveBalance>().Query().AsNoTracking().FirstOrDefaultAsync(x => x.EmployeeCode == employeeCode && x.WorkYear == year, ct);
             var pendingDays = await Uow.Repository<F03LeaveDay>().Query().AsNoTracking().Where(x => x.EmployeeCode == employeeCode && x.WorkYear == year && x.IsActive == true && (x.RequestStatus == ApprovalStatus.Pending || x.RequestStatus == ApprovalStatus.InProgress)).SumAsync(x => (decimal?)x.TotalDay, ct) ?? 0;
             var sickCodes = new[] { "0013", "0014", "0033" };
-            var approvedDetails = await Uow.Repository<F03LeaveDayDetail>().Query().AsNoTracking().Where(d => d.LeaveDay.EmployeeCode == employeeCode && d.LeaveDay.WorkYear == year && d.LeaveDay.IsActive == true && d.LeaveDay.RequestStatus == ApprovalStatus.Approved).Select(d => new { d.LeaveTypeCode, d.IsCountedAsLeave, d.DayValue }).ToListAsync(ct);
+
+            // Do not traverse F03LeaveDay from the detail query here.
+            // The current database does not expose the legacy LeaveCode column
+            // that exists on the EF entity. A navigation-based query causes
+            // EF Core to materialize the whole F03LeaveDay row and therefore
+            // selects LeaveCode, breaking Dashboard/Leave balance queries.
+            // Project the required request ids first, then query only detail
+            // columns. This keeps the read path aligned with the current SQL
+            // schema and avoids pulling unmapped legacy columns.
+            var approvedLeaveIds = await Uow.Repository<F03LeaveDay>().Query()
+                .AsNoTracking()
+                .Where(x => x.EmployeeCode == employeeCode
+                    && x.WorkYear == year
+                    && x.IsActive == true
+                    && x.RequestStatus == ApprovalStatus.Approved)
+                .Select(x => x.Id)
+                .ToListAsync(ct);
+
+            var approvedDetails = approvedLeaveIds.Count == 0
+                ? new List<(string? LeaveTypeCode, bool IsCountedAsLeave, decimal DayValue)>()
+                : await Uow.Repository<F03LeaveDayDetail>().Query()
+                    .AsNoTracking()
+                    .Where(d => approvedLeaveIds.Contains(d.LeaveDaysId))
+                    .Select(d => new { d.LeaveTypeCode, d.IsCountedAsLeave, d.DayValue })
+                    .AsEnumerable()
+                    .Select(d => (d.LeaveTypeCode, d.IsCountedAsLeave, d.DayValue))
+                    .ToList();
+
             var sick = approvedDetails.Where(d => sickCodes.Contains(d.LeaveTypeCode)).Sum(d => d.DayValue);
             var unpaid = approvedDetails.Where(d => !d.IsCountedAsLeave && !sickCodes.Contains(d.LeaveTypeCode)).Sum(d => d.DayValue);
 
