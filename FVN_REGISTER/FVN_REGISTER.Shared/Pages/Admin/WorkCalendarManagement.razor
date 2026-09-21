@@ -5,6 +5,7 @@
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Authorization
 @inject IDialogService DialogService
+@inject IJSRuntime JS
 @inherits AppComponentBase
 @inject IWorkYearManagementClientService WorkYearService
 @inject ICompanyHolidayManagementClientService HolidayService
@@ -75,14 +76,32 @@
         </MudPaper>
 
         <MudPaper Class="pa-4 mb-4" Outlined="true">
-            <MudStack Row="true" AlignItems="AlignItems.Center">
+            <MudStack Row="true" AlignItems="AlignItems.Center" Class="flex-wrap">
                 <MudStack Spacing="0">
-                    <MudText Typo="Typo.subtitle1" Style="font-weight:700">Import Excel</MudText>
-                    <MudText Typo="Typo.caption" Color="Color.Secondary">Cột A: Ngày · B: Mô tả · C: Tính phép (1/0 hoặc Có/Không). Dòng 1 là tiêu đề.</MudText>
+                    <MudText Typo="Typo.subtitle1" Style="font-weight:700">Import ngày nghỉ từ Excel</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Mẫu chuẩn: HolidayDate · Description · Year · TinhPhep. File cũ 3 cột vẫn được hỗ trợ.
+                    </MudText>
                 </MudStack>
                 <MudSpacer />
-                <InputFile OnChange="ImportExcel" accept=".xlsx" />
+                <MudButton Variant="Variant.Outlined"
+                           Color="Color.Primary"
+                           StartIcon="@Icons.Material.Filled.Download"
+                           OnClick="DownloadTemplate"
+                           Disabled="@_templateLoading">
+                    @( _templateLoading ? "Đang tạo mẫu..." : "Tải mẫu chuẩn")
+                </MudButton>
             </MudStack>
+
+            <MudDivider Class="my-3" />
+
+            <MudStack Row="true" AlignItems="AlignItems.Center" Class="flex-wrap">
+                <InputFile OnChange="ImportExcel" accept=".xlsx" />
+                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                    Chọn file .xlsx đã điền theo mẫu rồi hệ thống sẽ kiểm tra ngày, năm, TinhPhep và ngày trùng trước khi import.
+                </MudText>
+            </MudStack>
+
             <MudStack Row="true" Class="mt-3">
                 <MudNumericField T="int" @bind-Value="_sundayYear" Label="Năm tạo Chủ nhật" Variant="Variant.Outlined" />
                 <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.CalendarToday" OnClick="CreateSundays">Tạo Chủ nhật</MudButton>
@@ -115,6 +134,7 @@
     private int _editHolidayId;
     private int _sundayYear = DateTime.Today.Year;
     private bool _loading;
+    private bool _templateLoading;
 
     private IEnumerable<CompanyHolidayDto> FilteredHolidays => _holidays.OrderByDescending(x => x.HolidayDate);
 
@@ -125,71 +145,231 @@
         _loading = true;
         try
         {
-            var y = await WorkYearService.GetAllAsync();
-            if (y.IsSuccess) _years = y.Data ?? new();
-            var h = await HolidayService.GetAllAsync();
-            if (h.IsSuccess) _holidays = h.Data ?? new();
+            var years = await WorkYearService.GetAllAsync();
+            if (years.IsSuccess) _years = years.Data ?? new();
+
+            var holidays = await HolidayService.GetAllAsync();
+            if (holidays.IsSuccess) _holidays = holidays.Data ?? new();
         }
-        finally { _loading = false; }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private void NewYear()
     {
         var year = DateTime.Today.Year;
-        _editYear = new WorkYearDto { Year=year, YearName=$"Năm {year}", IsActive=true };
-        _start = new DateTime(year,1,1); _end = new DateTime(year,12,31);
+        _editYear = new WorkYearDto { Year = year, YearName = $"Năm {year}", IsActive = true };
+        _start = new DateTime(year, 1, 1);
+        _end = new DateTime(year, 12, 31);
     }
 
     private void EditYear(WorkYearDto x)
     {
-        _editYear = new WorkYearDto { Id=x.Id,Year=x.Year,YearName=x.YearName,StartDate=x.StartDate,EndDate=x.EndDate,IsActive=x.IsActive,Remark=x.Remark };
-        _start=x.StartDate; _end=x.EndDate;
+        _editYear = new WorkYearDto
+        {
+            Id = x.Id,
+            Year = x.Year,
+            YearName = x.YearName,
+            StartDate = x.StartDate,
+            EndDate = x.EndDate,
+            IsActive = x.IsActive,
+            Remark = x.Remark
+        };
+        _start = x.StartDate;
+        _end = x.EndDate;
     }
 
-    private void CancelYear()=>_editYear=null;
+    private void CancelYear() => _editYear = null;
 
     private async Task SaveYear()
     {
-        if(_editYear==null||!_start.HasValue||!_end.HasValue)return;
-        _editYear.StartDate=_start.Value.Date;_editYear.EndDate=_end.Value.Date;
-        var r=_editYear.Id==0?await WorkYearService.CreateAsync(_editYear):await WorkYearService.UpdateAsync(_editYear.Id,_editYear);
-        if(r.IsSuccess){Snackbar.Add("Đã lưu năm làm việc.",Severity.Success);_editYear=null;await LoadAsync();}else Snackbar.Add(r.Message??"Không thể lưu.",Severity.Error);
+        if (_editYear == null || !_start.HasValue || !_end.HasValue)
+            return;
+
+        _editYear.StartDate = _start.Value.Date;
+        _editYear.EndDate = _end.Value.Date;
+
+        var result = _editYear.Id == 0
+            ? await WorkYearService.CreateAsync(_editYear)
+            : await WorkYearService.UpdateAsync(_editYear.Id, _editYear);
+
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Đã lưu năm làm việc.", Severity.Success);
+            _editYear = null;
+            await LoadAsync();
+        }
+        else
+        {
+            Snackbar.Add(result.Message ?? "Không thể lưu.", Severity.Error);
+        }
     }
 
     private async Task ToggleYear(WorkYearDto x)
     {
-        var r=await WorkYearService.SetActiveAsync(x.Id,!x.IsActive);
-        if(r.IsSuccess){Snackbar.Add(r.Message??"Đã cập nhật.",Severity.Success);await LoadAsync();}else Snackbar.Add(r.Message??"Không thể cập nhật.",Severity.Error);
+        var result = await WorkYearService.SetActiveAsync(x.Id, !x.IsActive);
+
+        if (result.IsSuccess)
+        {
+            Snackbar.Add(result.Message ?? "Đã cập nhật.", Severity.Success);
+            await LoadAsync();
+        }
+        else
+        {
+            Snackbar.Add(result.Message ?? "Không thể cập nhật.", Severity.Error);
+        }
     }
 
-    private void EditHoliday(CompanyHolidayDto x){_editHolidayId=x.Id;_holidayDate=x.HolidayDate;_holidayDescription=x.Description;_holidayPaid=x.IsPaidLeave;}
+    private void EditHoliday(CompanyHolidayDto x)
+    {
+        _editHolidayId = x.Id;
+        _holidayDate = x.HolidayDate;
+        _holidayDescription = x.Description;
+        _holidayPaid = x.IsPaidLeave;
+    }
+
     private async Task SaveHoliday()
     {
-        if(!_holidayDate.HasValue||string.IsNullOrWhiteSpace(_holidayDescription)){Snackbar.Add("Vui lòng nhập ngày và mô tả.",Severity.Warning);return;}
-        var m=new CompanyHolidayDto{Id=_editHolidayId,HolidayDate=_holidayDate.Value.Date,Description=_holidayDescription.Trim(),IsPaidLeave=_holidayPaid,Year=_holidayDate.Value.Year};
-        var r=_editHolidayId==0?await HolidayService.CreateAsync(m):await HolidayService.UpdateAsync(_editHolidayId,m);
-        if(r.IsSuccess){Snackbar.Add("Đã lưu ngày nghỉ.",Severity.Success);ResetHoliday();await LoadAsync();}else Snackbar.Add(r.Message??"Không thể lưu.",Severity.Error);
+        if (!_holidayDate.HasValue || string.IsNullOrWhiteSpace(_holidayDescription))
+        {
+            Snackbar.Add("Vui lòng nhập ngày và mô tả.", Severity.Warning);
+            return;
+        }
+
+        var model = new CompanyHolidayDto
+        {
+            Id = _editHolidayId,
+            HolidayDate = _holidayDate.Value.Date,
+            Description = _holidayDescription.Trim(),
+            IsPaidLeave = _holidayPaid,
+            Year = _holidayDate.Value.Year
+        };
+
+        var result = _editHolidayId == 0
+            ? await HolidayService.CreateAsync(model)
+            : await HolidayService.UpdateAsync(_editHolidayId, model);
+
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Đã lưu ngày nghỉ.", Severity.Success);
+            ResetHoliday();
+            await LoadAsync();
+        }
+        else
+        {
+            Snackbar.Add(result.Message ?? "Không thể lưu.", Severity.Error);
+        }
     }
-    private void ResetHoliday(){_editHolidayId=0;_holidayDate=null;_holidayDescription=string.Empty;_holidayPaid=true;}
+
+    private void ResetHoliday()
+    {
+        _editHolidayId = 0;
+        _holidayDate = null;
+        _holidayDescription = string.Empty;
+        _holidayPaid = true;
+    }
+
     private async Task DeleteHoliday(CompanyHolidayDto x)
     {
-        var ok=await DialogService.ShowMessageBoxAsync("Xóa ngày nghỉ",$"Xóa ngày {x.HolidayDate:dd/MM/yyyy} - {x.Description}?",yesText:"Xóa",cancelText:"Hủy");
-        if(ok!=true)return;var r=await HolidayService.DeleteAsync(x.Id);if(r.IsSuccess){Snackbar.Add("Đã xóa.",Severity.Success);await LoadAsync();}else Snackbar.Add(r.Message??"Không thể xóa.",Severity.Error);
+        var ok = await DialogService.ShowMessageBoxAsync(
+            "Xóa ngày nghỉ",
+            $"Xóa ngày {x.HolidayDate:dd/MM/yyyy} - {x.Description}?",
+            yesText: "Xóa",
+            cancelText: "Hủy");
+
+        if (ok != true)
+            return;
+
+        var result = await HolidayService.DeleteAsync(x.Id);
+
+        if (result.IsSuccess)
+        {
+            Snackbar.Add("Đã xóa.", Severity.Success);
+            await LoadAsync();
+        }
+        else
+        {
+            Snackbar.Add(result.Message ?? "Không thể xóa.", Severity.Error);
+        }
     }
-    private async Task CreateSundays(){var r=await HolidayService.CreateSundaysAsync(_sundayYear);Snackbar.Add(r.Message??"Đã xử lý.",r.IsSuccess?Severity.Success:Severity.Warning);if(r.IsSuccess)await LoadAsync();}
-    private async Task ImportExcel(InputFileChangeEventArgs e)
+
+    private async Task CreateSundays()
     {
-        var file=e.File;if(file==null)return;
+        var result = await HolidayService.CreateSundaysAsync(_sundayYear);
+        Snackbar.Add(
+            result.Message ?? "Đã xử lý.",
+            result.IsSuccess ? Severity.Success : Severity.Warning);
+
+        if (result.IsSuccess)
+            await LoadAsync();
+    }
+
+    private async Task DownloadTemplate()
+    {
+        _templateLoading = true;
+
         try
         {
-            await using var stream=file.OpenReadStream(10_000_000);
-            using var content=new MultipartFormDataContent();
-            var part=new StreamContent(stream);part.Headers.ContentType=new System.Net.Http.Headers.MediaTypeHeaderValue("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-            content.Add(part,"file",file.Name);
-            var r=await HolidayService.ImportAsync(content);
-            Snackbar.Add(r.Message??"Import hoàn tất.",r.IsSuccess?Severity.Success:Severity.Error);
-            if(r.IsSuccess)await LoadAsync();
+            var result = await HolidayService.DownloadTemplateAsync();
+
+            if (!result.IsSuccess || result.Data is not { Length: > 0 })
+            {
+                Snackbar.Add(result.Message ?? "Không tải được mẫu Excel.", Severity.Error);
+                return;
+            }
+
+            var base64 = Convert.ToBase64String(result.Data);
+            await JS.InvokeVoidAsync(
+                "fvnFileDownload.downloadBase64",
+                "FCC_CompanyHoliday_Import_Template.xlsx",
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                base64);
+
+            Snackbar.Add("Đã tải mẫu Excel chuẩn.", Severity.Success);
         }
-        catch(Exception ex){Snackbar.Add(ex.Message,Severity.Error);}
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
+        finally
+        {
+            _templateLoading = false;
+        }
+    }
+
+    private async Task ImportExcel(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file == null)
+            return;
+
+        try
+        {
+            await using var stream = file.OpenReadStream(10_000_000);
+
+            using var content = new MultipartFormDataContent();
+            using var part = new StreamContent(stream);
+
+            part.Headers.ContentType =
+                new System.Net.Http.Headers.MediaTypeHeaderValue(
+                    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+
+            content.Add(part, "file", file.Name);
+
+            var result = await HolidayService.ImportAsync(content);
+
+            Snackbar.Add(
+                result.Message ?? "Import hoàn tất.",
+                result.IsSuccess ? Severity.Success : Severity.Error);
+
+            if (result.IsSuccess)
+                await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add(ex.Message, Severity.Error);
+        }
     }
 }
