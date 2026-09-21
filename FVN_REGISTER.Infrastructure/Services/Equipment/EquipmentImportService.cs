@@ -126,13 +126,13 @@ public sealed class EquipmentImportService : IEquipmentImportService
             await _audit.LogAction("EQUIPMENT_IMPORT_STAGED", user.UserId,
                 $"BatchId={batch.Id}; DeptCode={batch.DeptCode}; FileName={batch.FileName}; Rows={batch.TotalRows}; Valid={batch.ValidRows}; Invalid={batch.InvalidRows}",
                 ct: ct);
-            return MapBatch(batch);
+            return MapBatch(batch, rows);
         }
     }
 
     public async Task<EquipmentImportBatchDto?> GetBatchAsync(int batchId,CancellationToken ct=default)
     {
-        var user=RequireUser();var b=await _uow.Repository<F03EquipmentImportBatch>().Query().AsNoTracking().FirstOrDefaultAsync(x=>x.Id==batchId&&x.IsActive==true,ct);if(b==null)return null;await EnsureScopeAsync(user,b.DeptCode,ct);return MapBatch(b);
+        var user=RequireUser();var b=await _uow.Repository<F03EquipmentImportBatch>().Query().AsNoTracking().FirstOrDefaultAsync(x=>x.Id==batchId&&x.IsActive==true,ct);if(b==null)return null;await EnsureScopeAsync(user,b.DeptCode,ct);var rows=await _uow.Repository<F03EquipmentImportRow>().Query().AsNoTracking().Where(x=>x.BatchId==batchId).OrderBy(x=>x.RowNumber).Select(x=>new EquipmentImportRowDto{RowNumber=x.RowNumber,Status=x.Status,ErrorMessage=x.ErrorMessage}).ToListAsync(ct);return MapBatch(b, rows);
     }
 
     public async Task<EquipmentImportCommitResultDto> CommitAsync(int batchId,CancellationToken ct=default)
@@ -151,7 +151,23 @@ public sealed class EquipmentImportService : IEquipmentImportService
     private async Task EnsureScopeAsync(FVN_REGISTER.Contract.Dtos.Authentication.UserIdentityDto user,string deptCode,CancellationToken ct)
     {if(string.IsNullOrWhiteSpace(deptCode))throw new ArgumentException("Bộ phận là bắt buộc.");if(!await _authorization.CanAccessAsync(user,SecurityFunctionCodes.EquipmentImport,null,deptCode.Trim(),ct))throw new UnauthorizedAccessException("Bạn không có quyền import thiết bị cho bộ phận này.");}
     private FVN_REGISTER.Contract.Dtos.Authentication.UserIdentityDto RequireUser()=>_currentUser.GetCurrentUser()??throw new UnauthorizedAccessException("Phiên đăng nhập không hợp lệ.");
-    private static EquipmentImportBatchDto MapBatch(F03EquipmentImportBatch x)=>new(){Id=x.Id,DeptCode=x.DeptCode,FileName=x.FileName,Status=x.Status,TotalRows=x.TotalRows,ValidRows=x.ValidRows,InvalidRows=x.InvalidRows,ImportedRows=x.ImportedRows};
+    private static EquipmentImportBatchDto MapBatch(F03EquipmentImportBatch x, IEnumerable<F03EquipmentImportRow>? rows = null) => new()
+    {
+        Id = x.Id,
+        DeptCode = x.DeptCode,
+        FileName = x.FileName,
+        Status = x.Status,
+        TotalRows = x.TotalRows,
+        ValidRows = x.ValidRows,
+        InvalidRows = x.InvalidRows,
+        ImportedRows = x.ImportedRows,
+        Rows = rows?.Select(r => new EquipmentImportRowDto
+        {
+            RowNumber = r.RowNumber,
+            Status = r.Status,
+            ErrorMessage = r.ErrorMessage
+        }).ToList() ?? new()
+    };
     private static string? ValidateRow(Dictionary<string,string?> data,List<F03EquipmentFieldDefinition> defs){var code=GetValue(data,"EquipmentCode","Mã thiết bị","Mã TB","Mã tài sản","AssetCode");var name=GetValue(data,"EquipmentName","Tên thiết bị","Tên TB","Tên tài sản");if(string.IsNullOrWhiteSpace(code))return"Thiếu mã thiết bị.";if(string.IsNullOrWhiteSpace(name))return"Thiếu tên thiết bị.";foreach(var d in defs.Where(x=>x.IsRequired)){var v=GetValue(data,d.FieldKey,d.FieldLabel);if(string.IsNullOrWhiteSpace(v))return$"Thiếu trường bắt buộc: {d.FieldLabel}.";if(!ValidateType(v,d.DataType))return$"Sai kiểu dữ liệu: {d.FieldLabel} ({d.DataType}).";}return null;}
     private static bool ValidateType(string value,string type)=>type.ToLowerInvariant() switch{"number"=>decimal.TryParse(value,NumberStyles.Any,CultureInfo.InvariantCulture,out _)||decimal.TryParse(value,NumberStyles.Any,new CultureInfo("vi-VN"),out _),"date"=>ParseDate(value).HasValue,"boolean"=>bool.TryParse(value,out _)||value is "0" or "1" or "Có" or "Không" or "Yes" or "No",_=>true};
     private static Dictionary<string,string?> BuildCustomData(Dictionary<string,string?> source,List<F03EquipmentFieldDefinition> defs){var r=new Dictionary<string,string?>(StringComparer.OrdinalIgnoreCase);foreach(var p in source){var k=defs.FirstOrDefault(x=>NormalizeKey(x.FieldKey)==NormalizeKey(p.Key)||NormalizeKey(x.FieldLabel)==NormalizeKey(p.Key))?.FieldKey;if(!string.IsNullOrWhiteSpace(k))r[k]=p.Value;else if(!IsStandardColumn(p.Key))r[NormalizeKey(p.Key)]=p.Value;}return r;}
