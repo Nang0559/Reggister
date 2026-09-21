@@ -422,3 +422,34 @@ IF EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2901 AND ScopeCode<
     THROW 53055, N'Attendance.View must be Department scoped.', 1;
 PRINT N'RBAC hardening verification completed.';
 GO
+
+
+/* Capability matrix additions introduced after the original RBAC seed. */
+IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2911 AND FunctionName=N'Attendance.Calculate' AND ScopeCode=N'All' AND ISNULL(IsActive,1)=1)
+    THROW 53056, N'Missing Attendance.Calculate capability 2911.', 1;
+IF EXISTS (
+    SELECT 1 FROM dbo.F03RoleFunctions rf
+    JOIN dbo.F03Roles r ON r.Id=rf.IdRole
+    JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
+    WHERE r.RoleCode=5 AND f.FunctionCode=2911
+)
+    THROW 53057, N'User role must not have Attendance.Calculate.', 1;
+IF NOT EXISTS (
+    SELECT 1 FROM dbo.F03RoleFunctions rf
+    JOIN dbo.F03Roles r ON r.Id=rf.IdRole
+    JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
+    WHERE r.RoleCode IN (1,2) AND f.FunctionCode=2911
+)
+    THROW 53058, N'SuperAdmin/Admin must have Attendance.Calculate.', 1;
+IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2308 AND FunctionName=N'Equipment.Cancel' AND ScopeCode=N'Own' AND ISNULL(IsActive,1)=1)
+    THROW 53059, N'Missing Equipment.Cancel capability 2308.', 1;
+IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=3081 AND FunctionName=N'EmailQueue.Manage' AND ISNULL(IsActive,1)=1)
+    THROW 53060, N'Missing EmailQueue.Manage capability 3081.', 1;
+IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=3082 AND FunctionName=N'EmailTemplate.Manage' AND ISNULL(IsActive,1)=1)
+    THROW 53061, N'Missing EmailTemplate.Manage capability 3082.', 1;
+IF OBJECT_ID(N'dbo.F03HrmAttendanceCalculated',N'U') IS NULL
+    THROW 53062, N'Missing calculated attendance result table F03HrmAttendanceCalculated.', 1;
+IF EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf JOIN dbo.F03Roles r ON r.Id=rf.IdRole JOIN dbo.F03Functions f ON f.Id=rf.IdFunction WHERE r.RoleCode IN (3,4,5) AND f.FunctionCode=2308 AND r.RoleCode=5)
+    PRINT N'Equipment.Cancel is available to business roles; handler enforces own-request ownership.';
+PRINT N'Extended RBAC/reporting verification completed.';
+GO
