@@ -88,7 +88,11 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             .ToArray();
 
         // Existing data, including attendance/mismatch, takes precedence over registration.
-        var occupiedDates = items.Select(x => x.WorkDate).ToHashSet();
+        var occupiedDates = items
+            .Where(x => x.ModuleCode != "ATTENDANCE"
+                || (x.StatusCode != "NO_ATTENDANCE" && x.StatusCode != "HOLIDAY"))
+            .Select(x => x.WorkDate)
+            .ToHashSet();
 
         var opportunities = await _workCalendar.GetRegistrationOpportunitiesAsync(
             employeeCode,
