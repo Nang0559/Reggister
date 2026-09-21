@@ -18,4 +18,7 @@ public sealed class WorkCalendarClientService : IWorkCalendarClientService
 
     public Task<ApiResponse<CalendarAvailabilityDto>> GetAvailabilityAsync(DateTime date, CancellationToken ct = default) =>
         _http.GetAsync<CalendarAvailabilityDto>($"api/calendar/me/availability?date={date:yyyy-MM-dd}", ct);
+
+    public Task<ApiResponse<IReadOnlyList<CalendarRegistrationOpportunityDto>>> GetRegistrationOpportunitiesAsync(DateTime from, DateTime to, CancellationToken ct = default) =>
+        _http.GetAsync<IReadOnlyList<CalendarRegistrationOpportunityDto>>($"api/calendar/me/registration-opportunities?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}", ct);
 }
