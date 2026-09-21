@@ -62,30 +62,15 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         {
             var year = query.WorkYear ?? DateTime.Now.Year;
 
-            bool isAdmin = user.Permission.IsAdmin();
-            bool isManager = user.Permission.IsApprover() || user.LevelApprove > 0;
 
             var q = _uow.Repository<VF03LeaveBalance>().Query()
                 .AsNoTracking()
                 .Where(x => x.IsActive && x.WorkYear == year);
 
-            if (isAdmin)
-            {
-                if (!string.IsNullOrEmpty(query.DeptCode))
-                    q = q.Where(x => x.DeptCode == query.DeptCode);
-                if (!string.IsNullOrEmpty(query.EmployeeCode))
-                    q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
-            }
-            else if (isManager)
-            {
-                q = q.Where(x => x.DeptCode == user.DeptCode);
-                if (!string.IsNullOrEmpty(query.EmployeeCode))
-                    q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
-            }
-            else
-            {
-                q = q.Where(x => x.EmployeeCode == user.EmployeeCode);
-            }
+            if (!string.IsNullOrEmpty(query.DeptCode))
+                q = q.Where(x => x.DeptCode == query.DeptCode);
+            if (!string.IsNullOrEmpty(query.EmployeeCode))
+                q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
 
             var data = await q
                 .OrderBy(x => x.DeptName).ThenBy(x => x.EmployeeName)
@@ -137,8 +122,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             var fromDate = query.FromDate ?? DateTime.Today.AddMonths(-1);
             var toDate = query.ToDate ?? DateTime.Today;
 
-            bool isAdmin = user.Permission.IsAdmin();
-            bool isManager = user.Permission.IsApprover() || user.LevelApprove > 0;
 
             var q = _uow.Repository<VF03LeaveRequestDetail>().Query()
                 .AsNoTracking()
@@ -146,19 +129,12 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.LeaveDate <= DateOnly.FromDateTime(toDate)
                          && x.IsCountedAsLeave);
 
-            if (isAdmin)
-            {
-                if (!string.IsNullOrEmpty(query.DeptCode))
-                    q = q.Where(x => x.DeptCode == query.DeptCode);
-            }
-            else if (isManager)
-            {
-                q = q.Where(x => x.DeptCode == user.DeptCode);
-            }
-            else
-            {
-                return ServiceResult<ReportResultDto>.Fail("Bạn không có quyền xem báo cáo phòng ban.");
-            }
+            if (string.IsNullOrWhiteSpace(query.DeptCode) && string.IsNullOrWhiteSpace(query.EmployeeCode))
+                return ServiceResult<ReportResultDto>.Fail("Thiếu phạm vi dữ liệu báo cáo nghỉ phép.");
+            if (!string.IsNullOrEmpty(query.DeptCode))
+                q = q.Where(x => x.DeptCode == query.DeptCode);
+            if (!string.IsNullOrEmpty(query.EmployeeCode))
+                q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
 
             var data = await q
                 .GroupBy(x => new { x.DeptCode, x.DeptName })
@@ -219,8 +195,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             var fromDate = query.FromDate ?? DateTime.Today.AddMonths(-1);
             var toDate = query.ToDate ?? DateTime.Today;
 
-            bool isAdmin = user.Permission.IsAdmin();
-            bool isManager = user.Permission.IsApprover() || user.LevelApprove > 0;
 
             var q = _uow.Repository<VF03LeaveRequest>().Query()
                 .AsNoTracking()
@@ -320,10 +294,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.StartDate >= fromDate
                          && x.StartDate <= toDate);
 
-            if (!isAdmin)
-                q = q.Where(x => x.EmployeeCode == user.EmployeeCode);
-            else if (!string.IsNullOrEmpty(query.DeptCode))
+            if (!string.IsNullOrEmpty(query.DeptCode))
                 q = q.Where(x => x.DeptCode == query.DeptCode);
+            if (!string.IsNullOrEmpty(query.EmployeeCode))
+                q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
 
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
