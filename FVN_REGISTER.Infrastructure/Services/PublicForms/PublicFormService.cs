@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Interfaces.PublicForms;
 using FVN_REGISTER.Contract.Dtos.PublicForms;
 using FVN_REGISTER.Contract.Requests.PublicForms;
 using FVN_REGISTER.Contract.Utils;
+using ServiceResult = FVN_REGISTER.Models.Utils.ServiceResult;
 using FVN_REGISTER.Core.Entities.PublicForms;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -45,18 +46,18 @@ public sealed class PublicFormService : IPublicFormService
         return x == null ? null : Map(x);
     }
 
-    public async Task<ServiceResult<PublicFormDto>> CreateAsync(SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
+    public async Task<FVN_REGISTER.Models.Utils.ServiceResult<PublicFormDto>> CreateAsync(SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
     {
         Validate(request);
         var exists = await _uow.Repository<F03PublicForm>().Query().AnyAsync(x => x.FormCode == request.FormCode.Trim(), ct);
-        if (exists) return Contract.Responses.ServiceResult<PublicFormDto>.Fail("Mã biểu mẫu đã tồn tại.");
+        if (exists) return FVN_REGISTER.Models.Utils.ServiceResult<PublicFormDto>.Fail("Mã biểu mẫu đã tồn tại.");
         var entity = BuildEntity(request, actorUserId);
         await _uow.Repository<F03PublicForm>().AddAsync(entity, ct);
         await _uow.SaveChangesAsync(ct);
-        return Contract.Responses.ServiceResult<PublicFormDto>.Ok(Map(entity));
+        return FVN_REGISTER.Models.Utils.ServiceResult<PublicFormDto>.Ok(Map(entity));
     }
 
-    public async Task<Contract.Responses.ServiceResult<PublicFormDto>> UpdateAsync(int id, SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
+    public async Task<FVN_REGISTER.Models.Utils.ServiceResult<PublicFormDto>> UpdateAsync(int id, SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
     {
         Validate(request);
         var entity = await _uow.Repository<F03PublicForm>().Query().Include(x=>x.Questions).ThenInclude(x=>x.Options).Include(x=>x.Audiences).FirstOrDefaultAsync(x=>x.Id==id,ct);
@@ -71,7 +72,7 @@ public sealed class PublicFormService : IPublicFormService
         return Contract.Responses.ServiceResult<PublicFormDto>.Ok(Map(entity));
     }
 
-    public async Task<Contract.Responses.ServiceResult> PublishAsync(int id,int actorUserId,CancellationToken ct=default)
+    public async Task<FVN_REGISTER.Models.Utils.ServiceResult> PublishAsync(int id,int actorUserId,CancellationToken ct=default)
     {
         var e=await _uow.Repository<F03PublicForm>().Query().Include(x=>x.Questions).Include(x=>x.Audiences).FirstOrDefaultAsync(x=>x.Id==id,ct);
         if(e==null)return Contract.Responses.ServiceResult.Fail("Không tìm thấy biểu mẫu.");
@@ -81,21 +82,21 @@ public sealed class PublicFormService : IPublicFormService
         e.Status="Published";e.PublishedAt=DateTime.Now;e.ModifiedBy=actorUserId;e.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);return Contract.Responses.ServiceResult.Ok();
     }
 
-    public async Task<Contract.Responses.ServiceResult> CloseAsync(int id,int actorUserId,CancellationToken ct=default)
+    public async Task<FVN_REGISTER.Models.Utils.ServiceResult> CloseAsync(int id,int actorUserId,CancellationToken ct=default)
     {
         var e=await _uow.Repository<F03PublicForm>().Query().FirstOrDefaultAsync(x=>x.Id==id,ct);
         if(e==null)return Contract.Responses.ServiceResult.Fail("Không tìm thấy biểu mẫu.");
         e.Status="Closed";e.ClosedAt=DateTime.Now;e.ModifiedBy=actorUserId;e.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);return Contract.Responses.ServiceResult.Ok();
     }
 
-    public async Task<Contract.Responses.ServiceResult<int>> SubmitAsync(int formId,string employeeCode,string? deptCode,string? positionCode,IReadOnlyCollection<Contract.Requests.PublicForms.PublicFormAnswerRequest> answers,CancellationToken ct=default)
+    public async Task<FVN_REGISTER.Models.Utils.ServiceResult<int>> SubmitAsync(int formId,string employeeCode,string? deptCode,string? positionCode,IReadOnlyCollection<Contract.Requests.PublicForms.PublicFormAnswerRequest> answers,CancellationToken ct=default)
     {
         var now=DateTime.Now;
         var form=await _uow.Repository<F03PublicForm>().Query()
             .Include(x=>x.Questions).ThenInclude(x=>x.Options)
             .Include(x=>x.Audiences)
             .FirstOrDefaultAsync(x=>x.Id==formId,ct);
-        if(form==null) return Contract.Responses.ServiceResult<int>.Fail("Không tìm thấy biểu mẫu.");
+        if(form==null) return FVN_REGISTER.Models.Utils.ServiceResult<int>.Fail("Không tìm thấy biểu mẫu.");
         if(form.Status!="Published" || (form.StartAt.HasValue&&form.StartAt>now) || (form.EndAt.HasValue&&form.EndAt<now))
             return Contract.Responses.ServiceResult<int>.Fail("Biểu mẫu không còn nhận đăng ký.");
         if(!Matches(form,employeeCode,deptCode,positionCode))
