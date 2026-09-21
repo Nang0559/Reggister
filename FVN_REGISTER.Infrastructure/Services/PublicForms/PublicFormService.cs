@@ -87,7 +87,7 @@ public sealed class PublicFormService : IPublicFormService
         e.Status="Closed";e.ClosedAt=DateTime.Now;e.ModifiedBy=actorUserId;e.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);return Contract.Responses.ServiceResult.Ok();
     }
 
-    public async Task<Contract.Responses.ServiceResult<int>> SubmitAsync(int formId,string employeeCode,IReadOnlyCollection<Contract.Requests.PublicForms.PublicFormAnswerRequest> answers,CancellationToken ct=default)
+    public async Task<Contract.Responses.ServiceResult<int>> SubmitAsync(int formId,string employeeCode,string? deptCode,string? positionCode,IReadOnlyCollection<Contract.Requests.PublicForms.PublicFormAnswerRequest> answers,CancellationToken ct=default)
     {
         var now=DateTime.Now;
         var form=await _uow.Repository<F03PublicForm>().Query()
@@ -97,7 +97,7 @@ public sealed class PublicFormService : IPublicFormService
         if(form==null) return Contract.Responses.ServiceResult<int>.Fail("Không tìm thấy biểu mẫu.");
         if(form.Status!="Published" || (form.StartAt.HasValue&&form.StartAt>now) || (form.EndAt.HasValue&&form.EndAt<now))
             return Contract.Responses.ServiceResult<int>.Fail("Biểu mẫu không còn nhận đăng ký.");
-        if(!Matches(form,employeeCode,null,null))
+        if(!Matches(form,employeeCode,deptCode,positionCode))
             return Contract.Responses.ServiceResult<int>.Fail("Bạn không thuộc đối tượng được phép đăng ký.");
         if(!form.AllowMultipleSubmit && await _uow.Repository<F03PublicFormSubmission>().Query().AnyAsync(x=>x.FormId==formId&&x.EmployeeCode==employeeCode&&x.Status!="Cancelled",ct))
             return Contract.Responses.ServiceResult<int>.Fail("Bạn đã đăng ký biểu mẫu này.");
