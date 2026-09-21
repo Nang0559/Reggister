@@ -47,10 +47,20 @@
     <MudItem xs="12" sm="3"><MudSelect T="string" @bind-Value="q.QuestionType" Label="Loại" Variant="Variant.Outlined">@foreach(var t in Types)<MudSelectItem Value="@t">@t</MudSelectItem></MudSelect></MudItem>
     <MudItem xs="12" sm="1"><MudSwitch T="bool" @bind-Value="q.IsRequired">Bắt buộc</MudSwitch></MudItem>
    </MudGrid>
-   @if(q.QuestionType=="SingleChoice"||q.QuestionType=="MultiChoice")
+   @if (q.QuestionType == "SingleChoice" || q.QuestionType == "MultiChoice")
    {
-    @foreach(var o in q.Options){<MudTextField Class="mt-2" @bind-Value="o.OptionText" Label="@o.OptionCode" Variant="Variant.Outlined" />}
-    <MudButton Size="Size.Small" OnClick="@(()=>q.Options.Add(new SavePublicFormOptionRequest{OptionCode=$"OPT{q.Options.Count+1}",Sequence=q.Options.Count+1}))">+ Option</MudButton>
+       foreach (var o in q.Options)
+       {
+           <MudTextField Class="mt-2" @bind-Value="o.OptionText" Label="@o.OptionCode" Variant="Variant.Outlined" />
+       }
+       <MudButton Size="Size.Small"
+                  OnClick="@(() => q.Options.Add(new SavePublicFormOptionRequest
+                  {
+                      OptionCode = $"OPT{q.Options.Count + 1}",
+                      Sequence = q.Options.Count + 1
+                  }))">
+           + Option
+       </MudButton>
    }
   </MudPaper>
  }
