@@ -9,11 +9,16 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
 {
     private readonly FVNWEBAPPContext _db;
     private readonly ICalendarModuleRegistry _registry;
+    private readonly IWorkCalendarService _workCalendar;
 
-    public SharedWorkCalendarService(FVNWEBAPPContext db, ICalendarModuleRegistry registry)
+    public SharedWorkCalendarService(
+        FVNWEBAPPContext db,
+        ICalendarModuleRegistry registry,
+        IWorkCalendarService workCalendar)
     {
         _db = db;
         _registry = registry;
+        _workCalendar = workCalendar;
     }
 
     public async Task<CalendarMonthDto> GetMonthAsync(
@@ -82,12 +87,27 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             })
             .ToArray();
 
+        // Existing data, including attendance/mismatch, takes precedence over registration.
+        var occupiedDates = items.Select(x => x.WorkDate).ToHashSet();
+
+        var opportunities = await _workCalendar.GetRegistrationOpportunitiesAsync(
+            employeeCode,
+            from.ToDateTime(TimeOnly.MinValue),
+            to.ToDateTime(TimeOnly.MinValue),
+            cancellationToken);
+
+        opportunities = opportunities
+            .Where(x => !occupiedDates.Contains(x.WorkDate)
+                && (allowedModules is null || allowedModules.Contains(x.ModuleCode)))
+            .ToArray();
+
         return new CalendarMonthDto
         {
             From = from,
             To = to,
             Items = items,
-            Alerts = alerts
+            Alerts = alerts,
+            RegistrationOpportunities = opportunities
         };
     }
 
