@@ -16,6 +16,7 @@ using FVN_REGISTER.Core.Entities.Security;
 using FVN_REGISTER.Core.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Infrastructure.Services.Execution;
 
