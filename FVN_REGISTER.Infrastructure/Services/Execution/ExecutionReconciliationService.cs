@@ -935,7 +935,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         projection.CalculatedAt = DateTime.Now;
     }
 
-    private async Task AddHistoryAsync(
+    private Task AddHistoryAsync(
         F03ExecutionReconciliation reconciliation,
         string? fromStatus,
         string toStatus,
