@@ -365,3 +365,41 @@ IF OBJECT_ID(N'dbo.F03ExecutionCorrections',N'U') IS NULL THROW 52128, N'Missing
 IF NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03ExecutionCorrections_Resolution' AND object_id=OBJECT_ID(N'dbo.F03ExecutionCorrections')) THROW 52129, N'Missing UX_F03ExecutionCorrections_Resolution', 1;
 IF NOT EXISTS (SELECT 1 FROM sys.foreign_keys WHERE name=N'FK_F03ExecutionCorrections_Resolution') THROW 52130, N'Missing FK_F03ExecutionCorrections_Resolution', 1;
 PRINT N'Execution correction pipeline verified.';
+
+
+/* Password reset request / RBAC verification. */
+IF OBJECT_ID(N'dbo.F03PasswordResetRequests',N'U') IS NULL
+    THROW 53040, N'Missing F03PasswordResetRequests.', 1;
+IF NOT EXISTS
+(
+    SELECT 1 FROM dbo.F03Functions
+    WHERE FunctionCode = 2405
+      AND FunctionName = N'UserManagement.ResetPassword'
+      AND ModuleCode = N'UserManagement'
+      AND ActionCode = N'ResetPassword'
+      AND ScopeCode = N'All'
+      AND ISNULL(IsActive,1) = 1
+)
+    THROW 53041, N'Missing UserManagement.ResetPassword security function 2405.', 1;
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.F03RoleFunctions rf
+    INNER JOIN dbo.F03Roles r ON r.Id = rf.IdRole
+    INNER JOIN dbo.F03Functions f ON f.Id = rf.IdFunction
+    WHERE r.RoleCode = 1
+      AND f.FunctionCode = 2405
+)
+    THROW 53042, N'SuperAdmin role is missing UserManagement.ResetPassword permission 2405.', 1;
+IF NOT EXISTS
+(
+    SELECT 1
+    FROM dbo.F03RoleFunctions rf
+    INNER JOIN dbo.F03Roles r ON r.Id = rf.IdRole
+    INNER JOIN dbo.F03Functions f ON f.Id = rf.IdFunction
+    WHERE r.RoleCode = 2
+      AND f.FunctionCode = 2405
+)
+    THROW 53043, N'Admin role is missing UserManagement.ResetPassword permission 2405.', 1;
+PRINT N'Password reset request / RBAC verification completed.';
+GO
