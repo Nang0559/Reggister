@@ -52,7 +52,7 @@ builder.Services.AddScoped<IHrmSyncReviewClientService, HrmSyncReviewClientServi
 builder.Services.AddScoped<IHrmSyncClientService, HrmSyncClientService>();
 builder.Services.AddScoped<IHrmAttendanceCalculationClientService, HrmAttendanceCalculationClientService>();
 builder.Services.AddScoped<IHrmUserRoleRuleClientService, HrmUserRoleRuleClientService>();
-builder.Services.AddScoped<IUserManagementClientService, UserManagementClientService>();
+builder.Services.AddScoped<IUserManagementClientService, UserManagementClientService>(); builder.Services.AddScoped<IPasswordResetRequestClientService, PasswordResetRequestClientService>();
 builder.Services.AddScoped<ISecurityClientService, SecurityClientService>();
 builder.Services.AddScoped<IApprovalListClientService, ApprovalListClientService>();
 builder.Services.AddScoped<IApproverClientService, ApproverClientService>();
