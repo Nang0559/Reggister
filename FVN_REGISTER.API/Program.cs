@@ -311,11 +311,6 @@ builder.Services.AddAuthentication(options =>
 
 builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Execution.IExecutionHrResolutionService, FVN_REGISTER.Infrastructure.Services.Execution.ExecutionHrResolutionService>();
 
-builder.Services.AddAuthorization(options =>
-{
-    options.AddPolicy("Admin", policy => policy.RequireRole("Admin", "SuperAdmin"));
-});
-
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddHostedService<EmailBackgroundWorker>();
