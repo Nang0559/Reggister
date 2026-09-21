@@ -589,7 +589,7 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                 // request must not be swallowed by the fact that the employee
                 // also has a normal shift plan.
                 var actualWithoutPlan = hasActual && !hasPlannedWork && !isLeave && !hasActualOt;
-                var otWithoutRequest = hasActualOt && !hasApprovedOt && !isLeave && !isHoliday;
+                var otWithoutRequest = hasActualOt && !hasApprovedOt;
                 var pastExpectedWithoutActual = !hasActual && hasPlannedWork && workDate < today && !isLeave;
 
                 var mismatch = actualWithoutPlan || missingPunch || exception || pastExpectedWithoutActual;
