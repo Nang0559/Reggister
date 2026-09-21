@@ -65,6 +65,9 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
 
         if (policies.TryGetValue("TRIP", out var tripPolicy))
             await ReconcileTripAsync(db, reconciliation, from, to, tripPolicy.ReconciliationMode, ct);
+
+        if (policies.TryGetValue("ATTENDANCE", out var attendancePolicy))
+            await ReconcileAttendanceAsync(db, reconciliation, from, to, attendancePolicy.ReconciliationMode, ct);
     }
 
     private static async Task<HashSet<string>> GetUnresolvedSourceIdsAsync(
@@ -454,6 +457,168 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                 db.ChangeTracker.Clear();
             }
         }
+    }
+
+    private async Task ReconcileAttendanceAsync(
+        FVNWEBAPPContext db,
+        IExecutionReconciliationService service,
+        DateOnly from,
+        DateOnly to,
+        byte reconciliationMode,
+        CancellationToken ct)
+    {
+        var unresolved = reconciliationMode == 2
+            ? await GetUnresolvedSourceIdsAsync(db, "ATTENDANCE", ct)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var rows = await db.Database.SqlQuery<AttendanceWorkerRow>($"""
+            SELECT
+                a.WorkDate,
+                a.EmployeeCode,
+                a.CheckInTime,
+                a.CheckOutTime,
+                a.WorkMinutesDay,
+                a.WorkMinutesNight,
+                a.RequiredMinutes,
+                a.LateMinutesDay,
+                a.LateMinutesNight,
+                a.EarlyLeaveMinutesDay,
+                a.EarlyLeaveMinutesNight,
+                a.LeaveTotal,
+                a.HrmHoliday,
+                a.HrmEmployeeHoliday,
+                a.HrmBCLyDoNghi,
+                a.HrmBCGhiChu
+            FROM dbo.F03HrmAttendanceCalculated AS a
+            WHERE a.WorkDate >= {from}
+              AND a.WorkDate <= {to}
+               OR CONCAT(a.EmployeeCode, N':', CONVERT(char(8), a.WorkDate, 112)) IN (SELECT value FROM STRING_SPLIT({string.Join(",", unresolved)}, N','))
+            ORDER BY a.WorkDate, a.EmployeeCode
+            """).ToListAsync(ct);
+
+        var approvedOt = await db.OvertimeEmployees.AsNoTracking()
+            .Where(x => x.OTRequest.RequestStatus == ApprovalStatus.Approved
+                && x.OTRequest.IsActive != false
+                && x.OTRequest.OTDate >= from.ToDateTime(TimeOnly.MinValue)
+                && x.OTRequest.OTDate <= to.ToDateTime(TimeOnly.MaxValue))
+            .Select(x => new { x.EmployeeCode, x.OTRequest.OTDate })
+            .ToListAsync(ct);
+
+        var approvedOtDates = approvedOt
+            .Select(x => $"{x.EmployeeCode}:{DateOnly.FromDateTime(x.OTDate):yyyyMMdd}")
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+
+        foreach (var row in rows)
+        {
+            var workDate = row.WorkDate;
+            var sourceId = $"{row.EmployeeCode}:{workDate:yyyyMMdd}";
+            if (workDate < from || workDate > to)
+            {
+                if (!unresolved.Contains(sourceId))
+                    continue;
+            }
+
+            try
+            {
+                var employeeId = await ResolveEmployeeIdAsync(db, row.EmployeeCode, ct);
+                var hasActual = row.CheckInTime.HasValue
+                    || row.CheckOutTime.HasValue
+                    || row.WorkMinutesDay + row.WorkMinutesNight > 0;
+                var isLeave = (row.LeaveTotal ?? 0m) > 0m;
+                var isHoliday = row.HrmHoliday == true || row.HrmEmployeeHoliday == true;
+                var hasApprovedOt = approvedOtDates.Contains(sourceId);
+                var hasShiftPlan = row.RequiredMinutes > 0;
+                var hasPlannedWork = hasShiftPlan || hasApprovedOt;
+                var missingPunch = hasShiftPlan && (!row.CheckInTime.HasValue || !row.CheckOutTime.HasValue);
+                var exception = row.LateMinutesDay + row.LateMinutesNight > 0
+                    || row.EarlyLeaveMinutesDay + row.EarlyLeaveMinutesNight > 0;
+                var actualWithoutPlan = hasActual && !hasPlannedWork && !isLeave;
+                var pastExpectedWithoutActual = !hasActual && hasPlannedWork && workDate < today && !isLeave;
+
+                var mismatch = actualWithoutPlan || missingPunch || exception || pastExpectedWithoutActual;
+                var status = mismatch ? "Mismatch" : hasPlannedWork || hasActual ? "Matched" : "None";
+
+                var plannedState = hasShiftPlan && hasApprovedOt
+                    ? "SHIFT+OT"
+                    : hasShiftPlan
+                        ? "SHIFT"
+                        : hasApprovedOt ? "OT" : "NONE";
+                var actualState = hasActual ? "PRESENT" : "ABSENT";
+
+                await service.UpsertAsync(
+                    row.EmployeeCode,
+                    new ExecutionReconciliationUpsertRequest(
+                        "ATTENDANCE",
+                        "ATTENDANCE_DAY",
+                        sourceId,
+                        null,
+                        employeeId,
+                        workDate,
+                        plannedState,
+                        actualState,
+                        status,
+                        mismatch,
+                        mismatch,
+                        JsonSerializer.Serialize(new
+                        {
+                            row.EmployeeCode,
+                            WorkDate = workDate,
+                            Planned = new { plannedState, hasShiftPlan, hasApprovedOt },
+                            Actual = new
+                            {
+                                hasActual,
+                                row.CheckInTime,
+                                row.CheckOutTime,
+                                row.WorkMinutesDay,
+                                row.WorkMinutesNight,
+                                row.LateMinutesDay,
+                                row.LateMinutesNight,
+                                row.EarlyLeaveMinutesDay,
+                                row.EarlyLeaveMinutesNight
+                            },
+                            isLeave,
+                            isHoliday,
+                            actualWithoutPlan,
+                            missingPunch,
+                            exception,
+                            pastExpectedWithoutActual,
+                            row.HrmBCLyDoNghi,
+                            row.HrmBCGhiChu
+                        })),
+                    ct,
+                    actorUserId: 0);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Execution reconciliation skipped Attendance {EmployeeCode}/{Date}.", row.EmployeeCode, workDate);
+            }
+            finally
+            {
+                db.ChangeTracker.Clear();
+            }
+        }
+    }
+
+    private sealed class AttendanceWorkerRow
+    {
+        public DateOnly WorkDate { get; set; }
+        public string EmployeeCode { get; set; } = string.Empty;
+        public DateTime? CheckInTime { get; set; }
+        public DateTime? CheckOutTime { get; set; }
+        public int WorkMinutesDay { get; set; }
+        public int WorkMinutesNight { get; set; }
+        public int RequiredMinutes { get; set; }
+        public int LateMinutesDay { get; set; }
+        public int LateMinutesNight { get; set; }
+        public int EarlyLeaveMinutesDay { get; set; }
+        public int EarlyLeaveMinutesNight { get; set; }
+        public decimal? LeaveTotal { get; set; }
+        public bool? HrmHoliday { get; set; }
+        public bool? HrmEmployeeHoliday { get; set; }
+        public string? HrmBCLyDoNghi { get; set; }
+        public string? HrmBCGhiChu { get; set; }
     }
 
     private static Task<int> ResolveEmployeeIdAsync(
