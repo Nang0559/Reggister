@@ -105,9 +105,6 @@
         return item.Summary ?? item.StatusCode;
     }
 
-    private static int? TryParseRequestId(string sourceId) =>
-        int.TryParse(sourceId, out var id) ? id : null;
-
     private bool Visible(CalendarItemDto e) =>
         _moduleFilter == "ALL" || e.ModuleCode == "COMPANY" || e.ModuleCode == _moduleFilter;
 
