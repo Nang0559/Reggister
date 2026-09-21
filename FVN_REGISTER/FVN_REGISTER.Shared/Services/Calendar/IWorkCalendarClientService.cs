@@ -8,4 +8,5 @@ public interface IWorkCalendarClientService
     Task<ApiResponse<CalendarMonthDto>> GetAsync(DateTime from, DateTime to, CancellationToken ct = default);
     Task<ApiResponse<IReadOnlyList<CalendarAlertItemDto>>> GetAlertsAsync(DateTime from, DateTime to, CancellationToken ct = default);
     Task<ApiResponse<CalendarAvailabilityDto>> GetAvailabilityAsync(DateTime date, CancellationToken ct = default);
+    Task<ApiResponse<IReadOnlyList<CalendarRegistrationOpportunityDto>>> GetRegistrationOpportunitiesAsync(DateTime from, DateTime to, CancellationToken ct = default);
 }
