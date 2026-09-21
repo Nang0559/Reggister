@@ -200,7 +200,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             var workYears = await Uow.Repository<F03WorkYear>().Query().AsNoTracking().OrderByDescending(x => x.WorkYear).Select(x => new WorkYearDto { Id = x.Id, Year = x.WorkYear, YearName = $"Năm {x.WorkYear}", StartDate = x.StartDate, EndDate = x.EndDate, IsActive = x.IsActive == true }).ToListAsync(ct);
             var leaveTypes = await Uow.Repository<F03LeaveType>().Query().AsNoTracking().Where(x => x.IsActive == true).OrderBy(x => x.LeaveTypeCode).Select(x => new FVN_REGISTER.Contract.Dtos.LeaveTypes.LeaveTypeDto { Id = x.Id, LeaveTypeCode = x.LeaveTypeCode, LeaveTypeName = x.LeaveTypeName, LeaveTypeName2 = x.LeaveTypeName2, IsCountedAsLeave = x.IsCountedAsLeave, HRMCode = x.HRMCode, IsActive = x.IsActive == true }).ToListAsync(ct);
             var leaveRequests = await Uow.Repository<VF03LeaveRequest>().Query().AsNoTracking().Where(x => x.EmployeeCode == empCode && x.IsActive == true && x.WorkYear == year).OrderBy(x => x.StartDate).ToListAsync(ct);
-            var leaveEvents = leaveRequests.Select(x => new LeaveCalendarEventDto { RequestId = x.Id, LeaveCode = x.LeaveCode ?? string.Empty, EmployeeCode = x.EmployeeCode, RegisterDate = x.RegisterDate, StartDate = x.StartDate, EndDate = x.EndDate, TotalDay = x.TotalDay, TotalLeaveDay = x.TotalLeaveDay ?? 0, LeaveTypeCode = x.LeaveTypeCode ?? string.Empty, LeaveTypeName = x.LeaveTypeName ?? string.Empty, Reason = x.LeaveReason ?? string.Empty, Status = x.RequestStatus.ToString() }).ToList();
+            var leaveEvents = leaveRequests.Select(x => new LeaveCalendarEventDto { RequestId = x.Id, EmployeeCode = x.EmployeeCode, RegisterDate = x.RegisterDate, StartDate = x.StartDate, EndDate = x.EndDate, TotalDay = x.TotalDay, TotalLeaveDay = x.TotalLeaveDay ?? 0, LeaveTypeCode = x.LeaveTypeCode ?? string.Empty, LeaveTypeName = x.LeaveTypeName ?? string.Empty, Reason = x.LeaveReason ?? string.Empty, Status = x.RequestStatus.ToString() }).ToList();
             var ctx = ApprovalBuildContext.ForLeave(0, empCode, deptCode, positionCode, year, null);
             // Calendar/master-data is read-only. Missing approval configuration
             // must not make the calendar endpoint fail with HTTP 500.
@@ -211,6 +211,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
             return new SystemMasterDataDto { CompanyHolidays = calendarEvents, HolidaysNotCountLeave = holidaysNotCount, FiscalYears = workYears, LeaveTypes = leaveTypes, LeaveEvents = leaveEvents, DefaultApprovalFlow = defaultFlow };
         }
 
-        private static LeaveSummaryDto MapToSummary(VF03LeaveRequest x) => new() { Id = x.Id, RequestCode = x.LeaveCode ?? "", RequestType = RequestModule.Leave, TypeName = x.LeaveTypeName ?? "Nghỉ phép", Status = x.RequestStatus, CreatedAt = x.CreatedAt ?? DateTime.Now, EmployeeName = x.EmployeeName, StartDate = x.StartDate, EndDate = x.EndDate, TotalDays = x.TotalDay };
+        private static LeaveSummaryDto MapToSummary(VF03LeaveRequest x) => new() { Id = x.Id, RequestType = RequestModule.Leave, TypeName = x.LeaveTypeName ?? "Nghỉ phép", Status = x.RequestStatus, CreatedAt = x.CreatedAt ?? DateTime.Now, EmployeeName = x.EmployeeName, StartDate = x.StartDate, EndDate = x.EndDate, TotalDays = x.TotalDay };
     }
 }

@@ -6,7 +6,7 @@ namespace FVN_REGISTER.Core.Entities.Views
     public partial class VF03LeaveRequest
     {
         public int Id { get; set; }
-        public string? LeaveCode {  get; set; }
+       
         public int? WorkYear { get; set; }
         public string EmployeeCode { get; set; } = null!;
         public string EmployeeName { get; set; } = null!;
