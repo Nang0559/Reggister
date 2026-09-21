@@ -55,7 +55,48 @@
         </EditForm>
 
         <div class="mt-6 d-flex flex-column align-center gap-2">
-            <MudText Typo="Typo.caption" Class="mud-text-secondary">Quên mật khẩu? Liên hệ phòng IT FCC</MudText>
+            <MudButton Variant="Variant.Text"
+                       Size="Size.Small"
+                       StartIcon="@Icons.Material.Filled.LockReset"
+                       OnClick="ToggleForgotPassword">
+                Quên mật khẩu?
+            </MudButton>
+
+            @if (_showForgotPassword)
+            {
+                <MudPaper Elevation="0"
+                          Class="pa-4 mt-1"
+                          Style="width:100%; border:1px solid var(--mud-palette-lines-default); border-radius:12px">
+                    <MudStack Spacing="2">
+                        <MudText Typo="Typo.subtitle2" Style="font-weight:700">
+                            Hướng dẫn lấy lại mật khẩu
+                        </MudText>
+
+                        <MudText Typo="Typo.body2">
+                            Tài khoản nhân viên được đồng bộ từ HRM. Khi quên mật khẩu,
+                            vui lòng liên hệ <b>phòng IT FCC</b> để được xác minh và cấp lại mật khẩu.
+                        </MudText>
+
+                        <MudAlert Severity="Severity.Info" Dense="true" Variant="Variant.Outlined">
+                            Khi liên hệ IT, vui lòng cung cấp <b>mã nhân viên</b> để IT xác định đúng tài khoản.
+                        </MudAlert>
+
+                        <MudButton Variant="Variant.Outlined"
+                                   Size="Size.Small"
+                                   StartIcon="@Icons.Material.Filled.Campaign"
+                                   Href="/thong-tin-cong-khai">
+                            Xem thông tin liên hệ IT FCC
+                        </MudButton>
+
+                        <MudButton Variant="Variant.Text"
+                                   Size="Size.Small"
+                                   OnClick="ToggleForgotPassword">
+                            Đóng
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+            }
+
             <MudButton Variant="Variant.Text" Size="Size.Small"
                        StartIcon="@Icons.Material.Filled.Campaign"
                        Href="/thong-tin-cong-khai">
@@ -69,8 +110,14 @@
     private LoginRequestDto _model = new();
     private bool _isProcessing;
     private bool _passwordVisibility;
+    private bool _showForgotPassword;
     private InputType _passwordInput = InputType.Password;
     private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    private void ToggleForgotPassword()
+    {
+        _showForgotPassword = !_showForgotPassword;
+    }
 
     private void TogglePasswordVisibility()
     {
