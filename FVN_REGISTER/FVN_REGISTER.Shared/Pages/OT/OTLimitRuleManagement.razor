@@ -1,6 +1,9 @@
 @page "/admin/ot-limit-rules"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.LimitRuleDtos
+@using FVN_REGISTER.Core.Constants
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Dialogs.OT
 @using FVN_REGISTER.Shared.Services.OTs
@@ -10,8 +13,10 @@
 @inject IOTLimitRuleManagementClientService RuleService
 @inject IDialogService DialogService
 @inject ISnackbar Snackbar
+@inject ISecurityClientService SecurityService
 
 <PageTitle>Quản lý hạn mức OT - FCC</PageTitle>
+@if (!CanManage) { <MudAlert Severity="Severity.Error">Bạn không có quyền quản lý hạn mức OT.</MudAlert> } else {
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudIcon Icon="@Icons.Material.Filled.Rule" Color="Color.Primary" Size="Size.Large" />
@@ -104,9 +109,12 @@ else
     </MudPaper>
 }
 
+}
+
 @code {
     private List<OTLimitRuleDto> _rules = new();
     private bool _loading = true;
+    private bool CanManage;
     private OTLimitType? _limitType;
     private OTLimitScopeType? _scopeType;
     private bool? _isActive;
@@ -124,7 +132,12 @@ else
         CloseOnEscapeKey = true
     };
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        var permissions = await SecurityService.GetMyPermissionsAsync();
+        CanManage = permissions.IsSuccess && permissions.Data?.Has(SecurityFunctionCodes.OTLimitManage) == true;
+        if (CanManage) await LoadAsync();
+    }
 
     private async Task LoadAsync()
     {
