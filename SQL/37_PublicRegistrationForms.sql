@@ -10,9 +10,9 @@ CREATE TABLE dbo.F03PublicForms(
  AllowMultipleSubmit bit NOT NULL CONSTRAINT DF_F03PublicForms_AllowMultiple DEFAULT 0,
  RequireApproval bit NOT NULL CONSTRAINT DF_F03PublicForms_RequireApproval DEFAULT 0,
  MaxSubmissions int NULL, Version int NOT NULL CONSTRAINT DF_F03PublicForms_Version DEFAULT 1,
- CreatedBy int NOT NULL CONSTRAINT DF_F03PublicForms_CreatedBy DEFAULT(0), CreatedAt datetime2 NOT NULL CONSTRAINT DF_F03PublicForms_CreatedAt DEFAULT GETDATE(),
+ CreatedBy int NOT NULL, CreatedAt datetime2 NOT NULL CONSTRAINT DF_F03PublicForms_CreatedAt DEFAULT GETDATE(),
  ModifiedBy int NULL, ModifiedAt datetime2 NULL, PublishedAt datetime2 NULL, ClosedAt datetime2 NULL,
- IsActive bit NOT NULL CONSTRAINT DF_F03PublicForms_IsActive DEFAULT 1,
+ IsActive bit NULL CONSTRAINT DF_F03PublicForms_IsActive DEFAULT 1,
  CONSTRAINT UQ_F03PublicForms_FormCode UNIQUE(FormCode),
  CONSTRAINT CK_F03PublicForms_Status CHECK(Status IN (N'Draft',N'Published',N'Closed',N'Archived')),
  CONSTRAINT CK_F03PublicForms_DateRange CHECK(EndAt IS NULL OR StartAt IS NULL OR EndAt >= StartAt),
@@ -26,7 +26,7 @@ CREATE TABLE dbo.F03PublicFormQuestions(
  QuestionType nvarchar(30) NOT NULL, HelpText nvarchar(1000) NULL, Placeholder nvarchar(300) NULL,
  IsRequired bit NOT NULL CONSTRAINT DF_F03PublicFormQuestions_IsRequired DEFAULT 0,
  Sequence int NOT NULL CONSTRAINT DF_F03PublicFormQuestions_Sequence DEFAULT 1,
- IsActive bit NOT NULL CONSTRAINT DF_F03PublicFormQuestions_IsActive DEFAULT 1,
+ IsActive bit NULL CONSTRAINT DF_F03PublicFormQuestions_IsActive DEFAULT 1,
  CONSTRAINT FK_F03PublicFormQuestions_Form FOREIGN KEY(FormId) REFERENCES dbo.F03PublicForms(Id) ON DELETE CASCADE,
  CONSTRAINT UQ_F03PublicFormQuestions_Code UNIQUE(FormId,QuestionCode),
  CONSTRAINT CK_F03PublicFormQuestions_Type CHECK(QuestionType IN (N'Text',N'Textarea',N'Number',N'Date',N'Time',N'DateTime',N'SingleChoice',N'MultiChoice',N'YesNo',N'Department',N'Employee',N'File'))
@@ -37,7 +37,7 @@ CREATE TABLE dbo.F03PublicFormQuestionOptions(
  Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03PublicFormQuestionOptions PRIMARY KEY,
  QuestionId int NOT NULL, OptionCode nvarchar(50) NOT NULL, OptionText nvarchar(300) NOT NULL,
  Sequence int NOT NULL CONSTRAINT DF_F03PublicFormQuestionOptions_Sequence DEFAULT 1,
- IsActive bit NOT NULL CONSTRAINT DF_F03PublicFormQuestionOptions_IsActive DEFAULT 1,
+ IsActive bit NULL CONSTRAINT DF_F03PublicFormQuestionOptions_IsActive DEFAULT 1,
  CONSTRAINT FK_F03PublicFormQuestionOptions_Question FOREIGN KEY(QuestionId) REFERENCES dbo.F03PublicFormQuestions(Id) ON DELETE CASCADE,
  CONSTRAINT UQ_F03PublicFormQuestionOptions_Code UNIQUE(QuestionId,OptionCode)
 ); END;
@@ -46,7 +46,7 @@ BEGIN
 CREATE TABLE dbo.F03PublicFormAudiences(
  Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03PublicFormAudiences PRIMARY KEY,
  FormId int NOT NULL, ScopeType nvarchar(20) NOT NULL, ScopeValue nvarchar(100) NULL,
- IsActive bit NOT NULL CONSTRAINT DF_F03PublicFormAudiences_IsActive DEFAULT 1,
+ IsActive bit NULL CONSTRAINT DF_F03PublicFormAudiences_IsActive DEFAULT 1,
  CONSTRAINT FK_F03PublicFormAudiences_Form FOREIGN KEY(FormId) REFERENCES dbo.F03PublicForms(Id) ON DELETE CASCADE,
  CONSTRAINT CK_F03PublicFormAudiences_Type CHECK(ScopeType IN (N'AllCompany',N'Department',N'Position',N'Employee'))
 ); END;
