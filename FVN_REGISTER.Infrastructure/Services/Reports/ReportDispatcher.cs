@@ -48,6 +48,18 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 if (!await _authorization.CanAccessAsync(user, requiredFunction, query.EmployeeCode, query.DeptCode, ct))
                     return ServiceResult<ReportResultDto>.Fail("Bạn không có quyền truy cập phạm vi dữ liệu báo cáo này.");
 
+                var reportScope = await _authorization.GetScopeAsync(user.UserId, requiredFunction, ct);
+                if (string.Equals(reportScope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
+                {
+                    query.DeptCode = user.DeptCode;
+                }
+                else if (string.Equals(reportScope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase)
+                      || string.Equals(reportScope, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase))
+                {
+                    query.DeptCode = user.DeptCode;
+                    query.EmployeeCode = user.EmployeeCode;
+                }
+
                 var handler = _reportServices.FirstOrDefault(s => s.CanHandle(query.Type));
 
                 if (handler == null)
