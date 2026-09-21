@@ -11,6 +11,8 @@ namespace FVN_REGISTER.Shared.Pages;
 
 public partial class LeaveCreate : IAsyncDisposable
 {
+    [SupplyParameterFromQuery(Name = "date")]
+    public DateTime? CalendarDate { get; set; }
     [Inject] private ILeaveCreateClientService LeaveService { get; set; } = default!;
     [Inject] private ILeaveTypeClientService LeaveTypeService { get; set; } = default!;
     [Inject] private ICurrentUserClientService CurrentUserService { get; set; } = default!;
@@ -41,6 +43,9 @@ public partial class LeaveCreate : IAsyncDisposable
             }
 
             await LoadDataAsync();
+
+            if (CalendarDate.HasValue)
+                await OpenAddDialog(CalendarDate.Value.ToString("yyyy-MM-dd"), CalendarDate.Value.ToString("yyyy-MM-dd"));
         }
         catch (Exception ex)
         {
