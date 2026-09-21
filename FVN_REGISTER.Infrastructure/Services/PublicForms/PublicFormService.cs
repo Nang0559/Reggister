@@ -1,6 +1,7 @@
 using FVN_REGISTER.Application.Interfaces.PublicForms;
 using FVN_REGISTER.Contract.Dtos.PublicForms;
 using FVN_REGISTER.Contract.Requests.PublicForms;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Entities.PublicForms;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
@@ -28,7 +29,7 @@ public sealed class PublicFormService : IPublicFormService
     {
         var now = DateTime.Now;
         var rows = await _uow.Repository<F03PublicForm>().Query().AsNoTracking()
-            .Where(x => x.IsActive && x.Status == "Published"
+            .Where(x => x.IsActive == true && x.Status == "Published"
                 && (!x.StartAt.HasValue || x.StartAt <= now)
                 && (!x.EndAt.HasValue || x.EndAt >= now))
             .Include(x => x.Questions).ThenInclude(x => x.Options)
@@ -44,7 +45,7 @@ public sealed class PublicFormService : IPublicFormService
         return x == null ? null : Map(x);
     }
 
-    public async Task<Contract.Responses.ServiceResult<PublicFormDto>> CreateAsync(SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
+    public async Task<ServiceResult<PublicFormDto>> CreateAsync(SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
     {
         Validate(request);
         var exists = await _uow.Repository<F03PublicForm>().Query().AnyAsync(x => x.FormCode == request.FormCode.Trim(), ct);
@@ -124,7 +125,7 @@ public sealed class PublicFormService : IPublicFormService
     }
 
     private static bool Matches(F03PublicForm x,string employeeCode,string? deptCode,string? positionCode)
-        => x.Audiences.Any(a => a.IsActive && a.ScopeType=="AllCompany"
+        => x.Audiences.Any(a => a.IsActive == true && a.ScopeType=="AllCompany"
             || a.IsActive && a.ScopeType=="Employee" && string.Equals(a.ScopeValue,employeeCode,StringComparison.OrdinalIgnoreCase)
             || a.IsActive && a.ScopeType=="Department" && !string.IsNullOrWhiteSpace(deptCode) && string.Equals(a.ScopeValue,deptCode,StringComparison.OrdinalIgnoreCase)
             || a.IsActive && a.ScopeType=="Position" && !string.IsNullOrWhiteSpace(positionCode) && string.Equals(a.ScopeValue,positionCode,StringComparison.OrdinalIgnoreCase));
