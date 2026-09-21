@@ -25,6 +25,7 @@
     [Parameter] public string ModuleContext { get; set; } = "ALL";
     [Parameter] public EventCallback<DateTime> OnDateSelected { get; set; }
     [Parameter] public EventCallback<CalendarItemDto> OnEventSelected { get; set; }
+    [Parameter] public EventCallback<DateTime> OnRegistrationRequested { get; set; }
 
     private static readonly (string Code, string Name)[] Filters =
     [
@@ -118,8 +119,14 @@
     [JSInvokable]
     public async Task OnCalendarDateClick(string date)
     {
-        if (DateTime.TryParse(date, out var value) && OnDateSelected.HasDelegate)
+        if (!DateTime.TryParse(date, out var value))
+            return;
+
+        if (OnDateSelected.HasDelegate)
             await OnDateSelected.InvokeAsync(value.Date);
+
+        if (OnRegistrationRequested.HasDelegate)
+            await OnRegistrationRequested.InvokeAsync(value.Date);
     }
 
     [JSInvokable]
