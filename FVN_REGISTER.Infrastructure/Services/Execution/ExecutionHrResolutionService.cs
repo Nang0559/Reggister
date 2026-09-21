@@ -175,7 +175,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             .FirstOrDefaultAsync(cancellationToken);
 
         var evidence = confirmation is null
-            ? Array.Empty<ExecutionEvidenceDto>()
+            ? new List<ExecutionEvidenceDto>()
             : await _db.ExecutionConfirmationEvidence.AsNoTracking()
                 .Where(x => x.ConfirmationId == confirmation.Id && x.IsActive != false)
                 .OrderByDescending(x => x.SubmittedAt)
