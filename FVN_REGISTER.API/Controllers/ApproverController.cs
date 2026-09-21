@@ -44,15 +44,24 @@ namespace FVN_REGISTER.API.Controllers
 
         [HttpGet("list")]
         public async Task<IActionResult> GetList([FromQuery] string? deptCode, [FromQuery] int? level, [FromQuery] RequestModule? requestType, CancellationToken ct)
-            { if (!await CanAsync(SecurityFunctionCodes.ApproverView, ct)) return Forbid(); return HandleResult(await _approverService.GetListAsync(deptCode, level, requestType, ct));
+        {
+            if (!await CanAsync(SecurityFunctionCodes.ApproverView, ct)) return Forbid();
+            return HandleResult(await _approverService.GetListAsync(deptCode, level, requestType, ct));
+        }
 
         [HttpGet("departments")]
         public async Task<IActionResult> GetDepartments(CancellationToken ct)
-            { if (!await CanAsync(SecurityFunctionCodes.ApproverView, ct)) return Forbid(); return HandleResult(await _approverService.GetDepartmentsAsync(ct)); }
+        {
+            if (!await CanAsync(SecurityFunctionCodes.ApproverView, ct)) return Forbid();
+            return HandleResult(await _approverService.GetDepartmentsAsync(ct));
+        }
 
         [HttpGet("employees")]
         public async Task<IActionResult> GetEmployees([FromQuery] string? deptCode, CancellationToken ct)
-            { if (!await CanAsync(SecurityFunctionCodes.ApproverView, ct)) return Forbid(); return HandleResult(await _approverService.GetEmployeesAsync(deptCode, ct)); }
+        {
+            if (!await CanAsync(SecurityFunctionCodes.ApproverView, ct)) return Forbid();
+            return HandleResult(await _approverService.GetEmployeesAsync(deptCode, ct));
+        }
 
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] ApproverDto model, CancellationToken ct)
@@ -101,7 +110,7 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> Delete(int id, CancellationToken ct)
         {
             if (!await CanAsync(SecurityFunctionCodes.ApproverManage, ct)) return Forbid();
-            if (UserInfo == null return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             var result = await _approverService.DeleteAsync(id, UserInfo.UserId, ct);
             await LogActionAsync($"Xóa Approver ID: {id}");
             return HandleResult(result);
