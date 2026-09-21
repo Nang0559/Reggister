@@ -16,7 +16,7 @@ public sealed record PayrollPeriodDto(
 public sealed record PayrollPrepareDto(int PeriodId, int InputRows);
 
 public sealed record PayrollInputDto(
-    int Id,
+    long Id,
     int PayrollPeriodId,
     int EmployeeId,
     string EmployeeCode,
