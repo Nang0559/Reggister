@@ -217,7 +217,6 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
             .Select(x => new
             {
                 x.Id,
-                x.LeaveCode,
                 x.EmployeeCode,
                 x.StartDate,
                 x.EndDate,
@@ -308,7 +307,6 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                             JsonSerializer.Serialize(new
                             {
                                 row.Id,
-                                row.LeaveCode,
                                 row.EmployeeCode,
                                 detail.LeaveTypeCode,
                                 detail.IsCountedAsLeave,
