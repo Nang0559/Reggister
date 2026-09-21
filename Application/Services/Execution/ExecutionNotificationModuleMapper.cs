@@ -16,6 +16,8 @@ public static class ExecutionNotificationModuleMapper
                 return RequestModule.Trip;
             case "EQUIPMENT":
                 return RequestModule.Equipment;
+            case "ATTENDANCE":
+                return RequestModule.Attendance;
             default:
                 throw new InvalidOperationException(
                     $"Không có mapping Notification Module cho Execution ModuleCode '{moduleCode}'.");
