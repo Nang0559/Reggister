@@ -1,6 +1,7 @@
 @page "/admin/approval-policies"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Contract.Dtos.Depts
 @using FVN_REGISTER.Contract.Requests.Approvals
 @using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.Approvals
@@ -16,7 +17,7 @@
     <div>
         <MudText Typo="Typo.h5" Style="font-weight:700">Cấu hình Approval Policy</MudText>
         <MudText Typo="Typo.caption" Color="Color.Secondary">
-            PositionCode HRM → RequestType → Level. Đây là nguồn cấu hình để đồng bộ F03Approvers.
+            Loại yêu cầu → Phòng ban → Position người yêu cầu (tuỳ chọn) → Chức vụ/cấp phê duyệt.
         </MudText>
     </div>
     <MudSpacer />
@@ -25,9 +26,8 @@
 </MudStack>
 
 <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">
-    Khi chạy <b>Đồng bộ HRM + User + Approver</b>, mọi PositionCode có Approval Policy active sẽ tự động
-    được đánh dấu <b>IsApprove = 1</b>, <b>IsAllowApprove = 1</b> và sinh Approver theo đúng
-    RequestType + Level của policy.
+    <b>Phòng ban là bắt buộc.</b> Position của người yêu cầu có thể bỏ trống để áp dụng cho toàn bộ Position trong phòng ban.
+    <b>Chức vụ phê duyệt</b> luôn chọn từ F03Positions active; hệ thống lấy DefaultApproveLevel và RoleName từ danh sách chức vụ.
 </MudAlert>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1" Style="border-radius:12px">
@@ -35,7 +35,7 @@
 
     <MudGrid>
         <MudItem xs="12" sm="6" md="2">
-            <MudSelect T="int" @bind-Value="_form.RequestType" Label="Loại yêu cầu" Variant="Variant.Outlined">
+            <MudSelect T="int" @bind-Value="_form.RequestType" Label="Loại yêu cầu *" Variant="Variant.Outlined">
                 @foreach (var type in Enum.GetValues<RequestModule>())
                 {
                     <MudSelectItem Value="@((int)type)">@RequestTypeName(type)</MudSelectItem>
@@ -44,7 +44,21 @@
         </MudItem>
 
         <MudItem xs="12" sm="6" md="3">
-            <MudSelect T="string" @bind-Value="_form.PositionCode" Label="PositionCode HRM" Variant="Variant.Outlined">
+            <MudSelect T="string" @bind-Value="_form.DeptCode" Label="Phòng ban *"
+                       Variant="Variant.Outlined" Clearable="false">
+                @foreach (var dept in _departments)
+                {
+                    <MudSelectItem Value="@dept.DeptCode">
+                        @dept.DeptCode — @dept.DeptName
+                    </MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
+        <MudItem xs="12" sm="6" md="3">
+            <MudSelect T="string" @bind-Value="_form.PositionCode" Label="Position người yêu cầu (tuỳ chọn)"
+                       Variant="Variant.Outlined" Clearable="true">
+                <MudSelectItem Value="@((string?)null)">Tất cả Position trong phòng ban</MudSelectItem>
                 @foreach (var position in _positions)
                 {
                     <MudSelectItem Value="@position.PositionCode">
@@ -54,9 +68,25 @@
             </MudSelect>
         </MudItem>
 
+        <MudItem xs="12" sm="6" md="4">
+            <MudSelect T="string"
+                       Value="_form.ApprovalPositionCode"
+                       ValueChanged="OnApprovalPositionChanged"
+                       Label="Cấp phê duyệt / Chức vụ *"
+                       Variant="Variant.Outlined">
+                @foreach (var position in _approvalPositions)
+                {
+                    <MudSelectItem Value="@position.PositionCode">
+                        @position.PositionCode — @position.PositionName
+                        @($" | Level {position.DefaultApproveLevel} | {position.RoleName}")
+                    </MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+
         <MudItem xs="12" sm="6" md="1">
             <MudNumericField T="int" @bind-Value="_form.Level" Label="Level"
-                             Variant="Variant.Outlined" Min="1" Max="7" />
+                             Variant="Variant.Outlined" Min="1" Max="7" ReadOnly="true" />
         </MudItem>
 
         <MudItem xs="12" sm="6" md="1">
@@ -64,21 +94,21 @@
                              Variant="Variant.Outlined" Min="1" />
         </MudItem>
 
-        <MudItem xs="12" sm="6" md="2">
+        <MudItem xs="12" sm="6" md="3">
             <MudTextField @bind-Value="_form.LevelName" Label="Tên cấp duyệt"
-                          Variant="Variant.Outlined" />
+                          Variant="Variant.Outlined" ReadOnly="true" />
         </MudItem>
 
-        <MudItem xs="12" sm="6" md="2">
+        <MudItem xs="12" sm="6" md="3">
             <MudTextField @bind-Value="_form.RoleName" Label="RoleName"
-                          Variant="Variant.Outlined" />
+                          Variant="Variant.Outlined" ReadOnly="true" />
         </MudItem>
 
-        <MudItem xs="12" sm="6" md="1" Class="d-flex align-center">
+        <MudItem xs="12" sm="6" md="2" Class="d-flex align-center">
             <MudSwitch T="bool" @bind-Value="_form.Required" Color="Color.Primary">Bắt buộc</MudSwitch>
         </MudItem>
 
-        <MudItem xs="12" sm="6" md="1" Class="d-flex align-center">
+        <MudItem xs="12" sm="6" md="2" Class="d-flex align-center">
             <MudSwitch T="bool" @bind-Value="_form.IsActive" Color="Color.Primary">Active</MudSwitch>
         </MudItem>
     </MudGrid>
@@ -100,19 +130,20 @@
         <MudText Typo="Typo.subtitle1"><b>Nhóm Approval Policy</b></MudText>
         <MudSelect T="PolicyGroupMode" @bind-Value="_groupMode" Label="Nhóm theo"
                    Variant="Variant.Outlined" Dense="true" Style="min-width:220px">
-            <MudSelectItem Value="@PolicyGroupMode.Position">Vị trí / Position</MudSelectItem>
-            <MudSelectItem Value="@PolicyGroupMode.RequestType">Loại yêu cầu / RequestType</MudSelectItem>
-            <MudSelectItem Value="@PolicyGroupMode.Role">Vai trò / Role</MudSelectItem>
+            <MudSelectItem Value="@PolicyGroupMode.Department">Phòng ban</MudSelectItem>
+            <MudSelectItem Value="@PolicyGroupMode.Position">Position người yêu cầu</MudSelectItem>
+            <MudSelectItem Value="@PolicyGroupMode.RequestType">Loại yêu cầu</MudSelectItem>
+            <MudSelectItem Value="@PolicyGroupMode.Role">Role</MudSelectItem>
         </MudSelect>
         <MudSpacer />
         <MudTextField @bind-Value="_searchText"
-                      Placeholder="Tìm Position, RequestType, Role..."
+                      Placeholder="Tìm phòng ban, Position, cấp duyệt, Role..."
                       Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Search"
                       Variant="Variant.Outlined"
                       Clearable="true"
                       Immediate="true"
-                      Style="max-width:360px" />
+                      Style="max-width:400px" />
     </MudStack>
 </MudPaper>
 
@@ -144,27 +175,36 @@ else
                 <ChildContent>
                     <MudTable Items="group.Items" Dense="true" Hover="true" Striped="true">
                         <HeaderContent>
-                            <MudTh>RequestType</MudTh>
-                            <MudTh>Position</MudTh>
+                            <MudTh>Loại yêu cầu</MudTh>
+                            <MudTh>Phòng ban</MudTh>
+                            <MudTh>Position người yêu cầu</MudTh>
+                            <MudTh>Cấp phê duyệt</MudTh>
                             <MudTh>Level</MudTh>
-                            <MudTh>Sequence</MudTh>
-                            <MudTh>LevelName</MudTh>
-                            <MudTh>Role</MudTh>
+                            <MudTh>Thứ tự</MudTh>
                             <MudTh>Bắt buộc</MudTh>
                             <MudTh>Active</MudTh>
                             <MudTh />
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd><b>@context.RequestTypeName</b></MudTd>
-                            <MudTd>@context.PositionCode — @context.PositionName</MudTd>
+                            <MudTd>@context.DeptCode — @context.DeptName</MudTd>
+                            <MudTd>
+                                @(string.IsNullOrWhiteSpace(context.PositionCode)
+                                    ? "Tất cả Position"
+                                    : $"{context.PositionCode} — {context.PositionName}")
+                            </MudTd>
+                            <MudTd>
+                                <b>@context.ApprovalPositionCode — @context.ApprovalPositionName</b>
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                    @context.RoleName
+                                </MudText>
+                            </MudTd>
                             <MudTd>
                                 <MudChip T="string" Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined">
                                     @($"Level {context.Level}")
                                 </MudChip>
                             </MudTd>
                             <MudTd>@context.Sequence</MudTd>
-                            <MudTd>@context.LevelName</MudTd>
-                            <MudTd>@context.RoleName</MudTd>
                             <MudTd>@(context.Required ? "Có" : "Không")</MudTd>
                             <MudTd>
                                 <MudChip T="string" Size="Size.Small"
@@ -191,23 +231,23 @@ else
     </MudExpansionPanels>
 }
 
-
-
 @code {
     private enum PolicyGroupMode
     {
+        Department,
         Position,
         RequestType,
         Role
     }
 
-
     private List<ApprovalPolicyDto> _policies = new();
     private List<ApprovalPolicyPositionDto> _positions = new();
+    private List<ApprovalPolicyPositionDto> _approvalPositions = new();
+    private List<DepartmentDto> _departments = new();
     private ApprovalPolicyRequest _form = NewForm();
     private int? _editingId;
     private bool _loading;
-    private PolicyGroupMode _groupMode = PolicyGroupMode.Position;
+    private PolicyGroupMode _groupMode = PolicyGroupMode.Department;
     private string _searchText = string.Empty;
 
     private IEnumerable<ApprovalPolicyDto> FilteredPolicies =>
@@ -216,20 +256,24 @@ else
     private IEnumerable<PolicyGroup> GroupedPolicies =>
         _groupMode switch
         {
+            PolicyGroupMode.Position => FilteredPolicies
+                .GroupBy(x => string.IsNullOrWhiteSpace(x.PositionCode)
+                    ? $"{x.DeptCode} — {x.DeptName} / Tất cả Position"
+                    : $"{x.DeptCode} — {x.DeptName} / {x.PositionCode} — {x.PositionName}")
+                .OrderBy(x => x.Key)
+                .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.Sequence).ThenBy(p => p.Level).ToList())),
             PolicyGroupMode.RequestType => FilteredPolicies
                 .GroupBy(x => x.RequestTypeName)
                 .OrderBy(x => x.Key)
-                .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.PositionCode).ThenBy(p => p.Level).ThenBy(p => p.Sequence).ToList())),
+                .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.DeptCode).ThenBy(p => p.PositionCode).ThenBy(p => p.Sequence).ToList())),
             PolicyGroupMode.Role => FilteredPolicies
                 .GroupBy(x => string.IsNullOrWhiteSpace(x.RoleName) ? "(Chưa cấu hình Role)" : x.RoleName)
                 .OrderBy(x => x.Key)
-                .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.PositionCode).ThenBy(p => p.RequestTypeName).ThenBy(p => p.Level).ToList())),
+                .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.DeptCode).ThenBy(p => p.PositionCode).ThenBy(p => p.Level).ToList())),
             _ => FilteredPolicies
-                .GroupBy(x => string.IsNullOrWhiteSpace(x.PositionCode)
-                    ? "(Chưa có PositionCode)"
-                    : $"{x.PositionCode} — {x.PositionName}")
+                .GroupBy(x => $"{x.DeptCode} — {x.DeptName}")
                 .OrderBy(x => x.Key)
-                .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.RequestTypeName).ThenBy(p => p.Level).ThenBy(p => p.Sequence).ToList()))
+                .Select(x => new PolicyGroup(x.Key, x.OrderBy(p => p.RequestTypeName).ThenBy(p => p.PositionCode).ThenBy(p => p.Sequence).ToList()))
         };
 
     private bool MatchesSearch(ApprovalPolicyDto x)
@@ -238,11 +282,14 @@ else
             return true;
 
         var q = _searchText.Trim();
-        return (x.PositionCode?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+        return (x.DeptCode?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+            || (x.DeptName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+            || (x.PositionCode?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
             || (x.PositionName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+            || (x.ApprovalPositionCode?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
+            || (x.ApprovalPositionName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
             || (x.RequestTypeName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
-            || (x.RoleName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true)
-            || (x.LevelName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true);
+            || (x.RoleName?.Contains(q, StringComparison.OrdinalIgnoreCase) == true);
     }
 
     private sealed record PolicyGroup(string Key, List<ApprovalPolicyDto> Items);
@@ -256,6 +303,7 @@ else
         {
             var policies = await PolicyService.GetAllAsync();
             var positions = await PolicyService.GetPositionsAsync();
+            var departments = await PolicyService.GetDepartmentsAsync();
 
             if (policies.IsSuccess)
                 _policies = policies.Data ?? new();
@@ -263,11 +311,36 @@ else
                 Snackbar.Add(policies.Message ?? "Không tải được Approval Policy.", Severity.Error);
 
             if (positions.IsSuccess)
-                _positions = positions.Data ?? new();
+            {
+                _positions = positions.Data?.Where(x => x.IsActive).ToList() ?? new();
+                _approvalPositions = _positions
+                    .Where(x => x.DefaultApproveLevel.HasValue)
+                    .ToList();
+            }
             else
-                Snackbar.Add(positions.Message ?? "Không tải được danh sách Position HRM.", Severity.Error);
+                Snackbar.Add(positions.Message ?? "Không tải được danh sách Position.", Severity.Error);
+
+            if (departments.IsSuccess)
+                _departments = departments.Data ?? new();
+            else
+                Snackbar.Add(departments.Message ?? "Không tải được danh sách phòng ban.", Severity.Error);
         }
-        finally { _loading = false; }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OnApprovalPositionChanged(string value)
+    {
+        _form.ApprovalPositionCode = value ?? string.Empty;
+
+        var position = _approvalPositions.FirstOrDefault(x => x.PositionCode == _form.ApprovalPositionCode);
+        if (position == null) return;
+
+        _form.Level = position.DefaultApproveLevel ?? 0;
+        _form.LevelName = position.PositionName;
+        _form.RoleName = position.RoleName;
     }
 
     private async Task SaveAsync()
@@ -285,11 +358,17 @@ else
                 return;
             }
 
-            Snackbar.Add(_editingId.HasValue ? "Đã cập nhật Approval Policy." : "Đã thêm Approval Policy.", Severity.Success);
+            Snackbar.Add(_editingId.HasValue
+                ? "Đã cập nhật Approval Policy."
+                : "Đã thêm Approval Policy.", Severity.Success);
+
             ResetForm();
             await LoadAsync();
         }
-        finally { _loading = false; }
+        finally
+        {
+            _loading = false;
+        }
     }
 
     private void Edit(ApprovalPolicyDto row)
@@ -298,7 +377,9 @@ else
         _form = new ApprovalPolicyRequest
         {
             RequestType = row.RequestType,
+            DeptCode = row.DeptCode,
             PositionCode = row.PositionCode,
+            ApprovalPositionCode = row.ApprovalPositionCode,
             Level = row.Level,
             Sequence = row.Sequence,
             LevelName = row.LevelName,
@@ -326,10 +407,13 @@ else
     private static ApprovalPolicyRequest NewForm() => new()
     {
         RequestType = (int)RequestModule.Leave,
+        DeptCode = string.Empty,
+        PositionCode = null,
+        ApprovalPositionCode = string.Empty,
         Level = 1,
         Sequence = 1,
-        LevelName = "Sub-Leader / Leader",
-        RoleName = "SubLeader",
+        LevelName = string.Empty,
+        RoleName = string.Empty,
         Required = true,
         IsActive = true
     };
