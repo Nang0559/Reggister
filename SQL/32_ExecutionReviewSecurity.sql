@@ -51,3 +51,20 @@ WHEN MATCHED THEN UPDATE SET FunctionName=S.FunctionName,Detail=S.Detail,ModuleC
 WHEN NOT MATCHED THEN INSERT(CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder,IsActive)
 VALUES(0,S.FunctionCode,S.FunctionName,S.Detail,S.ModuleCode,S.ActionCode,S.ScopeCode,S.DisplayOrder,1);
 GO
+
+/* P0 RBAC: calculation is a write action and must not use Attendance.View. */
+INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+SELECT 1,0,2911,N'Attendance.Calculate',N'Tính giờ HRM và ghi kết quả chấm công',N'Attendance',N'Calculate',N'All',830
+WHERE NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2911);
+GO
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
+SELECT r.Id,f.Id FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
+WHERE r.RoleCode IN (1,2) AND f.FunctionCode=2911
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+GO
+/* Functions 2801-2806 are created by scripts 15/32; grant only after creation. */
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
+SELECT r.Id,f.Id FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
+WHERE r.RoleCode IN (1,2) AND f.FunctionCode IN (2801,2802,2803,2804,2805,2806)
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+GO
