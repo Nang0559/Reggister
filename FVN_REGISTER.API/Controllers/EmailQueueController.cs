@@ -1,6 +1,8 @@
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Emails;
 using FVN_REGISTER.Application.Interfaces.Users;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Contract.Dtos.EmailTemplates;
 using FVN_REGISTER.Contract.Requests.Email;
 using FVN_REGISTER.Contract.Responses;
@@ -16,21 +18,25 @@ namespace FVN_REGISTER.API.Controllers
     public class EmailQueueController : BaseApiController
     {
         private readonly IEmailService _emailService;
+        private readonly IAuthorizationService _authorization;
 
         public EmailQueueController(
             IEmailService emailService,
             ICurrentUserService currentUser,
             IUserLogService userLog,
+            IAuthorizationService authorization,
             ILogger<EmailQueueController> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(currentUser, userLog, logger, options)
         {
             _emailService = emailService;
+            _authorization = authorization;
         }
 
         [HttpGet]
         public async Task<IActionResult> GetAll(CancellationToken ct)
         {
+            if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.EmailQueueManage, ct)) return Forbid();
             var result = await _emailService.GetQueueAsync(500, ct);
 
             return Ok(
@@ -42,6 +48,7 @@ namespace FVN_REGISTER.API.Controllers
             int id,
             CancellationToken ct)
         {
+            if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.EmailQueueManage, ct)) return Forbid();
             await _emailService.ResendEmail(id, ct);
 
             return Ok(
@@ -53,6 +60,7 @@ namespace FVN_REGISTER.API.Controllers
             [FromBody] BatchIdsRequestDto req,
             CancellationToken ct)
         {
+            if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.EmailQueueManage, ct)) return Forbid();
             if (!ModelState.IsValid)
             {
                 return BadRequest(
