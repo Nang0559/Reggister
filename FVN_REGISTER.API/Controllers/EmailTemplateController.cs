@@ -12,7 +12,7 @@ using IAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuth
 
 namespace FVN_REGISTER.API.Controllers
 {
-    [Authorize(Policy = "Admin")]
+    [Authorize]
     [ApiController]
     [Route("api/[controller]")]
     public class EmailTemplateController : BaseApiController
@@ -36,6 +36,7 @@ namespace FVN_REGISTER.API.Controllers
         [HttpGet]
         public async Task<IActionResult> GetAll(CancellationToken ct)
         {
+            if (UserInfo == null || !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.EmailTemplateManage, ct)) return Forbid();
             return Ok(
                 ApiResponse<List<EmailTemplateDto>>.Ok(
                     await _templateService.GetAllAsync(ct)));
