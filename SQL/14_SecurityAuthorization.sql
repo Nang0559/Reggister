@@ -170,6 +170,24 @@ WHERE NOT EXISTS
 );
 GO
 
+/* Ensure the canonical RBAC role catalog exists even when 06_Seed.sql is intentionally excluded
+   from the master deployment. F03Permissions is legacy/test data and may be empty in production. */
+INSERT dbo.F03Roles(RoleCode,RoleName,Detail,IsSystem,IsActive,CreatedBy)
+SELECT v.RoleCode,v.RoleName,v.Detail,1,1,0
+FROM (VALUES
+    (1,N'SuperAdmin',N'Full system administration access'),
+    (2,N'Admin',N'Administrative data access'),
+    (3,N'Editor',N'Editable business data access'),
+    (4,N'Approver',N'Approval workflow access'),
+    (5,N'User',N'Normal user access'),
+    (6,N'Guest',N'Guest access')
+) AS v(RoleCode,RoleName,Detail)
+WHERE NOT EXISTS
+(
+    SELECT 1 FROM dbo.F03Roles r WHERE r.RoleCode=v.RoleCode
+);
+GO
+
 /*
   Canonical capability catalog.
   One row = one server-enforced action. Scope is a data-scope hint consumed
