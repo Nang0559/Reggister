@@ -41,6 +41,22 @@ window.workCalendar = (function () {
                     classes.push('fc-registration-open');
                 return classes;
             },
+            
+            dayCellDidMount: function (arg) {
+                const key = arg.date.toISOString().slice(0, 10);
+                if (!_registrationDates.has(key)) return;
+
+                arg.el.title = 'Có thể đăng ký từ lịch';
+                const marker = document.createElement('span');
+                marker.textContent = '+ Đăng ký';
+                marker.style.display = 'block';
+                marker.style.marginTop = '2px';
+                marker.style.fontSize = '10px';
+                marker.style.fontWeight = '700';
+                marker.style.cursor = 'pointer';
+                marker.style.opacity = '0.75';
+                arg.el.querySelector('.fc-daygrid-day-top')?.appendChild(marker);
+            },
 
             eventContent: function (arg) {
                 const module = arg.event.extendedProps?.moduleCode || '';
