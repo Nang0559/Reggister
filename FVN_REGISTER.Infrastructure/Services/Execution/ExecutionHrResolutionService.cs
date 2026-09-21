@@ -395,11 +395,11 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             })
             .SingleOrDefaultAsync(cancellationToken);
 
-        var reviewEnabled = policy is not null && policy.ReviewMode != 0;
-
-        if (!reviewEnabled)
+        if (policy is null || policy.ReviewMode == 0)
             throw new InvalidOperationException(
                 $"Module '{reconciliation.ModuleCode}' chưa bật HR Execution Review.");
+
+        var correctionMode = policy.CorrectionMode;
 
         var confirmation = reconciliation.ConfirmationId.HasValue
             ? await _db.ExecutionConfirmations.FirstOrDefaultAsync(
