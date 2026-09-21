@@ -52,6 +52,7 @@ public static class SecurityFunctionCodes
     public const int SecurityAudit = 2604;
 
     public const int PublicInformationManage = 2801;
+    public const int PublicFormManage = 2807;
     public const int ExecutionReview = 2802;
 
     public const int PayrollView = 2803;
