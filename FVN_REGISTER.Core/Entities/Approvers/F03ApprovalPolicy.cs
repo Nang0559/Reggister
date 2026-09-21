@@ -10,13 +10,17 @@ public sealed class F03ApprovalPolicy : BaseAuditEntity
     [Required]
     public RequestModule RequestType { get; set; }
 
-    /// <summary>
-    /// Canonical HRM position code of the requester.
-    /// This value is the same PositionCode used by F03Employee/F03User
-    /// and is resolved directly against F03Positions.
-    /// </summary>
+    /// <summary>Mandatory requester department scope.</summary>
     [Required, StringLength(20)]
-    public string PositionCode { get; set; } = string.Empty;
+    public string DeptCode { get; set; } = string.Empty;
+
+    /// <summary>Optional requester position scope. Empty means all positions in DeptCode.</summary>
+    [StringLength(20)]
+    public string? PositionCode { get; set; }
+
+    /// <summary>HRM position selected as the approval level/approver role.</summary>
+    [Required, StringLength(20)]
+    public string ApprovalPositionCode { get; set; } = string.Empty;
 
     public int Level { get; set; }
 
