@@ -1,4 +1,6 @@
 @using FVN_REGISTER.Contract.Dtos.Usermanagers
+@using FVN_REGISTER.Shared.Services.Security
+@inject ISecurityClientService SecurityService
 
 <MudDialog>
     <TitleContent>
@@ -32,7 +34,12 @@
                               Margin="Margin.Dense" />
             </MudItem>
             <MudItem xs="12">
-                <MudSelect T="int" @bind-Value="Request.PermissionCode"
+                <MudStack Spacing="1" Class="mt-2">
+                <MudText Typo="Typo.subtitle2">Quyền module thiết bị</MudText>
+                <MudCheckBox @bind-Value="_equipmentAccess">Sổ quản lý thiết bị</MudCheckBox>
+                <MudCheckBox @bind-Value="_equipmentImportAccess">Import Excel thiết bị</MudCheckBox>
+            </MudStack>
+            <MudSelect T="int" @bind-Value="Request.PermissionCode"
                            Label="Quyền (*)"
                            Variant="Variant.Outlined"
                            Margin="Margin.Dense">
@@ -60,10 +67,44 @@
 
     [Parameter] public CreateUserRequest Request { get; set; } = new();
 
+    private int? _equipmentFunctionId;
+    private int? _equipmentImportFunctionId;
+    private bool _equipmentAccess;
+    private bool _equipmentImportAccess;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await SecurityService.GetFunctionsAsync();
+        if (!result.IsSuccess || result.Data == null) return;
+
+        _equipmentFunctionId = result.Data.FirstOrDefault(x => x.FunctionCode == 2301)?.IdFunction;
+        _equipmentImportFunctionId = result.Data.FirstOrDefault(x => x.FunctionCode == 2306)?.IdFunction;
+    }
+
     private bool IsValid =>
         !string.IsNullOrWhiteSpace(Request.EmployeeCode) &&
         !string.IsNullOrWhiteSpace(Request.Password);
 
-    private void Submit() => MudDialog.Close(DialogResult.Ok(Request));
+    private void Submit()
+    {
+        var ids = Request.FunctionIds?.Distinct().ToList() ?? new List<int>();
+        SetFunction(ids, _equipmentFunctionId, _equipmentAccess);
+        SetFunction(ids, _equipmentImportFunctionId, _equipmentImportAccess);
+        Request.FunctionIds = ids;
+        MudDialog.Close(DialogResult.Ok(Request));
+    }
+
+    private static void SetFunction(List<int> ids, int? functionId, bool enabled)
+    {
+        if (!functionId.HasValue) return;
+        if (enabled)
+        {
+            if (!ids.Contains(functionId.Value)) ids.Add(functionId.Value);
+        }
+        else
+        {
+            ids.Remove(functionId.Value);
+        }
+    }
     private void Cancel() => MudDialog.Cancel();
 }
