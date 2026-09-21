@@ -106,12 +106,11 @@
 
     private static string BuildTitle(CalendarItemDto item)
     {
-        if (item.ModuleCode == "ATTENDANCE")
-            return string.IsNullOrWhiteSpace(item.Marker)
-                ? (item.Summary ?? item.StatusCode)
-                : $"{item.Marker} {item.Summary}".Trim();
-
-        return item.Summary ?? item.StatusCode;
+        // Marker belongs to the calendar projection contract, not to a single module.
+        // OT actual-without-request uses "?" as an explicit action marker.
+        return string.IsNullOrWhiteSpace(item.Marker)
+            ? (item.Summary ?? item.StatusCode)
+            : $"{item.Marker} {item.Summary}".Trim();
     }
 
     private bool Visible(CalendarItemDto e) =>
