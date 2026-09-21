@@ -471,11 +471,11 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         await _db.SaveChangesAsync(cancellationToken);
 
         if (decision == "OK"
-            && policy.CorrectionMode != (byte)ExecutionCorrectionMode.None)
+            && correctionMode != (byte)ExecutionCorrectionMode.None)
         {
-            if (policy.CorrectionMode != (byte)ExecutionCorrectionMode.AttendanceRecalculate)
+            if (correctionMode != (byte)ExecutionCorrectionMode.AttendanceRecalculate)
                 throw new InvalidOperationException(
-                    $"CorrectionMode={policy.CorrectionMode} chưa có correction handler.");
+                    $"CorrectionMode={correctionMode} chưa có correction handler.");
 
             var payrollPeriod = await _db.PayrollCalculationPeriods
                 .AsNoTracking()
