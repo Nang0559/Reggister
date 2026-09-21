@@ -306,7 +306,7 @@
         return InvokeAsync(StateHasChanged);
     }
 
-    private Task OnCalendarEventSelected(WorkCalendarEventDto item)
+    private Task OnCalendarEventSelected(CalendarItemDto item)
     {
         if (item.ModuleCode == "TRIP" && item.RequestId.HasValue)
             Navigation.NavigateTo($"/trip/{item.RequestId.Value}");
