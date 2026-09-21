@@ -4,7 +4,7 @@
 @inject NavigationManager Navigation
 
 @if (CurrentUser.User?.IsAdmin == true ||
-     CurrentUser.User?.Functions.Contains(UserFunctionCodes.EquipmentModule) == true)
+     CurrentUser.User?.Functions.Contains(SecurityFunctionCodes.EquipmentView) == true)
 {
     <MudCard Elevation="3"
              Class="mb-4"
