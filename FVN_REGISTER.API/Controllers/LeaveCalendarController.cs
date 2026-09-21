@@ -1,6 +1,8 @@
 
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Leaves;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Leaves;
 using FVN_REGISTER.Contract.Dtos.MasterData;
@@ -17,17 +19,20 @@ namespace FVN_REGISTER.API.Controllers;
 public class LeaveCalendarController : BaseApiController
 {
     private readonly ILeaveQueryService _queryService;
+    private readonly IAuthorizationService _authorization;
 
     public LeaveCalendarController(
         ILeaveQueryService queryService,
         ICurrentUserService currentUser,
         IUserLogService userLog,
+        IAuthorizationService authorization,
     
         ILogger<LeaveCalendarController> logger,
         IOptionsMonitor<AuthDebugOptions> options)
         : base(currentUser, userLog, logger, options)
     {
         _queryService = queryService;
+        _authorization = authorization;
     }
 
     [HttpGet("data")]
@@ -53,6 +58,8 @@ public class LeaveCalendarController : BaseApiController
 
         try
         {
+            if (!await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.LeaveView, effectiveEmpCode, effectiveDeptCode, ct))
+                return Forbid();
             var masterData = await _queryService.GetCombinedDataAsync(
              effectiveEmpCode,
              effectiveDeptCode,

@@ -71,6 +71,7 @@ namespace FVN_REGISTER.API.Controllers
             if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             var dept = string.IsNullOrWhiteSpace(deptCode) ? UserInfo.DeptCode : deptCode;
+            if (!string.Equals(dept, UserInfo.DeptCode, StringComparison.OrdinalIgnoreCase) && !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.OTView, null, dept, ct)) return Forbid();
             if (string.IsNullOrWhiteSpace(dept)) dept = await _queryService.GetEmployeeDeptCodeAsync(UserInfo.EmployeeCode ?? "", ct);
             if (string.IsNullOrWhiteSpace(dept)) return BadRequest(ApiResponse<object>.Fail("Không xác định được phòng ban."));
             return Ok(ApiResponse<List<OTEmployeeDto>>.Ok(await _queryService.GetDeptEmployeesAsync(dept, ct)));
@@ -113,6 +114,7 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTView, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (!await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.OTView, employeeCode, null, ct)) return Forbid();
             return Ok(ApiResponse<OTBalanceDto>.Ok(await _queryService.GetBalanceAsync(employeeCode, year, month, ct)));
         }
 
@@ -145,6 +147,7 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn."));
             ApprovalStatus? parsedStatus = null;
             if (!string.IsNullOrWhiteSpace(status) && Enum.TryParse<ApprovalStatus>(status, true, out var statusValue)) parsedStatus = statusValue;
+            if (!string.IsNullOrWhiteSpace(deptCode) && !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.OTView, null, deptCode, ct)) return Forbid();
             var data = await _queryService.GetPagedAsync(deptCode, parsedStatus, fromDate, toDate, page, pageSize, ct);
             return HandleResult(ServiceResult<PaginationResult<OTSummaryDto>>.Ok(data));
         }

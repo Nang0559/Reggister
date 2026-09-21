@@ -1,10 +1,12 @@
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Histories;
+using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Histories;
 using FVN_REGISTER.Contract.Requests;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -18,16 +20,19 @@ namespace FVN_REGISTER.API.Controllers
     public class HistoryController : BaseApiController
     {
         private readonly IHistoryDispatcher _dispatcher;
+        private readonly IAuthorizationService _authorization;
 
         public HistoryController(
             IHistoryDispatcher dispatcher,
             ICurrentUserService currentUser,
             IUserLogService userLog,
+            IAuthorizationService authorization,
             ILogger<HistoryController> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(currentUser, userLog, logger, options)
         {
             _dispatcher = dispatcher;
+            _authorization = authorization;
         }
 
         [HttpGet("{kind}")]
@@ -100,6 +105,16 @@ namespace FVN_REGISTER.API.Controllers
                 return BadRequest(ApiResponse<object>.Fail("Loại đơn không hợp lệ. Chỉ hỗ trợ leave, ot, trip hoặc equipment."));
             if (!ModelState.IsValid)
                 return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
+
+            var cancelCode = requestKind switch
+            {
+                RequestModule.Leave => SecurityFunctionCodes.LeaveCancel,
+                RequestModule.Overtime => SecurityFunctionCodes.OTCancel,
+                RequestModule.Trip => SecurityFunctionCodes.TripCancel,
+                _ => 0
+            };
+            if (cancelCode == 0 || !await _authorization.CanAccessAsync(UserInfo, cancelCode, UserInfo.EmployeeCode, UserInfo.DeptCode, ct))
+                return Forbid();
 
             var result = await _dispatcher.CancelAsync(
                 requestKind, id, req.Reason, UserInfo, ct);

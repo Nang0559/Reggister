@@ -403,3 +403,22 @@ IF NOT EXISTS
     THROW 53043, N'Admin role is missing UserManagement.ResetPassword permission 2405.', 1;
 PRINT N'Password reset request / RBAC verification completed.';
 GO
+
+
+/* RBAC hardening verification. */
+DECLARE @RequiredCodes TABLE(FunctionCode int PRIMARY KEY);
+INSERT @RequiredCodes VALUES (3001),(3002),(3011),(3012),(3021),(3022),(3031),(3032),(3041),(3042),(3051),(3061),(3071),(3072);
+IF EXISTS (SELECT 1 FROM @RequiredCodes x WHERE NOT EXISTS (SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=x.FunctionCode AND ISNULL(f.IsActive,1)=1))
+    THROW 53050, N'Missing one or more P0/P1 dedicated RBAC functions.', 1;
+IF NOT EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf JOIN dbo.F03Roles r ON r.Id=rf.IdRole JOIN dbo.F03Functions f ON f.Id=rf.IdFunction WHERE r.RoleCode=1 AND f.FunctionCode=3002)
+    THROW 53051, N'SuperAdmin missing Department.Manage.', 1;
+IF NOT EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf JOIN dbo.F03Roles r ON r.Id=rf.IdRole JOIN dbo.F03Functions f ON f.Id=rf.IdFunction WHERE r.RoleCode=2 AND f.FunctionCode=3061)
+    THROW 53052, N'Admin missing OTLimit.Manage.', 1;
+IF EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf JOIN dbo.F03Roles r ON r.Id=rf.IdRole JOIN dbo.F03Functions f ON f.Id=rf.IdFunction WHERE r.RoleCode IN (3,4,5) AND f.FunctionCode=3061)
+    THROW 53053, N'Non-admin role incorrectly has OTLimit.Manage.', 1;
+IF EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2107 AND ScopeCode<>N'Department')
+    THROW 53054, N'OT.Export must remain Department scoped.', 1;
+IF EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2901 AND ScopeCode<>N'Department')
+    THROW 53055, N'Attendance.View must be Department scoped.', 1;
+PRINT N'RBAC hardening verification completed.';
+GO

@@ -33,7 +33,7 @@ public sealed class OTLimitRuleController : BaseApiController
     }
 
     private async Task<bool> CanManageAsync(CancellationToken ct)
-        => UserInfo != null && await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTEdit, ct);
+        => UserInfo != null && await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.OTLimitManage, ct);
 
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct)

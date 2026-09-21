@@ -1,5 +1,6 @@
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.HrmSync;
+using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Logging;
 using FVN_REGISTER.Contract.Dtos.HrmSync;
@@ -18,29 +19,32 @@ namespace FVN_REGISTER.API.Controllers;
 public sealed class HrmUserRoleRulesController : BaseApiController
 {
     private readonly IHrmUserRoleRuleService _service;
+    private readonly IAuthorizationService _authorization;
 
     public HrmUserRoleRulesController(
         IHrmUserRoleRuleService service,
         ICurrentUserService currentUser,
         IUserLogService userLog,
+        IAuthorizationService authorization,
         ILogger<HrmUserRoleRulesController> logger,
         IOptionsMonitor<AuthDebugOptions> options)
         : base(currentUser, userLog, logger, options)
     {
         _service = service;
+        _authorization = authorization;
     }
 
     [HttpGet]
     public async Task<IActionResult> GetAll(CancellationToken ct)
     {
-        if (!CanManage()) return Forbid();
+        if (!await CanManageAsync(ct)) return Forbid();
         return HandleResult(await _service.GetAllAsync(ct));
     }
 
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] HrmUserRoleRuleRequest request, CancellationToken ct)
     {
-        if (!CanManage()) return Forbid();
+        if (!await CanManageAsync(ct)) return Forbid();
         var user = UserInfo;
         if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
         return HandleResult(await _service.CreateAsync(request, user.UserId, ct));
@@ -49,7 +53,7 @@ public sealed class HrmUserRoleRulesController : BaseApiController
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromBody] HrmUserRoleRuleRequest request, CancellationToken ct)
     {
-        if (!CanManage()) return Forbid();
+        if (!await CanManageAsync(ct)) return Forbid();
         var user = UserInfo;
         if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
         return HandleResult(await _service.UpdateAsync(id, request, user.UserId, ct));
@@ -58,12 +62,10 @@ public sealed class HrmUserRoleRulesController : BaseApiController
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
-        if (!CanManage()) return Forbid();
+        if (!await CanManageAsync(ct)) return Forbid();
         return HandleResult(await _service.DeleteAsync(id, UserInfo!.UserId, ct));
     }
 
-    private bool CanManage()
-        => UserInfo?.PermissionCode is int code
-           && code >= UserPermissionCodes.SuperAdmin
-           && code <= UserPermissionCodes.Editor;
+    private Task<bool> CanManageAsync(CancellationToken ct)
+        => UserInfo != null ? _authorization.HasAsync(UserInfo, SecurityFunctionCodes.HrmUserRoleRuleManage, ct) : Task.FromResult(false);
 }

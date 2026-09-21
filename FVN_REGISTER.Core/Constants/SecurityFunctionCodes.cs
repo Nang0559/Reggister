@@ -61,4 +61,21 @@ public static class SecurityFunctionCodes
 
     public const int AttendanceView = 2901;
     public const int AttendanceExport = 2902;
+
+    public const int DepartmentView = 3001;
+    public const int DepartmentManage = 3002;
+    public const int EmployeeView = 3011;
+    public const int EmployeeManage = 3012;
+    public const int LeaveTypeView = 3021;
+    public const int LeaveTypeManage = 3022;
+    public const int ApproverView = 3031;
+    public const int ApproverManage = 3032;
+    public const int WorkCalendarView = 3041;
+    public const int WorkCalendarManage = 3042;
+    public const int DepartmentStatusView = 3051;
+    public const int OTLimitManage = 3061;
+    public const int ApprovalPolicyManage = 3071;
+    public const int HrmUserRoleRuleManage = 3072;
+    public const int EmailQueueManage = 3081;
+    public const int EmailTemplateManage = 3082;
 }

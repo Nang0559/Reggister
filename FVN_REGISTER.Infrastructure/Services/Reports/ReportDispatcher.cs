@@ -45,6 +45,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 if (requiredFunction == 0 || !await _authorization.HasAsync(user, requiredFunction, ct))
                     return ServiceResult<ReportResultDto>.Fail("Bạn không có quyền xem báo cáo này.");
 
+                if (!await _authorization.CanAccessAsync(user, requiredFunction, query.EmployeeCode, query.DeptCode, ct))
+                    return ServiceResult<ReportResultDto>.Fail("Bạn không có quyền truy cập phạm vi dữ liệu báo cáo này.");
+
                 var handler = _reportServices.FirstOrDefault(s => s.CanHandle(query.Type));
 
                 if (handler == null)

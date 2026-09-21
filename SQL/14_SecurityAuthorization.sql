@@ -323,3 +323,75 @@ GO
 
 PRINT N'FVN_REGISTER application authorization schema/seed completed.';
 GO
+
+/* P0/P1 RBAC hardening: dedicated administration capabilities. */
+INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+SELECT 1,0,v.FunctionCode,v.Name,v.Detail,v.ModuleCode,v.ActionCode,v.ScopeCode,v.SortNo
+FROM (VALUES
+(3001,N'Department.View',N'Xem bộ phận',N'Department',N'View',N'All',900),
+(3002,N'Department.Manage',N'Thêm/sửa/xóa bộ phận',N'Department',N'Manage',N'All',910),
+(3011,N'Employee.View',N'Xem nhân viên',N'Employee',N'View',N'Department',920),
+(3012,N'Employee.Manage',N'Thêm/sửa/xóa nhân viên',N'Employee',N'Manage',N'All',930),
+(3021,N'LeaveType.View',N'Xem loại nghỉ',N'LeaveType',N'View',N'All',940),
+(3022,N'LeaveType.Manage',N'Quản lý loại nghỉ',N'LeaveType',N'Manage',N'All',950),
+(3031,N'Approver.View',N'Xem cấu hình người duyệt',N'Approver',N'View',N'All',960),
+(3032,N'Approver.Manage',N'Quản lý người duyệt',N'Approver',N'Manage',N'All',970),
+(3041,N'WorkCalendar.View',N'Xem ngày lễ/năm làm việc',N'WorkCalendar',N'View',N'All',980),
+(3042,N'WorkCalendar.Manage',N'Quản lý ngày lễ/năm làm việc',N'WorkCalendar',N'Manage',N'All',990),
+(3051,N'DepartmentStatus.View',N'Xem trạng thái bộ phận',N'DepartmentStatus',N'View',N'Department',1000),
+(3061,N'OTLimit.Manage',N'Quản lý hạn mức OT',N'OTLimit',N'Manage',N'All',1010),
+(3071,N'ApprovalPolicy.Manage',N'Quản lý policy phê duyệt',N'ApprovalPolicy',N'Manage',N'All',1020),
+(3072,N'HrmUserRoleRule.Manage',N'Quản lý rule role theo HRM',N'HrmUserRoleRule',N'Manage',N'All',1030)
+) v(FunctionCode,Name,Detail,ModuleCode,ActionCode,ScopeCode,SortNo)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.FunctionCode);
+GO
+
+/* New management capabilities are restricted to SuperAdmin/Admin. */
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
+SELECT r.Id,f.Id
+FROM dbo.F03Roles r
+CROSS JOIN dbo.F03Functions f
+WHERE r.RoleCode IN (1,2)
+  AND f.FunctionCode IN (3001,3002,3011,3012,3021,3022,3031,3032,3041,3042,3051,3061,3071,3072)
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+GO
+
+/* Department managers/approvers need department-scoped attendance view. */
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
+SELECT r.Id,f.Id
+FROM dbo.F03Roles r
+CROSS JOIN dbo.F03Functions f
+WHERE r.RoleCode IN (1,2,3,4)
+  AND f.FunctionCode=2901
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+GO
+
+/* Execution/Payroll/Public Information capabilities were seeded after the original matrix; grant them explicitly. */
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
+SELECT r.Id,f.Id
+FROM dbo.F03Roles r
+CROSS JOIN dbo.F03Functions f
+WHERE r.RoleCode IN (1,2)
+  AND f.FunctionCode IN (2801,2802,2803,2804,2805,2806)
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+GO
+
+/* OT export remains Department scope; never promote it to All. */
+UPDATE dbo.F03Functions SET ScopeCode=N'Department'
+WHERE FunctionCode IN (2107,2901,2902);
+GO
+
+
+INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+SELECT 1,0,v.FunctionCode,v.Name,v.Detail,v.ModuleCode,v.ActionCode,v.ScopeCode,v.SortNo
+FROM (VALUES
+(3081,N'EmailQueue.Manage',N'Quản lý email queue',N'EmailQueue',N'Manage',N'All',1040),
+(3082,N'EmailTemplate.Manage',N'Quản lý mẫu email',N'EmailTemplate',N'Manage',N'All',1050)
+) v(FunctionCode,Name,Detail,ModuleCode,ActionCode,ScopeCode,SortNo)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.FunctionCode);
+GO
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
+SELECT r.Id,f.Id FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
+WHERE r.RoleCode IN(1,2) AND f.FunctionCode IN(3081,3082)
+AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+GO
