@@ -120,9 +120,6 @@ public sealed class WorkCalendarController : BaseApiController
         if (await _authorization.HasAsync(user, SecurityFunctionCodes.AttendanceView, ct))
             result.Add("ATTENDANCE");
 
-        if (await _authorization.HasAsync(user, SecurityFunctionCodes.AttendanceView, ct))
-            result.Add("ATTENDANCE");
-
         return result;
     }
 }
