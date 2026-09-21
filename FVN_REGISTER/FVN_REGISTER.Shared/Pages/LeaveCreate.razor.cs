@@ -99,7 +99,7 @@ public partial class LeaveCreate : IAsyncDisposable
         if (item.ModuleCode == "LEAVE")
         {
             var leave = _model?.MasterData.LeaveEvents
-                .FirstOrDefault(x => x.StartDate.Date == item.WorkDate);
+                .FirstOrDefault(x => x.StartDate.Date == item.WorkDate.ToDateTime(TimeOnly.MinValue));
 
             if (leave != null)
             {
