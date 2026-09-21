@@ -7,6 +7,7 @@
 @inherits AppComponentBase
 @inject NavigationManager NavigationManager
 @inject IWorkCalendarClientService CalendarService
+@inject IDialogService DialogService
 
 <PageTitle>Lịch làm việc của tôi</PageTitle>
 
@@ -78,7 +79,8 @@
 
     <MudPaper Outlined="true" Class="pa-3" Style="border-radius:18px">
         <WorkCalendar ModuleContext="ALL"
-                      OnEventSelected="HandleEventSelected" />
+                      OnEventSelected="HandleEventSelected"
+                      OnRegistrationRequested="HandleRegistrationRequested" />
     </MudPaper>
 </MudContainer>
 
@@ -101,6 +103,41 @@
         {
             // Calendar itself remains usable when the alert endpoint is temporarily unavailable.
         }
+    }
+
+    private async Task HandleRegistrationRequested(DateTime date)
+    {
+        var result = await CalendarService.GetAvailabilityAsync(date);
+        if (!result.IsSuccess || result.Data == null)
+        {
+            return;
+        }
+
+        var parameters = new DialogParameters
+        {
+            [nameof(CalendarRegistrationDialog.Date)] = date,
+            [nameof(CalendarRegistrationDialog.Availability)] = result.Data,
+            [nameof(CalendarRegistrationDialog.OnSelected)] =
+                EventCallback.Factory.Create<string>(this, module => OpenRegistration(module, date))
+        };
+
+        await DialogService.ShowAsync<CalendarRegistrationDialog>(
+            "Đăng ký từ lịch",
+            parameters,
+            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
+    }
+
+    private void OpenRegistration(string moduleCode, DateTime date)
+    {
+        var route = moduleCode switch
+        {
+            "LEAVE" => $"/leave/create?date={date:yyyy-MM-dd}",
+            "OT" => $"/ot/create?date={date:yyyy-MM-dd}",
+            "TRIP" => $"/trip/create?date={date:yyyy-MM-dd}",
+            _ => "/calendar"
+        };
+
+        NavigationManager.NavigateTo(route);
     }
 
     private void HandleEventSelected(CalendarItemDto item)
