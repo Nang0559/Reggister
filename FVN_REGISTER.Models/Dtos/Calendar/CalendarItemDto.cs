@@ -9,6 +9,7 @@ public sealed class CalendarItemDto
     public string? Summary { get; init; }
     public byte Severity { get; init; }
     public bool RequiresAction { get; init; }
+    public string InteractionType { get; init; } = "INFO";
     public Guid? ActionId { get; init; }
     public string? DetailRoute { get; init; }
     public string SourceId { get; init; } = string.Empty;
