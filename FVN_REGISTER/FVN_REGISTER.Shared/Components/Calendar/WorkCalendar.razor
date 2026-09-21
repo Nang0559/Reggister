@@ -72,7 +72,7 @@
 
     private List<string> BuildRegistrationDates() =>
         _data.RegistrationOpportunities
-            .Where(x => x.IsEnabled)
+            .Where(x => x.IsEnabled && (_moduleFilter == "ALL" || x.ModuleCode == _moduleFilter))
             .Select(x => x.WorkDate.ToString("yyyy-MM-dd"))
             .Distinct(StringComparer.Ordinal)
             .ToList();
