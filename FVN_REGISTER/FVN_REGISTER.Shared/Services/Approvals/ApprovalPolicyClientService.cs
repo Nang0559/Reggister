@@ -1,4 +1,5 @@
 using FVN_REGISTER.Contract.Dtos.Approvals;
+using FVN_REGISTER.Contract.Dtos.Depts;
 using FVN_REGISTER.Contract.Requests.Approvals;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Shared.Handlers;
@@ -17,6 +18,9 @@ public sealed class ApprovalPolicyClientService : IApprovalPolicyClientService
 
     public Task<ApiResponse<List<ApprovalPolicyPositionDto>>> GetPositionsAsync(CancellationToken ct = default)
         => _http.GetAsync<List<ApprovalPolicyPositionDto>>($"{Base}/positions", ct);
+
+    public Task<ApiResponse<List<DepartmentDto>>> GetDepartmentsAsync(CancellationToken ct = default)
+        => _http.GetAsync<List<DepartmentDto>>($"{Base}/departments", ct);
 
     public Task<ApiResponse<ApprovalPolicyDto>> CreateAsync(ApprovalPolicyRequest request, CancellationToken ct = default)
         => _http.PostAsync<ApprovalPolicyDto>(Base, request, ct);
