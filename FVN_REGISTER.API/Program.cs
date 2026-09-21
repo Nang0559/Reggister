@@ -148,6 +148,7 @@ builder.Services.AddScoped<ICalendarModuleProvider>(sp =>
     new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "LEAVE"));
 builder.Services.AddScoped<ICalendarModuleProvider>(sp =>
     new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "TRIP"));
+builder.Services.AddScoped<ICalendarModuleProvider, AttendanceCalendarModuleProvider>();
 builder.Services.AddScoped<IActionItemService, ActionItemService>();
 builder.Services.AddScoped<IActionItemWriter, ActionItemWriter>();
 builder.Services.AddScoped<IExecutionReconciliationService, ExecutionReconciliationService>();
