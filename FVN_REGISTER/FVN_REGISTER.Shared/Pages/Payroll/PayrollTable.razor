@@ -109,7 +109,7 @@
                         <MudTh>Ngày</MudTh>
                         <MudTh Style="text-align:right">Giờ công (phút)</MudTh>
                         <MudTh Style="text-align:right">Nghỉ</MudTh>
-                        <MudTh Align="Align.Right">OT (phút)</MudTh>
+                        <MudTh Style="text-align:right">OT (phút)</MudTh>
                     </HeaderContent>
                     <RowTemplate>
                         <MudTd DataLabel="Nhân viên">
@@ -117,9 +117,9 @@
                             <span>@context.EmployeeName</span>
                         </MudTd>
                         <MudTd DataLabel="Ngày">@context.WorkDate:dd/MM/yyyy</MudTd>
-                        <MudTd DataLabel="Giờ công (phút)" Align="Align.Right">@context.WorkMinutes</MudTd>
-                        <MudTd DataLabel="Nghỉ" Align="Align.Right">@context.LeaveTotal</MudTd>
-                        <MudTd DataLabel="OT (phút)" Align="Align.Right">@context.OTMinutes</MudTd>
+                        <MudTd DataLabel="Giờ công (phút)" Style="text-align:right">@context.WorkMinutes</MudTd>
+                        <MudTd DataLabel="Nghỉ" Style="text-align:right">@context.LeaveTotal</MudTd>
+                        <MudTd DataLabel="OT (phút)" Style="text-align:right">@context.OTMinutes</MudTd>
                     </RowTemplate>
                 </MudTable>
             }
