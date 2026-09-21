@@ -1,6 +1,7 @@
 using FVN_REGISTER.Application.Interfaces.Calendar;
 using FVN_REGISTER.Application.Models.Calendar;
 using FVN_REGISTER.Contract.Dtos.Calendar;
+using FVN_REGISTER.Core.Entities.WorkCalendar;
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Calendar;
@@ -54,10 +55,21 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
             ORDER BY a.WorkDate
             """).ToListAsync(cancellationToken);
 
-        return rows.Select(Map).ToArray();
+        var reconciliationByDate = await _db.ExecutionReconciliations
+            .AsNoTracking()
+            .Where(x => x.IsActive != false
+                && x.ModuleCode == "ATTENDANCE"
+                && x.EmployeeId == context.EmployeeId
+                && x.WorkDate >= context.From
+                && x.WorkDate <= context.To)
+            .ToDictionaryAsync(x => x.WorkDate, cancellationToken);
+
+        return rows.Select(row => Map(row, reconciliationByDate.TryGetValue(row.WorkDate, out var reconciliation) ? reconciliation : null)).ToArray();
     }
 
-    private static CalendarItemDto Map(AttendanceCalendarRow row)
+    private static CalendarItemDto Map(
+        AttendanceCalendarRow row,
+        F03ExecutionReconciliation? reconciliation)
     {
         var isLeave = (row.LeaveTotal ?? 0m) > 0m;
         var isHoliday = row.HrmHoliday == true || row.HrmEmployeeHoliday == true;
@@ -108,21 +120,81 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
             earlyMinutes,
             workedMinutes);
 
+        if (reconciliation is not null)
+        {
+            status = reconciliation.ReconciliationStatus;
+            severity = status switch
+            {
+                "Mismatch" => (byte)3,
+                "AwaitingConfirmation" => (byte)2,
+                _ => (byte)0
+            };
+            requiresAction = reconciliation.RequiresConfirmation
+                && !string.Equals(status, "Resolved", StringComparison.OrdinalIgnoreCase);
+            summary = BuildReconciliationSummary(row, reconciliation, lateMinutes, earlyMinutes, workedMinutes);
+        }
+
         return new CalendarItemDto
         {
             WorkDate = row.WorkDate,
             ModuleCode = "ATTENDANCE",
             StatusCode = status,
-            Marker = string.IsNullOrWhiteSpace(row.AttendanceDisplayValue)
-                ? null
-                : row.AttendanceDisplayValue,
+            Marker = reconciliation?.ReconciliationStatus switch
+            {
+                "Mismatch" => "!",
+                "AwaitingConfirmation" => "?",
+                "Resolved" => "OK",
+                _ => string.IsNullOrWhiteSpace(row.AttendanceDisplayValue) ? null : row.AttendanceDisplayValue
+            },
             Summary = summary,
             Severity = severity,
             RequiresAction = requiresAction,
-            ActionId = null,
-            DetailRoute = null,
-            SourceId = $"{row.HrmEmployeeId}:{row.WorkDate:yyyy-MM-dd}"
+            ActionId = reconciliation?.ActionId,
+            DetailRoute = reconciliation is null ? null : $"/execution?reconciliationId={reconciliation.Id}",
+            SourceId = reconciliation?.Id.ToString() ?? $"{row.HrmEmployeeId}:{row.WorkDate:yyyy-MM-dd}"
         };
+    }
+
+    private static string BuildReconciliationSummary(
+        AttendanceCalendarRow row,
+        F03ExecutionReconciliation reconciliation,
+        int lateMinutes,
+        int earlyMinutes,
+        int workedMinutes)
+    {
+        if (string.Equals(reconciliation.ReconciliationStatus, "Mismatch", StringComparison.OrdinalIgnoreCase))
+        {
+            if (string.Equals(reconciliation.PlannedState, "NONE", StringComparison.OrdinalIgnoreCase)
+                && (row.CheckInTime.HasValue || row.CheckOutTime.HasValue))
+                return $"Có chấm công ngoài kế hoạch{BuildTimeSuffix(row, workedMinutes)}";
+
+            if (row.RequiredMinutes > 0 && (!row.CheckInTime.HasValue || !row.CheckOutTime.HasValue))
+                return BuildSummary("MISSING", row, lateMinutes, earlyMinutes, workedMinutes);
+
+            if (lateMinutes > 0 || earlyMinutes > 0)
+                return BuildSummary("EXCEPTION", row, lateMinutes, earlyMinutes, workedMinutes);
+        }
+
+        if (string.Equals(reconciliation.ReconciliationStatus, "AwaitingConfirmation", StringComparison.OrdinalIgnoreCase))
+            return $"Đang chờ xác nhận{BuildTimeSuffix(row, workedMinutes)}";
+
+        if (string.Equals(reconciliation.ReconciliationStatus, "Resolved", StringComparison.OrdinalIgnoreCase))
+            return $"Đã giải quyết{BuildTimeSuffix(row, workedMinutes)}";
+
+        return BuildSummary("PRESENT", row, lateMinutes, earlyMinutes, workedMinutes);
+    }
+
+    private static string BuildTimeSuffix(AttendanceCalendarRow row, int workedMinutes)
+    {
+        if (row.CheckInTime.HasValue && row.CheckOutTime.HasValue)
+        {
+            var range = $" {row.CheckInTime.Value:HH:mm} - {row.CheckOutTime.Value:HH:mm}";
+            return workedMinutes > 0 ? $"{range} ({workedMinutes / 60d:0.##} giờ)" : range;
+        }
+
+        if (row.CheckInTime.HasValue) return $" Check-in {row.CheckInTime.Value:HH:mm}";
+        if (row.CheckOutTime.HasValue) return $" Check-out {row.CheckOutTime.Value:HH:mm}";
+        return string.Empty;
     }
 
     private static string BuildSummary(
