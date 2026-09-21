@@ -67,18 +67,22 @@ BEGIN
                 ADD ScopeType_Canonical int NOT NULL
                     CONSTRAINT DF_F03OTLimitRules_ScopeType_Canonical DEFAULT (1);
 
+        /* Dynamic SQL: ScopeType_Canonical does not exist when this batch is
+           compiled, and a static reference fails with Msg 207 even though
+           this branch is only taken on legacy databases. */
+        EXEC sys.sp_executesql N'
         UPDATE r
         SET ScopeType_Canonical =
             CASE UPPER(LTRIM(RTRIM(r.ScopeType)))
-                WHEN N'EMPLOYEE' THEN 1
-                WHEN N'DEPARTMENT' THEN 2
-                WHEN N'BLOCK' THEN 3
-                WHEN N'1' THEN 1
-                WHEN N'2' THEN 2
-                WHEN N'3' THEN 3
+                WHEN N''EMPLOYEE'' THEN 1
+                WHEN N''DEPARTMENT'' THEN 2
+                WHEN N''BLOCK'' THEN 3
+                WHEN N''1'' THEN 1
+                WHEN N''2'' THEN 2
+                WHEN N''3'' THEN 3
                 ELSE 1
             END
-        FROM dbo.F03OTLimitRules r;
+        FROM dbo.F03OTLimitRules r;';
 
         DECLARE @ScopeDefaultConstraint sysname;
         SELECT @ScopeDefaultConstraint=dc.name
