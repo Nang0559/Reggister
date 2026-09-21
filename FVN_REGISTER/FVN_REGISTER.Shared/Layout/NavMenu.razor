@@ -13,6 +13,15 @@
     <MudNavLink href="/execution" Icon="@Icons.Material.Filled.FactCheck">Đối soát thực tế</MudNavLink>
     <MudNavLink href="/work/inbox" Icon="@Icons.Material.Filled.Inbox">Trung tâm công việc</MudNavLink>
 
+    <MudNavGroup Title="Public" Icon="@Icons.Material.Filled.Campaign" Expanded="false">
+        <MudNavLink href="/public-information" Icon="@Icons.Material.Filled.Public">Thông tin công khai</MudNavLink>
+        <MudNavLink href="/public-forms" Icon="@Icons.Material.Filled.Assignment">Biểu mẫu đăng ký</MudNavLink>
+        @if (Can(SecurityFunctionCodes.PublicFormManage))
+        {
+            <MudNavLink href="/admin/public-forms" Icon="@Icons.Material.Filled.EditNote">Quản lý biểu mẫu đăng ký</MudNavLink>
+        }
+    </MudNavGroup>
+
     @if (CanAny(SecurityFunctionCodes.LeaveApprove, SecurityFunctionCodes.OTApprove, SecurityFunctionCodes.TripApprove, SecurityFunctionCodes.EquipmentApprove))
     {
         <MudNavGroup Title="Phê duyệt" Icon="@Icons.Material.Filled.CheckCircle" Expanded="false">
