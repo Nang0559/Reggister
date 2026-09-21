@@ -44,7 +44,7 @@
         </MudNavGroup>
     }
 
-    @if (CanAny(SecurityFunctionCodes.HrmSyncViewStatus, SecurityFunctionCodes.UserManagementView))
+    @if (CanAny(SecurityFunctionCodes.DepartmentView, SecurityFunctionCodes.EmployeeView, SecurityFunctionCodes.LeaveTypeView, SecurityFunctionCodes.ApproverView, SecurityFunctionCodes.HrmSyncViewStatus, SecurityFunctionCodes.UserManagementView))
     {
         <MudNavGroup Title="Dữ liệu" Icon="@Icons.Material.Filled.Storage" Expanded="false">
             <MudNavLink href="/admin/departments" Icon="@Icons.Material.Filled.Business">Bộ phận</MudNavLink>
@@ -55,7 +55,7 @@
             <MudNavLink href="/admin/hrm-sync-review" Icon="@Icons.Material.Filled.WarningAmber">Conflict HRM</MudNavLink>
             <MudNavLink href="/admin/hrm-role-rules" Icon="@Icons.Material.Filled.Rule">Role HRM → User</MudNavLink>
             <MudNavLink href="/admin/approval-policies" Icon="@Icons.Material.Filled.Policy">Approval Policy</MudNavLink>
-            @if (Can(SecurityFunctionCodes.AttendanceView))
+            @if (Can(SecurityFunctionCodes.AttendanceCalculate))
             {
                 <MudNavLink href="/hrm/attendance-calculation" Icon="@Icons.Material.Filled.AccessTime">Tính giờ theo HRM</MudNavLink>
             }
@@ -63,7 +63,7 @@
 
         <MudNavGroup Title="Quản lý OT" Icon="@Icons.Material.Filled.Timelapse" Expanded="false">
             <MudNavLink href="/ot/list" Icon="@Icons.Material.Filled.FormatListBulleted">Danh sách đơn OT</MudNavLink>
-            @if (Can(SecurityFunctionCodes.OTEdit))
+            @if (Can(SecurityFunctionCodes.OTLimitManage))
             {
                 <MudNavLink href="/admin/ot-limit-rules" Icon="@Icons.Material.Filled.Rule">Hạn mức OT</MudNavLink>
             }
@@ -120,9 +120,11 @@
                 <MudNavLink href="/admin/security" Icon="@Icons.Material.Filled.Security">Security Center</MudNavLink>
                 <MudNavLink href="/admin/sessions" Icon="@Icons.Material.Filled.Devices">Thiết bị & phiên đăng nhập</MudNavLink>
             }
-            <MudNavLink href="/admin/email-templates" Icon="@Icons.Material.Filled.Email">Email mẫu</MudNavLink>
+            @if (Can(SecurityFunctionCodes.EmailTemplateManage))
+            {
+                <MudNavLink href="/admin/email-templates" Icon="@Icons.Material.Filled.Email">Email mẫu</MudNavLink>
             <MudNavLink href="/admin/email-queue" Icon="@Icons.Material.Filled.MarkEmailRead">Email chờ gửi</MudNavLink>
-            @if (Can(SecurityFunctionCodes.SecurityView))
+            @if (Can(SecurityFunctionCodes.WorkCalendarView))
             {
                 <MudNavLink href="/admin/work-calendar" Icon="@Icons.Material.Filled.CalendarMonth">Năm & ngày nghỉ</MudNavLink>
             }
