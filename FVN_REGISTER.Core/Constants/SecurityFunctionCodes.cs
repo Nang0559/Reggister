@@ -74,4 +74,6 @@ public static class SecurityFunctionCodes
     public const int WorkCalendarManage = 3042;
     public const int DepartmentStatusView = 3051;
     public const int OTLimitManage = 3061;
+    public const int ApprovalPolicyManage = 3071;
+    public const int HrmUserRoleRuleManage = 3072;
 }
