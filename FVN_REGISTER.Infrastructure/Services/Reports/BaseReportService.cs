@@ -130,7 +130,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         }
 
         /// <summary>EF-compatible: lọc DeptCode trực tiếp trên IQueryable.</summary>
-        // ★ SỬA: user.IsAdmin()/IsSuperAdmin() → user.Permission.IsAdmin()
         // (IsAdmin() extension đã tự bao gồm SuperAdmin, không cần OR thêm IsSuperAdmin())
         protected async Task<string> GetEffectiveReportScopeAsync(UserIdentityDto user, CancellationToken ct, params int[] functionCodes)
         {
