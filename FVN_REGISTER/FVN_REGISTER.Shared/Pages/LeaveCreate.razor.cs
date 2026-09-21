@@ -87,6 +87,15 @@ public partial class LeaveCreate : IAsyncDisposable
 
     private async Task OnCalendarEventSelected(CalendarItemDto item)
     {
+        if (item.RequiresAction && item.ActionId is not null)
+        {
+            var route = !string.IsNullOrWhiteSpace(item.DetailRoute)
+                ? item.DetailRoute
+                : $"/execution?reconciliationId={Uri.EscapeDataString(item.SourceId)}";
+            Nav.NavigateTo(route);
+            return;
+        }
+
         if (item.ModuleCode == "LEAVE")
         {
             var leave = _model?.MasterData.LeaveEvents
@@ -99,15 +108,9 @@ public partial class LeaveCreate : IAsyncDisposable
             }
         }
 
-        var title = string.IsNullOrWhiteSpace(item.Summary)
-            ? item.StatusCode
-            : item.Summary;
-
-        if (item.ModuleCode == "COMPANY")
-            Snackbar.Add($"Ngày nghỉ công ty: {title}", Severity.Info);
-        else
-            Snackbar.Add(title, Severity.Info);
+        Snackbar.Add(item.Summary ?? item.StatusCode, Severity.Info);
     }
+
 
     private async Task OpenAddDialog(string? startDate, string? endDate)
     {
