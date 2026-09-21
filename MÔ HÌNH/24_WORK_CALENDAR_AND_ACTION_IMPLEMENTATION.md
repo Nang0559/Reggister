@@ -115,7 +115,7 @@ Chỉ được auto-resolve khi policy tồn tại và bật AutoResolve.
 
 ### Attendance
 
-Attendance trong Calendar là read-only projection từ official HRM calculation result `F03HrmAttendanceCalculated`. Provider `ATTENDANCE` đọc theo employee + WorkDate; không ghi `F03CalendarProjection` và không chạy calculation riêng. `AttendanceView` là capability bắt buộc để endpoint `/api/calendar/me` trả module này.
+Attendance trong Calendar là read-only projection từ official HRM calculation result `F03HrmAttendanceCalculated`. Provider `ATTENDANCE` đọc theo employee + WorkDate; không ghi `F03CalendarProjection` và không chạy calculation riêng. `AttendanceViewOwn` (2912, scope `Own`, cấp cho mọi role nghiệp vụ 1–5) là capability để endpoint `/api/calendar/me` trả module này; `AttendanceView` (2901) là quyền báo cáo scope `Department`, không cấp cho role User và chỉ được chấp nhận thêm như quyền tương thích.
 
 ### Leave
 

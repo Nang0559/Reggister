@@ -53,6 +53,8 @@ public static class SecurityFunctionCodes
 
     public const int PublicInformationManage = 2801;
     public const int PublicFormManage = 2807;
+    public const int PublicFormSubmissionView = 2808;
+    public const int PublicFormExport = 2809;
     public const int ExecutionReview = 2802;
 
     public const int PayrollView = 2803;
@@ -63,6 +65,8 @@ public static class SecurityFunctionCodes
     public const int AttendanceView = 2901;
     public const int AttendanceExport = 2902;
     public const int AttendanceCalculate = 2911;
+    /// <summary>Own-scope read of the caller's own attendance (Work Calendar). Separate from Department-scoped AttendanceView.</summary>
+    public const int AttendanceViewOwn = 2912;
 
     public const int EquipmentCancel = 2308;
 

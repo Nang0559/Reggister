@@ -145,7 +145,11 @@ public sealed class WorkCalendarController : BaseApiController
         if (await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct))
             result.Add("TRIP");
 
-        if (await _authorization.HasAsync(user, SecurityFunctionCodes.AttendanceView, ct))
+        // The calendar only ever returns the caller's own attendance rows, so it is gated by the
+        // Own-scope capability. AttendanceView (Department scope, reports) also qualifies so managers
+        // keep the module even before the 2912 grant is deployed.
+        if (await _authorization.HasAsync(user, SecurityFunctionCodes.AttendanceViewOwn, ct)
+            || await _authorization.HasAsync(user, SecurityFunctionCodes.AttendanceView, ct))
             result.Add("ATTENDANCE");
 
         return result;

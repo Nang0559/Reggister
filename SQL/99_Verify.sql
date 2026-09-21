@@ -443,6 +443,17 @@ IF NOT EXISTS (
     WHERE r.RoleCode IN (1,2) AND f.FunctionCode=2911
 )
     THROW 53058, N'SuperAdmin/Admin must have Attendance.Calculate.', 1;
+IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2912 AND FunctionName=N'Attendance.ViewOwn' AND ScopeCode=N'Own' AND ISNULL(IsActive,1)=1)
+    THROW 53064, N'Missing Attendance.ViewOwn capability 2912 (Own scope).', 1;
+IF EXISTS (
+    SELECT 1 FROM dbo.F03Roles r
+    WHERE r.RoleCode IN (1,2,3,4,5) AND ISNULL(r.IsActive,1)=1
+      AND NOT EXISTS (
+          SELECT 1 FROM dbo.F03RoleFunctions rf
+          JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
+          WHERE rf.IdRole=r.Id AND f.FunctionCode=2912)
+)
+    THROW 53065, N'Every business role (1-5) must have Attendance.ViewOwn so the Work Calendar shows own attendance.', 1;
 IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2308 AND FunctionName=N'Equipment.Cancel' AND ScopeCode=N'Own' AND ISNULL(IsActive,1)=1)
     THROW 53059, N'Missing Equipment.Cancel capability 2308.', 1;
 IF NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=3081 AND FunctionName=N'EmailQueue.Manage' AND ISNULL(IsActive,1)=1)

@@ -84,7 +84,7 @@ OT: OT Master → Participant → Approved Revision → Actual → Reconciliatio
 
 Không tạo calculation engine thứ hai. Attendance company-wide được worker/scheduler tính và backfill; Calendar/Dashboard chỉ đọc official read model. Payroll period hiện hành: ngày 21 → ngày 20.
 
-Calendar module `ATTENDANCE` đọc trực tiếp `F03HrmAttendanceCalculated` theo employee + WorkDate. Module này không ghi `F03CalendarProjection`, không tạo reconciliation cho từng ngày attendance thường và không thay đổi calculation result. Quyền truy cập endpoint Calendar được kiểm tra bằng `SecurityFunctionCodes.AttendanceView`; `F03CalendarModulePolicies` phải có row `ATTENDANCE` enabled.
+Calendar module `ATTENDANCE` đọc trực tiếp `F03HrmAttendanceCalculated` theo employee + WorkDate. Module này không ghi `F03CalendarProjection`, không tạo reconciliation cho từng ngày attendance thường và không thay đổi calculation result. Quyền truy cập module `ATTENDANCE` trên endpoint Calendar được kiểm tra bằng `SecurityFunctionCodes.AttendanceViewOwn` (2912, scope `Own`, cấp cho role 1–5; `AttendanceView` 2901 scope `Department` dành cho báo cáo và cũng được chấp nhận); `F03CalendarModulePolicies` phải có row `ATTENDANCE` enabled.
 
 ## 11. Invariants
 

@@ -68,3 +68,21 @@ SELECT r.Id,f.Id FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
 WHERE r.RoleCode IN (1,2) AND f.FunctionCode IN (2801,2802,2803,2804,2805,2806)
   AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
 GO
+
+
+/* Work Calendar shows the caller's OWN attendance. Attendance.View (2901) is Department scoped and
+   is deliberately not granted to the User role, so the calendar needs its own Own-scope capability. */
+INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+SELECT 1,0,2912,N'Attendance.ViewOwn',N'Xem chấm công của chính mình trên Lịch làm việc',N'Attendance',N'ViewOwn',N'Own',840
+WHERE NOT EXISTS (SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2912);
+GO
+UPDATE dbo.F03Functions
+SET FunctionName=N'Attendance.ViewOwn',ModuleCode=N'Attendance',ActionCode=N'ViewOwn',ScopeCode=N'Own',IsActive=1
+WHERE FunctionCode=2912
+  AND (FunctionName<>N'Attendance.ViewOwn' OR ScopeCode<>N'Own' OR ISNULL(IsActive,0)<>1);
+GO
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
+SELECT r.Id,f.Id FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
+WHERE r.RoleCode IN (1,2,3,4,5) AND f.FunctionCode=2912
+  AND NOT EXISTS (SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+GO

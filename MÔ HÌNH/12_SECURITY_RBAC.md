@@ -200,3 +200,15 @@ Admin can grant these capabilities directly to an individual user from **User Ma
 Therefore a user can use Equipment without being allowed to import Excel. The import API enforces 2306 and department scope server-side; hiding the button is only UX.
 
 900 / EquipmentModule remains a legacy marker and is not an action-capability bypass.
+
+
+## Attendance — own vs department capability
+
+| FunctionCode | Capability | Scope | Roles | Purpose |
+|---|---|---|---|---|
+| 2901 | Attendance.View | Department | 1–4 (not User) | attendance reports (department data) |
+| 2902 | Attendance.Export | Department | per matrix | attendance export |
+| 2911 | Attendance.Calculate | All | 1–2 | run HRM attendance calculation (write action) |
+| 2912 | Attendance.ViewOwn | Own | 1–5 | show the caller's own attendance on the Work Calendar |
+
+The User role must not hold 2901 (Department scope), so Work Calendar cannot depend on it. `/api/calendar/me` returns module `ATTENDANCE` when the caller has 2912 (2901 is also accepted); the provider only reads rows for the authenticated employee.

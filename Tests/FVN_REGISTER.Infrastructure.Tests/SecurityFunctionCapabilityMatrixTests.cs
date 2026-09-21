@@ -13,6 +13,15 @@ public sealed class SecurityFunctionCapabilityMatrixTests
     }
 
     [Fact]
+    public void AttendanceViewOwn_IsOwnCapabilitySeparateFromDepartmentAttendanceView()
+    {
+        Assert.Equal(2912, SecurityFunctionCodes.AttendanceViewOwn);
+        Assert.NotEqual(SecurityFunctionCodes.AttendanceView, SecurityFunctionCodes.AttendanceViewOwn);
+        Assert.NotEqual(SecurityFunctionCodes.AttendanceExport, SecurityFunctionCodes.AttendanceViewOwn);
+        Assert.NotEqual(SecurityFunctionCodes.AttendanceCalculate, SecurityFunctionCodes.AttendanceViewOwn);
+    }
+
+    [Fact]
     public void EquipmentCancel_IsSeparateCapability()
     {
         Assert.NotEqual(SecurityFunctionCodes.EquipmentEdit, SecurityFunctionCodes.EquipmentCancel);
@@ -51,6 +60,7 @@ public sealed class SecurityFunctionCapabilityMatrixTests
             SecurityFunctionCodes.EmailQueueManage,
             SecurityFunctionCodes.EmailTemplateManage,
             SecurityFunctionCodes.AttendanceCalculate,
+            SecurityFunctionCodes.AttendanceViewOwn,
             SecurityFunctionCodes.EquipmentCancel
         };
 
