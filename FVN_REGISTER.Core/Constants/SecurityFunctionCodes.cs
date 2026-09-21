@@ -61,6 +61,9 @@ public static class SecurityFunctionCodes
 
     public const int AttendanceView = 2901;
     public const int AttendanceExport = 2902;
+    public const int AttendanceCalculate = 2911;
+
+    public const int EquipmentCancel = 2308;
 
     public const int DepartmentView = 3001;
     public const int DepartmentManage = 3002;
