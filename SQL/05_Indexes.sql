@@ -112,3 +112,29 @@ IF OBJECT_ID(N'dbo.F03StagingLeaveType',N'U') IS NOT NULL AND NOT EXISTS(SELECT 
 GO
 IF OBJECT_ID(N'dbo.F03StagingDepartment',N'U') IS NOT NULL AND NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IX_F03StagingDepartment_Pending_Key' AND object_id=OBJECT_ID(N'dbo.F03StagingDepartment'))
     CREATE INDEX [IX_F03StagingDepartment_Pending_Key] ON dbo.[F03StagingDepartment](IsProcessed,EntityKey,CreatedAt,Id);
+GO
+IF OBJECT_ID(N'dbo.F03StagingPosition',N'U') IS NOT NULL AND NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IX_F03StagingPosition_Pending_Key' AND object_id=OBJECT_ID(N'dbo.F03StagingPosition'))
+    CREATE INDEX [IX_F03StagingPosition_Pending_Key] ON dbo.[F03StagingPosition](IsProcessed,EntityKey,CreatedAt,Id);
+GO
+IF OBJECT_ID(N'dbo.F03StagingEmployee',N'U') IS NOT NULL AND NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IX_F03StagingEmployee_Pending_Key' AND object_id=OBJECT_ID(N'dbo.F03StagingEmployee'))
+    CREATE INDEX [IX_F03StagingEmployee_Pending_Key] ON dbo.[F03StagingEmployee](IsProcessed,EntityKey,CreatedAt,Id);
+GO
+
+
+
+
+IF OBJECT_ID(N'dbo.F03Shifts',N'U') IS NOT NULL AND NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IX_F03Shifts_Active_Code' AND object_id=OBJECT_ID(N'dbo.F03Shifts'))
+    CREATE INDEX IX_F03Shifts_Active_Code ON dbo.F03Shifts(IsActive,ShiftCode);
+GO
+IF OBJECT_ID(N'dbo.F03ShiftSchedules',N'U') IS NOT NULL AND NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IX_F03ShiftSchedules_Active_Code' AND object_id=OBJECT_ID(N'dbo.F03ShiftSchedules'))
+    CREATE INDEX IX_F03ShiftSchedules_Active_Code ON dbo.F03ShiftSchedules(IsActive,ScheduleCode);
+GO
+IF OBJECT_ID(N'dbo.F03ShiftScheduleDays',N'U') IS NOT NULL AND NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IX_F03ShiftScheduleDays_Lookup' AND object_id=OBJECT_ID(N'dbo.F03ShiftScheduleDays'))
+    CREATE INDEX IX_F03ShiftScheduleDays_Lookup ON dbo.F03ShiftScheduleDays(IsActive,ScheduleCode,DayNo);
+GO
+IF OBJECT_ID(N'dbo.F03EmployeeShiftSchedules',N'U') IS NOT NULL AND NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IX_F03EmployeeShiftSchedules_Employee' AND object_id=OBJECT_ID(N'dbo.F03EmployeeShiftSchedules'))
+    CREATE INDEX IX_F03EmployeeShiftSchedules_Employee ON dbo.F03EmployeeShiftSchedules(IsActive,EmployeeCode);
+GO
+IF OBJECT_ID(N'dbo.F03HrmShiftReference',N'U') IS NOT NULL AND NOT EXISTS(SELECT 1 FROM sys.indexes WHERE name=N'IX_F03HrmShiftReference_DateEmployee' AND object_id=OBJECT_ID(N'dbo.F03HrmShiftReference'))
+    CREATE INDEX IX_F03HrmShiftReference_DateEmployee ON dbo.F03HrmShiftReference(WorkDate,EmployeeCode);
+GO
