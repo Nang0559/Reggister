@@ -40,6 +40,7 @@ public sealed class ProjectionCalendarModuleProvider : ICalendarModuleProvider
                 Summary = x.Summary,
                 Severity = x.Severity,
                 RequiresAction = x.RequiresAction,
+                InteractionType = x.RequiresAction && x.ActionId != null ? "CONFIRMATION" : x.DetailRoute != null ? "DETAIL" : "INFO",
                 ActionId = x.ActionId,
                 DetailRoute = x.DetailRoute,
                 SourceId = x.SourceId
