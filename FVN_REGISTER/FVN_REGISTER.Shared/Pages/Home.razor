@@ -1,6 +1,7 @@
 @page "/"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Responses
+@using FVN_REGISTER.Core.Constants
 @using FVN_REGISTER.Shared.Components
 @using FVN_REGISTER.Shared.Services.Dashboards
 @using FVN_REGISTER.Shared.Services.Users
@@ -100,14 +101,37 @@ else if (_model != null)
             <MudText Typo="Typo.caption" Class="mud-text-secondary">Cập nhật @_loadedAt?.ToString("dd/MM/yyyy HH:mm")</MudText>
         </MudStack>
 
-        <MudPaper Outlined="true" Class="pa-4 mb-4" Style="border-radius:18px">
-            <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                <div><MudText Typo="Typo.h6">Thiết bị</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">Schema theo phòng ban và Excel import nằm trong cùng workspace.</MudText></div>
-                <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Devices" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">Mở Equipment</MudButton>
-            </MudStack>
-        </MudPaper>
+        @if (CurrentUserService.User?.IsAdmin == true ||
+             CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.EquipmentView) == true)
+        {
+            <MudPaper Outlined="true" Class="pa-4 mb-4" Style="border-radius:18px">
+                <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                    <div>
+                        <MudText Typo="Typo.h6">Thiết bị</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                            Sổ thiết bị, QR, repair và workspace Excel theo schema phòng ban.
+                        </MudText>
+                    </div>
+                    @if (CurrentUserService.User?.IsAdmin == true ||
+                         CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.EquipmentImport) == true)
+                    {
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile"
+                                   OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">
+                            Import Excel
+                        </MudButton>
+                    }
+                    else
+                    {
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Devices"
+                                   OnClick="@(() => Navigation.NavigateTo("/equipment"))>
+                            Mở Equipment
+                        </MudButton>
+                    }
+                </MudStack>
+            </MudPaper>
 
-        <EquipmentDashboardTile />
+            <EquipmentDashboardTile />
+        }
         <DashboardOverview Data="_model" />
     </MudContainer>
 }
