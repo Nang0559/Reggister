@@ -62,8 +62,8 @@
 
         _equipmentFunctionId = result.Data.FirstOrDefault(x => x.FunctionCode == 2301)?.IdFunction;
         _equipmentImportFunctionId = result.Data.FirstOrDefault(x => x.FunctionCode == 2306)?.IdFunction;
-        _equipmentAccess = _equipmentFunctionId.HasValue && Request.FunctionIds.Contains(_equipmentFunctionId.Value);
-        _equipmentImportAccess = _equipmentImportFunctionId.HasValue && Request.FunctionIds.Contains(_equipmentImportFunctionId.Value);
+        _equipmentAccess = _equipmentFunctionId.HasValue && Request.FunctionIds?.Contains(_equipmentFunctionId.Value) == true;
+        _equipmentImportAccess = _equipmentImportFunctionId.HasValue && Request.FunctionIds?.Contains(_equipmentImportFunctionId.Value) == true;
     }
 
     private void Submit()
