@@ -297,7 +297,9 @@ public sealed class PublicFormService : IPublicFormService
         var q = _uow.Repository<F03PublicFormSubmission>().Query()
             .Where(x => x.FormId == formId && !x.IsCancelled);
 
-        if (!string.Equals(scopeCode, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase))
+        var isAll = string.Equals(scopeCode, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase);
+        var isDepartment = string.Equals(scopeCode, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase);
+        if (!isAll && !(isDepartment && !string.IsNullOrWhiteSpace(query.DepartmentCode)))
             return q.Where(_ => false);
 
         if (!string.IsNullOrWhiteSpace(query.Status)) q = q.Where(x => x.Status == query.Status);
