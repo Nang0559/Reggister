@@ -13,7 +13,7 @@
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <div>
         <MudText Typo="Typo.h5"><b>Public</b></MudText>
-        <MudText Typo="body2" Color="Color.Secondary">Thông báo · Tin tức · Nội dung HR · Thông tin công ty · Nội dung được công khai</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">Thông báo · Tin tức · Nội dung HR · Thông tin công ty · Nội dung được công khai</MudText>
     </div>
     <MudSpacer />
     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="New">Tạo nội dung</MudButton>
@@ -50,7 +50,7 @@ else
         <HeaderContent><MudTh>Loại</MudTh><MudTh>Tiêu đề</MudTh><MudTh>Trạng thái</MudTh><MudTh>Hiệu lực</MudTh><MudTh /></HeaderContent>
         <RowTemplate>
             <MudTd>@TypeName(context.Type)</MudTd>
-            <MudTd><b>@context.Title</b><MudText Typo="body2">@context.Summary</MudText></MudTd>
+            <MudTd><b>@context.Title</b><MudText Typo="Typo.body2">@context.Summary</MudText></MudTd>
             <MudTd><MudChip T="string" Size="Size.Small">@context.Status</MudChip></MudTd>
             <MudTd>@context.PublishedAt?.ToString("dd/MM/yyyy HH:mm")</MudTd>
             <MudTd>
