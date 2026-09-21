@@ -71,6 +71,88 @@ public sealed class PublicFormsController : BaseApiController
     [HttpPost("{id:int}/close")]
     public async Task<IActionResult> Close(int id,CancellationToken ct){if(UserInfo==null)return Unauthorized();if(!await CanManageAsync(ct))return Forbid();var r=await _service.CloseAsync(id,UserInfo.UserId,ct);if(r.IsSuccess)await LogActionAsync($"Đóng biểu mẫu {id}");return HandleResult(r);}
 
+
+    [HttpGet("submissions/forms")]
+    public async Task<IActionResult> SubmissionForms(CancellationToken ct)
+    {
+        if (UserInfo == null) return Unauthorized();
+        if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.PublicFormSubmissionView, ct))
+            return Forbid();
+
+        return HandleResult(ServiceResult<List<Contract.Dtos.PublicForms.PublicFormDto>>.Ok(
+            await _service.GetSubmissionFormsAsync(ct)));
+    }
+
+    [HttpGet("{id:int}/submissions")]
+    public async Task<IActionResult> Submissions(
+        int id,
+        [FromQuery] Contract.Dtos.PublicForms.PublicFormSubmissionQueryDto query,
+        CancellationToken ct)
+    {
+        if (UserInfo == null) return Unauthorized();
+        if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.PublicFormSubmissionView, ct))
+            return Forbid();
+
+        var scope = await _authorization.GetScopeAsync(
+            UserInfo.UserId,
+            SecurityFunctionCodes.PublicFormSubmissionView,
+            ct);
+
+        if (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
+            query.DepartmentCode = UserInfo.DeptCode;
+
+        return HandleResult(await _service.GetSubmissionsAsync(id, query, scope, ct));
+    }
+
+    [HttpGet("{id:int}/submissions/summary")]
+    public async Task<IActionResult> SubmissionSummary(
+        int id,
+        [FromQuery] Contract.Dtos.PublicForms.PublicFormSubmissionQueryDto query,
+        CancellationToken ct)
+    {
+        if (UserInfo == null) return Unauthorized();
+        if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.PublicFormSubmissionView, ct))
+            return Forbid();
+
+        var scope = await _authorization.GetScopeAsync(
+            UserInfo.UserId,
+            SecurityFunctionCodes.PublicFormSubmissionView,
+            ct);
+
+        if (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
+            query.DepartmentCode = UserInfo.DeptCode;
+
+        return HandleResult(await _service.GetSubmissionSummaryAsync(id, query, scope, ct));
+    }
+
+    [HttpGet("{id:int}/submissions/export")]
+    public async Task<IActionResult> ExportSubmissions(
+        int id,
+        [FromQuery] Contract.Dtos.PublicForms.PublicFormSubmissionQueryDto query,
+        CancellationToken ct)
+    {
+        if (UserInfo == null) return Unauthorized();
+        if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.PublicFormExport, ct))
+            return Forbid();
+
+        var scope = await _authorization.GetScopeAsync(
+            UserInfo.UserId,
+            SecurityFunctionCodes.PublicFormExport,
+            ct);
+
+        if (string.Equals(scope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
+            query.DepartmentCode = UserInfo.DeptCode;
+
+        var result = await _service.ExportSubmissionsAsync(id, query, scope, ct);
+        if (!result.IsSuccess || result.Data == null)
+            return HandleResult(result);
+
+        var fileName = $"PublicForm_{id}_Submissions_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx";
+        return File(result.Data,
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            fileName);
+    }
+
     private async Task<bool> CanManageAsync(CancellationToken ct)
     {
         return UserInfo != null && await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.PublicFormManage, ct);
