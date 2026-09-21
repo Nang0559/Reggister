@@ -112,6 +112,7 @@ HOW TO RUN:
 :r "$(RepoRoot)\32_ExecutionReviewSecurity.sql"
 :r "$(RepoRoot)\32_PasswordResetRequests.sql"
 :r "$(RepoRoot)\33_DocumentationConsistency.sql"
+:r "$(RepoRoot)\37_PublicRegistrationForms.sql"
 
 /* ---------------------------------------------------------------------------
    Final cross-foundation verification
@@ -119,7 +120,7 @@ HOW TO RUN:
 :r "$(RepoRoot)\99_Verify.sql"
 
 PRINT N'============================================================';
-PRINT N'FVN_REGISTER SQL deployment 01..36 + Database modules + 99 verification completed.';
+PRINT N'FVN_REGISTER SQL deployment 01..36 + Database modules + 99 verification completed (including Public Registration Forms).';
 PRINT N'============================================================';
 GO
 
