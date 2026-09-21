@@ -118,7 +118,7 @@ HOW TO RUN:
 :r "$(RepoRoot)\99_Verify.sql"
 
 PRINT N'============================================================';
-PRINT N'FVN_REGISTER SQL deployment 01..35 + Database modules + 99 verification completed.';
+PRINT N'FVN_REGISTER SQL deployment 01..36 + Database modules + 99 verification completed.';
 PRINT N'============================================================';
 GO
 
