@@ -65,6 +65,7 @@ namespace FVN_REGISTER.API.Controllers
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] EmployeeUpsertDto model, CancellationToken ct)
         {
+            if (!await CanAsync(SecurityFunctionCodes.EmployeeManage, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized();
             model.Id = id;
             var result = await _service.UpdateAsync(model, UserInfo.UserId, ct);
@@ -75,6 +76,7 @@ namespace FVN_REGISTER.API.Controllers
         [HttpPatch("{id:int}/toggle")]
         public async Task<IActionResult> Toggle(int id, CancellationToken ct)
         {
+            if (!await CanAsync(SecurityFunctionCodes.EmployeeManage, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized();
             return HandleResult(await _service.ToggleActiveAsync(id, UserInfo.UserId, ct));
         }
@@ -82,6 +84,7 @@ namespace FVN_REGISTER.API.Controllers
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id, CancellationToken ct)
         {
+            if (!await CanAsync(SecurityFunctionCodes.EmployeeManage, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized();
             return HandleResult(await _service.DeleteAsync(id, UserInfo.UserId, ct));
         }
