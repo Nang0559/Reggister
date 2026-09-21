@@ -3,12 +3,16 @@
 @using FVN_REGISTER.Contract.Dtos.Depts
 @using FVN_REGISTER.Shared.Services.Departments
 @using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.Security
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Core.Constants
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IDisposable
 
 @inject IDepartmentStatusClientService DeptStatusService
 @inject ICurrentUserClientService CurrentUser
+@inject ISecurityClientService SecurityService
 @inject ISnackbar Snackbar
 
 <PageTitle>Trạng thái hiện diện phòng ban</PageTitle>
@@ -20,7 +24,7 @@
 
 @if (_loading) { <MudProgressLinear Indeterminate="true" Class="mb-4" /> }
 
-@if (_isAdmin && _allDepts != null)
+@if (_canView && _allDepts != null)
 {
     <MudGrid Class="mb-4">
         <MudItem xs="6" sm="3"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Tổng nhân viên</MudText><MudText Typo="Typo.h5"><b>@_allDepts.Sum(x => x.TotalEmployees)</b></MudText></MudPaper></MudItem>
@@ -47,7 +51,7 @@
 
 @code {
     private bool _loading;
-    private bool _isAdmin;
+    private bool _canView;
     private DateTime? _datePicker = DateTime.Today;
     private DateTime _selectedDate = DateTime.Today;
     private DateTime? _loadedAt;
@@ -63,8 +67,9 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _isAdmin = CurrentUser.PermissionCode is 1 or 2;
-        await LoadAsync();
+        var permissions = await SecurityService.GetMyPermissionsAsync();
+        _canView = permissions.IsSuccess && permissions.Data?.Has(SecurityFunctionCodes.DepartmentStatusView) == true;
+        if (_canView) await LoadAsync();
     }
 
     private async Task LoadAsync()
@@ -72,17 +77,9 @@
         _loading = true; _selectedDate = _datePicker ?? DateTime.Today;
         try
         {
-            if (_isAdmin)
-            {
-                var result = await DeptStatusService.GetAllAsync(_selectedDate, _cts.Token);
-                if (result.IsSuccess) { _allDepts = result.Data; _deptDetail = null; } else Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
-            }
-            else
-            {
-                var dept = CurrentUser.User?.DeptCode;
-                if (string.IsNullOrWhiteSpace(dept)) { Snackbar.Add("Không xác định được phòng ban.", Severity.Warning); return; }
-                await LoadDeptDetailAsync(dept);
-            }
+            var result = await DeptStatusService.GetAllAsync(_selectedDate, _cts.Token);
+            if (result.IsSuccess) { _allDepts = result.Data; _deptDetail = null; }
+            else Snackbar.Add(result.Message ?? "Lỗi tải dữ liệu", Severity.Error);
             _loadedAt = DateTime.Now;
         }
         catch (Exception ex) { Logger.LogError(ex, "[DepartmentStatus] Load error"); Snackbar.Add("Lỗi tải dữ liệu.", Severity.Error); }
