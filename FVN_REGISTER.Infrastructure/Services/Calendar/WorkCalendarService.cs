@@ -203,6 +203,66 @@ public sealed class WorkCalendarService : IWorkCalendarService
         return result;
     }
 
+    public async Task<IReadOnlyList<CalendarRegistrationOpportunityDto>> GetRegistrationOpportunitiesAsync(
+        string employeeCode,
+        DateTime from,
+        DateTime to,
+        CancellationToken ct = default)
+    {
+        var calendar = await GetAsync(employeeCode, null, null, from.Date, to.Date, ct);
+        var result = new List<CalendarRegistrationOpportunityDto>();
+
+        foreach (var day in calendar.Days)
+        {
+            var date = day.Date.Date;
+            var hasLeave = calendar.Events.Any(x => x.ModuleCode == "LEAVE" && x.Start.Date <= date && x.End.Date > date);
+            var hasOt = calendar.Events.Any(x => x.ModuleCode == "OT" && x.Start.Date <= date && x.End.Date > date);
+            var hasTrip = calendar.Events.Any(x => x.ModuleCode == "TRIP" && x.Start.Date <= date && x.End.Date > date);
+
+            // Existing actionable data takes precedence over creating a new registration.
+            if (hasLeave || hasOt || hasTrip)
+                continue;
+
+            if (day.CanRegisterLeave)
+            {
+                result.Add(new CalendarRegistrationOpportunityDto
+                {
+                    WorkDate = DateOnly.FromDateTime(date),
+                    ModuleCode = "LEAVE",
+                    Title = "Đăng ký nghỉ",
+                    Route = $"/leave/create?date={date:yyyy-MM-dd}",
+                    IsEnabled = true
+                });
+            }
+
+            if (day.CanRegisterOT)
+            {
+                result.Add(new CalendarRegistrationOpportunityDto
+                {
+                    WorkDate = DateOnly.FromDateTime(date),
+                    ModuleCode = "OT",
+                    Title = "Đăng ký OT",
+                    Route = $"/ot/create?date={date:yyyy-MM-dd}",
+                    IsEnabled = true
+                });
+            }
+
+            if (day.CanRegisterTrip)
+            {
+                result.Add(new CalendarRegistrationOpportunityDto
+                {
+                    WorkDate = DateOnly.FromDateTime(date),
+                    ModuleCode = "TRIP",
+                    Title = "Đăng ký công tác",
+                    Route = $"/trip/create?date={date:yyyy-MM-dd}",
+                    IsEnabled = true
+                });
+            }
+        }
+
+        return result;
+    }
+
     public async Task<CalendarAvailabilityDto> GetAvailabilityAsync(
         string employeeCode,
         DateTime date,
