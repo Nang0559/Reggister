@@ -10,6 +10,8 @@ using FVN_REGISTER.Core.Entities.WorkCalendar;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.EntityFrameworkCore;
+using FVN_REGISTER.Application.Interfaces.HrmSync;
+using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Infrastructure.Services.Execution;
 

@@ -1,10 +1,9 @@
 using System.Text.Json;
 using FVN_REGISTER.Application.Interfaces.Execution;
 using FVN_REGISTER.Contract.Dtos.Execution;
-using FVN_REGISTER.Core.Entities.Leaves;
-using FVN_REGISTER.Core.Enums;
-using FVN_REGISTER.Infrastructure;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Infrastructure.Services.Jobs;
 
