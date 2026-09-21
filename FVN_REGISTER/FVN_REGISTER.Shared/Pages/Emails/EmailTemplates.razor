@@ -8,6 +8,8 @@
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils
 @using FVN_REGISTER.Shared.Utils.Helpers
+@using FVN_REGISTER.Shared.Services.Security
+@using FVN_REGISTER.Contract.Dtos.Security
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.JSInterop
 @inject IJSRuntime JS
@@ -16,13 +18,14 @@
 
 @inject IEmailTemplateClientService TemplateService
 @inject ICurrentUserClientService CurrentUser
+@inject ISecurityClientService SecurityService
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
 <PageTitle>Quản lý Email Template</PageTitle>
 
 @* ── Kiểm tra quyền ── *@
-@if (!CurrentUser.PermissionCode.IsAdmin())
+@if (!CanManage)
 {
     <MudAlert Severity="Severity.Error">Bạn không có quyền truy cập trang này.</MudAlert>
     return;
@@ -484,6 +487,7 @@ else
     private MudTable<EmailTemplateDto>? _table;
     private MudTabs? _editorTabs;
     private bool _isLoading   = true;
+    private bool CanManage;
     private bool _isSaving;
     private bool _showEditor;
     private bool _showPreview;
@@ -498,6 +502,9 @@ else
     // ── Lifecycle ──────────────────────────────────────────────────────
     protected override async Task OnInitializedAsync()
     {
+        var permissions = await SecurityService.GetMyPermissionsAsync();
+        CanManage = permissions.IsSuccess && permissions.Data?.Has(SecurityFunctionCodes.EmailTemplateManage) == true;
+        if (!CanManage) return;
         await LoadTemplates();
     }
 
