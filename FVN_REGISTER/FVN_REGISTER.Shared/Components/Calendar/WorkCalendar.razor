@@ -130,6 +130,22 @@
         if (!DateTime.TryParse(date, out var value))
             return;
 
+        var existing = _data.Items
+            .Where(x => x.WorkDate == DateOnly.FromDateTime(value.Date)
+                && (x.ModuleCode != "ATTENDANCE"
+                    || (x.StatusCode != "NO_ATTENDANCE" && x.StatusCode != "HOLIDAY"))
+                && x.ModuleCode != "COMPANY")
+            .OrderByDescending(x => x.RequiresAction)
+            .ThenByDescending(x => x.Severity)
+            .ThenByDescending(x => x.DetailRoute != null)
+            .FirstOrDefault();
+
+        if (existing != null && OnEventSelected.HasDelegate)
+        {
+            await OnEventSelected.InvokeAsync(existing);
+            return;
+        }
+
         if (OnDateSelected.HasDelegate)
             await OnDateSelected.InvokeAsync(value.Date);
 
