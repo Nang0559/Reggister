@@ -13,4 +13,5 @@ public sealed class F03ExecutionPolicy : BaseAuditEntity
     public byte ReviewMode { get; set; } = 1;
     public int? DueHours { get; set; }
     public byte AutoResolveMode { get; set; }
+    public byte CorrectionMode { get; set; }
 }
