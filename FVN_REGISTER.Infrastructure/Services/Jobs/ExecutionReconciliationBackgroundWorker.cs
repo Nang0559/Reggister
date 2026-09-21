@@ -471,6 +471,35 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
             ? await GetUnresolvedSourceIdsAsync(db, "ATTENDANCE", ct)
             : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
+        // OT actual-only reconciliation is owned by the OT module. We still
+        // discover its source rows from the official attendance calculation,
+        // including unresolved OT mismatches outside the normal worker window.
+        var unresolvedOt = reconciliationMode == 2
+            ? await GetUnresolvedSourceIdsAsync(db, "OT", ct)
+            : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        var unresolvedOtKeys = unresolvedOt
+            .Select(x => x.Split(':', 2))
+            .Where(x => x.Length == 2 && DateOnly.TryParseExact(x[1], "yyyyMMdd", out _))
+            .Select(x => new
+            {
+                EmployeeCode = x[0],
+                WorkDate = DateOnly.ParseExact(x[1], "yyyyMMdd")
+            })
+            .ToList();
+
+        var unresolvedOtEmployeeCodes = unresolvedOtKeys
+            .Select(x => x.EmployeeCode)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+        var unresolvedOtMinDate = unresolvedOtKeys.Count == 0
+            ? from
+            : unresolvedOtKeys.Min(x => x.WorkDate);
+        var unresolvedOtMaxDate = unresolvedOtKeys.Count == 0
+            ? to
+            : unresolvedOtKeys.Max(x => x.WorkDate);
+
         var rows = await db.Database.SqlQuery<AttendanceWorkerRow>($"""
             SELECT
                 a.WorkDate,
@@ -479,6 +508,12 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                 a.CheckOutTime,
                 a.WorkMinutesDay,
                 a.WorkMinutesNight,
+                a.OTMinutesDay,
+                a.OTMinutesNight,
+                a.OTMinutesDayTC,
+                a.OTMinutesNightTC,
+                a.OTRecognizedMinutesDay,
+                a.OTRecognizedMinutesNight,
                 a.RequiredMinutes,
                 a.LateMinutesDay,
                 a.LateMinutesNight,
@@ -490,17 +525,24 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                 a.HrmBCLyDoNghi,
                 a.HrmBCGhiChu
             FROM dbo.F03HrmAttendanceCalculated AS a
-            WHERE a.WorkDate >= {from}
-              AND a.WorkDate <= {to}
+            WHERE (a.WorkDate >= {from}
+              AND a.WorkDate <= {to})
                OR CONCAT(a.EmployeeCode, N':', CONVERT(char(8), a.WorkDate, 112)) IN (SELECT value FROM STRING_SPLIT({string.Join(",", unresolved)}, N','))
+               OR (a.EmployeeCode IN (SELECT value FROM STRING_SPLIT({string.Join(",", unresolvedOtEmployeeCodes)}, N','))
+                   AND a.WorkDate >= {unresolvedOtMinDate}
+                   AND a.WorkDate <= {unresolvedOtMaxDate})
             ORDER BY a.WorkDate, a.EmployeeCode
             """).ToListAsync(ct);
 
         var approvedOt = await db.OvertimeEmployees.AsNoTracking()
             .Where(x => x.OTRequest.RequestStatus == ApprovalStatus.Approved
                 && x.OTRequest.IsActive != false
-                && x.OTRequest.OTDate >= from.ToDateTime(TimeOnly.MinValue)
-                && x.OTRequest.OTDate <= to.ToDateTime(TimeOnly.MaxValue))
+                && (
+                    (x.OTRequest.OTDate >= from.ToDateTime(TimeOnly.MinValue)
+                        && x.OTRequest.OTDate <= to.ToDateTime(TimeOnly.MaxValue))
+                    || (unresolvedOtEmployeeCodes.Contains(x.EmployeeCode)
+                        && x.OTRequest.OTDate >= unresolvedOtMinDate.ToDateTime(TimeOnly.MinValue)
+                        && x.OTRequest.OTDate <= unresolvedOtMaxDate.ToDateTime(TimeOnly.MaxValue))))
             .Select(x => new { x.EmployeeCode, x.OTRequest.OTDate })
             .ToListAsync(ct);
 
@@ -523,6 +565,14 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
             try
             {
                 var employeeId = await ResolveEmployeeIdAsync(db, row.EmployeeCode, ct);
+                var actualOtMinutes = Math.Max(0, row.OTMinutesDay)
+                    + Math.Max(0, row.OTMinutesNight)
+                    + Math.Max(0, row.OTMinutesDayTC)
+                    + Math.Max(0, row.OTMinutesNightTC);
+                var recognizedOtMinutes = Math.Max(0, row.OTRecognizedMinutesDay)
+                    + Math.Max(0, row.OTRecognizedMinutesNight);
+                var hasActualOt = actualOtMinutes > 0 || recognizedOtMinutes > 0;
+
                 var hasActual = row.CheckInTime.HasValue
                     || row.CheckOutTime.HasValue
                     || row.WorkMinutesDay + row.WorkMinutesNight > 0;
@@ -534,7 +584,12 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                 var missingPunch = hasShiftPlan && (!row.CheckInTime.HasValue || !row.CheckOutTime.HasValue);
                 var exception = row.LateMinutesDay + row.LateMinutesNight > 0
                     || row.EarlyLeaveMinutesDay + row.EarlyLeaveMinutesNight > 0;
-                var actualWithoutPlan = hasActual && !hasPlannedWork && !isLeave;
+                // Regular attendance mismatch and OT registration mismatch are
+                // separate business signals. A day with actual OT but no OT
+                // request must not be swallowed by the fact that the employee
+                // also has a normal shift plan.
+                var actualWithoutPlan = hasActual && !hasPlannedWork && !isLeave && !hasActualOt;
+                var otWithoutRequest = hasActualOt && !hasApprovedOt && !isLeave && !isHoliday;
                 var pastExpectedWithoutActual = !hasActual && hasPlannedWork && workDate < today && !isLeave;
 
                 var mismatch = actualWithoutPlan || missingPunch || exception || pastExpectedWithoutActual;
@@ -546,6 +601,87 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                         ? "SHIFT"
                         : hasApprovedOt ? "OT" : "NONE";
                 var actualState = hasActual ? "PRESENT" : "ABSENT";
+
+                if (otWithoutRequest)
+                {
+                    // OT is projected under ModuleCode=OT so the existing OT
+                    // calendar provider can render it. SourceType distinguishes
+                    // this synthetic actual-only reconciliation from a real OT
+                    // request and keeps it idempotent.
+                    await service.UpsertAsync(
+                        row.EmployeeCode,
+                        new ExecutionReconciliationUpsertRequest(
+                            "OT",
+                            "OT_ACTUAL_ONLY",
+                            sourceId,
+                            row.EmployeeCode,
+                            employeeId,
+                            workDate,
+                            "NONE",
+                            $"ActualOTMinutes={actualOtMinutes};RecognizedOTMinutes={recognizedOtMinutes}",
+                            "Mismatch",
+                            true,
+                            true,
+                            JsonSerializer.Serialize(new
+                            {
+                                row.EmployeeCode,
+                                WorkDate = workDate,
+                                ActualOTMinutes = actualOtMinutes,
+                                RecognizedOTMinutes = recognizedOtMinutes,
+                                row.OTMinutesDay,
+                                row.OTMinutesNight,
+                                row.OTMinutesDayTC,
+                                row.OTMinutesNightTC,
+                                row.OTRecognizedMinutesDay,
+                                row.OTRecognizedMinutesNight,
+                                HasApprovedOt = false
+                            })),
+                        ct,
+                        actorUserId: 0);
+                }
+                else if (hasActualOt && hasApprovedOt)
+                {
+                    // If a registration was subsequently created, retire the
+                    // previous "actual without request" reconciliation so the
+                    // red ? does not remain after the plan exists.
+                    var actualOnly = await db.ExecutionReconciliations.FirstOrDefaultAsync(x =>
+                        x.IsActive != false
+                        && x.ModuleCode == "OT"
+                        && x.SourceType == "OT_ACTUAL_ONLY"
+                        && x.SourceId == sourceId
+                        && x.EmployeeId == employeeId
+                        && x.WorkDate == workDate
+                        && x.ReconciliationStatus != "Resolved", ct);
+
+                    if (actualOnly is not null)
+                    {
+                        await service.UpsertAsync(
+                            row.EmployeeCode,
+                            new ExecutionReconciliationUpsertRequest(
+                                "OT",
+                                "OT_ACTUAL_ONLY",
+                                sourceId,
+                                row.EmployeeCode,
+                                employeeId,
+                                workDate,
+                                "SHIFT/OT",
+                                $"ActualOTMinutes={actualOtMinutes};RecognizedOTMinutes={recognizedOtMinutes}",
+                                "Resolved",
+                                false,
+                                false,
+                                JsonSerializer.Serialize(new
+                                {
+                                    row.EmployeeCode,
+                                    WorkDate = workDate,
+                                    ActualOTMinutes = actualOtMinutes,
+                                    RecognizedOTMinutes = recognizedOtMinutes,
+                                    HasApprovedOt = true,
+                                    AutoResolvedReason = "OT_REQUEST_EXISTS"
+                                })),
+                            ct,
+                            actorUserId: 0);
+                    }
+                }
 
                 await service.UpsertAsync(
                     row.EmployeeCode,
@@ -573,6 +709,12 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                                 row.CheckOutTime,
                                 row.WorkMinutesDay,
                                 row.WorkMinutesNight,
+                                row.OTMinutesDay,
+                                row.OTMinutesNight,
+                                row.OTMinutesDayTC,
+                                row.OTMinutesNightTC,
+                                row.OTRecognizedMinutesDay,
+                                row.OTRecognizedMinutesNight,
                                 row.LateMinutesDay,
                                 row.LateMinutesNight,
                                 row.EarlyLeaveMinutesDay,
@@ -609,6 +751,12 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
         public DateTime? CheckOutTime { get; set; }
         public int WorkMinutesDay { get; set; }
         public int WorkMinutesNight { get; set; }
+        public int OTMinutesDay { get; set; }
+        public int OTMinutesNight { get; set; }
+        public int OTMinutesDayTC { get; set; }
+        public int OTMinutesNightTC { get; set; }
+        public int OTRecognizedMinutesDay { get; set; }
+        public int OTRecognizedMinutesNight { get; set; }
         public int RequiredMinutes { get; set; }
         public int LateMinutesDay { get; set; }
         public int LateMinutesNight { get; set; }
