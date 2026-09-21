@@ -32,7 +32,7 @@ GO
 CREATE OR ALTER PROCEDURE dbo.usp_ReconcileEmployeeUsers
     @EmployeeCode nvarchar(50)=NULL,
     @CreatedBy int=0,
-    @DefaultPasswordHash nvarchar(255)=N'f925916e2754e5e03f75dd58a5733251'
+    @DefaultPasswordHash nvarchar(255)=N'6ed2b24e5c570014cc5de09121c111ca' -- MD5("FVN@123")
 AS
 BEGIN
     SET NOCOUNT ON;
