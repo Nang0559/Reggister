@@ -6,7 +6,7 @@ namespace FVN_REGISTER.Core.Entities.WorkCalendar;
 [Table("F03ExecutionCorrections")]
 public sealed class F03ExecutionCorrection : BaseAuditEntity
 {
-    public long Id { get; set; }
+    public new long Id { get; set; }
     public long ReconciliationId { get; set; }
     public long ResolutionId { get; set; }
 
@@ -33,6 +33,4 @@ public sealed class F03ExecutionCorrection : BaseAuditEntity
 
     [StringLength(2000)]
     public string? Reason { get; set; }
-
-    public DateTime CreatedAt { get; set; }
 }
