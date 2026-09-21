@@ -14,6 +14,7 @@ using FVN_REGISTER.Core.Entities.Security;
 using FVN_REGISTER.Core.Entities.Trips;
 using FVN_REGISTER.Core.Entities.Views;
 using FVN_REGISTER.Core.Entities.WorkCalendar;
+using FVN_REGISTER.Core.Entities.PublicForms;
 using Microsoft.EntityFrameworkCore;
 
 public class FVNWEBAPPContext : DbContext
@@ -42,7 +43,13 @@ public class FVNWEBAPPContext : DbContext
     public DbSet<F03PayrollCalculationPeriod> PayrollCalculationPeriods { get; set; }
     public DbSet<F03PayrollInput> PayrollInputs { get; set; }
     public DbSet<F03ActionPolicy> ActionPolicies { get; set; } public DbSet<F03AuditLog> AuditLogs { get; set; } public DbSet<F03Attachment> Attachments { get; set; } public DbSet<F03EmailQueue> EmailQueues { get; set; } public DbSet<F03EmailLog> EmailLogs { get; set; } public DbSet<F03EmailTemplate> EmailTemplates { get; set; } public DbSet<F03EmailProfile> EmailProfiles { get; set; }
-    public DbSet<F03PublicInformation> PublicInformations { get; set; } public DbSet<F03HrmUserRoleRule> HrmUserRoleRules { get; set; } public DbSet<F03BusinessRule> BusinessRules { get; set; } public DbSet<F03CompanyHoliday> CompanyHolidays { get; set; } public DbSet<F03WorkYear> WorkYears { get; set; } public DbSet<F03EscalationLog> EscalationLogs { get; set; } public DbSet<F03EscalationRule> EscalationRules { get; set; } public DbSet<F03UserLog> UserLogs { get; set; }
+    public DbSet<F03PublicInformation> PublicInformations { get; set; }
+    public DbSet<F03PublicForm> PublicForms { get; set; }
+    public DbSet<F03PublicFormQuestion> PublicFormQuestions { get; set; }
+    public DbSet<F03PublicFormQuestionOption> PublicFormQuestionOptions { get; set; }
+    public DbSet<F03PublicFormAudience> PublicFormAudiences { get; set; }
+    public DbSet<F03PublicFormSubmission> PublicFormSubmissions { get; set; }
+    public DbSet<F03PublicFormAnswer> PublicFormAnswers { get; set; } public DbSet<F03HrmUserRoleRule> HrmUserRoleRules { get; set; } public DbSet<F03BusinessRule> BusinessRules { get; set; } public DbSet<F03CompanyHoliday> CompanyHolidays { get; set; } public DbSet<F03WorkYear> WorkYears { get; set; } public DbSet<F03EscalationLog> EscalationLogs { get; set; } public DbSet<F03EscalationRule> EscalationRules { get; set; } public DbSet<F03UserLog> UserLogs { get; set; }
     public DbSet<VF03EmployeeApprover> VEmployeeApprovers { get; set; } public DbSet<VF03employee> VF03Employees { get; set; } public DbSet<vF03EmployeeAttendance> VF03EmployeeAttendances { get; set; } public DbSet<VF03LeaveRequest> VF03LeaveRequests { get; set; } public DbSet<VF03LeaveRequestDetail> VF03LeaveRequestDetails { get; set; } public DbSet<VF03leaveType> VF03LeaveTypes { get; set; } public DbSet<VF03OTRequest> VF03OTRequests { get; set; } public DbSet<VF03OTRequestDetail> VF03OTRequestDetails { get; set; } public DbSet<VF03OTSummary> VF03OTSummaries { get; set; } public DbSet<VF03LeaveBalance> VF03LeaveBalances { get; set; } public DbSet<VF03user> VF03Users { get; set; } public DbSet<VwCurrentlyPresentEmployee> VwCurrentlyPresentEmployees { get; set; } public DbSet<VwShiftCheckInOut> VwShiftCheckInOuts { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -74,6 +81,41 @@ public class FVNWEBAPPContext : DbContext
             entity.Property(x => x.ScopeType)
                 .HasConversion<int>()
                 .HasDefaultValue(FVN_REGISTER.Core.Enums.OTLimitScopeType.Employee);
+        });
+
+        modelBuilder.Entity<F03PublicForm>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.FormCode).IsUnique();
+            entity.HasMany(x => x.Questions).WithOne().HasForeignKey(x => x.FormId).OnDelete(DeleteBehavior.Cascade);
+            entity.HasMany(x => x.Audiences).WithOne().HasForeignKey(x => x.FormId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<F03PublicFormQuestion>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.FormId, x.QuestionCode }).IsUnique();
+            entity.HasMany(x => x.Options).WithOne().HasForeignKey(x => x.QuestionId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<F03PublicFormQuestionOption>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.QuestionId, x.OptionCode }).IsUnique();
+        });
+        modelBuilder.Entity<F03PublicFormAudience>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.FormId, x.ScopeType, x.ScopeValue });
+        });
+        modelBuilder.Entity<F03PublicFormSubmission>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.FormId, x.EmployeeCode, x.Status });
+            entity.HasMany(x => x.Answers).WithOne().HasForeignKey(x => x.SubmissionId).OnDelete(DeleteBehavior.Cascade);
+        });
+        modelBuilder.Entity<F03PublicFormAnswer>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => new { x.SubmissionId, x.QuestionId }).IsUnique();
         });
 
         modelBuilder.Entity<F03Position>(entity =>
