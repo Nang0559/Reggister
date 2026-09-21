@@ -76,4 +76,6 @@ public static class SecurityFunctionCodes
     public const int OTLimitManage = 3061;
     public const int ApprovalPolicyManage = 3071;
     public const int HrmUserRoleRuleManage = 3072;
+    public const int EmailQueueManage = 3081;
+    public const int EmailTemplateManage = 3082;
 }
