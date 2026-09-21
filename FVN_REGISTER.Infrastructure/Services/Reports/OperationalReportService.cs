@@ -91,7 +91,6 @@ public sealed class OperationalReportService : BaseReportService<OperationalRepo
     {
         var x=_uow.Repository<F03EquipmentAsset>().Query().AsNoTracking().Where(x=>x.IsActive == true);
         if(!string.IsNullOrWhiteSpace(q.DeptCode))x=x.Where(a=>a.DeptCode==q.DeptCode);
-        if(!string.IsNullOrWhiteSpace(q.EmployeeCode))x=x.Where(a=>a.EmployeeCode==q.EmployeeCode);
         return x;
     }
 
