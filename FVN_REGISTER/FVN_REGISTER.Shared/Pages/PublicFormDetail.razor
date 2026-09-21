@@ -1,0 +1,84 @@
+@page "/public-forms/{Id:int}"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.PublicForms
+@using FVN_REGISTER.Contract.Requests.PublicForms
+@using FVN_REGISTER.Shared.Handlers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IHttpClientWithAuth Http
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>Đăng ký biểu mẫu</PageTitle>
+
+@if(_loading){<MudProgressLinear Indeterminate="true" />}
+else if(_form==null){<MudAlert Severity="Severity.Error">Không tìm thấy biểu mẫu.</MudAlert>}
+else
+{
+ <MudStack Spacing="2">
+  <MudText Typo="h5"><b>@_form.Title</b></MudText>
+  <MudText Color="Color.Secondary">@_form.Description</MudText>
+  @foreach(var q in _form.Questions.OrderBy(x=>x.Sequence))
+  {
+   <MudPaper Class="pa-4" Elevation="1">
+    <MudText Typo="h6">@q.QuestionText @(q.IsRequired ? "*" : "")</MudText>
+    @if(!string.IsNullOrWhiteSpace(q.HelpText)){<MudText Typo="caption" Color="Color.Secondary">@q.HelpText</MudText>}
+    @if(q.QuestionType=="SingleChoice")
+    {
+      <MudSelect T="string" Value="@Value(q.Id)" ValueChanged="@(v=>Set(q.Id,v))" Label="Chọn" Variant="Variant.Outlined">
+       @foreach(var o in q.Options.Where(x=>x.Id>0)){<MudSelectItem Value="@o.OptionCode">@o.OptionText</MudSelectItem>}
+      </MudSelect>
+    }
+    else if(q.QuestionType=="YesNo")
+    {
+      <MudSwitch T="bool?" Value="@BoolValue(q.Id)" ValueChanged="@(v=>Set(q.Id,v==true?"true":"false"))">Có</MudSwitch>
+    }
+    else if(q.QuestionType=="Number")
+    {
+      <MudNumericField T="decimal?" Value="@DecimalValue(q.Id)" ValueChanged="@(v=>Set(q.Id,v?.ToString(System.Globalization.CultureInfo.InvariantCulture)))" Label="Nhập số" Variant="Variant.Outlined" />
+    }
+    else if(q.QuestionType=="Date")
+    {
+      <MudDatePicker Date="@DateValue(q.Id)" DateChanged="@(v=>Set(q.Id,v?.ToString("yyyy-MM-dd")))" Label="Ngày" Variant="Variant.Outlined" />
+    }
+    else
+    {
+      <MudTextField Value="@Value(q.Id)" ValueChanged="@(v=>Set(q.Id,v))" Lines="@(q.QuestionType=="Textarea"?3:1)" Label="Trả lời" Variant="Variant.Outlined" />
+    }
+   </MudPaper>
+  }
+  <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" OnClick="SubmitAsync" Disabled="_saving">GỬI ĐĂNG KÝ</MudButton>
+ </MudStack>
+}
+@code{
+ [Parameter] public int Id {get;set;}
+ private PublicFormDto? _form; private bool _loading=true,_saving; private readonly Dictionary<int,string> _answers=new();
+ protected override async Task OnParametersSetAsync(){var r=await Http.GetAsync<PublicFormDto>($"api/public-forms/{Id}");if(r.IsSuccess)_form=r.Data;else Snackbar.Add(r.Message??"Không tải được biểu mẫu.",Severity.Error);_loading=false;}
+ private string Value(int id)=>_answers.TryGetValue(id,out var v)?v:string.Empty;
+ private void Set(int id,string? value)=>_answers[id]=value??string.Empty;
+ private decimal? DecimalValue(int id)=>decimal.TryParse(Value(id),System.Globalization.NumberStyles.Any,System.Globalization.CultureInfo.InvariantCulture,out var v)?v:null;
+ private bool? BoolValue(int id)=>Value(id)=="true"?true:Value(id)=="false"?false:null;
+ private DateTime? DateValue(int id)=>DateTime.TryParse(Value(id),out var v)?v:null;
+ private async Task SubmitAsync()
+ {
+  if(_form==null)return;
+  foreach(var q in _form.Questions.Where(x=>x.IsRequired&&string.IsNullOrWhiteSpace(Value(x.Id)))){Snackbar.Add($"Vui lòng trả lời: {q.QuestionText}",Severity.Warning);return;}
+  var answers=new List<PublicFormAnswerRequest>();
+  foreach(var q in _form.Questions)
+  {
+   var v=Value(q.Id); if(string.IsNullOrWhiteSpace(v))continue;
+   var a=new PublicFormAnswerRequest{QuestionId=q.Id};
+   if(q.QuestionType=="Number"&&decimal.TryParse(v,System.Globalization.NumberStyles.Any,System.Globalization.CultureInfo.InvariantCulture,out var n))a.NumberValue=n;
+   else if(q.QuestionType=="Date"&&DateTime.TryParse(v,out var d))a.DateValue=d;
+   else if(q.QuestionType=="YesNo"&&bool.TryParse(v,out var b))a.BoolValue=b;
+   else if(q.QuestionType=="SingleChoice"||q.QuestionType=="MultiChoice")a.JsonValue=v;
+   else a.TextValue=v;
+   answers.Add(a);
+  }
+  _saving=true;
+  var r=await Http.PostAsync<int>($"api/public-forms/{Id}/submit",answers);
+  _saving=false;
+  if(r.IsSuccess){Snackbar.Add("Đã gửi đăng ký.",Severity.Success);Navigation.NavigateTo("/public-forms");}
+  else Snackbar.Add(r.Message??"Gửi đăng ký thất bại.",Severity.Error);
+ }
+}
