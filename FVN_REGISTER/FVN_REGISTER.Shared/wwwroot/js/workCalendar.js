@@ -39,10 +39,21 @@ window.workCalendar = (function () {
             eventContent: function (arg) {
                 const module = arg.event.extendedProps?.moduleCode || '';
                 const status = arg.event.extendedProps?.status || '';
+                const severity = Number(arg.event.extendedProps?.severity || 0);
+                const requiresAction = !!arg.event.extendedProps?.requiresAction;
                 const title = arg.event.title || '';
                 const wrapper = document.createElement('div');
                 wrapper.className = 'fc-event-custom';
                 wrapper.title = module + ' · ' + status;
+                if (severity >= 2) {
+                    wrapper.style.fontWeight = '700';
+                    wrapper.style.borderLeft = severity >= 3 ? '4px solid var(--mud-palette-error)' : '4px solid var(--mud-palette-warning)';
+                    wrapper.style.paddingLeft = '4px';
+                    wrapper.style.color = severity >= 3 ? 'var(--mud-palette-error)' : 'var(--mud-palette-warning)';
+                }
+                if (requiresAction)
+                    wrapper.style.cursor = 'pointer';
+
                 const label = document.createElement('span');
                 label.className = 'fc-event-label';
                 label.textContent = title;
