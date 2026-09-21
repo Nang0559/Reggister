@@ -199,6 +199,13 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             hrResolution);
     }
 
+    private static Expression<Func<F03ExecutionReconciliation, ExecutionReconciliationDto>> ToDto() =>
+        x => new ExecutionReconciliationDto(
+            x.Id, x.ModuleCode, x.SourceType, x.SourceId, x.ParticipantId,
+            x.EmployeeId, x.WorkDate, x.PlannedState, x.ActualState,
+            x.ReconciliationStatus, x.RequiresConfirmation, x.RequiresEvidence,
+            x.ConfirmationId, x.ActionId);
+
     public async Task<ExecutionEvidenceDto> ReviewEvidenceAsync(
         int userId,
         string employeeCode,
