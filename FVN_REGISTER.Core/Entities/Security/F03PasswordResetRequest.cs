@@ -1,3 +1,4 @@
+using FVN_REGISTER.Core.Entities.Common;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
