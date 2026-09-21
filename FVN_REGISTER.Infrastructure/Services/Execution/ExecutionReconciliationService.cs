@@ -11,6 +11,7 @@ using FVN_REGISTER.Contract.Dtos.Execution;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.WorkCalendar;
+using FVN_REGISTER.Core.Entities.Common;
 using FVN_REGISTER.Core.Enums;
 using Microsoft.EntityFrameworkCore;
 
@@ -25,13 +26,15 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
     private readonly INotificationService _notificationService;
     private readonly IAuthorizationService _authorization;
     private readonly ILogger<ExecutionReconciliationService> _logger;
+    private readonly IHostEnvironment _hostEnvironment;
 
     public ExecutionReconciliationService(
         FVNWEBAPPContext db,
         IActionItemWriter actionWriter,
         INotificationService notificationService,
         IAuthorizationService authorization,
-        ILogger<ExecutionReconciliationService> logger)
+        ILogger<ExecutionReconciliationService> logger,
+        IHostEnvironment hostEnvironment)
     {
         _db = db;
         _actionWriter = actionWriter;
@@ -464,6 +467,98 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         }
 
         return ToEvidenceDto(evidence);
+    }
+
+    public async Task<int> UploadEvidenceFileAsync(
+        string employeeCode,
+        int userId,
+        long confirmationId,
+        string fileName,
+        string? contentType,
+        long length,
+        Stream content,
+        CancellationToken cancellationToken = default)
+    {
+        const long maxBytes = 10 * 1024 * 1024;
+
+        if (length <= 0 || length > maxBytes)
+            throw new ArgumentException("File evidence phải lớn hơn 0 và không vượt quá 10 MB.");
+
+        var extension = Path.GetExtension(fileName)?.ToLowerInvariant();
+        var allowedExtensions = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx", ".xls", ".xlsx"
+        };
+
+        if (string.IsNullOrWhiteSpace(extension) || !allowedExtensions.Contains(extension))
+            throw new ArgumentException("Định dạng file evidence không được hỗ trợ.");
+
+        if (string.IsNullOrWhiteSpace(fileName))
+            throw new ArgumentException("Tên file evidence không hợp lệ.");
+
+        var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
+        var confirmation = await _db.ExecutionConfirmations
+            .FirstOrDefaultAsync(x =>
+                x.Id == confirmationId
+                && x.IsActive != false
+                && x.EmployeeId == employeeId,
+                cancellationToken)
+            ?? throw new KeyNotFoundException("Không tìm thấy confirmation.");
+
+        if (string.Equals(confirmation.Status, "Approved", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(confirmation.Status, "Rejected", StringComparison.OrdinalIgnoreCase))
+            throw new InvalidOperationException("Confirmation đã được review, không thể upload evidence.");
+
+        if (content is null)
+            throw new ArgumentNullException(nameof(content));
+
+        var root = Path.Combine(_hostEnvironment.ContentRootPath, "uploads", "execution-evidence");
+        var folder = Path.Combine(root, DateTime.Now.ToString("yyyy"), DateTime.Now.ToString("MM"));
+        Directory.CreateDirectory(folder);
+
+        var storedName = $"{Guid.NewGuid():N}{extension}";
+        var storedPath = Path.Combine(folder, storedName);
+
+        await using (var output = new FileStream(
+            storedPath,
+            FileMode.CreateNew,
+            FileAccess.Write,
+            FileShare.None,
+            64 * 1024,
+            FileOptions.Asynchronous | FileOptions.SequentialScan))
+        {
+            await content.CopyToAsync(output, cancellationToken);
+        }
+
+        try
+        {
+            var module = ExecutionNotificationModuleMapper.ToRequestModule(confirmation.ModuleCode);
+
+            var attachment = new F03Attachment
+            {
+                Module = module,
+                RequestId = checked((int)confirmationId),
+                FileName = Path.GetFileName(fileName),
+                FilePath = Path.GetRelativePath(_hostEnvironment.ContentRootPath, storedPath),
+                FileExtension = extension,
+                FileSize = length,
+                CreatedBy = userId,
+                CreatedAt = DateTime.Now,
+                ModifiedBy = userId,
+                ModifiedAt = DateTime.Now,
+                IsActive = true,
+                LastModifiedSource = "EXECUTION_EVIDENCE_UPLOAD"
+            };
+
+            _db.Attachments.Add(attachment);
+            await _db.SaveChangesAsync(cancellationToken);
+            return attachment.Id;
+        }
+        catch
+        {
+            try { File.Delete(storedPath); } catch { /* preserve original database error */ }
+            throw;
+        }
     }
 
     private async Task NotifyActionCreatedAsync(
