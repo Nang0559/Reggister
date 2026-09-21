@@ -23,20 +23,53 @@ WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Departments x WHERE x.DeptCode=v.DeptCode)
 INSERT dbo.F03Positions(IsActive,CreatedBy,PositionCode,PositionName,IsApprove,IsAllowApprove,DefaultApproveLevel)
 SELECT 1,0,v.PositionCode,v.PositionName,v.IsApprove,v.IsAllowApprove,v.DefaultApproveLevel
 FROM (VALUES
-(N'0003',N'Employee / Worker',0,0,0),
-(N'0002',N'Sub Leader / Leader',1,1,1),
-(N'0004',N'Chief / Assistant Chief',1,1,2),
-(N'0005',N'Manager / Senior Manager',1,1,3),
-(N'0001',N'General Manager',1,1,4),
+(N'0001',N'Giám đốc',1,1,4),
+(N'0002',N'Sub- Leader',1,1,1),
+(N'0003',N'Worker',0,0,0),
+(N'0004',N'Chief',1,1,2),
+(N'0005',N'Manager',1,1,3),
 (N'0006',N'Leader',1,1,1),
-(N'0007',N'Staff / Worker',0,0,0),
-(N'0008',N'Technician / Worker',0,0,0),
-(N'0009',N'Senior Manager',1,1,3),
-(N'0010',N'Assistant Chief',1,1,2),
-(N'0011',N'Assistant Manager',1,1,3),
-(N'0012',N'Worker / Staff',0,0,0)
+(N'0007',N'Kỹ thuật viên',0,0,0),
+(N'0008',N'Staff',0,0,0),
+(N'0009',N'Sen.Manager',1,1,3),
+(N'0010',N'Ast.chief',1,1,2),
+(N'0011',N'Ast.Manager',1,1,3),
+(N'0012',N'Nhân viên',0,0,0),
+(N'0013',N'13/09/1969',0,0,0),
+(N'0014',N'',0,0,0),
+(N'0015',N'Work',0,0,0),
+(N'0016',N'Pulley',0,0,0)
 ) AS v(PositionCode,PositionName,IsApprove,IsAllowApprove,DefaultApproveLevel)
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Positions x WHERE x.PositionCode=v.PositionCode);
+
+-- Reconcile existing seed rows to the HRM CVMa/CVTen master.
+-- PositionCode is exactly HRM CVMa; PositionName is exactly HRM CVTen.
+UPDATE p
+SET
+    p.PositionName = v.PositionName,
+    p.IsApprove = v.IsApprove,
+    p.IsAllowApprove = v.IsAllowApprove,
+    p.DefaultApproveLevel = v.DefaultApproveLevel
+FROM dbo.F03Positions p
+JOIN (VALUES
+(N'0001',N'Giám đốc',1,1,4),
+(N'0002',N'Sub- Leader',1,1,1),
+(N'0003',N'Worker',0,0,0),
+(N'0004',N'Chief',1,1,2),
+(N'0005',N'Manager',1,1,3),
+(N'0006',N'Leader',1,1,1),
+(N'0007',N'Kỹ thuật viên',0,0,0),
+(N'0008',N'Staff',0,0,0),
+(N'0009',N'Sen.Manager',1,1,3),
+(N'0010',N'Ast.chief',1,1,2),
+(N'0011',N'Ast.Manager',1,1,3),
+(N'0012',N'Nhân viên',0,0,0),
+(N'0013',N'13/09/1969',0,0,0),
+(N'0014',N'',0,0,0),
+(N'0015',N'Work',0,0,0),
+(N'0016',N'Pulley',0,0,0)
+) AS v(PositionCode,PositionName,IsApprove,IsAllowApprove,DefaultApproveLevel)
+    ON p.PositionCode=v.PositionCode;
 
 /*
     Approval capability is defined on the HRM Position master itself.
