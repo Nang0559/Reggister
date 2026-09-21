@@ -100,3 +100,8 @@ Calendar module `ATTENDANCE` đọc trực tiếp `F03HrmAttendanceCalculated` t
 10. Worker rerun idempotent.
 11. /me dùng authenticated identity.
 12. Module mới chỉ cần provider + policy + mapping Planned/Actual + action types.
+
+
+### Calendar registration vs confirmation
+
+Calendar registration is intentionally separate from Execution ActionId. ActionId identifies an existing work item that requires confirmation; it must never be reused as a registration command. Empty/available dates use WorkCalendar availability and expose registration opportunities for Leave/OT/Trip. Existing attendance/reconciliation data takes precedence, so a mismatch is shown as confirmation (?) instead of being mistaken for a new registration opportunity.
