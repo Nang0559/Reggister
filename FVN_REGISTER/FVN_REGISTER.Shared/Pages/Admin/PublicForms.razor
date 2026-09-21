@@ -10,7 +10,7 @@
 
 <PageTitle>Biểu mẫu đăng ký</PageTitle>
 <MudText Typo="Typo.h5"><b>Biểu mẫu đăng ký</b></MudText>
-<MudText Typo="body2" Color="Color.Secondary" Class="mb-4">HR tự tạo biểu mẫu, câu hỏi và đối tượng được phép đăng ký.</MudText>
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">HR tự tạo biểu mẫu, câu hỏi và đối tượng được phép đăng ký.</MudText>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
  <MudGrid>
@@ -37,7 +37,7 @@
 </MudPaper>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
- <MudStack Row="true" AlignItems="AlignItems.Center"><MudText Typo="h6">Câu hỏi</MudText><MudSpacer/><MudButton OnClick="AddQuestion" Variant="Variant.Outlined">+ Thêm câu hỏi</MudButton></MudStack>
+ <MudStack Row="true" AlignItems="AlignItems.Center"><MudText Typo="Typo.h6">Câu hỏi</MudText><MudSpacer/><MudButton OnClick="AddQuestion" Variant="Variant.Outlined">+ Thêm câu hỏi</MudButton></MudStack>
  @foreach(var q in _form.Questions.OrderBy(x=>x.Sequence))
  {
   <MudPaper Class="pa-3 mt-3" Outlined="true">
