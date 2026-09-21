@@ -140,20 +140,78 @@ SELECT 1,0,v.Code,v.Name,v.Description,v.SortNo FROM (VALUES
 WHERE NOT EXISTS(SELECT 1 FROM dbo.F03OTCodes x WHERE x.ReasonCode=v.Code);
 
 -- Work years / holidays
-IF NOT EXISTS(SELECT 1 FROM dbo.F03WorkYear WHERE WorkYear=YEAR(@Now))
-INSERT dbo.F03WorkYear(WorkYear,StartDate,EndDate,Remark,CreatedBy)
-VALUES(YEAR(@Now),DATEFROMPARTS(YEAR(@Now),1,1),DATEFROMPARTS(YEAR(@Now),12,31),N'Test work year',0);
+-- Canonical names are F03WorkYears / F03CompanyHolidays.
+-- SQL 35 migrates the old singular names forward, but this seed is also
+-- safe to rerun after that migration has already been applied.
+DECLARE @WorkYearTable sysname =
+    CASE
+        WHEN OBJECT_ID(N'dbo.F03WorkYears',N'U') IS NOT NULL THEN N'F03WorkYears'
+        WHEN OBJECT_ID(N'dbo.F03WorkYear',N'U') IS NOT NULL THEN N'F03WorkYear'
+        ELSE NULL
+    END;
 
-INSERT dbo.F03CompanyHoliday(IsActive,CreatedBy,HolidayDate,Description,Year,TinhPhep)
-SELECT 1,0,v.HolidayDate,v.Description,YEAR(v.HolidayDate),1
+IF @WorkYearTable IS NULL
+    THROW 50061, 'Missing work-year table: dbo.F03WorkYears / dbo.F03WorkYear.', 1;
+
+DECLARE @WorkYearSql nvarchar(max) = N'
+IF NOT EXISTS (
+    SELECT 1
+    FROM dbo.' + QUOTENAME(@WorkYearTable) + N'
+    WHERE WorkYear = YEAR(@Now)
+)
+BEGIN
+    INSERT dbo.' + QUOTENAME(@WorkYearTable) + N'
+        (WorkYear,StartDate,EndDate,Remark,CreatedBy)
+    VALUES
+        (YEAR(@Now),
+         DATEFROMPARTS(YEAR(@Now),1,1),
+         DATEFROMPARTS(YEAR(@Now),12,31),
+         N''Test work year'',
+         0);
+END;';
+
+EXEC sys.sp_executesql
+    @WorkYearSql,
+    N'@Now datetime2(0)',
+    @Now=@Now;
+
+DECLARE @HolidayTable sysname =
+    CASE
+        WHEN OBJECT_ID(N'dbo.F03CompanyHolidays',N'U') IS NOT NULL THEN N'F03CompanyHolidays'
+        WHEN OBJECT_ID(N'dbo.F03CompanyHoliday',N'U') IS NOT NULL THEN N'F03CompanyHoliday'
+        ELSE NULL
+    END;
+
+IF @HolidayTable IS NULL
+    THROW 50062, 'Missing holiday table: dbo.F03CompanyHolidays / dbo.F03CompanyHoliday.', 1;
+
+DECLARE @HolidaySql nvarchar(max) = N'
+INSERT dbo.' + QUOTENAME(@HolidayTable) + N'
+    (IsActive,CreatedBy,HolidayDate,Description,Year,TinhPhep)
+SELECT
+    1,
+    0,
+    v.HolidayDate,
+    v.Description,
+    YEAR(v.HolidayDate),
+    1
 FROM (VALUES
-(DATEFROMPARTS(YEAR(@Now),1,1),N'New Year'),
-(DATEFROMPARTS(YEAR(@Now),4,30),N'Reunification Day'),
-(DATEFROMPARTS(YEAR(@Now),5,1),N'International Labour Day'),
-(DATEFROMPARTS(YEAR(@Now),9,2),N'National Day'),
-(DATEADD(day,-1,DATEFROMPARTS(YEAR(@Now),9,2)),N'Test company holiday')
+    (DATEFROMPARTS(YEAR(@Now),1,1),N''New Year''),
+    (DATEFROMPARTS(YEAR(@Now),4,30),N''Reunification Day''),
+    (DATEFROMPARTS(YEAR(@Now),5,1),N''International Labour Day''),
+    (DATEFROMPARTS(YEAR(@Now),9,2),N''National Day''),
+    (DATEADD(day,-1,DATEFROMPARTS(YEAR(@Now),9,2)),N''Test company holiday'')
 ) AS v(HolidayDate,Description)
-WHERE NOT EXISTS(SELECT 1 FROM dbo.F03CompanyHoliday h WHERE h.HolidayDate=v.HolidayDate);
+WHERE NOT EXISTS (
+    SELECT 1
+    FROM dbo.' + QUOTENAME(@HolidayTable) + N' h
+    WHERE h.HolidayDate = v.HolidayDate
+);';
+
+EXEC sys.sp_executesql
+    @HolidaySql,
+    N'@Now datetime2(0)',
+    @Now=@Now;
 
 -- Permissions required by F03Users.PermissionCode FK
 INSERT dbo.F03Permissions(IsActive,CreatedBy,PermissionCode,PermissionName,Detail)
