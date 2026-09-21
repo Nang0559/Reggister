@@ -1,9 +1,12 @@
 @page "/calendar"
 @attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Calendar
 @using FVN_REGISTER.Shared.Components.Calendar
+@using FVN_REGISTER.Shared.Services.Calendar
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @inject NavigationManager NavigationManager
+@inject IWorkCalendarClientService CalendarService
 
 <PageTitle>Lịch làm việc của tôi</PageTitle>
 
@@ -26,10 +29,112 @@
         </MudStack>
     </MudPaper>
 
+    @if (_alerts.Count > 0)
+    {
+        <MudPaper Outlined="true" Class="pa-4 mb-4" Style="border-radius:18px">
+            <MudStack Spacing="2">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                    <MudIcon Icon="@Icons.Material.Filled.NotificationImportant" Color="Color.Warning" />
+                    <MudText Typo="Typo.h6" Style="font-weight:750">Cần xử lý trong tháng</MudText>
+                    <MudChip T="string" Size="Size.Small" Color="Color.Warning" Variant="Variant.Outlined">
+                        @_alerts.Count
+                    </MudChip>
+                </MudStack>
+
+                @foreach (var alert in _alerts)
+                {
+                    <MudPaper Outlined="true" Class="pa-3"
+                              Style="border-radius:12px; border-left:4px solid var(--mud-palette-warning);">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="2">
+                            <div>
+                                <MudText Typo="Typo.body2" Style="font-weight:700">
+                                    @alert.WorkDate.ToString("dd/MM/yyyy") · @alert.ModuleCode
+                                </MudText>
+                                <MudText Typo="Typo.body2">@alert.Summary</MudText>
+                            </div>
+                            @if (alert.RequiresAction && alert.ActionId is not null)
+                            {
+                                <MudButton Size="Size.Small"
+                                           Variant="Variant.Filled"
+                                           Color="Color.Warning"
+                                           OnClick="@(() => OpenAction(alert.DetailRoute, alert.SourceId))">
+                                    Xử lý
+                                </MudButton>
+                            }
+                            else if (!string.IsNullOrWhiteSpace(alert.DetailRoute))
+                            {
+                                <MudButton Size="Size.Small"
+                                           Variant="Variant.Outlined"
+                                           OnClick="@(() => OpenRoute(alert.DetailRoute))">
+                                    Xem chi tiết
+                                </MudButton>
+                            }
+                        </MudStack>
+                    </MudPaper>
+                }
+            </MudStack>
+        </MudPaper>
+    }
+
     <MudPaper Outlined="true" Class="pa-3" Style="border-radius:18px">
-        <WorkCalendar ModuleContext="ALL" />
+        <WorkCalendar ModuleContext="ALL"
+                      OnEventSelected="HandleEventSelected" />
     </MudPaper>
 </MudContainer>
 
 @code {
+    private readonly List<CalendarAlertItemDto> _alerts = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var today = DateTime.Today;
+        var from = new DateTime(today.Year, today.Month, 1);
+        var to = from.AddMonths(1).AddDays(-1);
+
+        try
+        {
+            var result = await CalendarService.GetAlertsAsync(from, to);
+            if (result.IsSuccess && result.Data != null)
+                _alerts.AddRange(result.Data);
+        }
+        catch
+        {
+            // Calendar itself remains usable when the alert endpoint is temporarily unavailable.
+        }
+    }
+
+    private void HandleEventSelected(CalendarItemDto item)
+    {
+        if (item.RequiresAction && item.ActionId is not null)
+        {
+            OpenAction(item.DetailRoute, item.SourceId);
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(item.DetailRoute))
+        {
+            OpenRoute(item.DetailRoute);
+            return;
+        }
+
+        if (int.TryParse(item.SourceId, out var requestId))
+        {
+            NavigationManager.NavigateTo($"/history/{item.ModuleCode.ToLowerInvariant()}?id={requestId}");
+        }
+    }
+
+    private void OpenAction(string? detailRoute, string sourceId)
+    {
+        var route = !string.IsNullOrWhiteSpace(detailRoute)
+            ? detailRoute
+            : $"/execution?reconciliationId={Uri.EscapeDataString(sourceId)}";
+
+        NavigationManager.NavigateTo(route);
+    }
+
+    private void OpenRoute(string? route)
+    {
+        if (!string.IsNullOrWhiteSpace(route))
+            NavigationManager.NavigateTo(route);
+    }
 }
