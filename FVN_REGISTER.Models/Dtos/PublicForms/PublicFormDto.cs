@@ -14,7 +14,7 @@ public sealed class PublicFormDto
     public bool RequireApproval { get; set; }
     public int? MaxSubmissions { get; set; }
     public int Version { get; set; }
-    public bool IsActive { get; set; }
+    public bool? IsActive { get; set; }
     public List<PublicFormQuestionDto> Questions { get; set; } = new();
     public List<PublicFormAudienceDto> Audiences { get; set; } = new();
 }
