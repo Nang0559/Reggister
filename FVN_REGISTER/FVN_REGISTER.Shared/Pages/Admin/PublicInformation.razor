@@ -1,0 +1,92 @@
+@page "/admin/public-information"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.PublicInformation
+@using FVN_REGISTER.Contract.Requests.PublicInformation
+@using FVN_REGISTER.Shared.Handlers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IHttpClientWithAuth Http
+@inject ISnackbar Snackbar
+
+<PageTitle>Quản lý nội dung công khai</PageTitle>
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <div>
+        <MudText Typo="Typo.h5"><b>Public</b></MudText>
+        <MudText Typo="body2" Color="Color.Secondary">Thông báo · Tin tức · Nội dung HR · Thông tin công ty · Nội dung được công khai</MudText>
+    </div>
+    <MudSpacer />
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="New">Tạo nội dung</MudButton>
+</MudStack>
+
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="string" @bind-Value="_form.Type" Label="Loại nội dung" Variant="Variant.Outlined">
+                <MudSelectItem Value="@("Announcement")">Thông báo</MudSelectItem>
+                <MudSelectItem Value="@("News")">Tin tức</MudSelectItem>
+                <MudSelectItem Value="@("HRContent")">Nội dung HR</MudSelectItem>
+                <MudSelectItem Value="@("CompanyInfo")">Thông tin công ty</MudSelectItem>
+                <MudSelectItem Value="@("PublicContent")">Nội dung được công khai</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="8"><MudTextField @bind-Value="_form.Title" Label="Tiêu đề *" Variant="Variant.Outlined" /></MudItem>
+        <MudItem xs="12"><MudTextField @bind-Value="_form.Summary" Label="Tóm tắt" Variant="Variant.Outlined" /></MudItem>
+        <MudItem xs="12"><MudTextField @bind-Value="_form.Content" Label="Nội dung" Lines="8" Variant="Variant.Outlined" /></MudItem>
+        <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_from" Label="Hiệu lực từ" Variant="Variant.Outlined" /></MudItem>
+        <MudItem xs="12" sm="6"><MudDatePicker @bind-Date="_to" Label="Hiệu lực đến" Variant="Variant.Outlined" /></MudItem>
+        <MudItem xs="12"><MudSwitch T="bool" @bind-Value="_form.IsImportant">Đánh dấu quan trọng</MudSwitch></MudItem>
+    </MudGrid>
+    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
+        <MudButton Variant="Variant.Text" OnClick="New">Hủy</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync">Lưu nháp</MudButton>
+    </MudStack>
+</MudPaper>
+
+@if (_loading) { <MudProgressLinear Indeterminate="true" /> }
+else
+{
+    <MudTable Items="_items" Dense="true" Hover="true">
+        <HeaderContent><MudTh>Loại</MudTh><MudTh>Tiêu đề</MudTh><MudTh>Trạng thái</MudTh><MudTh>Hiệu lực</MudTh><MudTh /></HeaderContent>
+        <RowTemplate>
+            <MudTd>@TypeName(context.Type)</MudTd>
+            <MudTd><b>@context.Title</b><MudText Typo="body2">@context.Summary</MudText></MudTd>
+            <MudTd><MudChip T="string" Size="Size.Small">@context.Status</MudChip></MudTd>
+            <MudTd>@context.PublishedAt?.ToString("dd/MM/yyyy HH:mm")</MudTd>
+            <MudTd>
+                @if (context.Status == "Draft")
+                { <MudButton Size="Size.Small" Color="Color.Primary" OnClick="@(() => PublishAsync(context.Id))">Publish</MudButton> }
+                @if (context.Status != "Archived")
+                { <MudButton Size="Size.Small" Color="Color.Error" OnClick="@(() => ArchiveAsync(context.Id))">Archive</MudButton> }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<PublicInformationDto> _items = new();
+    private SavePublicInformationRequest _form = new();
+    private DateTime? _from = DateTime.Today;
+    private DateTime? _to;
+    private bool _loading;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+    private async Task LoadAsync()
+    {
+        _loading=true;
+        var r=await Http.GetAsync<List<PublicInformationDto>>("api/public-information/manage");
+        if(r.IsSuccess) _items=r.Data??new(); else Snackbar.Add(r.Message??"Không tải được nội dung.",Severity.Error);
+        _loading=false;
+    }
+    private void New(){_form=new();_from=DateTime.Today;_to=null;}
+    private async Task SaveAsync()
+    {
+        _form.EffectiveFrom=_from;_form.EffectiveTo=_to;
+        var r=await Http.PostAsync<PublicInformationDto>("api/public-information",_form);
+        if(!r.IsSuccess){Snackbar.Add(r.Message??"Không lưu được.",Severity.Error);return;}
+        Snackbar.Add("Đã lưu nội dung nháp.",Severity.Success);New();await LoadAsync();
+    }
+    private async Task PublishAsync(int id){var r=await Http.PostAsync<object>($"api/public-information/{id}/publish",new { });if(r.IsSuccess){Snackbar.Add("Đã Publish.",Severity.Success);await LoadAsync();}else Snackbar.Add(r.Message??"Publish thất bại.",Severity.Error);}
+    private async Task ArchiveAsync(int id){var r=await Http.PostAsync<object>($"api/public-information/{id}/archive",new { });if(r.IsSuccess){Snackbar.Add("Đã Archive.",Severity.Success);await LoadAsync();}else Snackbar.Add(r.Message??"Archive thất bại.",Severity.Error);}
+    private static string TypeName(string type)=>type switch{"Announcement"=>"Thông báo","News"=>"Tin tức","HRContent"=>"Nội dung HR","CompanyInfo"=>"Thông tin công ty","PublicContent"=>"Nội dung được công khai",_=>type};
+}
