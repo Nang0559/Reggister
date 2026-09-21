@@ -42,6 +42,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         _notificationService = notificationService;
         _authorization = authorization;
         _logger = logger;
+        _hostEnvironment = hostEnvironment;
     }
 
     public async Task<ExecutionReconciliationDto?> GetAsync(string employeeCode, long reconciliationId, CancellationToken cancellationToken = default)
