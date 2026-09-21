@@ -1,6 +1,7 @@
 @page "/admin/security"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Core.Constants
 @using FVN_REGISTER.Contract.Dtos.Usermanagers
 @using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Shared.Services.Users
@@ -89,8 +90,10 @@
                                 Lưu role
                             </MudButton>
 
-                            <MudDivider Class="my-4" />
-                            <MudText Typo="Typo.subtitle2">Hỗ trợ IT</MudText>
+                            @if (CanResetPassword)
+                            {
+                                <MudDivider Class="my-4" />
+                                <MudText Typo="Typo.subtitle2">Hỗ trợ IT</MudText>
                             <MudText Typo="Typo.caption" Color="Color.Secondary">
                                 Reset mật khẩu về mật khẩu tạm FVN@123. Không xóa tài khoản, role hoặc dữ liệu người dùng.
                             </MudText>
@@ -103,14 +106,15 @@
                                           Adornment="Adornment.Start"
                                           AdornmentIcon="@Icons.Material.Filled.Badge"
                                           Class="mt-2" />
-                            <MudButton Class="mt-2"
-                                       Variant="Variant.Outlined"
-                                       Color="Color.Warning"
-                                       StartIcon="@Icons.Material.Filled.LockReset"
-                                       OnClick="ResetPasswordToDefaultAsync"
-                                       Disabled="_resettingPassword || string.IsNullOrWhiteSpace(_resetEmployeeCode)">
-                                @(_resettingPassword ? "Đang reset..." : "Reset về FVN@123")
-                            </MudButton>
+                                <MudButton Class="mt-2"
+                                           Variant="Variant.Outlined"
+                                           Color="Color.Warning"
+                                           StartIcon="@Icons.Material.Filled.LockReset"
+                                           OnClick="ResetPasswordToDefaultAsync"
+                                           Disabled="_resettingPassword || string.IsNullOrWhiteSpace(_resetEmployeeCode)">
+                                    @(_resettingPassword ? "Đang reset..." : "Reset về FVN@123")
+                                </MudButton>
+                            }
 
                             <MudDivider Class="my-4" />
                             <MudText Typo="Typo.subtitle2">Effective permissions</MudText>
@@ -137,6 +141,8 @@
             </MudGrid>
         </MudTabPanel>
 
+        @if (CanResetPassword)
+        {
         <MudTabPanel Text="Quên mật khẩu" Icon="@Icons.Material.Filled.LockReset">
             <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
                 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
@@ -209,6 +215,7 @@
                 }
             </MudPaper>
         </MudTabPanel>
+        }
 
         <MudTabPanel Text="Role → Function / Action" Icon="@Icons.Material.Filled.GridView">
             <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px; overflow-x:auto">
@@ -301,6 +308,10 @@
     private bool _resettingPassword;
     private List<PasswordResetRequestDto> _resetRequests = new();
     private bool _loadingResetRequests;
+    private PermissionSnapshotDto? _myPermissions;
+
+    private bool CanResetPassword
+        => _myPermissions?.Has(SecurityFunctionCodes.UserManagementResetPassword) == true;
     private int? _processingResetRequestId;
 
     private IEnumerable<UserAccountDto> FilteredUsers =>
@@ -318,6 +329,15 @@
         _error = null;
         try
         {
+            var myPermissions = await SecurityService.GetMyPermissionsAsync();
+            if (!myPermissions.IsSuccess)
+            {
+                _error = myPermissions.Message;
+                return;
+            }
+
+            _myPermissions = myPermissions.Data;
+
             var users = await UserService.GetAllAsync();
             var roles = await SecurityService.GetRolesAsync();
             var functions = await SecurityService.GetFunctionsAsync();
@@ -330,7 +350,8 @@
             _roles = roles.Data ?? new();
             _matrixFunctions = functions.Data ?? new();
             BuildMatrix();
-            await LoadPasswordResetRequestsAsync();
+            if (CanResetPassword)
+                await LoadPasswordResetRequestsAsync();
         }
         finally { _loading = false; }
     }
