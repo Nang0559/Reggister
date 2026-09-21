@@ -91,21 +91,51 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
             query = query.Where(x => _db.Employees.Any(e =>
                 e.Id == x.EmployeeId && e.EmployeeCode == actor.EmployeeCode && e.IsActive != false));
 
-        var result = await query
+        // Keep ordering/projection on scalar members before constructing the DTO.
+        // EF Core cannot translate OrderBy over a newly constructed record/DTO.
+        var resultRows = await query
             .Join(_db.Employees.AsNoTracking(),
                 r => r.EmployeeId,
                 e => e.Id,
-                (r, e) => new ExecutionHrReviewItemDto(
-                    r.Id, r.ModuleCode, r.SourceType, r.SourceId, r.ParticipantId,
-                    r.EmployeeId, e.EmployeeCode, e.EmployeeName, r.WorkDate,
-                    r.PlannedState, r.ActualState, r.ReconciliationStatus,
-                    r.RequiresConfirmation, r.RequiresEvidence, r.ConfirmationId,
-                    r.ActionId, r.ResolvedAt))
-            .OrderBy(x => x.WorkDate)
-            .ThenBy(x => x.ModuleCode)
-            .ThenBy(x => x.EmployeeCode)
+                (r, e) => new
+                {
+                    Reconciliation = r,
+                    Employee = e
+                })
+            .OrderBy(x => x.Reconciliation.WorkDate)
+            .ThenBy(x => x.Reconciliation.ModuleCode)
+            .ThenBy(x => x.Employee.EmployeeCode)
             .Take(500)
+            .Select(x => new
+            {
+                x.Reconciliation.Id,
+                x.Reconciliation.ModuleCode,
+                x.Reconciliation.SourceType,
+                x.Reconciliation.SourceId,
+                x.Reconciliation.ParticipantId,
+                x.Reconciliation.EmployeeId,
+                x.Employee.EmployeeCode,
+                x.Employee.EmployeeName,
+                x.Reconciliation.WorkDate,
+                x.Reconciliation.PlannedState,
+                x.Reconciliation.ActualState,
+                x.Reconciliation.ReconciliationStatus,
+                x.Reconciliation.RequiresConfirmation,
+                x.Reconciliation.RequiresEvidence,
+                x.Reconciliation.ConfirmationId,
+                x.Reconciliation.ActionId,
+                x.Reconciliation.ResolvedAt
+            })
             .ToListAsync(cancellationToken);
+
+        var result = resultRows
+            .Select(x => new ExecutionHrReviewItemDto(
+                x.Id, x.ModuleCode, x.SourceType, x.SourceId, x.ParticipantId,
+                x.EmployeeId, x.EmployeeCode, x.EmployeeName, x.WorkDate,
+                x.PlannedState, x.ActualState, x.ReconciliationStatus,
+                x.RequiresConfirmation, x.RequiresEvidence, x.ConfirmationId,
+                x.ActionId, x.ResolvedAt))
+            .ToList();
 
         if (string.Equals(scope, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase))
         {
