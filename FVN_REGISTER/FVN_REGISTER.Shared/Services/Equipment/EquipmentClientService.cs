@@ -10,6 +10,7 @@ public sealed class EquipmentClientService : IEquipmentClientService
     private readonly IHttpClientWithAuth _http; private readonly ILogger<EquipmentClientService> _logger;
     public EquipmentClientService(IHttpClientWithAuth http, ILogger<EquipmentClientService> logger) { _http = http; _logger = logger; }
     public Task<ApiResponse<bool>> HasAccessAsync(CancellationToken ct = default) => Get<bool>("api/equipment/access", "access", ct);
+    public Task<ApiResponse<bool>> HasImportAccessAsync(CancellationToken ct = default) => Get<bool>("api/equipment/import/access", "import access", ct);
     public Task<ApiResponse<List<EquipmentApproverDto>>> GetApproversAsync(string deptCode, CancellationToken ct = default) => Get<List<EquipmentApproverDto>>($"api/equipment/approvers?deptCode={Uri.EscapeDataString(deptCode)}", "approvers", ct);
     public Task<ApiResponse<EquipmentRequestDto>> CreateRegistrationAsync(CreateEquipmentRegistrationDto request, CancellationToken ct = default) => Post<EquipmentRequestDto>("api/equipment/registrations", request, "create registration", ct);
     public Task<ApiResponse<EquipmentRequestDto>> SubmitRegistrationAsync(int id, CancellationToken ct = default) => Post<EquipmentRequestDto>($"api/equipment/registrations/{id}/submit", new { }, "submit registration", ct);
