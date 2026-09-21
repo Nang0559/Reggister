@@ -17,9 +17,8 @@ GO
     the actual employee candidates for that position and department.
 
     Existing v3 rows cannot be safely inferred into a department or an
-    approval position. They are therefore moved to an inactive quarantine
-    scope instead of silently inventing organization data. Admin can recreate
-    them using the new policy UI.
+    approval position. They are therefore retired from the active model.
+    Admin must recreate them using the new policy UI.
 */
 
 IF OBJECT_ID(N'dbo.F03ApprovalPolicies', N'U') IS NULL
@@ -62,7 +61,8 @@ GO
 
 /*
     Old rows have no reliable department / approver-position information.
-    Keep them for audit, but make them non-applicable to the new resolver.
+    Retire them before the new foreign keys are created; no department or
+    approval position is invented silently.
 */
 UPDATE dbo.F03ApprovalPolicies
 SET
@@ -88,6 +88,7 @@ DELETE p
 FROM dbo.F03ApprovalPolicies p
 WHERE p.DeptCode = N'__LEGACY_UNCONFIGURED__'
    OR p.ApprovalPositionCode = N'__LEGACY_UNCONFIGURED__';
+GO
 
 IF NOT EXISTS
 (
