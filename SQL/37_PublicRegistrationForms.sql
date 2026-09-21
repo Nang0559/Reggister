@@ -86,3 +86,48 @@ BEGIN
  ELSE
  UPDATE dbo.F03Functions SET FunctionName=N'Public Registration Form - Manage',Detail=N'Tạo, thiết kế, publish, đóng và quản lý biểu mẫu đăng ký động',ModuleCode=N'PublicForm',ActionCode=N'Manage',ScopeCode=N'All',DisplayOrder=2807,IsActive=1 WHERE FunctionCode=2807;
 END;
+
+/* Submission reporting capabilities are intentionally separate from PublicForm.Manage. */
+IF OBJECT_ID(N'dbo.F03Functions',N'U') IS NOT NULL
+BEGIN
+    INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+    SELECT 1,0,v.FunctionCode,v.FunctionName,v.Detail,N'PublicForm',v.ActionCode,N'All',v.DisplayOrder
+    FROM (VALUES
+        (2808,N'PublicForm.SubmissionView',N'Xem danh sách, chi tiết và tổng hợp đăng ký biểu mẫu',N'SubmissionView',2808),
+        (2809,N'PublicForm.Export',N'Xuất Excel dữ liệu đăng ký biểu mẫu',N'Export',2809)
+    ) v(FunctionCode,FunctionName,Detail,ActionCode,DisplayOrder)
+    WHERE NOT EXISTS (SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.FunctionCode);
+
+    UPDATE f
+    SET FunctionName=v.FunctionName,
+        Detail=v.Detail,
+        ModuleCode=N'PublicForm',
+        ActionCode=v.ActionCode,
+        ScopeCode=N'All',
+        DisplayOrder=v.DisplayOrder,
+        IsActive=1
+    FROM dbo.F03Functions f
+    JOIN (VALUES
+        (2808,N'PublicForm.SubmissionView',N'Xem danh sách, chi tiết và tổng hợp đăng ký biểu mẫu',N'SubmissionView',2808),
+        (2809,N'PublicForm.Export',N'Xuất Excel dữ liệu đăng ký biểu mẫu',N'Export',2809)
+    ) v(FunctionCode,FunctionName,Detail,ActionCode,DisplayOrder)
+      ON f.FunctionCode=v.FunctionCode;
+END;
+GO
+
+/* Bootstrap these capabilities for system administrators only.
+   Other HR users receive them through the normal RBAC role/function assignment UI. */
+IF OBJECT_ID(N'dbo.F03RoleFunctions',N'U') IS NOT NULL
+BEGIN
+    INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
+    SELECT r.Id,f.Id
+    FROM dbo.F03Roles r
+    CROSS JOIN dbo.F03Functions f
+    WHERE r.RoleCode IN (1,2)
+      AND f.FunctionCode IN (2808,2809)
+      AND NOT EXISTS (
+          SELECT 1 FROM dbo.F03RoleFunctions rf
+          WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id
+      );
+END;
+GO
