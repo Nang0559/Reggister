@@ -4,7 +4,7 @@ namespace FVN_REGISTER.Core.Entities.Payroll;
 [Table("F03PayrollInputs")]
 public sealed class F03PayrollInput : BaseAuditEntity
 {
- public long Id { get; set; }
+ public new long Id { get; set; }
  public int PayrollPeriodId { get; set; }
  public int EmployeeId { get; set; }
  public DateOnly WorkDate { get; set; }
