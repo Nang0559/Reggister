@@ -117,6 +117,9 @@ public sealed class WorkCalendarController : BaseApiController
         if (await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct))
             result.Add("TRIP");
 
+        if (await _authorization.HasAsync(user, SecurityFunctionCodes.AttendanceView, ct))
+            result.Add("ATTENDANCE");
+
         return result;
     }
 }

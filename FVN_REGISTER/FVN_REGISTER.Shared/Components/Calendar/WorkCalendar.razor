@@ -28,13 +28,13 @@
 
     private static readonly (string Code, string Name)[] Filters =
     [
-        ("ALL", "Tất cả"), ("COMPANY", "Công ty"), ("LEAVE", "Nghỉ phép"),
+        ("ALL", "Tất cả"), ("COMPANY", "Công ty"), ("ATTENDANCE", "Chấm công"), ("LEAVE", "Nghỉ phép"),
         ("OT", "OT"), ("TRIP", "Công tác")
     ];
 
     private ElementReference _element;
     private DotNetObjectReference<WorkCalendar>? _ref;
-    private WorkCalendarDto _data = new();
+    private CalendarMonthDto _data = new();
     private string _moduleFilter = "ALL";
     private bool _initialized;
 
@@ -70,17 +70,17 @@
 
     private List<object> BuildEvents()
     {
-        var events = _data.Events
+        var events = _data.Items
             .Where(Visible)
             .Select(e => new
             {
-                id = e.Id,
-                title = e.Title,
-                start = e.Start.ToString("s"),
-                end = e.End.ToString("s"),
+                id = EventId(e),
+                title = BuildTitle(e),
+                start = e.WorkDate.ToDateTime(TimeOnly.MinValue).ToString("s"),
+                end = e.WorkDate.AddDays(1).ToDateTime(TimeOnly.MinValue).ToString("s"),
                 moduleCode = e.ModuleCode,
-                status = e.Status,
-                requestId = e.RequestId,
+                status = e.StatusCode,
+                requestId = TryParseRequestId(e.SourceId),
                 display = e.ModuleCode == "COMPANY" ? "background" : "auto"
             })
             .ToList<object>();
@@ -88,7 +88,36 @@
         return events;
     }
 
-    private bool Visible(WorkCalendarEventDto e) =>
+    private static string EventId(CalendarItemDto item) =>
+        $"{item.ModuleCode}:{item.WorkDate:yyyy-MM-dd}:{item.SourceId}";
+
+    private static string BuildTitle(CalendarItemDto item)
+    {
+        if (item.ModuleCode == "ATTENDANCE")
+            return string.IsNullOrWhiteSpace(item.Marker)
+                ? (item.Summary ?? item.StatusCode)
+                : $"{item.Marker} {item.Summary}".Trim();
+
+        return item.Summary ?? item.StatusCode;
+    }
+
+    private static int? TryParseRequestId(string sourceId) =>
+        int.TryParse(sourceId, out var id) ? id : null;
+
+    private static WorkCalendarEventDto ToLegacyEvent(CalendarItemDto item) => new()
+    {
+        Id = EventId(item),
+        ModuleCode = item.ModuleCode,
+        EventType = item.ModuleCode,
+        Title = BuildTitle(item),
+        Start = item.WorkDate.ToDateTime(TimeOnly.MinValue),
+        End = item.WorkDate.AddDays(1).ToDateTime(TimeOnly.MinValue),
+        Status = item.StatusCode,
+        IsReadOnly = true,
+        RequestId = TryParseRequestId(item.SourceId)
+    };
+
+    private bool Visible(CalendarItemDto e) =>
         _moduleFilter == "ALL" || e.ModuleCode == "COMPANY" || e.ModuleCode == _moduleFilter;
 
     private async Task SetFilter(string code)
@@ -108,9 +137,9 @@
     [JSInvokable]
     public async Task OnCalendarEventClick(string id)
     {
-        var item = _data.Events.FirstOrDefault(x => x.Id == id);
+        var item = _data.Items.FirstOrDefault(x => EventId(x) == id);
         if (item != null && OnEventSelected.HasDelegate)
-            await OnEventSelected.InvokeAsync(item);
+            await OnEventSelected.InvokeAsync(ToLegacyEvent(item));
     }
 
     [JSInvokable]
