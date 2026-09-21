@@ -1,0 +1,73 @@
+@using FVN_REGISTER.Contract.Dtos.Calendar
+@using Microsoft.AspNetCore.Components
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="2">
+            <MudText Typo="Typo.h6">Đăng ký ngày @Date.ToString("dd/MM/yyyy")</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Chọn nghiệp vụ muốn đăng ký cho ngày này.
+            </MudText>
+
+            @if (Availability.Warnings.Count > 0)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    @foreach (var warning in Availability.Warnings)
+                    {
+                        <div>@warning</div>
+                    }
+                </MudAlert>
+            }
+
+            <MudStack Row="true" Spacing="2" Wrap="Wrap.Wrap">
+                <MudButton Variant="Variant.Filled"
+                            Color="Color.Primary"
+                            StartIcon="@Icons.Material.Filled.EventAvailable"
+                            Disabled="@(!Availability.CanRegisterLeave)"
+                            OnClick="@(() => Select("LEAVE"))">
+                    Đăng ký nghỉ
+                </MudButton>
+                <MudButton Variant="Variant.Filled"
+                            Color="Color.Warning"
+                            StartIcon="@Icons.Material.Filled.MoreTime"
+                            Disabled="@(!Availability.CanRegisterOT)"
+                            OnClick="@(() => Select("OT"))">
+                    Đăng ký OT
+                </MudButton>
+                <MudButton Variant="Variant.Filled"
+                            Color="Color.Info"
+                            StartIcon="@Icons.Material.Filled.FlightTakeoff"
+                            Disabled="@(!Availability.CanRegisterTrip)"
+                            OnClick="@(() => Select("TRIP"))">
+                    Đăng ký công tác
+                </MudButton>
+            </MudStack>
+
+            @if (!Availability.CanRegisterLeave && !Availability.CanRegisterOT && !Availability.CanRegisterTrip)
+            {
+                <MudAlert Severity="Severity.Warning" Dense="true">
+                    Ngày này hiện không có nghiệp vụ đăng ký khả dụng.
+                </MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Đóng</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance DialogInstance { get; set; } = default!;
+    [Parameter] public DateTime Date { get; set; }
+    [Parameter] public CalendarAvailabilityDto Availability { get; set; } = new();
+    [Parameter] public EventCallback<string> OnSelected { get; set; }
+
+    private async Task Select(string moduleCode)
+    {
+        await OnSelected.InvokeAsync(moduleCode);
+        DialogInstance.Close();
+    }
+
+    private void Cancel() => DialogInstance.Cancel();
+}
