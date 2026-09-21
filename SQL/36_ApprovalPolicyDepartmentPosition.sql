@@ -75,6 +75,16 @@ WHERE
     OR LTRIM(RTRIM(ApprovalPositionCode)) = N'';
 GO
 
+/*
+    The quarantine sentinel is intentionally not a real department/position.
+    FK constraints therefore require us to create no sentinel rows; instead,
+    old rows must be removed if the database has referential constraints.
+*/
+DELETE p
+FROM dbo.F03ApprovalPolicies p
+WHERE p.DeptCode = N'__LEGACY_UNCONFIGURED__'
+   OR p.ApprovalPositionCode = N'__LEGACY_UNCONFIGURED__';
+
 IF NOT EXISTS
 (
     SELECT 1
@@ -105,15 +115,6 @@ BEGIN
 END;
 GO
 
-/*
-    The quarantine sentinel is intentionally not a real department/position.
-    FK constraints therefore require us to create no sentinel rows; instead,
-    old rows must be removed if the database has referential constraints.
-*/
-DELETE p
-FROM dbo.F03ApprovalPolicies p
-WHERE p.DeptCode = N'__LEGACY_UNCONFIGURED__'
-   OR p.ApprovalPositionCode = N'__LEGACY_UNCONFIGURED__';
 GO
 
 ALTER TABLE dbo.F03ApprovalPolicies
