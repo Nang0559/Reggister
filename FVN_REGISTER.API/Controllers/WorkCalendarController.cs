@@ -86,6 +86,34 @@ public sealed class WorkCalendarController : BaseApiController
         return Ok(ApiResponse<object>.Ok(result));
     }
 
+    [HttpGet("me/registration-opportunities")]
+    public async Task<IActionResult> GetRegistrationOpportunities(
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(UserInfo?.EmployeeCode))
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var first = from ?? today;
+        var last = to ?? today.AddDays(31);
+
+        if (last < first)
+            return BadRequest(ApiResponse<object>.Fail("Khoảng ngày không hợp lệ."));
+
+        if (last.DayNumber - first.DayNumber > 93)
+            return BadRequest(ApiResponse<object>.Fail("Lịch chỉ cho phép tối đa 94 ngày mỗi lần tải."));
+
+        var result = await _workCalendar.GetRegistrationOpportunitiesAsync(
+            UserInfo.EmployeeCode,
+            first.ToDateTime(TimeOnly.MinValue),
+            last.ToDateTime(TimeOnly.MinValue),
+            ct);
+
+        return Ok(ApiResponse<object>.Ok(result));
+    }
+
     [HttpGet("me/availability")]
     public async Task<IActionResult> GetAvailability(
         [FromQuery] DateOnly date,
