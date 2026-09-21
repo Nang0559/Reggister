@@ -391,7 +391,7 @@ else if (_form != null)
         await InvokeAsync(StateHasChanged);
     }
 
-    private Task OnCalendarEventSelected(WorkCalendarEventDto item)
+    private Task OnCalendarEventSelected(CalendarItemDto item)
     {
         if (item.ModuleCode == "OT" && item.RequestId.HasValue)
             Nav.NavigateTo($"/ot/detail/{item.RequestId.Value}");
