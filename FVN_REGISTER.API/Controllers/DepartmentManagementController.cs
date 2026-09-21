@@ -43,11 +43,17 @@ namespace FVN_REGISTER.API.Controllers
 
         [HttpGet]
         public async Task<IActionResult> GetList([FromQuery] bool? isActive, CancellationToken ct)
-            => HandleResult(await _departmentService.GetFilteredAsync(isActive, ct));
+        {
+            if (!await CanAsync(SecurityFunctionCodes.DepartmentView, ct)) return Forbid();
+            return HandleResult(await _departmentService.GetFilteredAsync(isActive, ct));
+        }
 
         [HttpGet("{id:int}")]
         public async Task<IActionResult> GetById(int id, CancellationToken ct)
-            => HandleResult(await _departmentService.GetByIdAsync(id, ct));
+        {
+            if (!await CanAsync(SecurityFunctionCodes.DepartmentView, ct)) return Forbid();
+            return HandleResult(await _departmentService.GetByIdAsync(id, ct));
+        }
 
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] DepartmentUpsertDto model, CancellationToken ct)
@@ -63,6 +69,7 @@ namespace FVN_REGISTER.API.Controllers
         [HttpPut("{id:int}")]
         public async Task<IActionResult> Update(int id, [FromBody] DepartmentUpsertDto model, CancellationToken ct)
         {
+            if (!await CanAsync(SecurityFunctionCodes.DepartmentManage, ct)) return Forbid();
             if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             model.Id = id;
@@ -74,6 +81,7 @@ namespace FVN_REGISTER.API.Controllers
         [HttpPatch("{id:int}/toggle")]
         public async Task<IActionResult> Toggle(int id, CancellationToken ct)
         {
+            if (!await CanAsync(SecurityFunctionCodes.DepartmentManage, ct)) return Forbid();
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             var result = await _departmentService.ToggleActiveAsync(id, UserInfo.UserId, ct);
             await LogActionAsync($"Đổi trạng thái bộ phận ID: {id}");
@@ -83,6 +91,7 @@ namespace FVN_REGISTER.API.Controllers
         [HttpDelete("{id:int}")]
         public async Task<IActionResult> Delete(int id, CancellationToken ct)
         {
+            if (!await CanAsync(SecurityFunctionCodes.DepartmentManage, ct)) return Forbid();
             var result = await _departmentService.DeleteAsync(id, ct);
             await LogActionAsync($"Xóa bộ phận ID: {id}");
             return HandleResult(result);
