@@ -6,6 +6,7 @@ using FVN_REGISTER.Contract.Dtos.ApprovelSnapshotDto;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Reports;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Entities.Security;
 
 using FVN_REGISTER.Core.Repositories;
 
