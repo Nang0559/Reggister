@@ -5,6 +5,7 @@ using FVN_REGISTER.Contract.Dtos.HrmSync;
 using FVN_REGISTER.Contract.Responses;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using IAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 namespace FVN_REGISTER.API.Controllers;
 [Authorize]
 [ApiController]

@@ -9,6 +9,7 @@ using FVN_REGISTER.Core.Enums;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
+using IAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 
 namespace FVN_REGISTER.API.Controllers
 {
@@ -120,7 +121,7 @@ namespace FVN_REGISTER.API.Controllers
         public async Task<IActionResult> Toggle(int id, CancellationToken ct)
         {
             if (!await CanAsync(SecurityFunctionCodes.ApproverManage, ct)) return Forbid();
-            if (UserInfo == null return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
+            if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             var result = await _approverService.ToggleActiveAsync(id, UserInfo.UserId, ct);
             await LogActionAsync($"Toggle Approver ID: {id}");
             return HandleResult(result);
