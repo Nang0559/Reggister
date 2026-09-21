@@ -6,7 +6,7 @@ namespace FVN_REGISTER.Core.Entities.WorkCalendar;
 [Table("F03ExecutionConfirmationEvidence")]
 public sealed class F03ExecutionConfirmationEvidence : BaseAuditEntity
 {
-    public long Id { get; set; }
+    public new long Id { get; set; }
 
     public long ConfirmationId { get; set; }
 
