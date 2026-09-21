@@ -306,3 +306,8 @@ Cần cung cấp:
 9. Calendar projection provider.
 10. Correction producer nếu module cần cập nhật business source.
 
+
+
+### Calendar interaction model
+
+Calendar distinguishes four interactions: CONFIRMATION for reconciliation work items with ActionId; DETAIL for existing business data with a DetailRoute; OPEN_REGISTRATION for empty dates where registration is allowed; and INFO for read-only information. Registration opportunities are exposed separately from existing calendar items and are resolved from the existing WorkCalendar availability rules. Existing data, including Attendance mismatch, takes precedence over creating a new registration on the same date. Blank dates on the standalone Calendar can open a registration chooser for Leave/OT/Trip, and the selected date is carried into the corresponding create page.
