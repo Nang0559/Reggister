@@ -42,5 +42,13 @@ namespace FVN_REGISTER.API.Controllers
                 result = result.Where(x => string.Equals(x.DeptCode, UserInfo.DeptCode, StringComparison.OrdinalIgnoreCase)).ToList();
             return Ok(ApiResponse<object>.Ok(result));
         }
+
+        [HttpGet("{deptCode}")]
+        public async Task<IActionResult> GetByDept(string deptCode, [FromQuery] DateTime? date, CancellationToken ct)
+        {
+            if (UserInfo == null || !await _authorization.CanAccessAsync(UserInfo, SecurityFunctionCodes.DepartmentStatusView, null, deptCode, ct)) return Forbid();
+            var result = await _deptStatus.GetDeptStatusAsync(deptCode, date ?? DateTime.Today, ct);
+            return Ok(ApiResponse<DepartmentStatusDto>.Ok(result));
+        }
     }
 }
