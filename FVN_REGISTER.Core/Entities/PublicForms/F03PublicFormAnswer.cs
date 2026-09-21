@@ -1,5 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
-using FVN_REGISTER.Core.Entities.Common;
+using FVN_REGISTER.Core.Entities;
 
 namespace FVN_REGISTER.Core.Entities.PublicForms;
 
