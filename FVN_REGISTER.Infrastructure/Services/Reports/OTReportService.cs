@@ -60,9 +60,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         private async Task<ServiceResult<ReportResultDto>> GetOTSummaryByDeptAsync(
             ReportQueryDto query, UserIdentityDto user, CancellationToken ct)
         {
-            bool isAdmin = user.Permission.IsAdmin();
-            bool isManager = user.Permission.IsApprover() || user.LevelApprove > 0;
-            if (!isAdmin && !isManager) return ServiceResult<ReportResultDto>.Fail("Bạn không có quyền xem báo cáo OT theo phòng ban.");
+            if (string.IsNullOrWhiteSpace(query.DeptCode) && string.IsNullOrWhiteSpace(query.EmployeeCode))
+                return ServiceResult<ReportResultDto>.Fail("Thiếu phạm vi dữ liệu báo cáo OT.");
 
             var fromDate = query.FromDate ?? DateTime.Today.AddMonths(-1);
             var toDate = query.ToDate ?? DateTime.Today;
@@ -74,10 +73,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.OTDate <= DateOnly.FromDateTime(toDate)
                          && ActiveOrApprovedStatuses.Contains(x.RequestStatus));
 
-            if (!isAdmin)
-                q = q.Where(x => x.DeptCode == user.DeptCode);
-            else if (!string.IsNullOrEmpty(query.DeptCode))
+            if (!string.IsNullOrEmpty(query.DeptCode))
                 q = q.Where(x => x.DeptCode == query.DeptCode);
+            if (!string.IsNullOrEmpty(query.EmployeeCode))
+                q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
 
             var data = await q
                 .GroupBy(x => new { x.DeptCode, x.DeptName })
@@ -137,9 +136,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         private async Task<ServiceResult<ReportResultDto>> GetOTSummaryByEmployeeAsync(
             ReportQueryDto query, UserIdentityDto user, CancellationToken ct)
         {
-            bool isAdmin = user.Permission.IsAdmin();
-            bool isManager = user.Permission.IsApprover() || user.LevelApprove > 0;
-
             var fromDate = query.FromDate ?? DateTime.Today.AddMonths(-1);
             var toDate = query.ToDate ?? DateTime.Today;
 
@@ -149,23 +145,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.OTDate >= DateOnly.FromDateTime(fromDate)
                          && x.OTDate <= DateOnly.FromDateTime(toDate));
 
-            if (isAdmin)
-            {
-                if (!string.IsNullOrEmpty(query.DeptCode))
-                    q = q.Where(x => x.DeptCode == query.DeptCode);
-                if (!string.IsNullOrEmpty(query.EmployeeCode))
-                    q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
-            }
-            else if (isManager)
-            {
-                q = q.Where(x => x.DeptCode == user.DeptCode);
-                if (!string.IsNullOrEmpty(query.EmployeeCode))
-                    q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
-            }
-            else
-            {
-                q = q.Where(x => x.EmployeeCode == user.EmployeeCode);
-            }
+            if (!string.IsNullOrEmpty(query.DeptCode))
+                q = q.Where(x => x.DeptCode == query.DeptCode);
+            if (!string.IsNullOrEmpty(query.EmployeeCode))
+                q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
 
             var data = await q
                 .GroupBy(x => new { x.EmployeeCode, x.EmployeeName, x.DeptCode, x.DeptName })
@@ -226,22 +209,14 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         private async Task<ServiceResult<ReportResultDto>> GetOTDetailAsync(
             ReportQueryDto query, UserIdentityDto user, CancellationToken ct)
         {
-            bool isAdmin = user.Permission.IsAdmin();
-            bool isManager = user.Permission.IsApprover() || user.LevelApprove > 0;
-
             var q = _uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
                 .Where(x => x.IsActive == true
                          && x.OTDate >= query.FromDate
                          && x.OTDate <= query.ToDate);
 
-            if (!isAdmin && isManager)
-                q = q.Where(x => x.DeptCode == user.DeptCode);
-            else if (isAdmin && !string.IsNullOrEmpty(query.DeptCode))
+            if (!string.IsNullOrEmpty(query.DeptCode))
                 q = q.Where(x => x.DeptCode == query.DeptCode);
-            else if (!isAdmin && !isManager)
-                q = q.Where(x => x.EmployeeCode == user.EmployeeCode);
-
             if (!string.IsNullOrEmpty(query.EmployeeCode))
                 q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
 
@@ -363,8 +338,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
         private async Task<ServiceResult<ReportResultDto>> GetOTLimitUsageAsync(
             ReportQueryDto query, UserIdentityDto user, CancellationToken ct)
         {
-            bool isAdmin = user.Permission.IsAdmin();
-            bool isManager = user.Permission.IsApprover() || user.LevelApprove > 0;
             var year = query.WorkYear ?? DateTime.Now.Year;
 
             var q = _uow.Repository<VF03OTRequestDetail>().Query()
@@ -373,23 +346,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                          && x.OTDate.Year == year
                          && x.RequestStatus == ApprovalStatus.Approved);
 
-            if (isAdmin)
-            {
-                if (!string.IsNullOrEmpty(query.DeptCode))
-                    q = q.Where(x => x.DeptCode == query.DeptCode);
-                if (!string.IsNullOrEmpty(query.EmployeeCode))
-                    q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
-            }
-            else if (isManager)
-            {
-                q = q.Where(x => x.DeptCode == user.DeptCode);
-                if (!string.IsNullOrEmpty(query.EmployeeCode))
-                    q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
-            }
-            else
-            {
-                q = q.Where(x => x.EmployeeCode == user.EmployeeCode);
-            }
+            if (!string.IsNullOrEmpty(query.DeptCode))
+                q = q.Where(x => x.DeptCode == query.DeptCode);
+            if (!string.IsNullOrEmpty(query.EmployeeCode))
+                q = q.Where(x => x.EmployeeCode == query.EmployeeCode);
 
             var accumulated = await q
                 .GroupBy(x => new { x.EmployeeCode, x.EmployeeName, x.DeptCode, x.DeptName })
