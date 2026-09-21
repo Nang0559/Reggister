@@ -162,9 +162,17 @@
 @code {
     private MudForm? _form;
 
+    [Parameter, SupplyParameterFromQuery(Name = "date")]
+    public DateTime? CalendarDate { get; set; }
+
     protected override async Task OnInitializedAsync()
     {
         await LoadApprovalRouteAsync();
+        if (CalendarDate.HasValue)
+        {
+            _startDate = CalendarDate.Value.Date;
+            _endDate = CalendarDate.Value.Date;
+        }
     }
     private DateTime? _startDate = DateTime.Today;
     private DateTime? _endDate = DateTime.Today;
