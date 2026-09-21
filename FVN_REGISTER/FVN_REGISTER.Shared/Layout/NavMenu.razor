@@ -44,17 +44,17 @@
         </MudNavGroup>
     }
 
-    @if (CanAny(SecurityFunctionCodes.DepartmentView, SecurityFunctionCodes.EmployeeView, SecurityFunctionCodes.LeaveTypeView, SecurityFunctionCodes.ApproverView, SecurityFunctionCodes.HrmSyncViewStatus, SecurityFunctionCodes.UserManagementView))
+    @if (CanAny(SecurityFunctionCodes.DepartmentView, SecurityFunctionCodes.EmployeeView, SecurityFunctionCodes.LeaveTypeView, SecurityFunctionCodes.ApproverView, SecurityFunctionCodes.HrmSyncViewStatus, SecurityFunctionCodes.HrmSyncReview, SecurityFunctionCodes.HrmUserRoleRuleManage, SecurityFunctionCodes.ApprovalPolicyManage, SecurityFunctionCodes.AttendanceCalculate, SecurityFunctionCodes.DepartmentStatusView))
     {
         <MudNavGroup Title="Dữ liệu" Icon="@Icons.Material.Filled.Storage" Expanded="false">
-            <MudNavLink href="/admin/departments" Icon="@Icons.Material.Filled.Business">Bộ phận</MudNavLink>
-            <MudNavLink href="/admin/employees" Icon="@Icons.Material.Filled.People">Nhân viên</MudNavLink>
-            <MudNavLink href="/admin/approvers" Icon="@Icons.Material.Filled.VerifiedUser">Approver</MudNavLink>
-            <MudNavLink href="/admin/leave-types" Icon="@Icons.Material.Filled.Category">Hình thức nghỉ</MudNavLink>
-            <MudNavLink href="/admin/hrm-sync" Icon="@Icons.Material.Filled.Sync">Đồng bộ HRM</MudNavLink>
-            <MudNavLink href="/admin/hrm-sync-review" Icon="@Icons.Material.Filled.WarningAmber">Conflict HRM</MudNavLink>
-            <MudNavLink href="/admin/hrm-role-rules" Icon="@Icons.Material.Filled.Rule">Role HRM → User</MudNavLink>
-            <MudNavLink href="/admin/approval-policies" Icon="@Icons.Material.Filled.Policy">Approval Policy</MudNavLink>
+            @if (Can(SecurityFunctionCodes.DepartmentView)) { <MudNavLink href="/admin/departments" Icon="@Icons.Material.Filled.Business">Bộ phận</MudNavLink> }
+            @if (Can(SecurityFunctionCodes.EmployeeView)) { <MudNavLink href="/admin/employees" Icon="@Icons.Material.Filled.People">Nhân viên</MudNavLink> }
+            @if (Can(SecurityFunctionCodes.ApproverView)) { <MudNavLink href="/admin/approvers" Icon="@Icons.Material.Filled.VerifiedUser">Approver</MudNavLink> }
+            @if (Can(SecurityFunctionCodes.LeaveTypeView)) { <MudNavLink href="/admin/leave-types" Icon="@Icons.Material.Filled.Category">Hình thức nghỉ</MudNavLink> }
+            @if (Can(SecurityFunctionCodes.HrmSyncViewStatus)) { <MudNavLink href="/admin/hrm-sync" Icon="@Icons.Material.Filled.Sync">Đồng bộ HRM</MudNavLink> }
+            @if (Can(SecurityFunctionCodes.HrmSyncReview)) { <MudNavLink href="/admin/hrm-sync-review" Icon="@Icons.Material.Filled.WarningAmber">Conflict HRM</MudNavLink> }
+            @if (Can(SecurityFunctionCodes.HrmUserRoleRuleManage)) { <MudNavLink href="/admin/hrm-role-rules" Icon="@Icons.Material.Filled.Rule">Role HRM → User</MudNavLink> }
+            @if (Can(SecurityFunctionCodes.ApprovalPolicyManage)) { <MudNavLink href="/admin/approval-policies" Icon="@Icons.Material.Filled.Policy">Approval Policy</MudNavLink> }
             @if (Can(SecurityFunctionCodes.AttendanceCalculate))
             {
                 <MudNavLink href="/hrm/attendance-calculation" Icon="@Icons.Material.Filled.AccessTime">Tính giờ theo HRM</MudNavLink>
@@ -62,7 +62,7 @@
         </MudNavGroup>
 
         <MudNavGroup Title="Quản lý OT" Icon="@Icons.Material.Filled.Timelapse" Expanded="false">
-            <MudNavLink href="/ot/list" Icon="@Icons.Material.Filled.FormatListBulleted">Danh sách đơn OT</MudNavLink>
+            @if (Can(SecurityFunctionCodes.OTView)) { <MudNavLink href="/ot/list" Icon="@Icons.Material.Filled.FormatListBulleted">Danh sách đơn OT</MudNavLink> }
             @if (Can(SecurityFunctionCodes.OTLimitManage))
             {
                 <MudNavLink href="/admin/ot-limit-rules" Icon="@Icons.Material.Filled.Rule">Hạn mức OT</MudNavLink>
@@ -114,7 +114,7 @@
     @if (Can(SecurityFunctionCodes.UserManagementView))
     {
         <MudNavGroup Title="Hệ thống" Icon="@Icons.Material.Filled.Settings" Expanded="false">
-            <MudNavLink href="/admin/managers" Icon="@Icons.Material.Filled.AdminPanelSettings">Quản trị viên</MudNavLink>
+            @if (Can(SecurityFunctionCodes.UserManagementView)) { <MudNavLink href="/admin/managers" Icon="@Icons.Material.Filled.AdminPanelSettings">Quản trị viên</MudNavLink> }
             @if (Can(SecurityFunctionCodes.SecurityView))
             {
                 <MudNavLink href="/admin/security" Icon="@Icons.Material.Filled.Security">Security Center</MudNavLink>
