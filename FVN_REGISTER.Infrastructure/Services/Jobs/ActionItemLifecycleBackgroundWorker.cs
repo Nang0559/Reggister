@@ -1,5 +1,6 @@
 using FVN_REGISTER.Infrastructure;
 using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Core.Entities.WorkCalendar;
 using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Jobs;
@@ -44,27 +45,24 @@ public sealed class ActionItemLifecycleBackgroundWorker : BackgroundService
                         .OrderByDescending(x => x.Id)
                         .FirstOrDefaultAsync(stoppingToken);
 
-                    if (reconciliation?.ReconciliationStatus == "Resolved")
+                    if (reconciliation is not null)
                     {
-                        if (action.Status != ActionItemStatus.Completed)
+                        var targetStatus = ExecutionActionLifecyclePolicy.ResolveDueStatus(
+                            reconciliation.ReconciliationStatus);
+
+                        if (action.Status != targetStatus)
                         {
-                            action.Status = ActionItemStatus.Completed;
-                            action.CompletedAt = now;
-                            action.ExpiredAt = null;
+                            action.Status = targetStatus;
+                            action.CompletedAt = targetStatus == ActionItemStatus.Completed ? now : null;
+                            action.ExpiredAt = targetStatus == ActionItemStatus.Expired ? now : null;
                             action.ModifiedAt = now;
-                            action.LastModifiedSource = "ACTION_LIFECYCLE";
-                        }
-                    }
-                    else if (reconciliation is not null)
-                    {
-                        // DueAt is an overdue signal, not a business terminal state.
-                        // Keep the action actionable, but only mutate it once.
-                        if (action.Status == ActionItemStatus.Open)
-                        {
-                            action.Status = ActionItemStatus.InProgress;
-                            action.ExpiredAt = null;
-                            action.ModifiedAt = now;
-                            action.LastModifiedSource = "ACTION_LIFECYCLE_OVERDUE";
+                            action.LastModifiedSource = targetStatus switch
+                            {
+                                ActionItemStatus.Completed => "ACTION_LIFECYCLE_RESOLVED",
+                                ActionItemStatus.Cancelled => "ACTION_LIFECYCLE_MATCHED_CANCELLED",
+                                ActionItemStatus.Expired => "ACTION_LIFECYCLE_NON_ACTIONABLE_EXPIRED",
+                                _ => "ACTION_LIFECYCLE_OVERDUE"
+                            };
                         }
                     }
                     else
@@ -74,6 +72,7 @@ public sealed class ActionItemLifecycleBackgroundWorker : BackgroundService
                         {
                             action.Status = ActionItemStatus.Expired;
                             action.ExpiredAt = now;
+                            action.CompletedAt = null;
                             action.ModifiedAt = now;
                             action.LastModifiedSource = "ACTION_LIFECYCLE_ORPHAN_EXPIRED";
                         }
