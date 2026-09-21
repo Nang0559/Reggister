@@ -11,6 +11,8 @@ using FVN_REGISTER.Core.Entities.Security;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using FVN_REGISTER.Application.Interfaces.Users;
+using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.API.Controllers;
 
