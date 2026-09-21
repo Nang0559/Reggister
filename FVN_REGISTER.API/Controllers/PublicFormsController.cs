@@ -42,6 +42,13 @@ public sealed class PublicFormsController : ControllerBase
     }
     [HttpPost("{id:int}/publish")]
     public async Task<IActionResult> Publish(int id,CancellationToken ct){var u=_currentUser.GetCurrentUser();if(u==null)return Unauthorized();return Ok(await _service.PublishAsync(id,u.UserId,ct));}
+    [HttpPost("{id:int}/submit")]
+    public async Task<IActionResult> Submit(int id,[FromBody] List<Contract.Requests.PublicForms.PublicFormAnswerRequest> answers,CancellationToken ct)
+    {
+        var u=_currentUser.GetCurrentUser(); if(u==null)return Unauthorized();
+        return Ok(await _service.SubmitAsync(id,u.EmployeeCode??string.Empty,u.DeptCode,u.PositionCode,answers,ct));
+    }
+
     [HttpPost("{id:int}/close")]
     public async Task<IActionResult> Close(int id,CancellationToken ct){var u=_currentUser.GetCurrentUser();if(u==null)return Unauthorized();return Ok(await _service.CloseAsync(id,u.UserId,ct));}
 }
