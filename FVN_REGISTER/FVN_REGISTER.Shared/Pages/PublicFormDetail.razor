@@ -25,25 +25,25 @@ else
     @if(!string.IsNullOrWhiteSpace(q.HelpText)){<MudText Typo="Typo.caption" Color="Color.Secondary">@q.HelpText</MudText>}
     @if(q.QuestionType=="SingleChoice")
     {
-      <MudSelect T="string" Value="@Value(q.Id)" ValueChanged="@(v=>Set(q.Id,v))" Label="Chọn" Variant="Variant.Outlined">
+      <MudSelect T="string" Value="@Value(q.Id)" ValueChanged="EventCallback.Factory.Create<string>(this, v => Set(q.Id, v))" Label="Chọn" Variant="Variant.Outlined">
        @foreach(var o in q.Options.Where(x=>x.Id>0)){<MudSelectItem Value="@o.OptionCode">@o.OptionText</MudSelectItem>}
       </MudSelect>
     }
     else if(q.QuestionType=="YesNo")
     {
-      <MudSwitch T="bool?" Value="@BoolValue(q.Id)" ValueChanged="@(v=>Set(q.Id,v==true?"true":"false"))">Có</MudSwitch>
+      <MudSwitch T="bool?" Value="@BoolValue(q.Id)" ValueChanged="EventCallback.Factory.Create<bool?>(this, v => Set(q.Id, v == true ? "true" : "false"))">Có</MudSwitch>
     }
     else if(q.QuestionType=="Number")
     {
-      <MudNumericField T="decimal?" Value="@DecimalValue(q.Id)" ValueChanged="@(v=>Set(q.Id,v?.ToString(System.Globalization.CultureInfo.InvariantCulture)))" Label="Nhập số" Variant="Variant.Outlined" />
+      <MudNumericField T="decimal?" Value="@DecimalValue(q.Id)" ValueChanged="EventCallback.Factory.Create<decimal?>(this, v => Set(q.Id, v?.ToString(System.Globalization.CultureInfo.InvariantCulture)))" Label="Nhập số" Variant="Variant.Outlined" />
     }
     else if(q.QuestionType=="Date")
     {
-      <MudDatePicker Date="@DateValue(q.Id)" DateChanged="@(v=>Set(q.Id,v?.ToString("yyyy-MM-dd")))" Label="Ngày" Variant="Variant.Outlined" />
+      <MudDatePicker Date="@DateValue(q.Id)" DateChanged="EventCallback.Factory.Create<DateTime?>(this, v => Set(q.Id, v?.ToString("yyyy-MM-dd")))" Label="Ngày" Variant="Variant.Outlined" />
     }
     else
     {
-      <MudTextField Value="@Value(q.Id)" ValueChanged="@(v=>Set(q.Id,v))" Lines="@(q.QuestionType=="Textarea"?3:1)" Label="Trả lời" Variant="Variant.Outlined" />
+      <MudTextField Value="@Value(q.Id)" ValueChanged="EventCallback.Factory.Create<string>(this, v => Set(q.Id, v))" Lines="@(q.QuestionType=="Textarea"?3:1)" Label="Trả lời" Variant="Variant.Outlined" />
     }
    </MudPaper>
   }
