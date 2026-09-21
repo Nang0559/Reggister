@@ -26,6 +26,34 @@ flowchart TD
 
 ## 2. Quyền sử dụng module
 
+Quyền Equipment được tách theo capability server-side:
+
+- Equipment.View = 2301: nhìn thấy module, tra cứu/scan QR.
+- Equipment.Create = 2302: tạo đăng ký thiết bị.
+- Equipment.Edit = 2303: chỉnh sửa/gửi đăng ký.
+- Equipment.Repair = 2304: tạo/gửi yêu cầu sửa chữa.
+- Equipment.Approve = 2305: quyền approval theo workflow.
+- Equipment.Import = 2306: import Excel theo schema phòng ban.
+- Equipment.Export = 2307: xuất dữ liệu.
+- Equipment.Cancel = 2308: hủy request.
+
+Admin có thể cấp trực tiếp capability cho từng user trong màn hình quản lý tài khoản. Đặc biệt Equipment.Import được tách riêng: user có quyền sử dụng Equipment không mặc nhiên có quyền import Excel.
+
+900 / EquipmentModule được giữ như legacy marker để tương thích dữ liệu cũ; API Equipment hiện hành kiểm tra các capability 2301..2308 qua IAuthorizationService.
+
+## 3. Import Excel đa định dạng và đa schema
+
+Equipment Workspace hỗ trợ .xls, .xlsx, .xlsm và .xlsb khi parser hiện hành đọc được. File được xử lý qua NPOI/WorkbookFactory, stage thành F03EquipmentImportBatch + F03EquipmentImportRow, validate theo F03EquipmentFieldDefinitions của DeptCode, hiển thị lỗi theo từng dòng rồi mới cho Commit.
+
+Mỗi phòng ban có thể có số lượng cột, tên cột và field riêng khác nhau. Core fields dùng chung; field riêng lưu trong CustomDataJson.
+
+Luồng:
+Upload -> Detect Excel format -> Stage -> Header/Field mapping -> Validate -> Review errors -> Commit -> F03EquipmentAssets
+
+Import không ghi thẳng vào Asset khi upload. Batch có lỗi không được Commit.
+
+## 4. Approval matrix theo bộ phận
+
 Admin cấp function `EquipmentModule` cho từng user thông qua cơ chế `F03Functions → F03UserFunctions` hiện có. Chỉ user có function này (hoặc SuperAdmin/Admin) mới:
 
 - nhìn thấy module trên Dashboard;
@@ -35,7 +63,7 @@ Admin cấp function `EquipmentModule` cho từng user thông qua cơ chế `F03
 
 Quyền module không thay thế quyền approval. Người duyệt vẫn được resolve từ `F03Approvers` với `RequestType = Equipment`.
 
-## 3. Approval matrix theo bộ phận
+## 4. Approval matrix theo bộ phận
 
 `F03Approvers` là master duyệt dùng chung. Admin cấu hình:
 
@@ -59,7 +87,7 @@ flowchart LR
     L1 --> L2 --> L3
 ```
 
-## 4. Đăng ký thiết bị mới
+## 5. Đăng ký thiết bị mới
 
 Thông tin tối thiểu:
 
