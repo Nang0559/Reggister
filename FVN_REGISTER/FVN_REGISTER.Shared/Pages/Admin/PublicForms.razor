@@ -9,7 +9,7 @@
 @inject ISnackbar Snackbar
 
 <PageTitle>Biểu mẫu đăng ký</PageTitle>
-<MudText Typo="h5"><b>Biểu mẫu đăng ký</b></MudText>
+<MudText Typo="Typo.h5"><b>Biểu mẫu đăng ký</b></MudText>
 <MudText Typo="body2" Color="Color.Secondary" Class="mb-4">HR tự tạo biểu mẫu, câu hỏi và đối tượng được phép đăng ký.</MudText>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
@@ -25,7 +25,7 @@
 </MudPaper>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
- <MudStack Row="true" AlignItems="AlignItems.Center"><MudText Typo="h6">Đối tượng đăng ký</MudText><MudSpacer/><MudButton OnClick="AddAudience" Variant="Variant.Outlined">+ Thêm</MudButton></MudStack>
+ <MudStack Row="true" AlignItems="AlignItems.Center"><MudText Typo="Typo.h6">Đối tượng đăng ký</MudText><MudSpacer/><MudButton OnClick="AddAudience" Variant="Variant.Outlined">+ Thêm</MudButton></MudStack>
  @foreach(var a in _form.Audiences)
  {
   <MudGrid Class="mt-1">
