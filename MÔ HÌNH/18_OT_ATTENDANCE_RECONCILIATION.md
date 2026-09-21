@@ -80,6 +80,20 @@ Action chỉ biểu diễn việc cần làm, không quyết định business re
 
 OT: OT Master → Participant → Approved Revision → Actual → Reconciliation. A thay đổi không làm B/C thay đổi. Leave/Trip nhiều participant cũng áp dụng nguyên tắc này.
 
+## 9A. OT actual có nhưng không có đơn
+
+OT actual được xác định từ official `F03HrmAttendanceCalculated`, không từ `OvertimeEmployees`. Vì vậy trường hợp nhân viên có OT thực tế nhưng không hề có dòng đăng ký OT vẫn phải được phát hiện.
+
+Rule:
+
+`ActualOTMinutes > 0 OR RecognizedOTMinutes > 0` + `không có Approved OT cùng EmployeeCode + WorkDate`
+
+→ `F03ExecutionReconciliations(ModuleCode=OT, SourceType=OT_ACTUAL_ONLY)` với `Mismatch + RequiresConfirmation`.
+
+Calendar projection của case này dùng `Marker=?`, `Severity=3`, `RequiresAction=true` và cùng `ActionId` với execution confirmation. Người dùng nhìn thấy dấu **? màu đỏ**, click vào để xác nhận nguyên nhân (ví dụ có OT thực tế nhưng đơn OT bị thiếu/không hiển thị).
+
+`OT_ACTUAL_ONLY` là source type riêng để không nhầm với OT request thật. Khi request Approved xuất hiện hoặc actual OT không còn sau recalculation, reconciliation synthetic được đóng và projection stale được gỡ khỏi Calendar.
+
 ## 10. Attendance
 
 Không tạo calculation engine thứ hai. Attendance company-wide được worker/scheduler tính và backfill; Calendar/Dashboard chỉ đọc official read model. Payroll period hiện hành: ngày 21 → ngày 20.
