@@ -61,33 +61,21 @@ GO
 
 /*
     Old rows have no reliable department / approver-position information.
-    Retire them before the new foreign keys are created; no department or
-    approval position is invented silently.
-*/
-UPDATE dbo.F03ApprovalPolicies
-SET
-    DeptCode = COALESCE(NULLIF(DeptCode, N''), N'__LEGACY_UNCONFIGURED__'),
-    ApprovalPositionCode = COALESCE(
-        NULLIF(ApprovalPositionCode, N''),
-        N'__LEGACY_UNCONFIGURED__'
-    ),
-    IsActive = 0,
-    LastModifiedSource = N'Migration:ApprovalPolicyV4'
-WHERE
-    DeptCode IS NULL
-    OR LTRIM(RTRIM(DeptCode)) = N''
-    OR ApprovalPositionCode IS NULL
-    OR LTRIM(RTRIM(ApprovalPositionCode)) = N'';
-GO
+    Retire them before the new foreign keys are created. Do NOT use a
+    sentinel value here: DeptCode and ApprovalPositionCode are nvarchar(20),
+    and a sentinel longer than 20 characters causes error 8152 and leaves
+    NULL values behind, which then makes the NOT NULL ALTER fail with 515.
 
-/*
-    Legacy rows are removed before the new foreign keys are added because
-    their department and approval position cannot be inferred safely.
+    Valid v4 rows (both values supplied) are preserved.
+    Legacy rows that cannot be mapped safely are deleted from the active
+    policy table; they must be recreated through the new policy UI.
 */
 DELETE p
 FROM dbo.F03ApprovalPolicies p
-WHERE p.DeptCode = N'__LEGACY_UNCONFIGURED__'
-   OR p.ApprovalPositionCode = N'__LEGACY_UNCONFIGURED__';
+WHERE p.DeptCode IS NULL
+   OR LTRIM(RTRIM(p.DeptCode)) = N''
+   OR p.ApprovalPositionCode IS NULL
+   OR LTRIM(RTRIM(p.ApprovalPositionCode)) = N'';
 GO
 
 IF NOT EXISTS
