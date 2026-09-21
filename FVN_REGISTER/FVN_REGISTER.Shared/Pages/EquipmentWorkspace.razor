@@ -85,22 +85,6 @@
                         <MudText Typo="Typo.subtitle1">Batch #@_batch.Id</MudText>
                         <MudText>Trạng thái: @_batch.Status</MudText>
                         <MudText>Tổng: @_batch.TotalRows • Hợp lệ: @_batch.ValidRows • Lỗi: @_batch.InvalidRows</MudText>
-                        @if (_batch.InvalidRows > 0)
-                        {
-                            <MudAlert Severity="Severity.Warning" Class="mt-3">
-                                Có @_batch.InvalidRows dòng lỗi. Hãy sửa file nguồn và upload lại; hệ thống không cho commit batch chưa sạch lỗi.
-                            </MudAlert>
-                            <MudTable T="EquipmentImportRowDto" Items="@_batch.Rows.Where(x => x.Status == "Invalid")" Dense="true" Hover="true" Class="mt-3">
-                                <HeaderContent>
-                                    <MudTh>Dòng Excel</MudTh>
-                                    <MudTh>Lỗi</MudTh>
-                                </HeaderContent>
-                                <RowTemplate>
-                                    <MudTd>@context.RowNumber</MudTd>
-                                    <MudTd>@context.ErrorMessage</MudTd>
-                                </RowTemplate>
-                            </MudTable>
-                        }
                         <MudButton Variant="Variant.Filled" Color="Color.Success" Class="mt-3" Disabled="@(_batch.InvalidRows > 0)" OnClick="Commit">Commit vào hệ thống</MudButton>
                     }
                 </MudPaper>
