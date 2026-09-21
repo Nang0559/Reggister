@@ -369,3 +369,13 @@ IF OBJECT_ID('dbo.F03Shifts','U') IS NULL CREATE TABLE dbo.F03Shifts(
     ShiftType tinyint NOT NULL DEFAULT 0,
     DepartmentScope nvarchar(1000) NULL,
     RestDayType tinyint NOT NULL DEFAULT 0,
+    IgnoreAbsence bit NOT NULL DEFAULT 1,
+    ScheduleInOutType tinyint NOT NULL DEFAULT 0,
+    SplitOTAfterShift bit NOT NULL DEFAULT 0,
+    CountBreakAsWork bit NULL,
+    CountToTotalWork bit NULL,
+    AllowOutside bit NOT NULL DEFAULT 0,
+    AllowEarlyCheckIn bit NOT NULL DEFAULT 0,
+    ShiftGroup nvarchar(50) NULL
+);
+GO
