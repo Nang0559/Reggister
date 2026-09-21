@@ -13,4 +13,5 @@ public interface IPublicFormService
     Task<ServiceResult<PublicFormDto>> UpdateAsync(int id, SavePublicFormRequest request, int actorUserId, CancellationToken ct = default);
     Task<ServiceResult> PublishAsync(int id, int actorUserId, CancellationToken ct = default);
     Task<ServiceResult> CloseAsync(int id, int actorUserId, CancellationToken ct = default);
+    Task<ServiceResult<int>> SubmitAsync(int formId, string employeeCode, IReadOnlyCollection<PublicFormAnswerRequest> answers, CancellationToken ct = default);
 }
