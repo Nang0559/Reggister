@@ -782,6 +782,40 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         }, cancellationToken);
     }
 
+    private async Task SendNotificationWithRetryAsync(
+        Func<Task> send,
+        string operation,
+        CancellationToken cancellationToken)
+    {
+        const int maxAttempts = 3;
+        Exception? lastException = null;
+
+        for (var attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            try
+            {
+                await send();
+                return;
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                lastException = ex;
+                if (attempt == maxAttempts)
+                    break;
+
+                await Task.Delay(TimeSpan.FromMilliseconds(250 * attempt), cancellationToken);
+            }
+        }
+
+        throw new InvalidOperationException(
+            $"Notification operation '{operation}' failed after {maxAttempts} attempts.",
+            lastException);
+    }
+
     private static void ApplyCalendarResolution(
         F03CalendarProjection calendar,
         string decision,
