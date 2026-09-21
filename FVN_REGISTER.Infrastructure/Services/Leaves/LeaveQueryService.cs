@@ -110,14 +110,17 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 .ToListAsync(ct);
 
             var approvedDetails = approvedLeaveIds.Count == 0
-                ? new List<(string? LeaveTypeCode, bool IsCountedAsLeave, decimal DayValue)>()
-                : (await Uow.Repository<F03LeaveDayDetail>().Query()
-                    .AsNoTracking()
-                    .Where(d => approvedLeaveIds.Contains(d.LeaveDaysId))
-                    .Select(d => new { d.LeaveTypeCode, d.IsCountedAsLeave, d.DayValue })
-                    .ToListAsync(ct))
-                    .Select(d => (LeaveTypeCode: d.LeaveTypeCode ?? string.Empty, d.IsCountedAsLeave, d.DayValue))
-                    .ToList();
+     ? new List<(string LeaveTypeCode, bool IsCountedAsLeave, decimal DayValue)>()
+     : (await Uow.Repository<F03LeaveDayDetail>().Query()
+         .AsNoTracking()
+         .Where(d => approvedLeaveIds.Contains(d.LeaveDaysId))
+         .Select(d => new { d.LeaveTypeCode, d.IsCountedAsLeave, d.DayValue })
+         .ToListAsync(ct))
+         .Select(d => (
+             LeaveTypeCode: d.LeaveTypeCode ?? string.Empty,
+             d.IsCountedAsLeave,
+             d.DayValue))
+         .ToList();
 
             var sick = approvedDetails.Where(d => sickCodes.Contains(d.LeaveTypeCode)).Sum(d => d.DayValue);
             var unpaid = approvedDetails.Where(d => !d.IsCountedAsLeave && !sickCodes.Contains(d.LeaveTypeCode)).Sum(d => d.DayValue);

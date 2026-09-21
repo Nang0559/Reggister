@@ -1,87 +1,460 @@
+
 @page "/admin/public-forms"
 @attribute [Authorize]
+
 @using FVN_REGISTER.Contract.Dtos.PublicForms
 @using FVN_REGISTER.Contract.Requests.PublicForms
 @using FVN_REGISTER.Shared.Handlers
 @using Microsoft.AspNetCore.Authorization
+
 @inherits AppComponentBase
+
 @inject IHttpClientWithAuth Http
 @inject ISnackbar Snackbar
 
 <PageTitle>Biểu mẫu đăng ký</PageTitle>
-<MudText Typo="Typo.h5"><b>Biểu mẫu đăng ký</b></MudText>
-<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">HR tự tạo biểu mẫu, câu hỏi và đối tượng được phép đăng ký.</MudText>
+
+<MudText Typo="Typo.h5">
+    <b>Biểu mẫu đăng ký</b>
+</MudText>
+
+<MudText Typo="Typo.body2"
+         Color="Color.Secondary"
+         Class="mb-4">
+    HR tự tạo biểu mẫu, câu hỏi và đối tượng được phép đăng ký.
+</MudText>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
- <MudGrid>
-  <MudItem xs="12" sm="4"><MudTextField @bind-Value="_form.FormCode" Label="Mã biểu mẫu *" Variant="Variant.Outlined" /></MudItem>
-  <MudItem xs="12" sm="8"><MudTextField @bind-Value="_form.Title" Label="Tiêu đề *" Variant="Variant.Outlined" /></MudItem>
-  <MudItem xs="12"><MudTextField @bind-Value="_form.Description" Label="Mô tả" Variant="Variant.Outlined" /></MudItem>
-  <MudItem xs="12" sm="6"><MudDatePicker Date="_startDate" DateChanged="x=>_form.StartAt=x" Label="Bắt đầu" Variant="Variant.Outlined" /></MudItem>
-  <MudItem xs="12" sm="6"><MudDatePicker Date="_endDate" DateChanged="x=>_form.EndAt=x" Label="Kết thúc" Variant="Variant.Outlined" /></MudItem>
-  <MudItem xs="12" sm="6"><MudSwitch T="bool" @bind-Value="_form.AllowMultipleSubmit">Cho phép đăng ký nhiều lần</MudSwitch></MudItem>
-  <MudItem xs="12" sm="6"><MudSwitch T="bool" @bind-Value="_form.RequireApproval">Yêu cầu Approval</MudSwitch></MudItem>
- </MudGrid>
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudTextField @bind-Value="_form.FormCode"
+                          Label="Mã biểu mẫu *"
+                          Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12" sm="8">
+            <MudTextField @bind-Value="_form.Title"
+                          Label="Tiêu đề *"
+                          Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudTextField @bind-Value="_form.Description"
+                          Label="Mô tả"
+                          Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12" sm="6">
+            <MudDatePicker Date="@_startDate"
+                           DateChanged="@(x => _form.StartAt = x)"
+                           Label="Bắt đầu"
+                           Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12" sm="6">
+            <MudDatePicker Date="@_endDate"
+                           DateChanged="@(x => _form.EndAt = x)"
+                           Label="Kết thúc"
+                           Variant="Variant.Outlined" />
+        </MudItem>
+
+        <MudItem xs="12" sm="6">
+            <MudSwitch T="bool"
+                       @bind-Value="_form.AllowMultipleSubmit">
+                Cho phép đăng ký nhiều lần
+            </MudSwitch>
+        </MudItem>
+
+        <MudItem xs="12" sm="6">
+            <MudSwitch T="bool"
+                       @bind-Value="_form.RequireApproval">
+                Yêu cầu Approval
+            </MudSwitch>
+        </MudItem>
+    </MudGrid>
 </MudPaper>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
- <MudStack Row="true" AlignItems="AlignItems.Center"><MudText Typo="Typo.h6">Đối tượng đăng ký</MudText><MudSpacer/><MudButton OnClick="AddAudience" Variant="Variant.Outlined">+ Thêm</MudButton></MudStack>
- @foreach(var a in _form.Audiences)
- {
-  <MudGrid Class="mt-1">
-   <MudItem xs="5"><MudSelect T="string" @bind-Value="a.ScopeType" Label="Phạm vi" Variant="Variant.Outlined"><MudSelectItem Value="@("AllCompany")">Toàn công ty</MudSelectItem><MudSelectItem Value="@("Department")">Phòng ban</MudSelectItem><MudSelectItem Value="@("Position")">Position</MudSelectItem><MudSelectItem Value="@("Employee")">Nhân viên</MudSelectItem></MudSelect></MudItem>
-   <MudItem xs="6"><MudTextField @bind-Value="a.ScopeValue" Label="Giá trị (để trống nếu toàn công ty)" Variant="Variant.Outlined" /></MudItem>
-   <MudItem xs="1"><MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(()=>_form.Audiences.Remove(a))" /></MudItem>
-  </MudGrid>
- }
+    <MudStack Row="true"
+              AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h6">
+            Đối tượng đăng ký
+        </MudText>
+
+        <MudSpacer />
+
+        <MudButton OnClick="AddAudience"
+                   Variant="Variant.Outlined">
+            + Thêm
+        </MudButton>
+    </MudStack>
+
+    @foreach (var a in _form.Audiences)
+    {
+        <MudGrid Class="mt-1">
+            <MudItem xs="5">
+                <MudSelect T="string"
+                           @bind-Value="a.ScopeType"
+                           Label="Phạm vi"
+                           Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("AllCompany")">
+                        Toàn công ty
+                    </MudSelectItem>
+
+                    <MudSelectItem Value="@("Department")">
+                        Phòng ban
+                    </MudSelectItem>
+
+                    <MudSelectItem Value="@("Position")">
+                        Position
+                    </MudSelectItem>
+
+                    <MudSelectItem Value="@("Employee")">
+                        Nhân viên
+                    </MudSelectItem>
+                </MudSelect>
+            </MudItem>
+
+            <MudItem xs="6">
+                <MudTextField @bind-Value="a.ScopeValue"
+                              Label="Giá trị (để trống nếu toàn công ty)"
+                              Variant="Variant.Outlined" />
+            </MudItem>
+
+            <MudItem xs="1">
+                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                               Color="Color.Error"
+                               OnClick="@(() => _form.Audiences.Remove(a))" />
+            </MudItem>
+        </MudGrid>
+    }
 </MudPaper>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
- <MudStack Row="true" AlignItems="AlignItems.Center"><MudText Typo="Typo.h6">Câu hỏi</MudText><MudSpacer/><MudButton OnClick="AddQuestion" Variant="Variant.Outlined">+ Thêm câu hỏi</MudButton></MudStack>
- @foreach(var q in _form.Questions.OrderBy(x=>x.Sequence))
- {
-  <MudPaper Class="pa-3 mt-3" Outlined="true">
-   <MudGrid>
-    <MudItem xs="12" sm="3"><MudTextField @bind-Value="q.QuestionCode" Label="Code" Variant="Variant.Outlined" /></MudItem>
-    <MudItem xs="12" sm="5"><MudTextField @bind-Value="q.QuestionText" Label="Câu hỏi" Variant="Variant.Outlined" /></MudItem>
-    <MudItem xs="12" sm="3"><MudSelect T="string" @bind-Value="q.QuestionType" Label="Loại" Variant="Variant.Outlined">@foreach(var t in Types)<MudSelectItem Value="@t">@t</MudSelectItem></MudSelect></MudItem>
-    <MudItem xs="12" sm="1"><MudSwitch T="bool" @bind-Value="q.IsRequired">Bắt buộc</MudSwitch></MudItem>
-   </MudGrid>
-   @if (q.QuestionType == "SingleChoice" || q.QuestionType == "MultiChoice")
-   {
-       foreach (var o in q.Options)
-       {
-           <MudTextField Class="mt-2" @bind-Value="o.OptionText" Label="@o.OptionCode" Variant="Variant.Outlined" />
-       }
-       <MudButton Size="Size.Small"
-                  OnClick="@(() => q.Options.Add(new SavePublicFormOptionRequest
-                  {
-                      OptionCode = $"OPT{q.Options.Count + 1}",
-                      Sequence = q.Options.Count + 1
-                  }))">
-           + Option
-       </MudButton>
-   }
-  </MudPaper>
- }
- <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4"><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveAsync">Lưu nháp</MudButton></MudStack>
+    <MudStack Row="true"
+              AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h6">
+            Câu hỏi
+        </MudText>
+
+        <MudSpacer />
+
+        <MudButton OnClick="AddQuestion"
+                   Variant="Variant.Outlined">
+            + Thêm câu hỏi
+        </MudButton>
+    </MudStack>
+
+    @foreach (var q in _form.Questions.OrderBy(x => x.Sequence))
+    {
+        <MudPaper Class="pa-3 mt-3"
+                  Outlined="true">
+
+            <MudGrid>
+                <MudItem xs="12" sm="3">
+                    <MudTextField @bind-Value="q.QuestionCode"
+                                  Label="Code"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12" sm="5">
+                    <MudTextField @bind-Value="q.QuestionText"
+                                  Label="Câu hỏi"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
+
+                <MudItem xs="12" sm="3">
+                    <MudSelect T="string"
+                               @bind-Value="q.QuestionType"
+                               Label="Loại"
+                               Variant="Variant.Outlined">
+
+                        @foreach (var t in Types)
+                        {
+                            <MudSelectItem Value="@t">
+                                @t
+                            </MudSelectItem>
+                        }
+
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="1">
+                    <MudSwitch T="bool"
+                               @bind-Value="q.IsRequired">
+                        Bắt buộc
+                    </MudSwitch>
+                </MudItem>
+            </MudGrid>
+
+            @if (q.QuestionType == "SingleChoice" ||
+                    q.QuestionType == "MultiChoice")
+            {
+                @foreach (var o in q.Options)
+                {
+                    <MudTextField Class="mt-2"
+                                  @bind-Value="o.OptionText"
+                                  Label="@o.OptionCode"
+                                  Variant="Variant.Outlined" />
+                }
+
+                <MudButton Size="Size.Small"
+                           OnClick="@(() => q.Options.Add(
+                                                          new SavePublicFormOptionRequest
+                                                          {
+                                                              OptionCode = $"OPT{q.Options.Count + 1}",
+                                                              Sequence = q.Options.Count + 1
+                                                          }))">
+            + Option
+        </MudButton>
+                }
+
+        </MudPaper>
+    }
+
+    <MudStack Row="true"
+              Justify="Justify.FlexEnd"
+              Class="mt-4">
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   OnClick="SaveAsync">
+            Lưu nháp
+        </MudButton>
+
+    </MudStack>
 </MudPaper>
 
-<MudTable Items="_items" Dense="true" Hover="true">
- <HeaderContent><MudTh>Mã</MudTh><MudTh>Tiêu đề</MudTh><MudTh>Trạng thái</MudTh><MudTh>Đối tượng</MudTh><MudTh /></HeaderContent>
- <RowTemplate><MudTd>@context.FormCode</MudTd><MudTd><b>@context.Title</b></MudTd><MudTd>@context.Status</MudTd><MudTd>@string.Join(", ",context.Audiences.Select(x=>$"{x.ScopeType}:{x.ScopeValue}"))</MudTd><MudTd><MudButton Size="Size.Small" OnClick="@(()=>PublishAsync(context.Id))" Disabled="@(context.Status!="Draft")">Publish</MudButton><MudButton Size="Size.Small" Color="Color.Error" OnClick="@(()=>CloseAsync(context.Id))" Disabled="@(context.Status=="Closed"||context.Status=="Archived")">Close</MudButton></MudTd></RowTemplate>
+<MudTable Items="_items"
+          Dense="true"
+          Hover="true">
+
+    <HeaderContent>
+        <MudTh>Mã</MudTh>
+        <MudTh>Tiêu đề</MudTh>
+        <MudTh>Trạng thái</MudTh>
+        <MudTh>Đối tượng</MudTh>
+        <MudTh />
+    </HeaderContent>
+
+    <RowTemplate>
+        <MudTd>
+            @context.FormCode
+        </MudTd>
+
+        <MudTd>
+            <b>@context.Title</b>
+        </MudTd>
+
+        <MudTd>
+            @context.Status
+        </MudTd>
+
+        <MudTd>
+            @string.Join(
+            ", ",
+                        context.Audiences.Select(x => $"{x.ScopeType}:{x.ScopeValue}"))
+        </MudTd>
+
+        <MudTd>
+            <MudButton Size="Size.Small"
+                       OnClick="@(() => PublishAsync(context.Id))"
+                       Disabled="@(context.Status != "Draft")">
+                Publish
+            </MudButton>
+
+            <MudButton Size="Size.Small"
+                       Color="Color.Error"
+                       OnClick="@(() => CloseAsync(context.Id))"
+                       Disabled="@(context.Status == "Closed" ||
+                                                          context.Status == "Archived")">
+                Close
+            </MudButton>
+        </MudTd>
+    </RowTemplate>
+
 </MudTable>
 
-@code{
- private static readonly string[] Types={"Text","Textarea","Number","Date","Time","DateTime","SingleChoice","MultiChoice","YesNo","Department","Employee","File"};
- private List<PublicFormDto> _items=new(); private SavePublicFormRequest _form=NewForm(); private DateTime? _start=DateTime.Today,_end;
- private DateTime? _startDate{get=>_start;set{_start=value;_form.StartAt=value;}} private DateTime? _endDate{get=>_end;set{_end=value;_form.EndAt=value;}}
- protected override async Task OnInitializedAsync()=>await LoadAsync();
- private async Task LoadAsync(){var r=await Http.GetAsync<List<PublicFormDto>>("api/public-forms/manage");if(r.IsSuccess)_items=r.Data??new();else Snackbar.Add(r.Message??"Không tải được form.",Severity.Error);}
- private void AddAudience()=>_form.Audiences.Add(new SavePublicFormAudienceRequest{ScopeType="AllCompany"});
- private void AddQuestion()=>_form.Questions.Add(new SavePublicFormQuestionRequest{QuestionCode=$"Q{_form.Questions.Count+1}",QuestionText="",Sequence=_form.Questions.Count+1});
- private async Task SaveAsync(){var r=await Http.PostAsync<PublicFormDto>("api/public-forms",_form);if(r.IsSuccess){Snackbar.Add("Đã lưu biểu mẫu nháp.",Severity.Success);_form=NewForm();await LoadAsync();}else Snackbar.Add(r.Message??"Lưu thất bại.",Severity.Error);}
- private async Task PublishAsync(int id){var r=await Http.PostAsync<object>($"api/public-forms/{id}/publish",new{});if(r.IsSuccess){Snackbar.Add("Đã Publish.",Severity.Success);await LoadAsync();}else Snackbar.Add(r.Message??"Publish thất bại.",Severity.Error);}
- private async Task CloseAsync(int id){var r=await Http.PostAsync<object>($"api/public-forms/{id}/close",new{});if(r.IsSuccess){Snackbar.Add("Đã đóng.",Severity.Success);await LoadAsync();}else Snackbar.Add(r.Message??"Close thất bại.",Severity.Error);}
- private static SavePublicFormRequest NewForm()=>new(){AllowMultipleSubmit=false,Audiences=new(){new SavePublicFormAudienceRequest{ScopeType="AllCompany"}},Questions=new(){new SavePublicFormQuestionRequest{QuestionCode="Q1",QuestionText="",QuestionType="Text",IsRequired=true,Sequence=1}}};
+@code {
+    private static readonly string[] Types =
+    {
+        "Text",
+        "Textarea",
+        "Number",
+        "Date",
+        "Time",
+        "DateTime",
+        "SingleChoice",
+        "MultiChoice",
+        "YesNo",
+        "Department",
+        "Employee",
+        "File"
+    };
+
+    private List<PublicFormDto> _items = new();
+
+    private SavePublicFormRequest _form = NewForm();
+
+    private DateTime? _start = DateTime.Today;
+    private DateTime? _end;
+
+    private DateTime? _startDate
+    {
+        get => _start;
+        set
+        {
+            _start = value;
+            _form.StartAt = value;
+        }
+    }
+
+    private DateTime? _endDate
+    {
+        get => _end;
+        set
+        {
+            _end = value;
+            _form.EndAt = value;
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+    }
+
+    private async Task LoadAsync()
+    {
+        var r = await Http.GetAsync<List<PublicFormDto>>(
+            "api/public-forms/manage");
+
+        if (r.IsSuccess)
+        {
+            _items = r.Data ?? new List<PublicFormDto>();
+        }
+        else
+        {
+            Snackbar.Add(
+                r.Message ?? "Không tải được form.",
+                Severity.Error);
+        }
+    }
+
+    private void AddAudience()
+    {
+        _form.Audiences.Add(
+            new SavePublicFormAudienceRequest
+            {
+                ScopeType = "AllCompany"
+            });
+    }
+
+    private void AddQuestion()
+    {
+        _form.Questions.Add(
+            new SavePublicFormQuestionRequest
+            {
+                QuestionCode = $"Q{_form.Questions.Count + 1}",
+                QuestionText = "",
+                Sequence = _form.Questions.Count + 1
+            });
+    }
+
+    private async Task SaveAsync()
+    {
+        var r = await Http.PostAsync<PublicFormDto>(
+            "api/public-forms",
+            _form);
+
+        if (r.IsSuccess)
+        {
+            Snackbar.Add(
+                "Đã lưu biểu mẫu nháp.",
+                Severity.Success);
+
+            _form = NewForm();
+
+            await LoadAsync();
+        }
+        else
+        {
+            Snackbar.Add(
+                r.Message ?? "Lưu thất bại.",
+                Severity.Error);
+        }
+    }
+
+    private async Task PublishAsync(int id)
+    {
+        var r = await Http.PostAsync<object>(
+            $"api/public-forms/{id}/publish",
+            new { });
+
+        if (r.IsSuccess)
+        {
+            Snackbar.Add(
+                "Đã Publish.",
+                Severity.Success);
+
+            await LoadAsync();
+        }
+        else
+        {
+            Snackbar.Add(
+                r.Message ?? "Publish thất bại.",
+                Severity.Error);
+        }
+    }
+
+    private async Task CloseAsync(int id)
+    {
+        var r = await Http.PostAsync<object>(
+            $"api/public-forms/{id}/close",
+            new { });
+
+        if (r.IsSuccess)
+        {
+            Snackbar.Add(
+                "Đã đóng.",
+                Severity.Success);
+
+            await LoadAsync();
+        }
+        else
+        {
+            Snackbar.Add(
+                r.Message ?? "Close thất bại.",
+                Severity.Error);
+        }
+    }
+
+    private static SavePublicFormRequest NewForm()
+    {
+        return new SavePublicFormRequest
+        {
+            AllowMultipleSubmit = false,
+
+            Audiences = new()
+            {
+                new SavePublicFormAudienceRequest
+                {
+                    ScopeType = "AllCompany"
+                }
+            },
+
+            Questions = new()
+            {
+                new SavePublicFormQuestionRequest
+                {
+                    QuestionCode = "Q1",
+                    QuestionText = "",
+                    QuestionType = "Text",
+                    IsRequired = true,
+                    Sequence = 1
+                }
+            }
+        };
+    }
 }
+
