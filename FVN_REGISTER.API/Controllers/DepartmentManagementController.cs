@@ -1,5 +1,7 @@
 using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Companies;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Depts;
 using FVN_REGISTER.Contract.Responses;
@@ -15,21 +17,25 @@ namespace FVN_REGISTER.API.Controllers
     public class DepartmentManagementController : BaseApiController
     {
         private readonly IDepartmentManagementService _departmentService;
+        private readonly IAuthorizationService _authorization;
 
         public DepartmentManagementController(
             IDepartmentManagementService departmentService,
             ICurrentUserService currentUser,
             IUserLogService userLog,
+            IAuthorizationService authorization,
             ILogger<DepartmentManagementController> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(currentUser, userLog, logger, options)
         {
             _departmentService = departmentService;
+            _authorization = authorization;
         }
 
         [HttpGet("tree")]
         public async Task<IActionResult> GetTree(CancellationToken ct)
         {
+            if (!await CanAsync(SecurityFunctionCodes.DepartmentView, ct)) return Forbid();
             var result = await _departmentService.GetAllAsync(ct);
             await LogActionAsync("Xem cây quản lý Bộ phận");
             return HandleResult(result);
@@ -46,6 +52,7 @@ namespace FVN_REGISTER.API.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] DepartmentUpsertDto model, CancellationToken ct)
         {
+            if (!await CanAsync(SecurityFunctionCodes.DepartmentManage, ct)) return Forbid();
             if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ."));
             if (UserInfo == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập hết hạn."));
             var result = await _departmentService.CreateAsync(model, UserInfo.UserId, ct);
@@ -80,5 +87,7 @@ namespace FVN_REGISTER.API.Controllers
             await LogActionAsync($"Xóa bộ phận ID: {id}");
             return HandleResult(result);
         }
+        private async Task<bool> CanAsync(int code, CancellationToken ct)
+            => UserInfo != null && await _authorization.HasAsync(UserInfo, code, ct);
     }
 }
