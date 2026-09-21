@@ -6,6 +6,7 @@ namespace FVN_REGISTER.Shared.Services.Equipment;
 public interface IEquipmentClientService
 {
     Task<ApiResponse<bool>> HasAccessAsync(CancellationToken ct = default);
+    Task<ApiResponse<bool>> HasImportAccessAsync(CancellationToken ct = default);
     Task<ApiResponse<List<EquipmentApproverDto>>> GetApproversAsync(string deptCode, CancellationToken ct = default);
     Task<ApiResponse<EquipmentRequestDto>> CreateRegistrationAsync(CreateEquipmentRegistrationDto request, CancellationToken ct = default);
     Task<ApiResponse<EquipmentRequestDto>> SubmitRegistrationAsync(int id, CancellationToken ct = default);
