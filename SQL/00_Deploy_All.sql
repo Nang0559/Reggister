@@ -110,7 +110,7 @@ HOW TO RUN:
 :r "$(RepoRoot)\33_DocumentationConsistency.sql"
 :r "$(RepoRoot)\34_OT_Leave_Limits.sql"
 :r "$(RepoRoot)\35_WorkCalendar.sql"
-:r "$(RepoRoot)\\36_ApprovalPolicyDepartmentPosition.sql"
+:r "$(RepoRoot)\36_ApprovalPolicyDepartmentPosition.sql"
 
 /* ---------------------------------------------------------------------------
    Final cross-foundation verification
