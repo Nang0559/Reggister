@@ -162,9 +162,23 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
         }
 
         if (status == "PRESENT")
-            return workedMinutes > 0
-                ? $"Đã làm {workedMinutes / 60d:0.##} giờ"
-                : "Có chấm công";
+        {
+            if (row.CheckInTime.HasValue && row.CheckOutTime.HasValue)
+            {
+                var range = $"{row.CheckInTime.Value:HH:mm} - {row.CheckOutTime.Value:HH:mm}";
+                return workedMinutes > 0
+                    ? $"{range} ({workedMinutes / 60d:0.##} giờ)"
+                    : range;
+            }
+
+            if (row.CheckInTime.HasValue)
+                return $"Check-in {row.CheckInTime.Value:HH:mm}";
+
+            if (row.CheckOutTime.HasValue)
+                return $"Check-out {row.CheckOutTime.Value:HH:mm}";
+
+            return "Có chấm công";
+        }
 
         return "Chưa có dữ liệu chấm công";
     }
