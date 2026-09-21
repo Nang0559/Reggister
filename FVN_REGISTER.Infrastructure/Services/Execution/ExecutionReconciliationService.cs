@@ -946,7 +946,7 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         CancellationToken cancellationToken)
     {
         if (reconciliation.Id <= 0)
-            return;
+            return Task.CompletedTask;
 
         _db.ExecutionReconciliationHistory.Add(new F03ExecutionReconciliationHistory
         {
