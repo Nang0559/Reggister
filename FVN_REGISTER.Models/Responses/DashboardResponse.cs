@@ -1,4 +1,5 @@
 ﻿using FVN_REGISTER.Contract.Dtos;
+using FVN_REGISTER.Contract.Dtos.Actions;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.Dashboard;
 using FVN_REGISTER.Contract.Dtos.Leaves;
@@ -14,6 +15,14 @@ namespace FVN_REGISTER.Contract.Responses
         public bool ShowManagerView { get; set; }
 
         public List<WidgetCounterDto> Widgets { get; set; } = new();
+
+        /// <summary>
+        /// Shared Action inbox projected onto the authenticated user's Dashboard.
+        /// Action remains workflow/projection state; it is not the business source-of-truth.
+        /// </summary>
+        public ActionCountDto ActionCount { get; set; } = new();
+
+        public List<ActionItemDto> Actions { get; set; } = new();
 
         public List<PendingApprovalGroupDto> PendingApprovals { get; set; } = new();
 
