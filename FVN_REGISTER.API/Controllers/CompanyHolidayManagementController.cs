@@ -54,7 +54,7 @@ public sealed class CompanyHolidayManagementController : ControllerBase
         [FromBody] CompanyHolidayDto model,
         CancellationToken ct)
     {
-        if (!await Can(ct)) return Forbid();
+        if (!await CanManage(ct)) return Forbid();
 
         var user = _currentUser.GetCurrentUser();
         if (user == null) return Unauthorized();
@@ -69,7 +69,7 @@ public sealed class CompanyHolidayManagementController : ControllerBase
         [FromBody] CompanyHolidayDto model,
         CancellationToken ct)
     {
-        if (!await Can(ct)) return Forbid();
+        if (!await CanManage(ct)) return Forbid();
 
         var user = _currentUser.GetCurrentUser();
         if (user == null) return Unauthorized();
@@ -82,7 +82,7 @@ public sealed class CompanyHolidayManagementController : ControllerBase
     [HttpDelete("{id:int}")]
     public async Task<IActionResult> Delete(int id, CancellationToken ct)
     {
-        if (!await Can(ct)) return Forbid();
+        if (!await CanManage(ct)) return Forbid();
 
         var result = await _service.DeleteAsync(id, ct);
         return result.IsSuccess ? Ok(result.Message) : BadRequest(result.Message);
@@ -91,7 +91,7 @@ public sealed class CompanyHolidayManagementController : ControllerBase
     [HttpPost("sundays/{year:int}")]
     public async Task<IActionResult> Sundays(int year, CancellationToken ct)
     {
-        if (!await Can(ct)) return Forbid();
+        if (!await CanManage(ct)) return Forbid();
 
         var user = _currentUser.GetCurrentUser();
         if (user == null) return Unauthorized();
@@ -104,7 +104,7 @@ public sealed class CompanyHolidayManagementController : ControllerBase
     [RequestSizeLimit(10_000_000)]
     public async Task<IActionResult> Import(IFormFile file, CancellationToken ct)
     {
-        if (!await Can(ct)) return Forbid();
+        if (!await CanManage(ct)) return Forbid();
         if (file == null || file.Length == 0)
             return BadRequest("File Excel rỗng.");
 
@@ -129,6 +129,7 @@ public sealed class CompanyHolidayManagementController : ControllerBase
     async Task<bool> CanManage(CancellationToken ct)
     {
         var user = _currentUser.GetCurrentUser();
-        return user != null && await _authorization.HasAsync(user, SecurityFunctionCodes.WorkCalendarManage, ct);
+        return user != null &&
+               await _authorization.HasAsync(user, SecurityFunctionCodes.WorkCalendarManage, ct);
     }
 }
