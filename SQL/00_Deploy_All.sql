@@ -110,6 +110,7 @@ HOW TO RUN:
 :r "$(RepoRoot)\36_ApprovalPolicyDepartmentPosition.sql"
 :r "$(RepoRoot)\31_Hrm_User_Approval_Provisioning.sql"
 :r "$(RepoRoot)\32_ExecutionReviewSecurity.sql"
+:r "$(RepoRoot)\32_PasswordResetRequests.sql"
 :r "$(RepoRoot)\33_DocumentationConsistency.sql"
 
 /* ---------------------------------------------------------------------------
