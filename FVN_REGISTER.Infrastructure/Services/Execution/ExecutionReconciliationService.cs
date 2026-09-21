@@ -959,6 +959,8 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             ActorEmployeeId = actorEmployeeId,
             CreatedAt = DateTime.Now
         });
+
+        return Task.CompletedTask;
     }
 
     private static Expression<Func<F03ExecutionReconciliation, ExecutionReconciliationDto>> ToDto() =>
