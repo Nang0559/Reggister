@@ -75,22 +75,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             select f.ScopeCode
         ).ToListAsync(ct));
 
-        var normalizedScopes = scopes
-            .Where(x => !string.IsNullOrWhiteSpace(x))
-            .Select(x => x!)
-            .Distinct(StringComparer.OrdinalIgnoreCase)
-            .ToList();
-
-        if (normalizedScopes.Any(x => string.Equals(x, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase)))
-            return AuthorizationScopeCodes.All;
-        if (normalizedScopes.Any(x => string.Equals(x, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase)))
-            return AuthorizationScopeCodes.Department;
-        if (normalizedScopes.Any(x => string.Equals(x, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase)))
-            return AuthorizationScopeCodes.Employee;
-        if (normalizedScopes.Any(x => string.Equals(x, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase)))
-            return AuthorizationScopeCodes.Own;
-
-        return AuthorizationScopeCodes.None;
+        return AuthorizationScopePolicy.ResolveEffectiveScope(scopes);
     }
 
     public async Task<bool> CanAccessAsync(
@@ -105,22 +90,12 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
 
         var scope = await GetScopeAsync(user.UserId, functionCode, ct);
 
-        return scope switch
-        {
-            AuthorizationScopeCodes.All => true,
-            AuthorizationScopeCodes.Department =>
-                !string.IsNullOrWhiteSpace(user.DeptCode)
-                && !string.IsNullOrWhiteSpace(deptCode)
-                && string.Equals(user.DeptCode, deptCode, StringComparison.OrdinalIgnoreCase),
-            AuthorizationScopeCodes.Own =>
-                !string.IsNullOrWhiteSpace(user.EmployeeCode)
-                && !string.IsNullOrWhiteSpace(employeeCode)
-                && string.Equals(user.EmployeeCode, employeeCode, StringComparison.OrdinalIgnoreCase),
-            AuthorizationScopeCodes.Employee =>
-                !string.IsNullOrWhiteSpace(employeeCode)
-                && string.Equals(user.EmployeeCode, employeeCode, StringComparison.OrdinalIgnoreCase),
-            _ => false
-        };
+        return AuthorizationScopePolicy.CanAccess(
+            scope,
+            user.EmployeeCode,
+            user.DeptCode,
+            employeeCode,
+            deptCode);
     }
 
     public async Task<PermissionSnapshotDto> GetSnapshotAsync(
