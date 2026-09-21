@@ -380,3 +380,18 @@ GO
 UPDATE dbo.F03Functions SET ScopeCode=N'Department'
 WHERE FunctionCode=2107;
 GO
+
+
+INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+SELECT 1,0,v.FunctionCode,v.Name,v.Detail,v.ModuleCode,v.ActionCode,v.ScopeCode,v.SortNo
+FROM (VALUES
+(3081,N'EmailQueue.Manage',N'Quản lý email queue',N'EmailQueue',N'Manage',N'All',1040),
+(3082,N'EmailTemplate.Manage',N'Quản lý mẫu email',N'EmailTemplate',N'Manage',N'All',1050)
+) v(FunctionCode,Name,Detail,ModuleCode,ActionCode,ScopeCode,SortNo)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.FunctionCode);
+GO
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
+SELECT r.Id,f.Id FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
+WHERE r.RoleCode IN(1,2) AND f.FunctionCode IN(3081,3082)
+AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+GO
