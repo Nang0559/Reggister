@@ -80,7 +80,8 @@ public sealed class ExecutionLifecycleIntegrationTests
     {
         var connectionString = Environment.GetEnvironmentVariable("FVN_REGISTER_SQL_CONNECTION");
         if (string.IsNullOrWhiteSpace(connectionString))
-            return;
+            throw new InvalidOperationException(
+                "FVN_REGISTER_SQL_CONNECTION is required for execution lifecycle integration tests.");
 
         var options = new DbContextOptionsBuilder<FVNWEBAPPContext>()
             .UseSqlServer(connectionString)
