@@ -10,7 +10,7 @@ CREATE TABLE dbo.F03PublicForms(
  AllowMultipleSubmit bit NOT NULL CONSTRAINT DF_F03PublicForms_AllowMultiple DEFAULT 0,
  RequireApproval bit NOT NULL CONSTRAINT DF_F03PublicForms_RequireApproval DEFAULT 0,
  MaxSubmissions int NULL, Version int NOT NULL CONSTRAINT DF_F03PublicForms_Version DEFAULT 1,
- CreatedBy int NULL, CreatedAt datetime2 NOT NULL CONSTRAINT DF_F03PublicForms_CreatedAt DEFAULT GETDATE(),
+ CreatedBy int NOT NULL CONSTRAINT DF_F03PublicForms_CreatedBy DEFAULT(0), CreatedAt datetime2 NOT NULL CONSTRAINT DF_F03PublicForms_CreatedAt DEFAULT GETDATE(),
  ModifiedBy int NULL, ModifiedAt datetime2 NULL, PublishedAt datetime2 NULL, ClosedAt datetime2 NULL,
  IsActive bit NOT NULL CONSTRAINT DF_F03PublicForms_IsActive DEFAULT 1,
  CONSTRAINT UQ_F03PublicForms_FormCode UNIQUE(FormCode),
