@@ -89,6 +89,29 @@
                             </MudButton>
 
                             <MudDivider Class="my-4" />
+                            <MudText Typo="Typo.subtitle2">Hỗ trợ IT</MudText>
+                            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                                Reset mật khẩu về mật khẩu tạm FVN@123. Không xóa tài khoản, role hoặc dữ liệu người dùng.
+                            </MudText>
+                            <MudTextField T="string"
+                                          Label="Mã nhân viên cần reset"
+                                          @bind-Value="_resetEmployeeCode"
+                                          Variant="Variant.Outlined"
+                                          Margin="Margin.Dense"
+                                          Immediate="true"
+                                          Adornment="Adornment.Start"
+                                          AdornmentIcon="@Icons.Material.Filled.Badge"
+                                          Class="mt-2" />
+                            <MudButton Class="mt-2"
+                                       Variant="Variant.Outlined"
+                                       Color="Color.Warning"
+                                       StartIcon="@Icons.Material.Filled.LockReset"
+                                       OnClick="ResetPasswordToDefaultAsync"
+                                       Disabled="_resettingPassword || string.IsNullOrWhiteSpace(_resetEmployeeCode)">
+                                @(_resettingPassword ? "Đang reset..." : "Reset về FVN@123")
+                            </MudButton>
+
+                            <MudDivider Class="my-4" />
                             <MudText Typo="Typo.subtitle2">Effective permissions</MudText>
                             @if (_snapshot != null)
                             {
@@ -200,6 +223,8 @@
     private bool _loading;
     private bool _saving;
     private int? _savingRoleCode;
+    private string _resetEmployeeCode = string.Empty;
+    private bool _resettingPassword;
 
     private IEnumerable<UserAccountDto> FilteredUsers =>
         string.IsNullOrWhiteSpace(_search)
@@ -256,6 +281,49 @@
 
     private int GetMatrixCount(int roleCode)
         => _matrix.TryGetValue(roleCode, out var functions) ? functions.Count : 0;
+
+    private async Task ResetPasswordToDefaultAsync()
+    {
+        var employeeCode = _resetEmployeeCode.Trim();
+
+        if (string.IsNullOrWhiteSpace(employeeCode))
+            return;
+
+        var target = _users.FirstOrDefault(x =>
+            string.Equals(x.EmployeeCode?.Trim(), employeeCode, StringComparison.OrdinalIgnoreCase));
+
+        if (target == null)
+        {
+            Snackbar.Add($"Không tìm thấy tài khoản của mã nhân viên {employeeCode}.", Severity.Error);
+            return;
+        }
+
+        if (!target.IsActive)
+        {
+            Snackbar.Add($"Tài khoản {employeeCode} đang không hoạt động.", Severity.Warning);
+            return;
+        }
+
+        _resettingPassword = true;
+        try
+        {
+            var result = await UserService.ResetPasswordAsync(target.IdUser, "FVN@123");
+
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể reset mật khẩu.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(
+                $"Đã reset mật khẩu cho {target.FullName} ({target.EmployeeCode}) về mật khẩu tạm.",
+                Severity.Success);
+        }
+        finally
+        {
+            _resettingPassword = false;
+        }
+    }
 
     private async Task SaveRoleFunctionsAsync(SecurityRoleDto role)
     {
