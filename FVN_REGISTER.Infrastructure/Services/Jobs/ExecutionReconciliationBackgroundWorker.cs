@@ -682,6 +682,47 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                             actorUserId: 0);
                     }
                 }
+                else if (!hasActualOt)
+                {
+                    // Recalculation/correction may remove previously detected
+                    // OT. Retire the synthetic mismatch so Calendar cannot keep
+                    // showing a stale red question mark.
+                    var staleActualOnly = await db.ExecutionReconciliations.FirstOrDefaultAsync(x =>
+                        x.IsActive != false
+                        && x.ModuleCode == "OT"
+                        && x.SourceType == "OT_ACTUAL_ONLY"
+                        && x.SourceId == sourceId
+                        && x.EmployeeId == employeeId
+                        && x.WorkDate == workDate
+                        && x.ReconciliationStatus != "Resolved", ct);
+
+                    if (staleActualOnly is not null)
+                    {
+                        await service.UpsertAsync(
+                            row.EmployeeCode,
+                            new ExecutionReconciliationUpsertRequest(
+                                "OT",
+                                "OT_ACTUAL_ONLY",
+                                sourceId,
+                                row.EmployeeCode,
+                                employeeId,
+                                workDate,
+                                "NONE",
+                                "NO_ACTUAL_OT",
+                                "Resolved",
+                                false,
+                                false,
+                                JsonSerializer.Serialize(new
+                                {
+                                    row.EmployeeCode,
+                                    WorkDate = workDate,
+                                    HasApprovedOt = hasApprovedOt,
+                                    AutoResolvedReason = "ACTUAL_OT_NO_LONGER_PRESENT"
+                                })),
+                            ct,
+                            actorUserId: 0);
+                    }
+                }
 
                 await service.UpsertAsync(
                     row.EmployeeCode,
