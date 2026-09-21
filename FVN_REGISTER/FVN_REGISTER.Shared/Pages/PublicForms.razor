@@ -1,0 +1,22 @@
+@page "/public-forms"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.PublicForms
+@using FVN_REGISTER.Shared.Handlers
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IHttpClientWithAuth Http
+@inject ISnackbar Snackbar
+<PageTitle>Biểu mẫu đăng ký</PageTitle>
+<MudText Typo="h5" Class="mb-4"><b>Biểu mẫu đang mở</b></MudText>
+@if(_loading){<MudProgressLinear Indeterminate="true" />}
+else if(!_items.Any()){<MudAlert Severity="Severity.Info">Hiện không có biểu mẫu nào dành cho bạn.</MudAlert>}
+else
+{
+ <MudGrid>
+ @foreach(var f in _items)
+ {
+  <MudItem xs="12" md="6"><MudCard Class="pa-4" Elevation="2"><MudText Typo="h6">@f.Title</MudText><MudText Color="Color.Secondary">@f.Description</MudText><MudText Typo="caption">Hạn: @(f.EndAt?.ToString("dd/MM/yyyy HH:mm")??"Không giới hạn")</MudText><MudButton Class="mt-3" Variant="Variant.Filled" Color="Color.Primary" Href="@($"/public-forms/{f.Id}")">Đăng ký</MudButton></MudCard></MudItem>
+ }
+ </MudGrid>
+}
+@code{private List<PublicFormDto> _items=new();private bool _loading=true;protected override async Task OnInitializedAsync(){var r=await Http.GetAsync<List<PublicFormDto>>("api/public-forms/available");if(r.IsSuccess)_items=r.Data??new();_loading=false;}}
