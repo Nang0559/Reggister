@@ -9,7 +9,7 @@ BEGIN
         Detail = N'Xuất báo cáo OT.',
         ModuleCode = N'OT',
         ActionCode = N'EXPORT',
-        ScopeCode = N'All',
+        ScopeCode = N'Department',
         DisplayOrder = 2107
     WHERE FunctionCode = 2107;
 END;
