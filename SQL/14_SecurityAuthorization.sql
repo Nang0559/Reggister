@@ -366,19 +366,21 @@ WHERE r.RoleCode IN (1,2,3,4)
   AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
 GO
 
-/* Execution/Payroll/Public Information capabilities were seeded after the original matrix; grant them explicitly. */
-INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
-SELECT r.Id,f.Id
-FROM dbo.F03Roles r
-CROSS JOIN dbo.F03Functions f
-WHERE r.RoleCode IN (1,2)
-  AND f.FunctionCode IN (2801,2802,2803,2804,2805,2806)
-  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
-GO
-
-/* OT export remains Department scope; never promote it to All. */
+/* OT export and attendance view/export are Department scoped. */
 UPDATE dbo.F03Functions SET ScopeCode=N'Department'
 WHERE FunctionCode IN (2107,2901,2902);
+GO
+
+/* Equipment cancellation is an own-request capability, available to business roles. */
+INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+SELECT 1,0,2308,N'Equipment.Cancel',N'Hủy yêu cầu thiết bị',N'Equipment',N'Cancel',N'Own',370
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=2308);
+GO
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
+SELECT r.Id,f.Id
+FROM dbo.F03Roles r CROSS JOIN dbo.F03Functions f
+WHERE r.RoleCode IN (1,2,3,4,5) AND f.FunctionCode=2308
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
 GO
 
 
