@@ -168,6 +168,19 @@ public sealed class EquipmentImportService : IEquipmentImportService
             ErrorMessage = r.ErrorMessage
         }).ToList() ?? new()
     };
+    private static EquipmentImportBatchDto MapBatch(F03EquipmentImportBatch x, IEnumerable<EquipmentImportRowDto> rows) => new()
+    {
+        Id = x.Id,
+        DeptCode = x.DeptCode,
+        FileName = x.FileName,
+        Status = x.Status,
+        TotalRows = x.TotalRows,
+        ValidRows = x.ValidRows,
+        InvalidRows = x.InvalidRows,
+        ImportedRows = x.ImportedRows,
+        Rows = rows?.ToList() ?? new()
+    };
+
     private static string? ValidateRow(Dictionary<string,string?> data,List<F03EquipmentFieldDefinition> defs){var code=GetValue(data,"EquipmentCode","Mã thiết bị","Mã TB","Mã tài sản","AssetCode");var name=GetValue(data,"EquipmentName","Tên thiết bị","Tên TB","Tên tài sản");if(string.IsNullOrWhiteSpace(code))return"Thiếu mã thiết bị.";if(string.IsNullOrWhiteSpace(name))return"Thiếu tên thiết bị.";foreach(var d in defs.Where(x=>x.IsRequired)){var v=GetValue(data,d.FieldKey,d.FieldLabel);if(string.IsNullOrWhiteSpace(v))return$"Thiếu trường bắt buộc: {d.FieldLabel}.";if(!ValidateType(v,d.DataType))return$"Sai kiểu dữ liệu: {d.FieldLabel} ({d.DataType}).";}return null;}
     private static bool ValidateType(string value,string type)=>type.ToLowerInvariant() switch{"number"=>decimal.TryParse(value,NumberStyles.Any,CultureInfo.InvariantCulture,out _)||decimal.TryParse(value,NumberStyles.Any,new CultureInfo("vi-VN"),out _),"date"=>ParseDate(value).HasValue,"boolean"=>bool.TryParse(value,out _)||value is "0" or "1" or "Có" or "Không" or "Yes" or "No",_=>true};
     private static Dictionary<string,string?> BuildCustomData(Dictionary<string,string?> source,List<F03EquipmentFieldDefinition> defs){var r=new Dictionary<string,string?>(StringComparer.OrdinalIgnoreCase);foreach(var p in source){var k=defs.FirstOrDefault(x=>NormalizeKey(x.FieldKey)==NormalizeKey(p.Key)||NormalizeKey(x.FieldLabel)==NormalizeKey(p.Key))?.FieldKey;if(!string.IsNullOrWhiteSpace(k))r[k]=p.Value;else if(!IsStandardColumn(p.Key))r[NormalizeKey(p.Key)]=p.Value;}return r;}
@@ -179,7 +192,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
     {
         if (cell == null) return string.Empty;
         if (DateUtil.IsCellDateFormatted(cell) && cell.CellType != CellType.Formula)
-            return cell.DateCellValue.ToString("dd/MM/yyyy", CultureInfo.InvariantCulture);
+            return string.Format(CultureInfo.InvariantCulture, "{0:dd/MM/yyyy}", cell.DateCellValue);
         return formatter.FormatCellValue(cell, evaluator);
     }
 
