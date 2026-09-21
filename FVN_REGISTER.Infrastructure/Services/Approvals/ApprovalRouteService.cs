@@ -74,13 +74,20 @@ public sealed class ApprovalRouteService : IApprovalRouteService
 
         var resolvedDeptCode = employee.DeptCode ?? string.Empty;
 
+        // Policy precedence:
+        // 1) exact requester Department + Position
+        // 2) Department-only policy (PositionCode NULL)
+        // Department is mandatory; Position is an optional refinement.
         var policies = await _uow.Repository<F03ApprovalPolicy>()
             .Query()
             .AsNoTracking()
             .Where(x => x.IsActive == true &&
                         x.RequestType == requestType &&
-                        x.PositionCode == position.PositionCode)
-            .OrderBy(x => x.Sequence)
+                        x.DeptCode == resolvedDeptCode &&
+                        (x.PositionCode == null ||
+                         x.PositionCode == position.PositionCode))
+            .OrderBy(x => x.PositionCode == null ? 1 : 0)
+            .ThenBy(x => x.Sequence)
             .ThenBy(x => x.Level)
             .ToListAsync(ct);
 
@@ -88,8 +95,21 @@ public sealed class ApprovalRouteService : IApprovalRouteService
         {
             return ServiceResult<ApprovalRoutePreviewDto>.Fail(
                 $"Chưa cấu hình luồng phê duyệt cho {requestType} / " +
+                $"phòng ban {resolvedDeptCode} / " +
                 $"chức vụ {position.PositionCode} - {position.PositionName}.");
         }
+
+        // If both a position-specific and department-wide policy exist for
+        // the same level, the position-specific row wins.
+        policies = policies
+            .GroupBy(x => x.Level)
+            .Select(g => g.OrderBy(x => x.PositionCode == null ? 1 : 0)
+                          .ThenBy(x => x.Sequence)
+                          .ThenBy(x => x.Id)
+                          .First())
+            .OrderBy(x => x.Sequence)
+            .ThenBy(x => x.Level)
+            .ToList();
 
         var levels = new List<ApprovalRouteLevelDto>();
 
@@ -101,6 +121,7 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                             x.RequestType == requestType &&
                             x.Level == policy.Level &&
                             x.ApproverCode != employeeCode &&
+                            x.PositionCode == policy.ApprovalPositionCode &&
                             (x.ApproveForDeptCode == resolvedDeptCode ||
                              x.ApproveForDeptCode == ApproveForDept.All));
 
@@ -121,10 +142,6 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                     x => x.e.PositionCode,
                     p => p.PositionCode,
                     (x, p) => new { x.a, x.e, p })
-                // F03Approvers is the assignment source of truth.
-                // F03Positions remains the HRM master and must not exclude an
-                // explicitly assigned approver because IsApprove/IsAllowApprove
-                // are metadata flags, not the assignment itself.
                 .Select(x => new ApprovalCandidateDto
                 {
                     ApproverCode = x.a.ApproverCode,
@@ -138,20 +155,17 @@ public sealed class ApprovalRouteService : IApprovalRouteService
                 .ToListAsync(ct);
 
             var departmentCandidates = candidates
-                .Where(x =>
-                    string.Equals(
-                        x.ApproveForDeptCode,
-                        resolvedDeptCode,
-                        StringComparison.OrdinalIgnoreCase))
+                .Where(x => string.Equals(
+                    x.ApproveForDeptCode,
+                    resolvedDeptCode,
+                    StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             if (departmentCandidates.Count > 0)
                 candidates = departmentCandidates;
 
             candidates = candidates
-                .GroupBy(
-                    x => x.ApproverCode,
-                    StringComparer.OrdinalIgnoreCase)
+                .GroupBy(x => x.ApproverCode, StringComparer.OrdinalIgnoreCase)
                 .Select(x => x.First())
                 .OrderBy(x => x.ApproverName)
                 .ToList();
@@ -160,8 +174,9 @@ public sealed class ApprovalRouteService : IApprovalRouteService
             {
                 return ServiceResult<ApprovalRoutePreviewDto>.Fail(
                     $"Chưa cấu hình người phê duyệt cho cấp {policy.Level} " +
-                    $"({policy.LevelName}) / chức vụ {position.PositionCode} " +
-                    $" / bộ phận {resolvedDeptCode}.");
+                    $"({policy.LevelName} / {policy.RoleName}), " +
+                    $"chức vụ phê duyệt {policy.ApprovalPositionCode}, " +
+                    $"phòng ban {resolvedDeptCode}.");
             }
 
             levels.Add(new ApprovalRouteLevelDto
