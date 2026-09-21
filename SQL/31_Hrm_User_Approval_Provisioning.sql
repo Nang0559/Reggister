@@ -3,13 +3,14 @@ FVN_REGISTER - HRM User / Approval Provisioning
 Canonical model:
 
 F03Employee -> F03User
-F03Employee.PositionCode -> F03ApprovalPolicies.PositionCode (requester policy)
-F03Employee.PositionCode -> F03Positions approval capability -> F03Approvers (candidate pool)
+F03Employee.DeptCode + PositionCode -> F03ApprovalPolicies (requester scope)
+F03ApprovalPolicies.ApprovalPositionCode -> F03Positions -> F03Approvers (candidate pool)
 
 There is NO ApprovalGroup / PositionGroup layer.
 PositionCode is the HRM source-of-truth for employee identity and approval capability.
 
-F03ApprovalPolicies defines required levels for the REQUESTER position.
+F03ApprovalPolicies defines required levels for the REQUESTER scope and the
+approver position through ApprovalPositionCode.
 F03Approvers is the candidate pool. Therefore approver provisioning must NOT
 join an approver employee directly to the requester's policy PositionCode.
 Candidate Level is derived from the approver employee's HRM approval position.
@@ -127,15 +128,16 @@ GO
   APPROVER provisioning - POLICY DRIVEN
 
   F03ApprovalPolicies is the source of truth:
-      Policy.PositionCode -> F03Employee.PositionCode
-      Policy.RequestType   -> F03Approvers.RequestType
-      Policy.Level         -> F03Approvers.Level
+      Policy.ApprovalPositionCode -> F03Employee.PositionCode
+      Policy.RequestType          -> F03Approvers.RequestType
+      Policy.Level                -> F03Approvers.Level
 
   Therefore Admin configures approval policy once. HRM security reconcile then:
-      1. marks every PositionCode referenced by an active policy as approval-capable;
-      2. derives DefaultApproveLevel from the lowest configured policy level;
+      1. marks every ApprovalPositionCode referenced by an active policy as approval-capable;
+      2. derives DefaultApproveLevel from the lowest configured policy level
+         for that approval position;
       3. creates/synchronizes F03Approvers for active employees whose PositionCode
-         exists in an active policy;
+         matches an active policy's ApprovalPositionCode;
       4. deactivates stale HRM-owned approver rows when policy/employee no longer qualifies.
 
   No ApprovalGroup / PositionGroup layer is used.
@@ -160,7 +162,7 @@ BEGIN
                SELECT MIN(ap.Level)
                FROM dbo.F03ApprovalPolicies ap
                WHERE ap.IsActive=1
-                 AND ap.PositionCode=p.PositionCode
+                 AND ap.ApprovalPositionCode=p.PositionCode
            ),
            p.ModifiedBy=@CreatedBy,
            p.ModifiedAt=GETDATE(),
@@ -299,7 +301,7 @@ BEGIN
               SELECT 1
               FROM dbo.F03ApprovalPolicies ap
               WHERE ap.IsActive=1
-                AND ap.PositionCode=e.PositionCode
+                AND ap.ApprovalPositionCode=e.PositionCode
                 AND a.RequestType=
                     CASE ap.RequestType
                         WHEN 0 THEN N'Leave'
@@ -316,7 +318,7 @@ BEGIN
         AffectedEmployee=@EmployeeCode,
         ActiveApprovers=(SELECT COUNT(*) FROM dbo.F03Approvers WHERE IsActive=1),
         PolicyPositions=(
-            SELECT COUNT(DISTINCT ap.PositionCode)
+            SELECT COUNT(DISTINCT ap.ApprovalPositionCode)
             FROM dbo.F03ApprovalPolicies ap
             WHERE ap.IsActive=1
         );
@@ -353,7 +355,7 @@ WHERE e.IsActive=1 AND u.Id IS NULL;
 SELECT MissingApprovers=COUNT(*)
 FROM dbo.F03Employees e
 INNER JOIN dbo.F03ApprovalPolicies ap
-    ON ap.PositionCode=e.PositionCode
+    ON ap.ApprovalPositionCode=e.PositionCode
    AND ap.IsActive=1
 LEFT JOIN dbo.F03Approvers a
     ON a.ApproverCode=e.EmployeeCode
