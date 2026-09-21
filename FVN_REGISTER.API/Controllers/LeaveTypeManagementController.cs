@@ -38,7 +38,7 @@ namespace FVN_REGISTER.API.Controllers
 
         [HttpGet("filter")]
         public async Task<IActionResult> GetFiltered([FromQuery] bool? tinhPhep, [FromQuery] bool? isActive, CancellationToken ct)
-            { if (!await CanAsync(SecurityFunctionCodes.LeaveTypeView, ct)) return Forbid(); return HandleResult(await _leaveTypeService.GetFilteredAsync(tinhPhep, isActive, ct)); }
+            { if (UserInfo == null) return Unauthorized(); if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveTypeView, ct) && !await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.LeaveView, ct)) return Forbid(); return HandleResult(await _leaveTypeService.GetFilteredAsync(tinhPhep, isActive, ct)); }
 
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] LeaveTypeUpsertDto model, CancellationToken ct)
