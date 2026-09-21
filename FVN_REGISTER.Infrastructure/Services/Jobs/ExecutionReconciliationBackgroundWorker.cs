@@ -397,11 +397,11 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                 }
 
                 var hasActual = actual is not null;
-                var completed = actual is { Status: not null } actualRow
-                    && string.Equals(actualRow.Status, "Completed", StringComparison.OrdinalIgnoreCase);
-                var different = actual is { } actualRow && completed
-                    && (actualRow.ActualStartDate?.Date != row.StartDate.Date
-                        || actualRow.ActualEndDate?.Date != row.EndDate.Date);
+                var completed = actual is { Status: not null }
+                    && string.Equals(actual.Status, "Completed", StringComparison.OrdinalIgnoreCase);
+                var different = actual is not null && completed
+                    && (actual.ActualStartDate?.Date != row.StartDate.Date
+                        || actual.ActualEndDate?.Date != row.EndDate.Date);
 
                 var status = cancelled
                     ? "Resolved"
