@@ -1,6 +1,9 @@
 @page "/admin/work-calendar"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.MasterData
+@using FVN_REGISTER.Core.Constants
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Shared.Services.Calendar
 @using Microsoft.AspNetCore.Components.Forms
 @using Microsoft.AspNetCore.Authorization
@@ -10,8 +13,10 @@
 @inject IWorkYearManagementClientService WorkYearService
 @inject ICompanyHolidayManagementClientService HolidayService
 @inject ISnackbar Snackbar
+@inject ISecurityClientService SecurityService
 
 <PageTitle>Quản lý năm làm việc & ngày nghỉ</PageTitle>
+@if (!_canView) { <MudAlert Severity="Severity.Error">Bạn không có quyền xem lịch làm việc.</MudAlert> } else {
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
     <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Primary" Size="Size.Large" />
@@ -28,7 +33,7 @@
         <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
             <MudText Typo="Typo.h6">Đăng ký năm làm việc</MudText>
             <MudSpacer />
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" OnClick="NewYear">Thêm năm</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add" Disabled="@(!_canManage)" OnClick="NewYear">Thêm năm</MudButton>
         </MudStack>
 
         @if (_editYear != null)
@@ -44,7 +49,7 @@
                 </MudGrid>
                 <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-3">
                     <MudButton Variant="Variant.Text" OnClick="CancelYear">Hủy</MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveYear" Disabled="@_loading">Lưu</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@(!_canManage)" OnClick="SaveYear" Disabled="@_loading">Lưu</MudButton>
                 </MudStack>
             </MudPaper>
         }
@@ -123,6 +128,8 @@
         </MudTable>
     </MudTabPanel>
 </MudTabs>
+
+}
 
 @code {
     private List<WorkYearDto> _years = new();
