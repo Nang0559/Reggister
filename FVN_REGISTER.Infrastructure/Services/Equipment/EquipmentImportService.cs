@@ -56,11 +56,14 @@ public sealed class EquipmentImportService : IEquipmentImportService
         var supported = new[] { ".xls", ".xlsx", ".xlsm", ".xlsb" };
         if (!supported.Contains(extension, StringComparer.OrdinalIgnoreCase))
             throw new ArgumentException("Chỉ hỗ trợ Excel .xls, .xlsx, .xlsm hoặc .xlsb.");
-        if (content.CanSeek) content.Position = 0;
+        await using var buffered = new MemoryStream();
+        await content.CopyToAsync(buffered, ct);
+        buffered.Position = 0;
+
         IWorkbook wb;
         try
         {
-            wb = WorkbookFactory.Create(content);
+            wb = WorkbookFactory.Create(buffered);
         }
         catch (Exception ex)
         {
@@ -70,7 +73,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
         using (wb)
         {
             var ws = wb.GetSheetAt(0) ?? throw new InvalidOperationException("File Excel không có sheet.");
-            var formatter = new DataFormatter(CultureInfo.InvariantCulture);
+            var formatter = new DataFormatter();
             var evaluator = wb.GetCreationHelper().CreateFormulaEvaluator();
             var firstRowIndex = ws.FirstRowNum;
             while (firstRowIndex <= ws.LastRowNum && ws.GetRow(firstRowIndex) == null) firstRowIndex++;
