@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.Security;
+using AppAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using FVN_REGISTER.Application.Interfaces.UserManagers;
 using FVN_REGISTER.Contract.Dtos.Usermanagers;
 using FVN_REGISTER.Contract.Requests.Users;
@@ -146,10 +147,6 @@ public sealed class PasswordResetRequestsController : BaseApiController
 
         if (target == null || !(target.IsActive ?? false))
             return BadRequest(ApiResponse<object>.Fail("Tài khoản nhân viên không còn hoạt động."));
-
-        var employee = await _uow.Repository<F03Employee>().Query()
-            .AsNoTracking()
-            .FirstOrDefaultAsync(x => x.EmployeeCode == row.EmployeeCode, ct);
 
         if (!request.Approve)
         {
