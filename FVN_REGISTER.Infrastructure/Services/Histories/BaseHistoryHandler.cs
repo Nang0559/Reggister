@@ -6,6 +6,7 @@ using FVN_REGISTER.Contract.Dtos.Histories;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Entities;
 using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Extensions;
 using Microsoft.EntityFrameworkCore;
 
@@ -63,11 +64,37 @@ public abstract class BaseHistoryHandler<TRequest> : IHistoryHandler
         if (request == null)
             return ServiceResult.Fail("Không tìm thấy đơn.");
 
-        if (!CanUserCancel(request.EmployeeCode, user))
+        var cancelFunctionCode = ModuleKind switch
+        {
+            RequestModule.Leave => SecurityFunctionCodes.LeaveCancel,
+            RequestModule.Overtime => SecurityFunctionCodes.OTCancel,
+            RequestModule.Trip => SecurityFunctionCodes.TripCancel,
+            RequestModule.Equipment => SecurityFunctionCodes.EquipmentCancel,
+            _ => 0
+        };
+
+        var hasCancelCapability = cancelFunctionCode > 0 && await (
+            from ur in Db.UserRoles.AsNoTracking()
+            join rf in Db.RoleFunctions.AsNoTracking() on ur.IdRole equals rf.IdRole
+            join f in Db.Functions.AsNoTracking() on rf.IdFunction equals f.Id
+            where ur.IdUser == user.UserId
+               && f.FunctionCode == cancelFunctionCode
+               && f.IsActive == true
+            select f.Id
+        ).AnyAsync(ct);
+
+        if (!hasCancelCapability || !string.Equals(request.EmployeeCode, user.EmployeeCode, StringComparison.OrdinalIgnoreCase))
             return ServiceResult.Fail("Không có quyền hủy đơn này.");
 
         if (!ActiveStatuses.Contains(request.RequestStatus))
             return ServiceResult.Fail("Đơn không thể hủy ở trạng thái hiện tại.");
+
+        var hasApprovalProcessing = await Db.ApprovalHistories
+            .AsNoTracking()
+            .AnyAsync(h => h.RequestType == ModuleKind && h.RequestId == id, ct);
+
+        if (hasApprovalProcessing)
+            return ServiceResult.Fail("Đơn đã có cấp phê duyệt xử lý, không thể hủy từ lịch sử.");
 
         request.IsActive = false;
         request.RequestStatus = CancelledStatus;
