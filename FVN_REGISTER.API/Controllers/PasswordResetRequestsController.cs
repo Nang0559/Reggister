@@ -6,6 +6,7 @@ using FVN_REGISTER.Contract.Requests.Users;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.Common;
+using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Entities.Security;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.AspNetCore.Authorization;
@@ -184,7 +185,7 @@ public sealed class PasswordResetRequestsController : BaseApiController
             operatorUser.UserId,
             operatorUser.UserName,
             "PASSWORD_RESET_REQUEST_COMPLETED",
-            $"EmployeeCode={row.EmployeeCode}; RequestId={row.Id}; TemporaryPassword=FVN@123",
+            $"EmployeeCode={row.EmployeeCode}; RequestId={row.Id}; TemporaryPasswordIssued=true",
             ct);
 
         return Ok(ApiResponse<PasswordResetRequestDto>.Ok(Map(row)));
