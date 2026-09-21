@@ -252,7 +252,7 @@ public sealed class PayrollInputService : IPayrollInputService
             x.ExportedBy);
 
     private static string Escape(string? value)
-        => """ + (value ?? string.Empty).Replace(""", """") + """;
+        => $"\"{(value ?? string.Empty).Replace("\"", "\"\"")}\"";
 
     private sealed class PayrollPrepareResult
     {
