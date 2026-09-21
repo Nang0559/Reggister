@@ -388,6 +388,9 @@ IF NOT EXISTS (SELECT 1 FROM dbo.F03ExecutionPolicies WHERE ModuleCode=N'LEAVE')
 IF NOT EXISTS (SELECT 1 FROM dbo.F03ExecutionPolicies WHERE ModuleCode=N'TRIP')
     INSERT dbo.F03ExecutionPolicies(ModuleCode,ReconciliationMode,ConfirmationMode,EvidenceMode,ReviewMode,DueHours)
     VALUES(N'TRIP',2,1,2,1,48);
+IF NOT EXISTS (SELECT 1 FROM dbo.F03ExecutionPolicies WHERE ModuleCode=N'ATTENDANCE')
+    INSERT dbo.F03ExecutionPolicies(ModuleCode,ReconciliationMode,ConfirmationMode,EvidenceMode,ReviewMode,DueHours)
+    VALUES(N'ATTENDANCE',2,1,2,1,48);
 GO
 
 /* Existing installations may already have the policy row from the old seed.
@@ -409,6 +412,9 @@ IF NOT EXISTS (SELECT 1 FROM dbo.F03ActionPolicies WHERE ModuleCode=N'LEAVE' AND
 IF NOT EXISTS (SELECT 1 FROM dbo.F03ActionPolicies WHERE ModuleCode=N'TRIP' AND ActionType=N'EXECUTION_CONFIRMATION')
     INSERT dbo.F03ActionPolicies(ModuleCode,ActionType,IsEnabled,DefaultPriority,DueHours,NotificationEnabled,EscalationEnabled,TitleTemplate,SummaryTemplate)
     VALUES(N'TRIP',N'EXECUTION_CONFIRMATION',1,100,48,1,0,N'Xác nhận đối soát công tác',N'Cần xác nhận kết quả công tác thực tế.');
+IF NOT EXISTS (SELECT 1 FROM dbo.F03ActionPolicies WHERE ModuleCode=N'ATTENDANCE' AND ActionType=N'EXECUTION_CONFIRMATION')
+    INSERT dbo.F03ActionPolicies(ModuleCode,ActionType,IsEnabled,DefaultPriority,DueHours,NotificationEnabled,EscalationEnabled,TitleTemplate,SummaryTemplate)
+    VALUES(N'ATTENDANCE',N'EXECUTION_CONFIRMATION',1,100,48,1,0,N'Xác nhận đối soát chấm công',N'Cần xác nhận chấm công ngày {WorkDate}.');
 GO
 
 PRINT N'29_EXECUTION_RECONCILIATION schema completed.';
