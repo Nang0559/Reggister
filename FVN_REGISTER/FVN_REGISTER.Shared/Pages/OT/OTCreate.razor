@@ -10,8 +10,6 @@
 @using FVN_REGISTER.Shared.Services.Approvals
 @using FVN_REGISTER.Contract.Dtos.Approvals
 @using FVN_REGISTER.Contract.Requests.Approvals
-@using FVN_REGISTER.Shared.Components.Calendar
-@using FVN_REGISTER.Contract.Dtos.Calendar
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Utils.Helpers
 @using Microsoft.AspNetCore.Authorization
@@ -29,10 +27,23 @@
 <MudText Typo="Typo.h5" Class="mb-1"><MudIcon Icon="@Icons.Material.Filled.MoreTime" Class="mr-2" />Tạo đơn Tăng ca (OT)</MudText>
 <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">Đăng ký làm thêm giờ theo nhân viên.</MudText>
 
-<MudPaper Class="pa-2 mb-4" Elevation="1">
-    <MudText Typo="Typo.subtitle1">Lịch làm việc chung</MudText>
-    <MudText Typo="Typo.caption" Color="Color.Secondary">Theo dõi ngày nghỉ công ty, nghỉ phép, OT và công tác trước khi đăng ký.</MudText>
-    <WorkCalendar ModuleContext="OT" OnDateSelected="OnCalendarDateSelected" OnEventSelected="OnCalendarEventSelected" />
+<MudPaper Class="pa-4 mb-4" Elevation="1">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="2">
+        <div>
+            <MudText Typo="Typo.subtitle1">
+                <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" Class="mr-1" />
+                Lịch làm việc chung
+            </MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                Xem toàn bộ công, nghỉ phép, OT và công tác tại lịch trung tâm. Ngày OT hiện tại vẫn được chọn ngay bên dưới.
+            </MudText>
+        </div>
+        <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+                   StartIcon="@Icons.Material.Filled.CalendarMonth"
+                   OnClick="@(() => Nav.NavigateTo("/calendar"))">
+            Mở lịch chung
+        </MudButton>
+    </MudStack>
 </MudPaper>
 
 @if (_loading)
@@ -388,26 +399,6 @@ else if (_form != null)
 
     private static decimal CalculateHours(TimeSpan? start, TimeSpan? end) =>
         start.HasValue && end.HasValue && end > start ? (decimal)(end.Value - start.Value).TotalHours : 0m;
-
-    private async Task OnCalendarDateSelected(DateTime date)
-    {
-        _date = date.Date;
-        if (_form != null) _form.OTDate = date.Date;
-        await RefreshLimitPreviewAsync();
-        await InvokeAsync(StateHasChanged);
-    }
-
-    private Task OnCalendarEventSelected(CalendarItemDto item)
-    {
-        if (!string.IsNullOrWhiteSpace(item.DetailRoute))
-        {
-            Nav.NavigateTo(item.DetailRoute);
-            return Task.CompletedTask;
-        }
-
-        Snackbar.Add(item.Summary ?? item.StatusCode, Severity.Info);
-        return Task.CompletedTask;
-    }
 
     public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 }
