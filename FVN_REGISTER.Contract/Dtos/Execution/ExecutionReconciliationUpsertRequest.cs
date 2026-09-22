@@ -12,4 +12,7 @@ public sealed record ExecutionReconciliationUpsertRequest(
     string ReconciliationStatus,
     bool RequiresConfirmation,
     bool RequiresEvidence,
-    string? DetailJson);
+    string? DetailJson,
+    // Keep cancellation semantics explicit. Legacy callers remain cancellation-compatible;
+    // background auto-resolution must set this to false.
+    bool IsCancellation = true);
