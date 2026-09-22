@@ -8,8 +8,6 @@
 @using FVN_REGISTER.Shared.Services.Approvals
 @using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.Trips
-@using FVN_REGISTER.Shared.Components.Calendar
-@using FVN_REGISTER.Contract.Dtos.Calendar
 @using Microsoft.AspNetCore.Authorization
 @inject ITripClientService TripService
 @inject IApprovalRouteClientService ApprovalRouteService
@@ -304,26 +302,6 @@
             Snackbar.Add(result.Message ?? "Không tải được luồng phê duyệt.", Severity.Warning);
 
         await InvokeAsync(StateHasChanged);
-    }
-
-    private Task OnCalendarDateSelected(DateTime date)
-    {
-        _startDate = date.Date;
-        _endDate = date.Date;
-        _validationMessage = null;
-        return InvokeAsync(StateHasChanged);
-    }
-
-    private Task OnCalendarEventSelected(CalendarItemDto item)
-    {
-        if (!string.IsNullOrWhiteSpace(item.DetailRoute))
-        {
-            Navigation.NavigateTo(item.DetailRoute);
-            return Task.CompletedTask;
-        }
-
-        Snackbar.Add(item.Summary ?? item.StatusCode, Severity.Info);
-        return Task.CompletedTask;
     }
 
 }
