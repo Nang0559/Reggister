@@ -19,8 +19,14 @@
 
 <MudPaper Class="pa-2 mb-4" Elevation="1">
     <MudText Typo="Typo.subtitle1">Lịch làm việc chung</MudText>
-    <MudText Typo="Typo.caption" Color="Color.Secondary">Theo dõi ngày nghỉ công ty, nghỉ phép, OT và các chuyến công tác hiện có.</MudText>
-    <WorkCalendar ModuleContext="TRIP" OnDateSelected="OnCalendarDateSelected" OnEventSelected="OnCalendarEventSelected" />
+    <MudText Typo="Typo.caption" Color="Color.Secondary">
+        Lịch tổng hợp chấm công, nghỉ phép, OT và công tác được quản lý tập trung tại một nơi.
+    </MudText>
+    <MudButton Variant="Variant.Outlined" Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.CalendarMonth"
+               OnClick="@(() => Navigation.NavigateTo("/calendar"))">
+        Mở lịch chung
+    </MudButton>
 </MudPaper>
 
 <MudStack Spacing="2">
