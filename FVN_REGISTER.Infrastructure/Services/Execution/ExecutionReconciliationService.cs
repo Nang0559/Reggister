@@ -189,7 +189,13 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
             {
                 entity.ResolvedAt = DateTime.Now;
                 entity.ResolvedBy = effectiveActorUserId;
-                entity.LastModifiedSource = "EXECUTION_CANCELLED";
+
+                // "Resolved" has two distinct meanings:
+                // - cancellation of the execution action (hide/cancel projection)
+                // - normal reconciliation auto-resolution (keep projection and show
+                //   the reconciliation summary).
+                if (request.IsCancellation)
+                    entity.LastModifiedSource = "EXECUTION_CANCELLED";
             }
         }
 
