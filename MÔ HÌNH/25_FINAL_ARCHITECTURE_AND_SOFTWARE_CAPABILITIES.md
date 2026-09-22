@@ -248,7 +248,276 @@ Scope gồm Own, Employee, Department, All tùy policy.
 
 Không đủ điều kiện chỉ vì có quyền ExecutionReview; user còn phải có scope tới employee đang review.
 
-## 22. Audit
+
+## 22. RBAC + Organization Scope + Approval Policy — mô hình quyền chuẩn
+
+### 22.1 Nguyên tắc nền tảng
+
+RBAC không được dùng để mô hình hóa toàn bộ cơ cấu tổ chức hoặc tuyến phê duyệt. Ba lớp có trách nhiệm độc lập:
+
+| Lớp | Câu hỏi trả lời | Nguồn quyết định |
+|---|---|---|
+| Role | Người dùng thuộc nhóm quyền nào? | FVN RBAC |
+| Capability / Function | Người dùng được thao tác gì? | FVN RBAC capability matrix |
+| Organization Scope | Người dùng được xem/thao tác trên phạm vi tổ chức nào? | HRM organization + scope policy |
+| Approval Policy | Người dùng có được phê duyệt hồ sơ này không và ở level nào? | F03ApprovalPolicies + ApprovalRouteService |
+| Business State | Với trạng thái hiện tại, action có hợp lệ không? | Business workflow/state machine |
+
+Không tạo Role chỉ để biểu diễn chức vụ như Manager/Leader hoặc chỉ để biểu diễn khả năng Approve.
+
+### 22.2 Bộ Role chuẩn
+
+Bộ Role chuẩn của FVN_REGISTER:
+
+1. SuperAdmin — quản trị tối cao, Security/RBAC và cấu hình cấp cao.
+2. Admin — quản trị hệ thống/nghiệp vụ được giao theo scope.
+3. HR — nghiệp vụ nhân sự, attendance/leave/OT reconciliation, HR case, báo cáo và HR resolution theo capability/scope.
+4. IT — tài khoản, kỹ thuật, security/audit, integration/diagnostics, Equipment kỹ thuật và IT case theo capability/scope.
+5. Editor — tạo/chỉnh sửa dữ liệu nghiệp vụ được cấp.
+6. User — người dùng nghiệp vụ thông thường, chủ yếu trong Own scope.
+7. Guest — quyền tối thiểu, chủ yếu thông tin công khai hoặc capability được cấp.
+
+Không sử dụng các Role Approver, Manager, DepartmentManager, EquipmentAdmin, HRApprover, ITApprover để thay thế các lớp policy ở trên.
+
+### 22.3 Approval không phụ thuộc Role Approver
+
+Một người có thể cùng Role với người khác nhưng có hoặc không có quyền phê duyệt khác nhau. Approval phải được resolve từ tổ chức + chức vụ + policy:
+
+Factory → Department? → SubDepartment? → Position → ApprovalGroup → ApprovalLevel
+
+Điều này cho phép cùng một Role HR, Editor hoặc Role nghiệp vụ khác nhưng chỉ những người có policy phù hợp mới được approve.
+
+### 22.4 Cây tổ chức phải hỗ trợ ba dạng
+
+Hệ thống phải hỗ trợ đồng thời:
+
+Company → Factory → Department → SubDepartment → Employee
+
+Company → Factory → Department → Employee
+
+Company → Factory → SubDepartment → Employee
+
+Department và SubDepartment là optional theo từng node thực tế; không được ép mọi Factory phải có Department.
+
+F03ApprovalPolicies và Organization Scope phải resolve được đúng node tổ chức trước khi tính Approval Level.
+
+### 22.5 Managed Scope của quản lý
+
+“Quản lý” là thuộc tính/chức vụ và phạm vi tổ chức, không phải Role mới.
+
+Ví dụ:
+- Tổ trưởng Đúc: ManagedScope = Factory/Production/Đúc.
+- Trưởng phòng Production: ManagedScope = Factory/Production và bao phủ các SubDepartment con.
+- Quản lý một Factory: ManagedScope = Factory.
+
+Managed Scope cho phép xem dashboard, attendance, leave, OT, trip, calendar, execution và report của phạm vi được giao nếu capability tương ứng được cấp.
+
+Managed Scope không tự động cấp Approve. Approve vẫn phải qua F03ApprovalPolicies.
+
+### 22.6 Quyền xem báo cáo của quản lý
+
+Một quản lý không phải Approver vẫn có thể có:
+- Dashboard.View trong ManagedScope.
+- Attendance.View trong ManagedScope.
+- Leave.View trong ManagedScope.
+- OT.View trong ManagedScope.
+- Trip.View trong ManagedScope.
+- Calendar.View trong ManagedScope.
+- Execution.View trong ManagedScope.
+- Reports.View/các capability báo cáo tương ứng trong ManagedScope.
+
+Đây là quyền xem/quản lý dữ liệu theo scope, không phải quyền phê duyệt.
+
+### 22.7 Công thức authorization cuối cùng
+
+Một action chỉ hợp lệ khi thỏa cả bốn điều kiện:
+
+Role/Capability + Organization Scope + Business State + Approval Policy (nếu action là Approve)
+
+API phải kiểm tra lại các điều kiện này; UI chỉ dùng chúng để hiển thị/ẩn menu và action phù hợp.
+
+## 23. Màn hình chính theo từng loại Role
+
+Không tạo bảy bộ ứng dụng khác nhau. Dùng một Workspace chung, nhưng nội dung Dashboard, Action Center, navigation và quick actions được compose theo capability + scope của người đăng nhập.
+
+### 23.1 User Workspace
+
+Màn hình chính ưu tiên:
+- Lịch làm việc cá nhân.
+- Công/attendance của bản thân.
+- Số dư và lịch sử Leave.
+- OT của bản thân.
+- Trip của bản thân.
+- Đơn đang chờ approval.
+- Execution mismatch/action của bản thân.
+- Notification/Inbox.
+- Quick actions: Tạo Leave / OT / Trip.
+
+### 23.2 Manager Workspace
+
+Không phải Role Manager; đây là layout được bật khi người dùng có ManagedScope.
+
+Màn hình chính ưu tiên:
+- Dashboard của Factory/Department/SubDepartment được phụ trách.
+- Headcount và attendance summary.
+- Leave/OT/Trip summary của scope.
+- Calendar theo scope.
+- Execution exceptions của scope.
+- Báo cáo/statistics của scope.
+- Equipment thuộc scope nếu có capability.
+- Action cần quản lý xử lý.
+- Approval chỉ xuất hiện nếu F03ApprovalPolicies xác định người đó là approver.
+
+### 23.3 HR Workspace
+
+Màn hình chính ưu tiên:
+- Attendance/HRM sync status.
+- Leave/OT/Trip overview toàn phạm vi được cấp.
+- Execution reconciliation queue.
+- HR Case / phản hồi thắc mắc người dùng.
+- Confirmation/Evidence/HR Resolution.
+- Correction queue.
+- Báo cáo nhân sự.
+- Work Calendar administration nếu có WorkCalendar.Manage.
+- Các approval action chỉ xuất hiện khi Approval Policy cho phép.
+
+### 23.4 IT Workspace
+
+Màn hình chính ưu tiên:
+- System/Integration health.
+- User account/security issues.
+- Security audit.
+- HRM sync diagnostics/retry.
+- Equipment workspace: asset, QR, repair, transfer và lịch sử theo capability/scope.
+- IT Case / hỗ trợ kỹ thuật người dùng.
+- Notification/integration failures.
+
+IT không tự động có Leave/OT/Trip approval, HR resolution hoặc payroll authority.
+
+### 23.5 Admin Workspace
+
+Màn hình chính ưu tiên:
+- System administration.
+- User/role/function management.
+- Organization/scope configuration được cấp.
+- Work calendar configuration.
+- Approval policy configuration nếu capability được cấp.
+- Email/notification configuration.
+- Reports và operational status.
+- Audit/security overview theo quyền.
+
+Admin không mặc nhiên trở thành Approver; Approval Policy vẫn quyết định.
+
+### 23.6 SuperAdmin Workspace
+
+Màn hình chính có toàn bộ vùng quản trị:
+- Security Center/RBAC.
+- User and role administration.
+- Organization/scope administration.
+- Approval policy administration.
+- Integration/HRM synchronization.
+- Execution/reconciliation monitoring.
+- Equipment administration.
+- Work Calendar administration.
+- Audit.
+- System health.
+
+SuperAdmin là quyền hệ thống cao nhất nhưng mọi thao tác nhạy cảm vẫn phải được audit.
+
+### 23.7 Editor Workspace
+
+Màn hình chính ưu tiên:
+- Business modules được cấp.
+- Create/Edit queues.
+- Registration/list/history.
+- Dashboard và report trong scope.
+- Action Center nếu có capability.
+
+Editor không mặc nhiên có Approval Policy.
+
+### 23.8 Guest Workspace
+
+Chỉ hiển thị các vùng được phép, ưu tiên Public Information và các capability read-only đã cấp. Không hiển thị action/approval/configuration nếu không có capability.
+
+## 24. Security Center / màn hình phân quyền chuẩn
+
+Security Center phải biểu diễn quyền theo ma trận thay vì chỉ danh sách Role.
+
+Màn hình nên có bốn vùng:
+
+1. Role Matrix — 7 Role chuẩn và capability/function được cấp.
+2. Organization Scope — Factory → Department → SubDepartment, cho phép cấu hình phạm vi dữ liệu.
+3. Approval Policy — chọn Factory, Department (nếu có), SubDepartment (nếu có), Position, ApprovalGroup và ApprovalLevel; hiển thị preview tuyến phê duyệt.
+4. Effective Permission Preview — chọn một user để xem quyền thực tế sau khi merge Role + Capability + Scope + Approval Policy.
+
+Effective Permission Preview phải trả lời được:
+- User thấy menu nào?
+- User xem được dữ liệu nào?
+- User được Create/Edit/Export/Repair/Resolve action nào?
+- User có phải Approver không?
+- Nếu là Approver, đang ở Level nào và cho node tổ chức nào?
+- User có bị giới hạn bởi Business State không?
+
+Security Center không được biến Approval Policy thành Role assignment.
+
+## 25. Equipment authorization model
+
+Equipment dùng cùng mô hình RBAC + Scope + State.
+
+Capability tối thiểu:
+- Equipment.View
+- Equipment.Create
+- Equipment.Edit
+- Equipment.Assign
+- Equipment.Transfer
+- Equipment.Repair
+- Equipment.Return
+- Equipment.Liquidate
+- Equipment.Approve nếu nghiệp vụ cần approval riêng
+- Equipment.Import
+- Equipment.Export
+- Equipment.QR
+- Equipment.History
+
+Equipment.Edit không có nghĩa được sửa mọi field hoặc mọi state. Business state và field-level rule phải tiếp tục giới hạn action.
+
+Ví dụ: IT có thể Repair/QR/Technical Edit; HR có thể Assign/Return/Transfer; Manager có thể View/History trong ManagedScope. Không tạo Role EquipmentAdmin chỉ để đạt các quyền này.
+
+## 26. Work Calendar authorization
+
+Tách rõ:
+- Calendar.View: xem Calendar chung theo Own/ManagedScope/Company tùy capability.
+- WorkCalendar.Manage: quản lý WorkYear, khóa WorkYear, holiday/workday và import Excel theo scope quản trị.
+
+Người dùng bình thường không cần quyền cấu hình WorkYear chỉ vì họ được xem Calendar.
+
+## 27. Cập nhật mô hình UI tổng thể
+
+Navigation và Dashboard không hard-code theo Role name. UI nên compose từ effective permissions:
+
+EffectivePermission = RoleCapabilities + ExplicitCapabilities + OrganizationScope + ApprovalPolicy + BusinessState
+
+Menu/action chỉ xuất hiện khi capability và scope phù hợp; Approval menu/action chỉ xuất hiện khi có route/policy thực tế.
+
+Dashboard vẫn giữ một Workspace chung, nhưng các card/queue/quick actions được thêm theo effective permission:
+
+My Overview + Managed Scope Overview + Approval Queue (nếu có) + Execution Queue + HR Case (nếu có) + IT Case (nếu có) + Equipment (nếu có).
+
+## 28. Production rule cho Organization/Approval
+
+Trước khi coi RBAC/Approval hoàn thiện production phải kiểm thử tối thiểu:
+- Factory có Department và SubDepartment.
+- Factory có Department nhưng không có SubDepartment.
+- Factory chỉ có SubDepartment.
+- Một Department có nhiều SubDepartment.
+- Manager chỉ xem được ManagedScope của mình.
+- Manager không có Approval Policy thì không được approve.
+- Cùng Position nhưng khác Factory/Department có Approval Level khác nhau.
+- Approval route fallback/không tìm thấy policy phải trả lỗi cấu hình rõ ràng, không tự cấp quyền.
+- User đổi Department/Position sau HRM sync phải re-resolve scope và approval.
+- UI và API cho cùng một effective permission result.
+
+## 29. Audit
 
 Các lớp audit quan trọng:
 - F03ExecutionReconciliationHistory
@@ -261,7 +530,7 @@ Các lớp audit quan trọng:
 
 Do đó có thể truy ngược: hệ thống phát hiện gì → ai xác nhận → evidence nào → HR quyết định gì → correction nào được tạo.
 
-## 23. Một ví dụ hoàn chỉnh
+## 30. Một ví dụ hoàn chỉnh
 
 Ngày 22/09, E0001 có ca làm việc và attendance cho thấy 2 giờ OT.
 
@@ -282,7 +551,7 @@ HR quyết định OK/NG.
 
 Nếu sau đó Approved OT xuất hiện trước khi HR xử lý, worker có thể auto-resolve synthetic mismatch với IsCancellation=false; Calendar không hiển thị 'Đã hủy OT.'.
 
-## 24. Toàn bộ khả năng người dùng có thể hình dung
+## 31. Toàn bộ khả năng người dùng có thể hình dung
 
 Nhân viên có thể:
 - xem toàn bộ ngày làm việc trên một Calendar;
@@ -319,7 +588,7 @@ Hệ thống có thể tự động:
 - tạo notification;
 - duy trì audit trail.
 
-## 25. Kiến trúc 5 tầng
+## 32. Kiến trúc 5 tầng
 
 5. EXPERIENCE / WORKSPACE: Calendar · Dashboard · Lists · Notifications
 
@@ -333,7 +602,7 @@ Hệ thống có thể tự động:
 
 Không tầng nào được phép biến projection thành source-of-truth của tầng dưới.
 
-## 26. Khả năng mở rộng module
+## 33. Khả năng mở rộng module
 
 Module mới chỉ cần cung cấp:
 1. ModuleCode.
@@ -349,7 +618,7 @@ Module mới chỉ cần cung cấp:
 
 Nhờ vậy module mới dùng chung Calendar, Action, Notification, Confirmation và HR Resolution thay vì tạo workflow riêng.
 
-## 27. Trạng thái hiện tại
+## 34. Trạng thái hiện tại
 
 Đã có trong kiến trúc/code của branch:
 - Shared Work Calendar và Calendar là entry point trung tâm.
@@ -369,7 +638,7 @@ Nhờ vậy module mới dùng chung Calendar, Action, Notification, Confirmatio
 - HR scope/security architecture.
 - Calendar/Action/Notification separation.
 
-## 28. Production hardening còn nên hoàn thiện
+## 35. Production hardening còn nên hoàn thiện
 
 - Integration tests trên DB thật/test container cho toàn bộ lifecycle.
 - Test worker idempotent nhiều lần.
@@ -383,7 +652,7 @@ Nhờ vậy module mới dùng chung Calendar, Action, Notification, Confirmatio
 - Monitoring/alerting cho failed background jobs.
 - Retry policy đầy đủ cho integration/notification failures.
 
-## 29. Kết luận
+## 36. Kết luận
 
 FVN_REGISTER hiện được định hình không còn chỉ là phần mềm đăng ký nghỉ/OT/công tác có thêm Calendar.
 
