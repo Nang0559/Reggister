@@ -677,7 +677,8 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                                     RecognizedOTMinutes = recognizedOtMinutes,
                                     HasApprovedOt = true,
                                     AutoResolvedReason = "OT_REQUEST_EXISTS"
-                                })),
+                                }),
+                                false),
                             ct,
                             actorUserId: 0);
                     }
@@ -718,7 +719,8 @@ public sealed class ExecutionReconciliationBackgroundWorker : BackgroundService
                                     WorkDate = workDate,
                                     HasApprovedOt = hasApprovedOt,
                                     AutoResolvedReason = "ACTUAL_OT_NO_LONGER_PRESENT"
-                                })),
+                                }),
+                                false),
                             ct,
                             actorUserId: 0);
                     }
