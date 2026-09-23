@@ -71,13 +71,9 @@ BEGIN
     CREATE INDEX IX_F03ManagedScopes_Node
         ON dbo.F03ManagedScopes(NodeType,NodeCode,DeptCode,SubDepartmentCode,IsActive);
 
-    CREATE UNIQUE INDEX UX_F03ManagedScopes_Assignment
+    CREATE INDEX IX_F03ManagedScopes_Assignment
         ON dbo.F03ManagedScopes(
-            EmployeeCode,NodeType,
-            ISNULL(NodeCode,N''),
-            ISNULL(FactoryCode,N''),
-            ISNULL(DeptCode,N''),
-            ISNULL(SubDepartmentCode,N''));
+            EmployeeCode,NodeType,NodeCode,FactoryCode,DeptCode,SubDepartmentCode,IsActive);
 END;
 
 DECLARE @Equipment TABLE
