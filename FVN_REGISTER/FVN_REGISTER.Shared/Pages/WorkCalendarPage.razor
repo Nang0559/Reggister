@@ -22,7 +22,7 @@
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="3">
             <div>
                 <MudText Typo="Typo.overline" Color="Color.Primary">FVN REGISTER • CALENDAR</MudText>
-                <MudText Typo="Typo.h4" Style="font-weight:850">@(_selectedEmployeeCode == null ? "Lịch làm việc của tôi" : "Lịch làm việc theo phạm vi quản lý")</MudText>
+                <MudText Typo="Typo.h4" Style="font-weight:850">@IsCurrentEmployee ? "Lịch làm việc của tôi" : "Lịch làm việc theo phạm vi quản lý"</MudText>
                 <MudText Typo="Typo.body2" Class="mt-1 mud-text-secondary">
                     Tổng quan chấm công, nghỉ phép, OT và công tác theo ngày.
                 </MudText>
@@ -31,7 +31,6 @@
             {
                 <MudSelect T="string" Value="_selectedEmployeeCode" ValueChanged="OnEmployeeChanged"
                            Label="Phạm vi lịch" Variant="Variant.Outlined" Dense="true" Style="min-width:280px">
-                    <MudSelectItem Value="@((string?)null)">Cá nhân của tôi</MudSelectItem>
                     @foreach (var employee in _managedEmployees)
                     {
                         <MudSelectItem Value="@employee.EmployeeCode">
@@ -106,6 +105,11 @@
     private readonly List<CalendarAlertItemDto> _alerts = new();
     private readonly List<ManagedEmployeeDto> _managedEmployees = new();
     private string? _selectedEmployeeCode;
+    private string? _currentEmployeeCode;
+
+    private bool IsCurrentEmployee =>
+        !string.IsNullOrWhiteSpace(_currentEmployeeCode)
+        && string.Equals(_selectedEmployeeCode, _currentEmployeeCode, StringComparison.OrdinalIgnoreCase);
 
     protected override async Task OnInitializedAsync()
     {
@@ -117,11 +121,31 @@
         {
             await CurrentUser.InitializeAsync();
 
+            _currentEmployeeCode = CurrentUser.User?.EmployeeCode?.Trim();
+
+            // EmployeeCode is the identity of the calendar subject. Do not leave it
+            // null after profile initialization; the API /employee/{code} path then
+            // receives the same code used by the authenticated profile.
+            _selectedEmployeeCode = _currentEmployeeCode;
+
             if (CurrentUser.User?.UserId is int currentUserId && currentUserId > 0)
             {
                 var managed = await SecurityService.GetMyManagedEmployeesAsync();
                 if (managed.IsSuccess && managed.Data != null)
                     _managedEmployees.AddRange(managed.Data);
+            }
+
+            // The current employee must also be a valid selectable calendar subject.
+            // Avoid adding a duplicate when ManagedScope already returns the current user.
+            if (!string.IsNullOrWhiteSpace(_currentEmployeeCode)
+                && !_managedEmployees.Any(x =>
+                    string.Equals(x.EmployeeCode?.Trim(), _currentEmployeeCode, StringComparison.OrdinalIgnoreCase)))
+            {
+                _managedEmployees.Insert(0, new ManagedEmployeeDto
+                {
+                    EmployeeCode = _currentEmployeeCode,
+                    EmployeeName = CurrentUser.User?.FullName ?? _currentEmployeeCode
+                });
             }
 
             await LoadAlertsAsync(from, to);
@@ -135,9 +159,14 @@
     private async Task LoadAlertsAsync(DateTime from, DateTime to)
     {
         _alerts.Clear();
-        var result = string.IsNullOrWhiteSpace(_selectedEmployeeCode)
-            ? await CalendarService.GetAlertsAsync(from, to)
-            : await CalendarService.GetAlertsForEmployeeAsync(_selectedEmployeeCode!, from, to);
+
+        if (string.IsNullOrWhiteSpace(_selectedEmployeeCode))
+            return;
+
+        var result = await CalendarService.GetAlertsForEmployeeAsync(
+            _selectedEmployeeCode,
+            from,
+            to);
 
         if (result.IsSuccess && result.Data != null)
             _alerts.AddRange(result.Data);
@@ -145,7 +174,12 @@
 
     private async Task OnEmployeeChanged(string? employeeCode)
     {
-        _selectedEmployeeCode = string.IsNullOrWhiteSpace(employeeCode) ? null : employeeCode;
+        var normalized = employeeCode?.Trim();
+        if (string.IsNullOrWhiteSpace(normalized))
+            normalized = _currentEmployeeCode;
+
+        _selectedEmployeeCode = normalized;
+
         var today = DateTime.Today;
         var from = new DateTime(today.Year, today.Month, 1);
         var to = from.AddMonths(1).AddDays(-1);
