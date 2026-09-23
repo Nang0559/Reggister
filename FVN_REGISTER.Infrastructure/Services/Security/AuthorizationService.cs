@@ -146,6 +146,40 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .ToListAsync(ct);
     }
 
+    public async Task<List<ManagedEmployeeDto>> GetManagedEmployeesAsync(
+        int userId,
+        CancellationToken ct = default)
+    {
+        var scopes = await GetManagedScopesAsync(userId, ct);
+        if (scopes.Count == 0)
+            return new();
+
+        var employees = await _uow.Repository<F03Employee>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true)
+            .Select(x => new { x.EmployeeCode, x.EmployeeName, x.DeptCode })
+            .ToListAsync(ct);
+
+        var departments = await _uow.Repository<F03Department>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true)
+            .Select(x => new { x.DeptCode, x.ParentDeptCode })
+            .ToListAsync(ct);
+
+        var parents = departments.ToDictionary(x => x.DeptCode, x => x.ParentDeptCode);
+        return employees
+            .Where(x => ManagedScopeMatches(scopes, x.DeptCode, parents))
+            .OrderBy(x => x.DeptCode)
+            .ThenBy(x => x.EmployeeCode)
+            .Select(x => new ManagedEmployeeDto
+            {
+                EmployeeCode = x.EmployeeCode,
+                EmployeeName = x.EmployeeName ?? x.EmployeeCode,
+                DeptCode = x.DeptCode
+            })
+            .ToList();
+    }
+
     public async Task<PermissionSnapshotDto> ReplaceManagedScopesAsync(
         int userId,
         IReadOnlyCollection<ManagedScopeRequest> scopes,
@@ -306,6 +340,44 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         };
     }
 
+    private static bool ManagedScopeMatches(
+        IReadOnlyCollection<ManagedScopeDto> scopes,
+        string? targetDept,
+        IReadOnlyDictionary<string, string?> parents)
+    {
+        if (string.IsNullOrWhiteSpace(targetDept))
+            return scopes.Any(x => x.NodeType.Equals("Company", StringComparison.OrdinalIgnoreCase));
+
+        foreach (var scope in scopes)
+        {
+            if (scope.NodeType.Equals("Company", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            var node = scope.SubDepartmentCode ?? scope.DeptCode ?? scope.NodeCode;
+            if (scope.NodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase))
+                node ??= scope.FactoryCode;
+
+            if (string.IsNullOrWhiteSpace(node))
+                continue;
+
+            if (string.Equals(targetDept, node, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (!scope.IncludeChildren)
+                continue;
+
+            var cursor = targetDept;
+            while (parents.TryGetValue(cursor, out var parent) && !string.IsNullOrWhiteSpace(parent))
+            {
+                if (string.Equals(parent, node, StringComparison.OrdinalIgnoreCase))
+                    return true;
+                cursor = parent!;
+            }
+        }
+
+        return false;
+    }
+
     private async Task<bool> IsWithinManagedScopeAsync(
         IReadOnlyCollection<ManagedScopeDto> scopes,
         string? employeeCode,
@@ -334,38 +406,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .ToListAsync(ct);
 
         var parents = departments.ToDictionary(x => x.DeptCode, x => x.ParentDeptCode);
-        foreach (var scope in scopes)
-        {
-            if (scope.NodeType.Equals("Company", StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            var node = scope.SubDepartmentCode ?? scope.DeptCode ?? scope.NodeCode;
-            if (scope.NodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase))
-            {
-                // Current HR master does not persist FactoryCode on F03Employees yet.
-                // A Factory scope can therefore use DeptCode/NodeCode as its HRM anchor.
-                node ??= scope.FactoryCode;
-            }
-
-            if (string.IsNullOrWhiteSpace(node))
-                continue;
-
-            if (string.Equals(targetDept, node, StringComparison.OrdinalIgnoreCase))
-                return true;
-
-            if (!scope.IncludeChildren)
-                continue;
-
-            var cursor = targetDept;
-            while (parents.TryGetValue(cursor, out var parent) && !string.IsNullOrWhiteSpace(parent))
-            {
-                if (string.Equals(parent, node, StringComparison.OrdinalIgnoreCase))
-                    return true;
-                cursor = parent!;
-            }
-        }
-
-        return false;
+        return ManagedScopeMatches(managed, targetDept, parents);
     }
 
     public async Task<PermissionSnapshotDto> GetSnapshotAsync(
