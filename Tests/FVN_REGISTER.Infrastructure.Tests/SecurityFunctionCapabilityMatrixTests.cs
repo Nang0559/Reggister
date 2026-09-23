@@ -35,6 +35,39 @@ public sealed class SecurityFunctionCapabilityMatrixTests
     }
 
     [Fact]
+    public void HrAndItRoles_AreCanonicalAndLegacyApproverIsObsolete()
+    {
+        Assert.Equal(7, (int)UserRole.HR);
+        Assert.Equal(8, (int)UserRole.IT);
+        Assert.Equal(4, (int)UserRole.Approver);
+    }
+
+    [Fact]
+    public void EquipmentActionCapabilities_AreDistinct()
+    {
+        var codes = new[]
+        {
+            SecurityFunctionCodes.EquipmentAssign,
+            SecurityFunctionCodes.EquipmentTransfer,
+            SecurityFunctionCodes.EquipmentReturn,
+            SecurityFunctionCodes.EquipmentLiquidate,
+            SecurityFunctionCodes.EquipmentQR,
+            SecurityFunctionCodes.EquipmentHistory
+        };
+
+        Assert.Equal(6, codes.Distinct().Count());
+        Assert.All(codes, code => Assert.InRange(code, 2309, 2314));
+    }
+
+    [Fact]
+    public void CalendarView_IsSeparateFromWorkCalendarManage()
+    {
+        Assert.NotEqual(
+            SecurityFunctionCodes.CalendarView,
+            SecurityFunctionCodes.WorkCalendarManage);
+    }
+
+    [Fact]
     public void NewCapabilities_AreUnique()
     {
         var codes = new[]
