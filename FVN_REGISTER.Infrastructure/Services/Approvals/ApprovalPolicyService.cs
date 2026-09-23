@@ -312,7 +312,8 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
                 && x.DeptCode == requester.DeptCode
                 && (x.PositionCode == null || x.PositionCode == requester.PositionCode)
                 && x.ApprovalPositionCode == approver.PositionCode
-                && x.Level == level,
+                && x.Level == level
+                && x.Required,
                 ct);
     }
 
