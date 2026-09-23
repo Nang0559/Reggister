@@ -1,4 +1,7 @@
 using FVN_REGISTER.Application.Interfaces.Calendar;
+using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Contract.Dtos.Authentication;
+using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Models.Calendar;
 using FVN_REGISTER.Contract.Dtos.Calendar;
 using Microsoft.EntityFrameworkCore;
@@ -10,15 +13,18 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
     private readonly FVNWEBAPPContext _db;
     private readonly ICalendarModuleRegistry _registry;
     private readonly IWorkCalendarService _workCalendar;
+    private readonly IAuthorizationService _authorization;
 
     public SharedWorkCalendarService(
         FVNWEBAPPContext db,
         ICalendarModuleRegistry registry,
-        IWorkCalendarService workCalendar)
+        IWorkCalendarService workCalendar,
+        IAuthorizationService authorization)
     {
         _db = db;
         _registry = registry;
         _workCalendar = workCalendar;
+        _authorization = authorization;
     }
 
     public async Task<CalendarMonthDto> GetMonthAsync(
@@ -32,12 +38,38 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         if (from > to)
             throw new ArgumentException("Calendar period is invalid.", nameof(from));
 
+        var actor = await _db.Users
+            .AsNoTracking()
+            .Where(x => x.Id == userId)
+            .Select(x => new UserIdentityDto
+            {
+                UserId = x.Id,
+                Permission = x.PermissionCode,
+                EmployeeCode = x.EmployeeCode,
+                FullName = x.FullName,
+                DeptCode = x.DeptCode,
+                PositionCode = x.Cvcode
+            })
+            .SingleOrDefaultAsync(cancellationToken)
+            ?? throw new UnauthorizedAccessException("Không xác định được tài khoản hiện tại.");
+
         var employeeId = await _db.Employees
             .AsNoTracking()
             .Where(x => x.IsActive != false && x.EmployeeCode == employeeCode)
             .Select(x => (int?)x.Id)
             .SingleOrDefaultAsync(cancellationToken)
-            ?? throw new KeyNotFoundException("Không tìm thấy nhân viên của tài khoản hiện tại.");
+            ?? throw new KeyNotFoundException("Không tìm thấy nhân viên.");
+
+        if (!string.Equals(actor.EmployeeCode, employeeCode, StringComparison.OrdinalIgnoreCase)
+            && !await _authorization.CanAccessAsync(
+                actor,
+                SecurityFunctionCodes.CalendarView,
+                employeeCode,
+                null,
+                cancellationToken))
+        {
+            throw new UnauthorizedAccessException("Bạn không có Calendar.View hoặc ManagedScope tới nhân viên này.");
+        }
 
         var context = new CalendarContext(employeeId, userId, from, to, allowedModules);
 
