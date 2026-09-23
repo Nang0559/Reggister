@@ -45,7 +45,7 @@ else
         <MudTable Items="_preview.ApprovalPolicies" Dense="true" Hover="true" Bordered="true" Class="mt-2">
             <HeaderContent>
                 <MudTh>Module</MudTh><MudTh>Dept</MudTh><MudTh>Requester Position</MudTh>
-                <MudTh>Approval Position</MudTh><MudTh>Level</MudTh><MudTh>Sequence</MudTh>
+                <MudTh>Approval Position</MudTh><MudTh>Level</MudTh><MudTh>Sequence</MudTh><MudTh>Required</MudTh>
             </HeaderContent>
             <RowTemplate>
                 <MudTd>@context.RequestTypeName</MudTd>
@@ -54,6 +54,7 @@ else
                 <MudTd>@context.ApprovalPositionCode</MudTd>
                 <MudTd>@context.Level</MudTd>
                 <MudTd>@context.Sequence</MudTd>
+                <MudTd>@(context.Required ? "Yes" : "No")</MudTd>
             </RowTemplate>
         </MudTable>
     }
