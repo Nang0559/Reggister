@@ -84,6 +84,7 @@ public static class SecurityFunctionCodes
     public const int ApproverManage = 3032;
     public const int WorkCalendarView = 3041;
     public const int WorkCalendarManage = 3042;
+    public const int CalendarView = 3043;
     public const int DepartmentStatusView = 3051;
     public const int OTLimitManage = 3061;
     public const int ApprovalPolicyManage = 3071;
