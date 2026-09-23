@@ -89,13 +89,282 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             return false;
 
         var scope = await GetScopeAsync(user.UserId, functionCode, ct);
-
-        return AuthorizationScopePolicy.CanAccess(
+        if (AuthorizationScopePolicy.CanAccess(
             scope,
             user.EmployeeCode,
             user.DeptCode,
             employeeCode,
-            deptCode);
+            deptCode))
+            return true;
+
+        // ManagedScope is an additional data-scope grant. It never grants the
+        // capability itself and therefore cannot bypass HasAsync/RoleFunction.
+        if (string.Equals(scope, AuthorizationScopeCodes.None, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        var managed = await GetManagedScopesAsync(user.UserId, ct);
+        if (managed.Count == 0)
+            return false;
+
+        return await IsWithinManagedScopeAsync(managed, employeeCode, deptCode, ct);
+    }
+
+    public async Task<List<ManagedScopeDto>> GetManagedScopesAsync(
+        int userId,
+        CancellationToken ct = default)
+    {
+        if (userId <= 0)
+            return new();
+
+        var employeeCode = await _uow.Repository<F03User>().Query()
+            .AsNoTracking()
+            .Where(x => x.Id == userId)
+            .Select(x => x.EmployeeCode)
+            .FirstOrDefaultAsync(ct);
+
+        if (string.IsNullOrWhiteSpace(employeeCode))
+            return new();
+
+        return await _uow.Repository<F03ManagedScope>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true && x.EmployeeCode == employeeCode)
+            .OrderBy(x => x.NodeType)
+            .ThenBy(x => x.NodeCode)
+            .Select(x => new ManagedScopeDto
+            {
+                Id = x.Id,
+                EmployeeCode = x.EmployeeCode,
+                NodeType = x.NodeType,
+                NodeCode = x.NodeCode,
+                FactoryCode = x.FactoryCode,
+                DeptCode = x.DeptCode,
+                SubDepartmentCode = x.SubDepartmentCode,
+                IncludeChildren = x.IncludeChildren,
+                Remark = x.Remark
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task<PermissionSnapshotDto> ReplaceManagedScopesAsync(
+        int userId,
+        IReadOnlyCollection<ManagedScopeRequest> scopes,
+        int actorUserId,
+        CancellationToken ct = default)
+    {
+        if (userId <= 0 || actorUserId <= 0)
+            throw new InvalidOperationException("UserId/ActorUserId không hợp lệ.");
+
+        var employeeCode = await _uow.Repository<F03User>().Query()
+            .Where(x => x.Id == userId)
+            .Select(x => x.EmployeeCode)
+            .FirstOrDefaultAsync(ct);
+
+        if (string.IsNullOrWhiteSpace(employeeCode))
+            throw new InvalidOperationException("Tài khoản chưa liên kết nhân viên.");
+
+        foreach (var scope in scopes)
+        {
+            var nodeType = (scope.NodeType ?? string.Empty).Trim();
+            if (nodeType is not ("Company" or "Factory" or "Department" or "SubDepartment"))
+                throw new InvalidOperationException($"NodeType ManagedScope không hợp lệ: {nodeType}.");
+
+            if (nodeType != "Company" &&
+                string.IsNullOrWhiteSpace(scope.NodeCode) &&
+                string.IsNullOrWhiteSpace(scope.DeptCode) &&
+                string.IsNullOrWhiteSpace(scope.SubDepartmentCode) &&
+                string.IsNullOrWhiteSpace(scope.FactoryCode))
+                throw new InvalidOperationException($"ManagedScope {nodeType} phải có NodeCode hoặc mã node tổ chức.");
+        }
+
+        var repo = _uow.Repository<F03ManagedScope>();
+        var existing = await repo.Query()
+            .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true)
+            .ToListAsync(ct);
+
+        foreach (var row in existing)
+        {
+            row.IsActive = false;
+            row.ModifiedBy = actorUserId;
+            row.ModifiedAt = DateTime.Now;
+            row.LastModifiedSource = "SECURITY_MANAGED_SCOPE_REPLACE";
+        }
+
+        foreach (var scope in scopes)
+        {
+            await repo.AddAsync(new F03ManagedScope
+            {
+                EmployeeCode = employeeCode,
+                NodeType = scope.NodeType.Trim(),
+                NodeCode = scope.NodeCode?.Trim(),
+                FactoryCode = scope.FactoryCode?.Trim(),
+                DeptCode = scope.DeptCode?.Trim(),
+                SubDepartmentCode = scope.SubDepartmentCode?.Trim(),
+                IncludeChildren = scope.IncludeChildren,
+                Remark = scope.Remark?.Trim(),
+                CreatedBy = actorUserId,
+                LastModifiedSource = "SECURITY_MANAGED_SCOPE"
+            }, ct);
+        }
+
+        await _uow.SaveChangesAsync(ct);
+        await _auditService.LogAction(
+            "SECURITY_MANAGED_SCOPE_CHANGED",
+            actorUserId,
+            $"UserId={userId}; EmployeeCode={employeeCode}; Count={scopes.Count}",
+            ct: ct);
+
+        return await GetSnapshotAsync(userId, ct);
+    }
+
+    public async Task<EffectivePermissionPreviewDto> GetEffectivePermissionPreviewAsync(
+        int userId,
+        CancellationToken ct = default)
+    {
+        var snapshot = await GetSnapshotAsync(userId, ct);
+        var user = await _uow.Repository<F03User>().Query()
+            .AsNoTracking()
+            .Where(x => x.Id == userId)
+            .Select(x => new { x.EmployeeCode, x.FullName, x.DeptCode, x.Cvcode })
+            .FirstOrDefaultAsync(ct)
+            ?? throw new KeyNotFoundException("Không tìm thấy tài khoản.");
+
+        var roles = await GetRolesAsync(ct);
+        var roleNames = roles
+            .Where(x => snapshot.RoleCodes.Contains(x.RoleCode))
+            .Select(x => x.RoleName)
+            .ToList();
+
+        var managedScopes = await GetManagedScopesAsync(userId, ct);
+        var policies = await _uow.Repository<F03ApprovalPolicy>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true
+                && x.ApprovalPositionCode == user.Cvcode)
+            .OrderBy(x => x.RequestType)
+            .ThenBy(x => x.Level)
+            .ThenBy(x => x.Sequence)
+            .Select(x => new EffectiveApprovalPolicyDto
+            {
+                RequestType = (int)x.RequestType,
+                RequestTypeName = x.RequestType.ToString(),
+                DeptCode = x.DeptCode,
+                PositionCode = x.PositionCode,
+                ApprovalPositionCode = x.ApprovalPositionCode,
+                Level = x.Level,
+                Sequence = x.Sequence,
+                LevelName = x.LevelName,
+                RoleName = x.RoleName
+            })
+            .ToListAsync(ct);
+
+        var actions = snapshot.Functions
+            .Where(x => !string.IsNullOrWhiteSpace(x.ModuleCode))
+            .Select(x => new EffectivePermissionActionDto
+            {
+                FunctionCode = x.FunctionCode,
+                ModuleCode = x.ModuleCode!,
+                ActionCode = x.ActionCode ?? string.Empty,
+                ScopeCode = x.ScopeCode
+            })
+            .ToList();
+
+        var visibleMenus = actions
+            .Select(x => x.ModuleCode)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(x => x)
+            .ToList();
+
+        var constraints = new List<string>
+        {
+            "Business State luôn được kiểm tra server-side; capability không tự bỏ qua state machine."
+        };
+        if (actions.Any(x => x.ModuleCode.Equals("Leave", StringComparison.OrdinalIgnoreCase)))
+            constraints.Add("Leave: Draft/Pending/Approved/Rejected/Cancelled giới hạn Create/Edit/Cancel/Approve theo state.");
+        if (actions.Any(x => x.ModuleCode.Equals("OT", StringComparison.OrdinalIgnoreCase)))
+            constraints.Add("OT: Draft/Pending/Approved/Rejected/Cancelled giới hạn Create/Edit/Cancel/Approve/Reconcile theo state.");
+        if (actions.Any(x => x.ModuleCode.Equals("Trip", StringComparison.OrdinalIgnoreCase)))
+            constraints.Add("Trip: Draft/Pending/Approved/Rejected/Cancelled giới hạn Create/Edit/Cancel/Approve theo state.");
+        if (actions.Any(x => x.ModuleCode.Equals("Equipment", StringComparison.OrdinalIgnoreCase)))
+            constraints.Add("Equipment: Assign/Transfer/Return/Liquidate/Repair/Approve còn bị giới hạn bởi asset/request state và field rule.");
+        if (actions.Any(x => x.ModuleCode.Equals("Payroll", StringComparison.OrdinalIgnoreCase)))
+            constraints.Add("Payroll: không Lock/Export khi reconciliation/correction còn unresolved hoặc snapshot stale.");
+
+        return new EffectivePermissionPreviewDto
+        {
+            UserId = userId,
+            EmployeeCode = user.EmployeeCode,
+            EmployeeName = user.FullName,
+            DeptCode = user.DeptCode,
+            PositionCode = user.Cvcode,
+            RoleCodes = snapshot.RoleCodes,
+            RoleNames = roleNames,
+            VisibleMenus = visibleMenus,
+            Actions = actions,
+            ManagedScopes = managedScopes,
+            ApprovalPolicies = policies,
+            BusinessStateConstraints = constraints
+        };
+    }
+
+    private async Task<bool> IsWithinManagedScopeAsync(
+        IReadOnlyCollection<ManagedScopeDto> scopes,
+        string? employeeCode,
+        string? deptCode,
+        CancellationToken ct)
+    {
+        if (string.IsNullOrWhiteSpace(employeeCode) && string.IsNullOrWhiteSpace(deptCode))
+            return false;
+
+        var target = await _uow.Repository<F03Employee>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true &&
+                        ((employeeCode != null && x.EmployeeCode == employeeCode) ||
+                         (employeeCode == null && deptCode != null && x.DeptCode == deptCode)))
+            .Select(x => new { x.EmployeeCode, x.DeptCode })
+            .FirstOrDefaultAsync(ct);
+
+        var targetDept = target?.DeptCode ?? deptCode;
+        if (string.IsNullOrWhiteSpace(targetDept))
+            return false;
+
+        var departments = await _uow.Repository<F03Department>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true)
+            .Select(x => new { x.DeptCode, x.ParentDeptCode })
+            .ToListAsync(ct);
+
+        var parents = departments.ToDictionary(x => x.DeptCode, x => x.ParentDeptCode);
+        foreach (var scope in scopes)
+        {
+            if (scope.NodeType.Equals("Company", StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            var node = scope.SubDepartmentCode ?? scope.DeptCode ?? scope.NodeCode;
+            if (scope.NodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase))
+            {
+                // Current HR master does not persist FactoryCode on F03Employees yet.
+                // A Factory scope can therefore use DeptCode/NodeCode as its HRM anchor.
+                node ??= scope.FactoryCode;
+            }
+
+            if (string.IsNullOrWhiteSpace(node))
+                continue;
+
+            if (string.Equals(targetDept, node, StringComparison.OrdinalIgnoreCase))
+                return true;
+
+            if (!scope.IncludeChildren)
+                continue;
+
+            var cursor = targetDept;
+            while (parents.TryGetValue(cursor, out var parent) && !string.IsNullOrWhiteSpace(parent))
+            {
+                if (string.Equals(parent, node, StringComparison.OrdinalIgnoreCase))
+                    return true;
+                cursor = parent!;
+            }
+        }
+
+        return false;
     }
 
     public async Task<PermissionSnapshotDto> GetSnapshotAsync(
