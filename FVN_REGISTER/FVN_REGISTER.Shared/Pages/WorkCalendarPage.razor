@@ -119,7 +119,7 @@
 
             if (CurrentUser.User?.UserId is int currentUserId && currentUserId > 0)
             {
-                var managed = await SecurityService.GetManagedEmployeesAsync(currentUserId);
+                var managed = await SecurityService.GetMyManagedEmployeesAsync();
                 if (managed.IsSuccess && managed.Data != null)
                     _managedEmployees.AddRange(managed.Data);
             }
