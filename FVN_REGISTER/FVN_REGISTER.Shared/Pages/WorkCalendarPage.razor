@@ -29,7 +29,7 @@
             </div>
             @if (_managedEmployees.Count > 0)
             {
-                <MudSelect T="string" Value="_selectedEmployeeCode" ValueChanged="OnEmployeeChanged"
+                <MudSelect T="string" Value="@_selectedEmployeeCode" ValueChanged="OnEmployeeChanged"
                            Label="Phạm vi lịch" Variant="Variant.Outlined" Dense="true" Style="min-width:280px">
                     @foreach (var employee in _managedEmployees)
                     {
@@ -95,7 +95,7 @@
     }
 
     <MudPaper Outlined="true" Class="pa-3" Style="border-radius:18px">
-        <WorkCalendar @key="_selectedEmployeeCode" EmployeeCode="_selectedEmployeeCode" ModuleContext="ALL"
+        <WorkCalendar @key="_selectedEmployeeCode" EmployeeCode="@_selectedEmployeeCode" ModuleContext="ALL"
                       OnEventSelected="HandleEventSelected"
                       OnRegistrationRequested="HandleRegistrationRequested" />
     </MudPaper>
