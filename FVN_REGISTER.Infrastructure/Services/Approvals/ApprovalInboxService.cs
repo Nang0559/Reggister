@@ -23,6 +23,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
         private readonly IApprovalWorkflowOrchestrator<EquipmentRequestSubject> _equipmentWorkflow;
         private readonly IApprovalGroupingPolicy _groupingPolicy;
         private readonly IAuthorizationService _authorization;
+        private readonly IApprovalPolicyService _approvalPolicies;
         private readonly IAuditService _audit;
 
         public ApprovalInboxService(
@@ -32,6 +33,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             IApprovalWorkflowOrchestrator<EquipmentRequestSubject> equipmentWorkflow,
             IApprovalGroupingPolicy groupingPolicy,
             IAuthorizationService authorization,
+            IApprovalPolicyService approvalPolicies,
             IAuditService audit,
             ILogger<ApprovalInboxService> logger,
             IOptionsMonitor<AuthDebugOptions> options)
@@ -43,6 +45,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
             _equipmentWorkflow = equipmentWorkflow;
             _groupingPolicy = groupingPolicy;
             _authorization = authorization;
+            _approvalPolicies = approvalPolicies;
             _audit = audit;
         }
 
@@ -82,7 +85,14 @@ namespace FVN_REGISTER.Infrastructure.Services.Approvals
                     var scopedItems = new List<PendingApprovalItemDto>();
                     foreach (var item in pair.Value)
                     {
-                        if (await _authorization.CanAccessAsync(
+                        var policyAllows = await _approvalPolicies.CanApproveAsync(
+                            pair.Key,
+                            item.EmployeeCode,
+                            user.EmployeeCode ?? string.Empty,
+                            GetCurrentLevel(item),
+                            ct);
+
+                        if (policyAllows && await _authorization.CanAccessAsync(
                             user,
                             functionCode,
                             item.EmployeeCode,
