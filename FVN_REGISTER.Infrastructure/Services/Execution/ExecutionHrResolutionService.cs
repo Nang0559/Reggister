@@ -3,6 +3,7 @@ using System.Linq.Expressions;
 using FVN_REGISTER.Application.Interfaces.Execution;
 using FVN_REGISTER.Application.Services.Execution;
 using FVN_REGISTER.Application.Interfaces.Notifications;
+using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Execution;
@@ -248,7 +249,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
     {
         await EnsureHrPermissionAsync(userId, requireAllScope: false, cancellationToken);
 
-        var reviewStatus = NormalizeEvidenceReviewStatus(request.ReviewStatus);
+        var reviewStatus = ExecutionReviewPolicy.NormalizeEvidenceReviewStatus(request.ReviewStatus);
         var note = request.ReviewNote?.Trim();
 
         if (note?.Length > 2000)
@@ -312,7 +313,7 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         // Any negative evidence review keeps the employee action open.
         if (reviewStatus == "Rejected" || reviewStatus == "NeedMoreEvidence")
         {
-            confirmation.Status = "NeedMoreEvidence";
+            confirmation.Status = ExecutionReviewPolicy.ConfirmationStatusAfterEvidenceReview(reviewStatus);
             confirmation.ReviewedBy = userId;
             confirmation.ReviewedAt = DateTime.Now;
             confirmation.ReviewNote = note;
@@ -884,15 +885,6 @@ public sealed class ExecutionHrResolutionService : IExecutionHrResolutionService
         "OK" => "OK",
         "NG" => "NG",
         _ => throw new ArgumentException("Decision chỉ được là OK hoặc NG.")
-    };
-
-    private static string NormalizeEvidenceReviewStatus(string value) => value?.Trim().ToUpperInvariant() switch
-    {
-        "APPROVED" => "Approved",
-        "REJECTED" => "Rejected",
-        "NEEDMOREEVIDENCE" => "NeedMoreEvidence",
-        "NEED_MORE_EVIDENCE" => "NeedMoreEvidence",
-        _ => throw new ArgumentException("ReviewStatus chỉ được là Approved, Rejected hoặc NeedMoreEvidence.")
     };
 
     private static string NormalizeCalendarAction(string value) => value?.Trim().ToUpperInvariant() switch
