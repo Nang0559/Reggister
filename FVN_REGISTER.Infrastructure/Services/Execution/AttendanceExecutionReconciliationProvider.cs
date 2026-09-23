@@ -20,14 +20,14 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
     public async Task ReconcileAsync(DateOnly from, DateOnly to, byte reconciliationMode, CancellationToken ct)
     {
         var unresolved = reconciliationMode == 2
-            ? await GetUnresolvedSourceIdsAsync(_db, "ATTENDANCE", ct)
+            ? await GetUnresolvedSourceIdsAsync("ATTENDANCE", ct)
             : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         // OT actual-only reconciliation is owned by the OT module. We still
         // discover its source rows from the official attendance calculation,
         // including unresolved OT mismatches outside the normal worker window.
         var unresolvedOt = reconciliationMode == 2
-            ? await GetUnresolvedSourceIdsAsync(_db, "OT", ct)
+            ? await GetUnresolvedSourceIdsAsync("OT", ct)
             : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var unresolvedOtKeys = unresolvedOt
