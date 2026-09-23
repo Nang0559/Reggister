@@ -42,15 +42,29 @@ else if (_model != null)
                         Đây là trung tâm công việc cá nhân: theo dõi đơn, xử lý phê duyệt và các thông tin cần chú ý.
                     </MudText>
                 </div>
-                <MudStack Row="true" Spacing="1">
+                <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
                     <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Campaign"
                                OnClick="@(() => Navigation.NavigateTo("/thong-tin-cong-khai"))">
                         Thông tin
                     </MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Add"
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.EventAvailable"
                                OnClick="@(() => Navigation.NavigateTo("/leave/create"))">
-                        Tạo đơn nghỉ
+                        Tạo Leave
                     </MudButton>
+                    @if (CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.OTCreate) == true)
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Schedule"
+                                   OnClick="@(() => Navigation.NavigateTo("/ot/create"))">
+                            Tạo OT
+                        </MudButton>
+                    }
+                    @if (CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.TripCreate) == true)
+                    {
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.FlightTakeoff"
+                                   OnClick="@(() => Navigation.NavigateTo("/trip/create"))">
+                            Tạo công tác
+                        </MudButton>
+                    }
                 </MudStack>
             </MudStack>
         </MudPaper>
