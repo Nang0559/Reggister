@@ -94,6 +94,59 @@ public sealed class SecurityController : BaseApiController
         }
     }
 
+
+    [HttpGet("users/{userId:int}/managed-scopes")]
+    public async Task<IActionResult> GetManagedScopes(int userId, CancellationToken ct)
+    {
+        if (!await CanManageAsync(SecurityFunctionCodes.SecurityView, ct))
+            return Forbid();
+
+        return Ok(ApiResponse<List<ManagedScopeDto>>.Ok(
+            await _authorization.GetManagedScopesAsync(userId, ct)));
+    }
+
+    [HttpPut("users/{userId:int}/managed-scopes")]
+    public async Task<IActionResult> SetManagedScopes(
+        int userId,
+        [FromBody] UpdateManagedScopesRequest request,
+        CancellationToken ct)
+    {
+        if (UserInfo == null) return Unauthorized();
+        if (userId != request.UserId)
+            return BadRequest(ApiResponse<object>.Fail("UserId không khớp."));
+        if (!await CanManageAsync(SecurityFunctionCodes.UserManagementAssignPermission, ct))
+            return Forbid();
+
+        try
+        {
+            var snapshot = await _authorization.ReplaceManagedScopesAsync(
+                userId, request.Scopes, UserInfo.UserId, ct);
+            await LogActionAsync($"Cập nhật ManagedScope cho UserId={userId}");
+            return Ok(ApiResponse<PermissionSnapshotDto>.Ok(snapshot));
+        }
+        catch (InvalidOperationException ex)
+        {
+            return BadRequest(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
+
+    [HttpGet("users/{userId:int}/effective-permission")]
+    public async Task<IActionResult> GetEffectivePermissionPreview(int userId, CancellationToken ct)
+    {
+        if (!await CanManageAsync(SecurityFunctionCodes.SecurityView, ct))
+            return Forbid();
+
+        try
+        {
+            return Ok(ApiResponse<EffectivePermissionPreviewDto>.Ok(
+                await _authorization.GetEffectivePermissionPreviewAsync(userId, ct)));
+        }
+        catch (KeyNotFoundException ex)
+        {
+            return NotFound(ApiResponse<object>.Fail(ex.Message));
+        }
+    }
+
     [HttpPut("roles/{roleCode:int}/functions")]
     public async Task<IActionResult> SetRoleFunctions(
         int roleCode,
