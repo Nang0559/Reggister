@@ -3,6 +3,7 @@ using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Notifications;
 using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Application.Maps;
+using FVN_REGISTER.Application.Policies;
 using FVN_REGISTER.Infrastructure.Hubs;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.EntityFrameworkCore;
@@ -43,7 +44,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Notifications
                     .OrderByDescending(x => x.Id)
                     .FirstOrDefaultAsync(ct);
 
-                if (existing != null)
+                if (existing != null && NotificationDeduplicationPolicy.IsDuplicate(existing, dto))
                     return NotificationMapper.ToDto(existing);
             }
 
