@@ -287,7 +287,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
         CancellationToken ct)
     {
         var requestGroups = events
-            .Where(x => x.RequestId.HasValue && x.ModuleCode is "LEAVE" or "OT" or "TRIP")
+            .Where(x => x.RequestId.HasValue && (x.ModuleCode is "LEAVE" or "OT" or "TRIP"))
             .Select(x => new
             {
                 x.RequestId,
@@ -322,11 +322,11 @@ public sealed class WorkCalendarService : IWorkCalendarService
             if (snapshots.Count == 0)
                 continue;
 
-            var snapshotIds = snapshots.Select(x => x.Id).ToList();
+            var stepIds = snapshots.SelectMany(x => x.Steps).Select(x => x.Id).Distinct().ToList();
             var histories = await _uow.Repository<F03ApprovalHistory>()
                 .Query()
                 .AsNoTracking()
-                .Where(x => x.RequestType == group.Key && snapshotIds.Contains(x.StepId))
+                .Where(x => x.RequestType == group.Key && stepIds.Contains(x.StepId))
                 .ToListAsync(ct);
 
             var historyByStepId = histories
