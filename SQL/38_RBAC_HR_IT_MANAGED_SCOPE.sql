@@ -7,6 +7,93 @@
 SET NOCOUNT ON;
 SET XACT_ABORT ON;
 
+
+/*
+   Schema compatibility guard:
+   F03Permissions/F03Roles/F03Functions/F03UserRoles/F03Users inherit
+   BaseAuditEntity in the application model. Older databases may have been
+   created before all BaseAudit columns were added. Bring the existing RBAC
+   tables to the same audit contract before this migration writes to them.
+   Existing columns are never altered.
+*/
+DECLARE @AuditTables TABLE(TableName sysname NOT NULL);
+INSERT @AuditTables(TableName)
+VALUES
+    (N'F03Permissions'),
+    (N'F03Roles'),
+    (N'F03Functions'),
+    (N'F03HrmUserRoleRules'),
+    (N'F03UserRoles'),
+    (N'F03Users');
+
+DECLARE @AuditTable sysname;
+DECLARE @Sql nvarchar(max);
+
+DECLARE AuditCursor CURSOR LOCAL FAST_FORWARD FOR
+SELECT TableName
+FROM @AuditTables
+WHERE OBJECT_ID(N'dbo.' + TableName, N'U') IS NOT NULL;
+
+OPEN AuditCursor;
+FETCH NEXT FROM AuditCursor INTO @AuditTable;
+
+WHILE @@FETCH_STATUS = 0
+BEGIN
+    IF COL_LENGTH(N'dbo.' + @AuditTable, N'IsActive') IS NULL
+    BEGIN
+        SET @Sql = N'ALTER TABLE dbo.' + QUOTENAME(@AuditTable)
+                 + N' ADD IsActive bit NULL CONSTRAINT '
+                 + QUOTENAME(N'DF_' + @AuditTable + N'_IsActive')
+                 + N' DEFAULT(1) WITH VALUES;';
+        EXEC sys.sp_executesql @Sql;
+    END;
+
+    IF COL_LENGTH(N'dbo.' + @AuditTable, N'CreatedBy') IS NULL
+    BEGIN
+        SET @Sql = N'ALTER TABLE dbo.' + QUOTENAME(@AuditTable)
+                 + N' ADD CreatedBy int NOT NULL CONSTRAINT '
+                 + QUOTENAME(N'DF_' + @AuditTable + N'_CreatedBy')
+                 + N' DEFAULT(0) WITH VALUES;';
+        EXEC sys.sp_executesql @Sql;
+    END;
+
+    IF COL_LENGTH(N'dbo.' + @AuditTable, N'CreatedAt') IS NULL
+    BEGIN
+        SET @Sql = N'ALTER TABLE dbo.' + QUOTENAME(@AuditTable)
+                 + N' ADD CreatedAt datetime2(7) NOT NULL CONSTRAINT '
+                 + QUOTENAME(N'DF_' + @AuditTable + N'_CreatedAt')
+                 + N' DEFAULT(GETDATE()) WITH VALUES;';
+        EXEC sys.sp_executesql @Sql;
+    END;
+
+    IF COL_LENGTH(N'dbo.' + @AuditTable, N'ModifiedBy') IS NULL
+    BEGIN
+        SET @Sql = N'ALTER TABLE dbo.' + QUOTENAME(@AuditTable)
+                 + N' ADD ModifiedBy int NULL;';
+        EXEC sys.sp_executesql @Sql;
+    END;
+
+    IF COL_LENGTH(N'dbo.' + @AuditTable, N'ModifiedAt') IS NULL
+    BEGIN
+        SET @Sql = N'ALTER TABLE dbo.' + QUOTENAME(@AuditTable)
+                 + N' ADD ModifiedAt datetime2(7) NULL;';
+        EXEC sys.sp_executesql @Sql;
+    END;
+
+    IF COL_LENGTH(N'dbo.' + @AuditTable, N'LastModifiedSource') IS NULL
+    BEGIN
+        SET @Sql = N'ALTER TABLE dbo.' + QUOTENAME(@AuditTable)
+                 + N' ADD LastModifiedSource nvarchar(max) NULL;';
+        EXEC sys.sp_executesql @Sql;
+    END;
+
+    FETCH NEXT FROM AuditCursor INTO @AuditTable;
+END;
+
+CLOSE AuditCursor;
+DEALLOCATE AuditCursor;
+
+
 IF OBJECT_ID(N'dbo.F03Permissions',N'U') IS NOT NULL
 BEGIN
     INSERT dbo.F03Permissions(IsActive,CreatedBy,PermissionCode,PermissionName,Detail)
