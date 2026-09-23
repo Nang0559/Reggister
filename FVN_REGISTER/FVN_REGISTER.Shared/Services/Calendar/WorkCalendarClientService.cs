@@ -13,6 +13,16 @@ public sealed class WorkCalendarClientService : IWorkCalendarClientService
     public Task<ApiResponse<CalendarMonthDto>> GetAsync(DateTime from, DateTime to, CancellationToken ct = default) =>
         _http.GetAsync<CalendarMonthDto>($"api/calendar/me?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}", ct);
 
+    public Task<ApiResponse<CalendarMonthDto>> GetForEmployeeAsync(
+        string employeeCode, DateTime from, DateTime to, CancellationToken ct = default) =>
+        _http.GetAsync<CalendarMonthDto>(
+            $"api/calendar/employee/{Uri.EscapeDataString(employeeCode)}?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}", ct);
+
+    public Task<ApiResponse<IReadOnlyList<CalendarAlertItemDto>>> GetAlertsForEmployeeAsync(
+        string employeeCode, DateTime from, DateTime to, CancellationToken ct = default) =>
+        _http.GetAsync<IReadOnlyList<CalendarAlertItemDto>>(
+            $"api/calendar/employee/{Uri.EscapeDataString(employeeCode)}/alerts?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}", ct);
+
     public Task<ApiResponse<IReadOnlyList<CalendarAlertItemDto>>> GetAlertsAsync(DateTime from, DateTime to, CancellationToken ct = default) =>
         _http.GetAsync<IReadOnlyList<CalendarAlertItemDto>>($"api/calendar/me/alerts?from={from:yyyy-MM-dd}&to={to:yyyy-MM-dd}", ct);
 
