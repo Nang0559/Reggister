@@ -4,6 +4,7 @@
 @inject IWorkCalendarClientService CalendarService
 @inject ICurrentUserClientService CurrentUser
 @inject IJSRuntime JS
+@inject ILogger<WorkCalendar> Logger
 @implements IAsyncDisposable
 
 <MudPaper Class="pa-2" Elevation="0">
@@ -53,15 +54,27 @@
         await LoadAsync(DateTime.Today.AddMonths(-1).Date, DateTime.Today.AddMonths(2).Date);
         _ref = DotNetObjectReference.Create(this);
 
-        await JS.InvokeVoidAsync(
-            "workCalendar.init",
-            _element,
-            _ref,
-            BuildEvents(),
-            DateTime.Today.ToString("yyyy-MM-dd"),
-            BuildRegistrationDates());
+        try
+        {
+            await JS.InvokeVoidAsync(
+                "workCalendar.init",
+                _element,
+                _ref,
+                BuildEvents(),
+                DateTime.Today.ToString("yyyy-MM-dd"),
+                BuildRegistrationDates());
 
-        _initialized = true;
+            _initialized = true;
+        }
+        catch (JSException ex)
+        {
+            _ref?.Dispose();
+            _ref = null;
+            Logger.LogError(
+                ex,
+                "WorkCalendar JavaScript initialization failed. EmployeeCode={EmployeeCode}",
+                EmployeeCode ?? CurrentUser.User?.EmployeeCode);
+        }
     }
 
     private async Task LoadAsync(DateTime from, DateTime to)
