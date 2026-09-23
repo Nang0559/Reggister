@@ -287,7 +287,8 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 Level = x.Level,
                 Sequence = x.Sequence,
                 LevelName = x.LevelName,
-                RoleName = x.RoleName
+                RoleName = x.RoleName,
+                Required = x.Required
             })
             .ToListAsync(ct);
 
