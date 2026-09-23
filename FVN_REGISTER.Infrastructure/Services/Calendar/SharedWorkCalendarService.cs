@@ -168,8 +168,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
 
             var registrations = workCalendar.Events
                 .Where(x => x.ModuleCode is "LEAVE" or "OT" or "TRIP"
-                    && x.Start.Date <= baseDay.Date.Date
-                    && x.End > baseDay.Date)
+                    && CalendarEventDateMatcher.CoversDate(x, baseDay.Date))
                 .Where(x => allowedModules is null || allowedModules.Contains(x.ModuleCode))
                 .OrderBy(x => x.ModuleCode)
                 .ThenBy(x => x.Start)
