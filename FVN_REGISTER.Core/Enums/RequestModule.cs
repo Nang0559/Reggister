@@ -1,4 +1,4 @@
-﻿namespace FVN_REGISTER.Core.Enums
+namespace FVN_REGISTER.Core.Enums
 {
     public enum RequestModule
     {
@@ -6,10 +6,6 @@
         Overtime,
         Trip,
         Equipment,
-        Attendance,
-        Administration,
-        IT,
-        Execution,
-        HR
+        Attendance
     }
 }
