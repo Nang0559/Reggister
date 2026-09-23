@@ -21,10 +21,11 @@ public abstract class ExecutionReconciliationModuleProviderBase
     }
 
     protected async Task<HashSet<string>> GetUnresolvedSourceIdsAsync(
+        FVNWEBAPPContext db,
         string moduleCode,
         CancellationToken ct)
     {
-        return (await _db.ExecutionReconciliations.AsNoTracking()
+        return (await db.ExecutionReconciliations.AsNoTracking()
             .Where(x => x.IsActive != false
                 && x.ModuleCode == moduleCode
                 && (x.ReconciliationStatus == "Mismatch"
