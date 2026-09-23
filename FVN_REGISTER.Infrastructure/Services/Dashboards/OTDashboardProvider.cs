@@ -1,6 +1,7 @@
 ﻿using FVN_REGISTER.Application.Interfaces.OT;
 using FVN_REGISTER.Application.Interfaces.Statics;
 using FVN_REGISTER.Application.Interfaces.Dashboards;
+using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Dashboard;
@@ -14,13 +15,15 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
     public class OTDashboardProvider : IModuleDashboardProvider
     {
         private readonly IOTQueryService _otQuery;
+        private readonly IAuthorizationService _authorization;
 
         public RequestModule Module => RequestModule.Overtime;
         public int RequiredFunctionCode => SecurityFunctionCodes.OTView;
 
-        public OTDashboardProvider(IOTQueryService otQuery)
+        public OTDashboardProvider(IOTQueryService otQuery, IAuthorizationService authorization)
         {
             _otQuery = otQuery;
+            _authorization = authorization;
         }
 
         public async Task<ModuleDashboardContribution> GetContributionAsync(
@@ -38,7 +41,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
                 user.EmployeeCode!, 5, ct);
 
             List<OTBalanceDto> nearLimitEmployees = new();
-            if (!string.IsNullOrEmpty(user.DeptCode) && user.Permission.IsApprover())
+            if (!string.IsNullOrEmpty(user.DeptCode)
+                && await _authorization.CanAccessAsync(user, SecurityFunctionCodes.OTView, null, user.DeptCode, ct))
             {
                 nearLimitEmployees = await _otQuery.GetDeptNearLimitAsync(user.DeptCode, year, month, ct);
 
