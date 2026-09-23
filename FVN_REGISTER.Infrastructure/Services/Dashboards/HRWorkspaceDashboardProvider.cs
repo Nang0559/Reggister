@@ -17,7 +17,7 @@ public sealed class HRWorkspaceDashboardProvider : IModuleDashboardProvider
 
     public async Task<ModuleDashboardContribution> GetContributionAsync(UserIdentityDto user, CancellationToken ct = default)
     {
-        var syncReview = await _db.SyncReviewFlags.AsNoTracking().CountAsync(x => x.IsActive != false, ct);
+        var syncReview = await _db.SyncReviewFlags.AsNoTracking().CountAsync(ct);
         var corrections = await _db.ExecutionCorrections.AsNoTracking()
             .CountAsync(x => x.IsActive != false && x.Status == "Pending", ct);
         var headcount = await _db.Employees.AsNoTracking().CountAsync(x => x.IsActive != false, ct);
