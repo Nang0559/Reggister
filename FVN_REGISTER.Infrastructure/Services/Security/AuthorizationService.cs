@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Services.Common;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Security;
+using FVN_REGISTER.Contract.Requests.Security;
 using FVN_REGISTER.Core.Entities.Security;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Repositories;
