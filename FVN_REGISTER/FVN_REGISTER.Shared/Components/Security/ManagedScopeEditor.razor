@@ -1,0 +1,151 @@
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Contract.Requests.Security
+@using FVN_REGISTER.Contract.Dtos.Usermanagers
+@using FVN_REGISTER.Shared.Services.Security
+@inject ISecurityClientService SecurityService
+@inject ISnackbar Snackbar
+
+@if (User == null)
+{
+    <MudAlert Severity="Severity.Info">Chọn một tài khoản để cấu hình ManagedScope.</MudAlert>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="5">
+            <MudPaper Class="pa-4" Outlined="true" Style="border-radius:14px">
+                <MudText Typo="Typo.h6">@User.FullName</MudText>
+                <MudText Typo="Typo.caption" Color="Color.Secondary">@User.EmployeeCode · @User.DeptCode</MudText>
+                <MudDivider Class="my-3" />
+                <MudSelect T="string" Label="Node tổ chức" @bind-Value="_nodeType" Variant="Variant.Outlined">
+                    <MudSelectItem Value="@("Company")">Company</MudSelectItem>
+                    <MudSelectItem Value="@("Factory")">Factory</MudSelectItem>
+                    <MudSelectItem Value="@("Department")">Department</MudSelectItem>
+                    <MudSelectItem Value="@("SubDepartment")">SubDepartment</MudSelectItem>
+                </MudSelect>
+                <MudTextField Class="mt-2" Label="NodeCode" @bind-Value="_nodeCode" Variant="Variant.Outlined" />
+                <MudTextField Class="mt-2" Label="FactoryCode" @bind-Value="_factoryCode" Variant="Variant.Outlined" />
+                <MudTextField Class="mt-2" Label="DeptCode" @bind-Value="_deptCode" Variant="Variant.Outlined" />
+                <MudTextField Class="mt-2" Label="SubDepartmentCode" @bind-Value="_subDepartmentCode" Variant="Variant.Outlined" />
+                <MudSwitch Class="mt-2" T="bool" @bind-Value="_includeChildren" Color="Color.Primary">Bao phủ node con</MudSwitch>
+                <MudTextField Class="mt-2" Label="Ghi chú" @bind-Value="_remark" Variant="Variant.Outlined" />
+                <MudStack Row="true" Class="mt-3" Spacing="1">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Add">Thêm</MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="Save" Disabled="_saving">
+                        @(_saving ? "Đang lưu..." : "Lưu ManagedScope")
+                    </MudButton>
+                </MudStack>
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="7">
+            <MudPaper Class="pa-4" Outlined="true" Style="border-radius:14px">
+                <MudStack Row="true" AlignItems="AlignItems.Center">
+                    <MudText Typo="Typo.h6">Phạm vi hiện tại</MudText>
+                    <MudSpacer />
+                    <MudButton Variant="Variant.Text" OnClick="LoadAsync">Làm mới</MudButton>
+                </MudStack>
+                @if (_scopes.Count == 0)
+                {
+                    <MudAlert Class="mt-3" Severity="Severity.Info" Variant="Variant.Outlined">
+                        Chưa có ManagedScope. User chỉ dùng scope của capability.
+                    </MudAlert>
+                }
+                @foreach (var scope in _scopes)
+                {
+                    <MudPaper Class="pa-2 mt-2" Outlined="true">
+                        <MudStack Row="true" AlignItems="AlignItems.Center">
+                            <div>
+                                <MudText Typo="Typo.subtitle2">@scope.NodeType · @(scope.NodeCode ?? scope.DeptCode ?? scope.SubDepartmentCode ?? scope.FactoryCode ?? "-")</MudText>
+                                <MudText Typo="Typo.caption">Factory=@(scope.FactoryCode ?? "-") · Dept=@(scope.DeptCode ?? "-") · Sub=@(scope.SubDepartmentCode ?? "-")</MudText>
+                            </div>
+                            <MudSpacer />
+                            <MudChip T="string" Size="Size.Small">@(scope.IncludeChildren ? "Bao phủ node con" : "Chỉ node")</MudChip>
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => _scopes.Remove(scope))" />
+                        </MudStack>
+                    </MudPaper>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public UserAccountDto? User { get; set; }
+
+    private List<ManagedScopeDto> _scopes = new();
+    private string _nodeType = "Department";
+    private string _nodeCode = string.Empty;
+    private string _factoryCode = string.Empty;
+    private string _deptCode = string.Empty;
+    private string _subDepartmentCode = string.Empty;
+    private string _remark = string.Empty;
+    private bool _includeChildren = true;
+    private bool _saving;
+    private int? _loadedUserId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (User?.IdUser != _loadedUserId)
+        {
+            _loadedUserId = User?.IdUser;
+            await LoadAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        if (User == null) return;
+        var result = await SecurityService.GetManagedScopesAsync(User.IdUser);
+        if (result.IsSuccess) _scopes = result.Data ?? new();
+        else Snackbar.Add(result.Message ?? "Không tải được ManagedScope.", Severity.Error);
+    }
+
+    private void Add()
+    {
+        if (User == null) return;
+        _scopes.Add(new ManagedScopeDto
+        {
+            EmployeeCode = User.EmployeeCode ?? string.Empty,
+            NodeType = _nodeType,
+            NodeCode = NullIfWhite(_nodeCode),
+            FactoryCode = NullIfWhite(_factoryCode),
+            DeptCode = NullIfWhite(_deptCode),
+            SubDepartmentCode = NullIfWhite(_subDepartmentCode),
+            IncludeChildren = _includeChildren,
+            Remark = NullIfWhite(_remark)
+        });
+        _nodeCode = _factoryCode = _deptCode = _subDepartmentCode = _remark = string.Empty;
+    }
+
+    private async Task Save()
+    {
+        if (User == null) return;
+        _saving = true;
+        try
+        {
+            var result = await SecurityService.SetManagedScopesAsync(
+                User.IdUser,
+                _scopes.Select(x => new ManagedScopeRequest
+                {
+                    NodeType = x.NodeType,
+                    NodeCode = x.NodeCode,
+                    FactoryCode = x.FactoryCode,
+                    DeptCode = x.DeptCode,
+                    SubDepartmentCode = x.SubDepartmentCode,
+                    IncludeChildren = x.IncludeChildren,
+                    Remark = x.Remark
+                }).ToList());
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể lưu ManagedScope.", Severity.Error);
+                return;
+            }
+            await LoadAsync();
+            Snackbar.Add("Đã lưu ManagedScope.", Severity.Success);
+        }
+        finally { _saving = false; }
+    }
+
+    private static string? NullIfWhite(string? value)
+        => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+}
