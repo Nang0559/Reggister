@@ -149,6 +149,22 @@ else if (_model != null)
         <DashboardOverview Data="_model" />
     </MudContainer>
 }
+else if (_guestFallback)
+{
+    <MudContainer MaxWidth="MaxWidth.Medium" Class="py-8">
+        <MudPaper Outlined="true" Class="pa-6" Style="border-radius:20px">
+            <MudText Typo="Typo.h5">Thông tin công khai</MudText>
+            <MudText Typo="Typo.body2" Class="mt-2 mb-4 mud-text-secondary">
+                Tài khoản hiện không có capability Dashboard.View. Bạn chỉ thấy các thông tin công khai được phép.
+            </MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Campaign"
+                       OnClick="@(() => Navigation.NavigateTo("/thong-tin-cong-khai"))">
+                Mở thông tin công khai
+            </MudButton>
+        </MudPaper>
+    </MudContainer>
+}
 else if (!string.IsNullOrWhiteSpace(_errorMessage))
 {
     <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
@@ -166,6 +182,7 @@ else
     private DashboardResponse? _model;
     private bool _isLoading = true;
     private string? _errorMessage;
+    private bool _guestFallback;
     private DateTime? _loadedAt;
     private readonly CancellationTokenSource _cts = new();
 
@@ -193,7 +210,15 @@ else
             }
             else
             {
-                _errorMessage = result.Message ?? "Không thể tải Dashboard.";
+                var message = result.Message ?? "Không thể tải Dashboard.";
+                if (message.Contains("chưa được cấp quyền xem Dashboard", StringComparison.OrdinalIgnoreCase))
+                {
+                    _guestFallback = true;
+                }
+                else
+                {
+                    _errorMessage = message;
+                }
             }
         }
         catch (OperationCanceledException) when (_cts.IsCancellationRequested)
