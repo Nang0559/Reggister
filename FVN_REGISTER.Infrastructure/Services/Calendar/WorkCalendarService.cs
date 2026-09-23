@@ -63,9 +63,20 @@ public sealed class WorkCalendarService : IWorkCalendarService
             throw new UnauthorizedAccessException("Bạn không có Calendar.View hoặc ManagedScope tới nhân viên này.");
         }
 
-        var canLeave = await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveView, ct);
-        var canOt = await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct);
-        var canTrip = await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct);
+        var canViewLeave = await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveView, ct);
+        var canViewOt = await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct);
+        var canViewTrip = await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct);
+
+        // Reading a managed employee's calendar and being allowed to create a
+        // registration for that employee are different capabilities. Calendar
+        // must expose registration opportunities only when the caller has the
+        // corresponding Create permission for the target employee.
+        var canCreateLeave = await _authorization.CanAccessAsync(
+            user, SecurityFunctionCodes.LeaveCreate, normalizedEmployeeCode, null, ct);
+        var canCreateOt = await _authorization.CanAccessAsync(
+            user, SecurityFunctionCodes.OTCreate, normalizedEmployeeCode, null, ct);
+        var canCreateTrip = await _authorization.CanAccessAsync(
+            user, SecurityFunctionCodes.TripCreate, normalizedEmployeeCode, null, ct);
 
         var workYears = await _uow.Repository<F03WorkYear>().Query()
             .AsNoTracking()
@@ -81,7 +92,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
             .OrderBy(x => x.HolidayDate)
             .ToListAsync(ct);
 
-        var leave = canLeave
+        var leave = canViewLeave
             ? await _uow.Repository<VF03LeaveRequest>().Query().AsNoTracking()
                 .Where(x => x.EmployeeCode == normalizedEmployeeCode && x.IsActive == true
                     && x.EndDate >= start && x.StartDate <= end
@@ -100,7 +111,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
                 .OrderBy(x => x.LeaveDate)
                 .ToListAsync(ct);
 
-        var ot = canOt
+        var ot = canViewOt
             ? await _uow.Repository<VF03OTRequest>().Query().AsNoTracking()
                 .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
                     && x.OTDate >= start && x.OTDate <= end
@@ -109,7 +120,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
                 .ToListAsync(ct)
             : new List<VF03OTRequest>();
 
-        var trips = canTrip
+        var trips = canViewTrip
             ? await _uow.Repository<F03TripRequest>().Query().AsNoTracking()
                 .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
                     && x.EndDate >= start && x.StartDate <= end
@@ -153,17 +164,9 @@ public sealed class WorkCalendarService : IWorkCalendarService
                 IsWorkingDay = working,
                 HolidayName = holiday?.Description,
                 HolidayCode = holiday == null ? null : $"HOL-{holiday.HolidayDate:yyyyMMdd}",
-                CanRegisterLeave = canLeave
-                    && future
-                    && workYear != null
-                    && holiday == null,
-                CanRegisterOT = canOt
-                    && future
-                    && workYear != null,
-                CanRegisterTrip = canTrip
-                    && future
-                    && workYear != null
-                    && holiday == null,
+                CanRegisterLeave = canCreateLeave && future && workYear != null && holiday == null,
+                CanRegisterOT = canCreateOt && future && workYear != null,
+                CanRegisterTrip = canCreateTrip && future && workYear != null && holiday == null,
                 AvailabilityNote = holiday != null
                     ? $"Ngày nghỉ công ty: {holiday.Description} — chỉ đăng ký OT."
                     : !future
@@ -291,9 +294,9 @@ public sealed class WorkCalendarService : IWorkCalendarService
             if (!day.IsFuture)
                 continue;
 
-            var hasLeave = calendar.Events.Any(x => x.ModuleCode == "LEAVE" && x.Start.Date <= date && x.End > day);
-            var hasOt = calendar.Events.Any(x => x.ModuleCode == "OT" && x.Start.Date <= date && x.End > day);
-            var hasTrip = calendar.Events.Any(x => x.ModuleCode == "TRIP" && x.Start.Date <= date && x.End > day);
+            var hasLeave = calendar.Events.Any(x => x.ModuleCode == "LEAVE" && x.Start.Date <= date && x.End > date);
+            var hasOt = calendar.Events.Any(x => x.ModuleCode == "OT" && x.Start.Date <= date && x.End > date);
+            var hasTrip = calendar.Events.Any(x => x.ModuleCode == "TRIP" && x.Start.Date <= date && x.End > date);
 
             if (day.CanRegisterLeave && !hasLeave)
             {
