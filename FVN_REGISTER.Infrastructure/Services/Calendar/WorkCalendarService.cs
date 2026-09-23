@@ -294,7 +294,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
             if (!day.IsFuture)
                 continue;
 
-            var hasLeave = calendar.Events.Any(x => x.ModuleCode == "LEAVE" && x.Start.Date <= date && x.End > date);
+            var hasLeave = calendar.Events.Any(x => x.ModuleCode == "LEAVE" && CalendarEventDateMatcher.CoversDate(x, date));
             var hasOt = calendar.Events.Any(x => x.ModuleCode == "OT" && x.Start.Date <= date && x.End > date);
             var hasTrip = calendar.Events.Any(x => x.ModuleCode == "TRIP" && x.Start.Date <= date && x.End > date);
 
@@ -354,7 +354,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
 
         if (calendar.Events.Any(x => x.ModuleCode == "LEAVE" && CalendarEventDateMatcher.CoversDate(x, day)))
             warnings.Add("Đã có đăng ký nghỉ trong ngày.");
-        if (calendar.Events.Any(x => x.ModuleCode == "OT" && x.Start.Date <= day && x.End > day))
+        if (calendar.Events.Any(x => x.ModuleCode == "OT" && CalendarEventDateMatcher.CoversDate(x, day)))
             warnings.Add("Đã có đăng ký OT trong ngày.");
         if (calendar.Events.Any(x => x.ModuleCode == "TRIP" && x.Start.Date <= day && x.End > day))
             warnings.Add("Đã có đăng ký công tác trong ngày.");
