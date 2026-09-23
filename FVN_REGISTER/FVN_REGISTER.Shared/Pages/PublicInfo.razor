@@ -1,4 +1,5 @@
 @page "/thong-tin-cong-khai"
+@page "/public-information"
 @using System.Text.Json
 @using FVN_REGISTER.Shared.Handlers
 @inherits AppComponentBase
@@ -13,7 +14,19 @@
             <MudText Typo="Typo.h4" Style="font-weight:800">Thông tin công khai</MudText>
             <MudText Typo="Typo.body2" Class="mud-text-secondary">Thông báo, quy định và hướng dẫn được công ty công bố cho cán bộ nhân viên.</MudText>
         </div>
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Login" OnClick="GoLogin">Đăng nhập</MudButton>
+        <MudStack Row="true" Spacing="2">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Assignment"
+                       OnClick="GoRegistration">
+                Đăng ký thông tin
+            </MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       StartIcon="@Icons.Material.Filled.Login"
+                       OnClick="GoLogin">
+                Đăng nhập
+            </MudButton>
+        </MudStack>
     </MudStack>
 
     @if (_loading)
@@ -97,6 +110,14 @@
             _error = "Không thể kết nối đến máy chủ.";
         }
         finally { _loading = false; }
+    }
+
+    private void GoRegistration()
+    {
+        // Public Information and Public Registration Forms remain separate modules.
+        // The public-information page is only the entry point; submissions are stored
+        // by the Public Forms module, not in F03PublicInformation.
+        Navigation.NavigateTo("/public-forms");
     }
 
     private void GoLogin() => Navigation.NavigateTo("/login");
