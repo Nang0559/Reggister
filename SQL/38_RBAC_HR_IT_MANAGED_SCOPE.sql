@@ -159,4 +159,17 @@ JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
 WHERE r.RoleCode IN(5,6)
   AND f.FunctionCode IN(2005,2105,2205,2305);
 
+
+INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+SELECT 1,0,3043,N'Calendar.View',N'Xem lịch làm việc chung',N'Calendar',N'View',N'Own',1040
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Functions WHERE FunctionCode=3043);
+
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
+SELECT r.Id,f.Id
+FROM dbo.F03Roles r
+CROSS JOIN dbo.F03Functions f
+WHERE r.RoleCode IN(1,2,3,5,7,8)
+  AND f.FunctionCode=3043
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+
 PRINT N'38_RBAC_HR_IT_MANAGED_SCOPE ready.';
