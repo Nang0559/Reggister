@@ -669,3 +669,23 @@ Correction trả lời: có cần sửa dữ liệu nghiệp vụ không?
 Dashboard trả lời: tình hình tổng thể thế nào?
 
 Đây là ranh giới trách nhiệm cuối cùng cần giữ khi tiếp tục mở rộng hệ thống.
+## 37. Implementation status — §22–§35 hardening
+
+Các hạng mục triển khai trên branch này được map như sau:
+
+| Hạng mục | Triển khai |
+|---|---|
+| RBAC HR/IT | UserRole.HR=7, UserRole.IT=8; legacy Approver=4 được đánh dấu obsolete và SQL 38 migrate khỏi role hiệu lực. |
+| Approval | ApprovalInboxService và ApprovalPolicyService.CanApproveAsync kiểm tra F03ApprovalPolicies + requester/approver PositionCode + Level; không dùng Role Approver để quyết định Approve. |
+| ManagedScope | dbo.F03ManagedScopes + F03ManagedScope; Security Center cấu hình node; Dashboard/Report/Calendar dùng scope này như data-scope bổ sung, không cấp capability. |
+| Calendar authorization | Calendar.View=3043 tách khỏi WorkCalendar.Manage=3042; Calendar có endpoint xem employee trong ManagedScope. |
+| Equipment | Thêm Assign=2309, Transfer=2310, Return=2311, Liquidate=2312, QR=2313, History=2314; API có action-access snapshot và QR/history enforcement. |
+| Security Center | Bổ sung Organization Scope và Approval Policy + Effective Permission Preview; preview trả role, menu, action/scope, ManagedScope, policy/level và business-state constraints. |
+| Payroll gate | Có integration test end-to-end: unresolved reconciliation chặn Lock; resolve xong Lock thành công trong transaction test. |
+| Notification/integration retry | Polly retry 3 lần, exponential backoff + jitter cho Email Queue và HRM Sync. Polly không retry OperationCanceledException mặc định. |
+| Worker health | BackgroundWorkerHealthRegistry + BackgroundWorkerHealthCheck, endpoint /health/workers, theo dõi Email/HRM Sync/Attendance workers và stale threshold. |
+| §35 tests | Bổ sung payroll gate, evidence/HR review invariants, notification dedup, attendance company-wide calculation path, worker health state; lifecycle/idempotency tests trước đó tiếp tục giữ nguyên. |
+
+### Production note
+
+F03ManagedScopes là data-scope assignment, không phải Role. Việc có ManagedScope không tự cấp View/Create/Edit/Approve; capability vẫn phải tồn tại trong effective permission. Approval tiếp tục phụ thuộc F03ApprovalPolicies và business state.
