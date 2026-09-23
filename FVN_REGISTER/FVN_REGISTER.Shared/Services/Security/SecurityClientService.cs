@@ -50,6 +50,11 @@ public sealed class SecurityClientService : ISecurityClientService
         => _http.GetAsync<List<ManagedEmployeeDto>>(
             $"api/security/users/{userId}/managed-employees", ct);
 
+    public Task<ApiResponse<List<ManagedEmployeeDto>>> GetMyManagedEmployeesAsync(
+        CancellationToken ct = default)
+        => _http.GetAsync<List<ManagedEmployeeDto>>(
+            "api/security/me/managed-employees", ct);
+
     public Task<ApiResponse<SecurityRoleDto>> SetRoleFunctionsAsync(
         int roleCode, List<int> functionCodes, CancellationToken ct = default)
         => _http.PutAsync<SecurityRoleDto>(
