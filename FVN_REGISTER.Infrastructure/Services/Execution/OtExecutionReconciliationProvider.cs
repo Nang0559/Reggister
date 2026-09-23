@@ -20,7 +20,7 @@ public sealed class OtExecutionReconciliationProvider : ExecutionReconciliationM
     public async Task ReconcileAsync(DateOnly from, DateOnly to, byte reconciliationMode, CancellationToken ct)
     {
         var unresolved = reconciliationMode == 2
-            ? await GetUnresolvedSourceIdsAsync(_db, "OT", ct)
+            ? await GetUnresolvedSourceIdsAsync("OT", ct)
             : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var rows = await _db.OvertimeEmployees.AsNoTracking()
