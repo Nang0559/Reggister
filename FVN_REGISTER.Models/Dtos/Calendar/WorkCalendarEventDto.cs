@@ -17,4 +17,11 @@ public sealed class WorkCalendarEventDto
     public decimal DayValue { get; set; } = 1m;
     public Guid? ActionId { get; set; }
     public string? DetailRoute { get; set; }
+
+    // Approval snapshot shown directly on the work calendar.
+    public int? ApprovalLevel { get; set; }
+    public string? ApprovalLevelName { get; set; }
+    public string? CurrentApproverName { get; set; }
+    public string? ApprovalStatus { get; set; }
+    public bool IsApproved { get; set; }
 }
