@@ -1,4 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.Calendar;
+using FVN_REGISTER.Application.Logging;
+using Microsoft.Extensions.Logging;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Core.Constants;
@@ -14,17 +16,20 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
     private readonly ICalendarModuleRegistry _registry;
     private readonly IWorkCalendarService _workCalendar;
     private readonly IAuthorizationService _authorization;
+    private readonly ILogger<SharedWorkCalendarService> _logger;
 
     public SharedWorkCalendarService(
         FVNWEBAPPContext db,
         ICalendarModuleRegistry registry,
         IWorkCalendarService workCalendar,
-        IAuthorizationService authorization)
+        IAuthorizationService authorization,
+        ILogger<SharedWorkCalendarService> logger)
     {
         _db = db;
         _registry = registry;
         _workCalendar = workCalendar;
         _authorization = authorization;
+        _logger = logger;
     }
 
     public async Task<CalendarMonthDto> GetMonthAsync(
@@ -35,7 +40,9 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
         IReadOnlySet<string>? allowedModules = null,
         CancellationToken cancellationToken = default)
     {
-        if (from > to)
+        try
+        {
+            if (from > to)
             throw new ArgumentException("Calendar period is invalid.", nameof(from));
 
         var actor = await _db.Users
@@ -144,13 +151,31 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             .ToArray();
 
         return new CalendarMonthDto
+            {
+                From = from,
+                To = to,
+                Items = items,
+                Alerts = alerts,
+                RegistrationOpportunities = opportunities
+            };
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
-            From = from,
-            To = to,
-            Items = items,
-            Alerts = alerts,
-            RegistrationOpportunities = opportunities
-        };
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogErrorIf(
+                enabled: true,
+                exception: ex,
+                message: "SharedWorkCalendarService.GetMonthAsync failed. EmployeeCode={EmployeeCode}, UserId={UserId}, From={From}, To={To}",
+                normalizedEmployeeCode: employeeCode,
+                userId,
+                from,
+                to);
+
+            throw;
+        }
     }
 
     public async Task<IReadOnlyList<CalendarAlertItemDto>> GetAlertsAsync(
