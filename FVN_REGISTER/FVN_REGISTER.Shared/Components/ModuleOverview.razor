@@ -1,0 +1,73 @@
+@using FVN_REGISTER.Contract.Responses
+@using FVN_REGISTER.Shared.Services.Dashboards
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-5">
+        <div>
+            <MudText Typo="Typo.overline" Color="Color.Primary">WORKSPACE OVERVIEW</MudText>
+            <MudText Typo="Typo.h4" Style="font-weight:850">@Title</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary mt-1">@Description</MudText>
+        </div>
+        <MudStack Row="true" Spacing="1">
+            <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo(HistoryUrl))">Danh sách</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => Navigation.NavigateTo(CreateUrl))">Đăng ký</MudButton>
+        </MudStack>
+    </MudStack>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Indeterminate="true" />
+    }
+    else if (_model != null)
+    {
+        <MudGrid Spacing="3">
+            @foreach (var widget in _model.Widgets.Where(x => IsModuleWidget(x)))
+            {
+                <MudItem xs="12" sm="6" md="3">
+                    <MudPaper Outlined="true" Class="pa-4" Style="border-radius:18px">
+                        <MudText Typo="Typo.subtitle2">@widget.Title</MudText>
+                        <MudText Typo="Typo.h4" Style="font-weight:850">@widget.Value</MudText>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+
+        <MudCard Class="mt-5" Elevation="1">
+            <MudCardContent>
+                <MudText Typo="Typo.h6">Thao tác nhanh</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary mt-1">
+                    Trang Overview chỉ tổng hợp trạng thái; business workflow vẫn được xử lý tại Đăng ký/Danh sách/Approval.
+                </MudText>
+                <MudStack Row="true" Spacing="2" Class="mt-4" Wrap="Wrap.Wrap">
+                    <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/calendar"))">Mở Calendar</MudButton>
+                    <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/work/inbox"))">Việc cần tôi xử lý</MudButton>
+                </MudStack>
+            </MudCardContent>
+        </MudCard>
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public string Title { get; set; } = string.Empty;
+    [Parameter] public string Description { get; set; } = string.Empty;
+    [Parameter] public string CreateUrl { get; set; } = string.Empty;
+    [Parameter] public string HistoryUrl { get; set; } = string.Empty;
+    [Parameter] public string ModulePrefix { get; set; } = string.Empty;
+
+    [Inject] private IDashboardClientService DashboardService { get; set; } = default!;
+    [Inject] private NavigationManager Navigation { get; set; } = default!;
+
+    private DashboardResponse? _model;
+    private bool _loading = true;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await DashboardService.GetDashboardDataAsync();
+        if (result.IsSuccess)
+            _model = result.Data;
+        _loading = false;
+    }
+
+    private bool IsModuleWidget(FVN_REGISTER.Contract.Dtos.WidgetCounterDto widget)
+        => widget.Link?.StartsWith(ModulePrefix, StringComparison.OrdinalIgnoreCase) == true;
+}
