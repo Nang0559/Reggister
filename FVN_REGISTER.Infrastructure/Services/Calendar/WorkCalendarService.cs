@@ -113,7 +113,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
 
         var ot = canViewOt
             ? await _uow.Repository<VF03OTRequest>().Query().AsNoTracking()
-                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
+                .Where(x => x.EmployeeCode == normalizedEmployeeCode && x.IsActive == true
                     && x.OTDate >= start && x.OTDate <= end
                     && x.RequestStatus != ApprovalStatus.Cancelled
                     && x.RequestStatus != ApprovalStatus.Rejected)
@@ -352,7 +352,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
         if (!string.IsNullOrWhiteSpace(item.HolidayName))
             warnings.Add($"Ngày nghỉ công ty: {item.HolidayName} — chỉ OT.");
 
-        if (calendar.Events.Any(x => x.ModuleCode == "LEAVE" && x.Start.Date <= day && x.End > day))
+        if (calendar.Events.Any(x => x.ModuleCode == "LEAVE" && CalendarEventDateMatcher.CoversDate(x, day)))
             warnings.Add("Đã có đăng ký nghỉ trong ngày.");
         if (calendar.Events.Any(x => x.ModuleCode == "OT" && x.Start.Date <= day && x.End > day))
             warnings.Add("Đã có đăng ký OT trong ngày.");
