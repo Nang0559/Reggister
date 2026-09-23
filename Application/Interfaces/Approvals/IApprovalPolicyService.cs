@@ -2,6 +2,7 @@ using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.Depts;
 using FVN_REGISTER.Contract.Requests.Approvals;
 using FVN_REGISTER.Contract.Utils;
+using FVN_REGISTER.Core.Enums;
 
 namespace FVN_REGISTER.Application.Interfaces.Approvals;
 
