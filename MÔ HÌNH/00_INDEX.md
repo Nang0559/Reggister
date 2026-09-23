@@ -122,3 +122,15 @@ Controller không query EF; Application không phụ thuộc Infrastructure. Mod
 ## Shared Work Calendar + Action / Task
 - **18_OT_ATTENDANCE_RECONCILIATION.md** — chuẩn đối soát OT/chấm công và Calendar dùng chung.
 - **24_WORK_CALENDAR_AND_ACTION_IMPLEMENTATION.md** — source-of-truth triển khai Work Calendar, Action/Task, Notification và Dashboard.
+
+## Calendar Day Rule Contract
+
+The authoritative Work Calendar behavior is documented in section **24A — CALENDAR DAY CONTRACT v1** of `MÔ HÌNH/24_WORK_CALENDAR_AND_ACTION_IMPLEMENTATION.md`.
+
+Implementation locations:
+- `FVN_REGISTER.Infrastructure/Services/Calendar/SharedWorkCalendarService.cs`
+- `FVN_REGISTER.Infrastructure/Services/Calendar/CalendarDayRuleEngine.cs`
+- `FVN_REGISTER.Infrastructure/Services/Calendar/Rules/*`
+- `FVN_REGISTER/FVN_REGISTER.Shared/Components/Calendar/WorkCalendar.razor`
+- `FVN_REGISTER/FVN_REGISTER.Shared/Components/Calendar/CalendarDayDialog.razor`
+

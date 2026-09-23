@@ -135,6 +135,11 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
                 var missingPunch = hasShiftPlan && (!row.CheckInTime.HasValue || !row.CheckOutTime.HasValue);
                 var exception = row.LateMinutesDay + row.LateMinutesNight > 0
                     || row.EarlyLeaveMinutesDay + row.EarlyLeaveMinutesNight > 0;
+                var timeVariance = hasShiftPlan
+                    && hasActual
+                    && row.CheckInTime.HasValue
+                    && row.CheckOutTime.HasValue
+                    && row.WorkMinutesDay + row.WorkMinutesNight != row.RequiredMinutes;
                 // Regular attendance mismatch and OT registration mismatch are
                 // separate business signals. A day with actual OT but no OT
                 // request must not be swallowed by the fact that the employee
@@ -143,7 +148,7 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
                 var otWithoutRequest = hasActualOt && !hasApprovedOt;
                 var pastExpectedWithoutActual = !hasActual && hasPlannedWork && workDate < today && !isLeave;
 
-                var mismatch = actualWithoutPlan || missingPunch || exception || pastExpectedWithoutActual;
+                var mismatch = actualWithoutPlan || missingPunch || exception || timeVariance || pastExpectedWithoutActual;
                 var status = mismatch ? "Mismatch" : hasPlannedWork || hasActual ? "Matched" : "None";
 
                 var plannedState = hasShiftPlan && hasApprovedOt
@@ -319,6 +324,7 @@ public sealed class AttendanceExecutionReconciliationProvider : ExecutionReconci
                             actualWithoutPlan,
                             missingPunch,
                             exception,
+                            timeVariance,
                             pastExpectedWithoutActual,
                             row.HrmBCLyDoNghi,
                             row.HrmBCGhiChu

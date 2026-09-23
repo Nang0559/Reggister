@@ -1,3 +1,4 @@
+using System.Globalization;
 using FVN_REGISTER.Application.Interfaces.Calendar;
 using FVN_REGISTER.Application.Models.Calendar;
 using FVN_REGISTER.Contract.Dtos.Calendar;
@@ -31,11 +32,19 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
                 a.WorkDate,
                 a.HrmEmployeeId,
                 a.EmployeeCode,
+                a.ShiftId,
+                a.ShiftAbbr,
                 a.AttendanceDisplayValue,
                 a.CheckInTime,
                 a.CheckOutTime,
                 a.WorkMinutesDay,
                 a.WorkMinutesNight,
+                a.OTMinutesDay,
+                a.OTMinutesNight,
+                a.OTMinutesDayTC,
+                a.OTMinutesNightTC,
+                a.OTRecognizedMinutesDay,
+                a.OTRecognizedMinutesNight,
                 a.RequiredMinutes,
                 a.LateMinutesDay,
                 a.LateMinutesNight,
@@ -78,7 +87,13 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
         var lateMinutes = row.LateMinutesDay + row.LateMinutesNight;
         var earlyMinutes = row.EarlyLeaveMinutesDay + row.EarlyLeaveMinutesNight;
         var requiredMinutes = Math.Max(row.RequiredMinutes, 0);
-        var workedMinutes = row.WorkMinutesDay + row.WorkMinutesNight;
+        var workedMinutes = Math.Max(0, row.WorkMinutesDay) + Math.Max(0, row.WorkMinutesNight);
+        var actualOtMinutes = Math.Max(0, row.OTMinutesDay)
+            + Math.Max(0, row.OTMinutesNight)
+            + Math.Max(0, row.OTMinutesDayTC)
+            + Math.Max(0, row.OTMinutesNightTC);
+        var recognizedOtMinutes = Math.Max(0, row.OTRecognizedMinutesDay)
+            + Math.Max(0, row.OTRecognizedMinutesNight);
 
         byte severity = 0;
         bool requiresAction = false;
@@ -138,10 +153,11 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
         {
             WorkDate = row.WorkDate,
             ModuleCode = "ATTENDANCE",
+            SourceType = reconciliation?.SourceType ?? "ATTENDANCE",
             StatusCode = status,
             Marker = reconciliation?.ReconciliationStatus switch
             {
-                "Mismatch" => "!",
+                "Mismatch" => "?",
                 "AwaitingConfirmation" => "?",
                 "Resolved" => "OK",
                 _ => string.IsNullOrWhiteSpace(row.AttendanceDisplayValue) ? null : row.AttendanceDisplayValue
@@ -152,7 +168,27 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
             InteractionType = requiresAction && reconciliation?.ActionId != null ? "CONFIRMATION" : reconciliation != null ? "DETAIL" : "INFO",
             ActionId = reconciliation?.ActionId,
             DetailRoute = reconciliation is null ? null : $"/execution?reconciliationId={reconciliation.Id}",
-            SourceId = reconciliation?.Id.ToString() ?? $"{row.HrmEmployeeId}:{row.WorkDate:yyyy-MM-dd}"
+            SourceId = reconciliation?.Id.ToString() ?? $"{row.HrmEmployeeId}:{row.WorkDate:yyyyMMdd}",
+            ShiftId = row.ShiftId,
+            ShiftAbbr = row.ShiftAbbr,
+            CheckIn = row.CheckInTime,
+            CheckOut = row.CheckOutTime,
+            WorkMinutes = workedMinutes,
+            RequiredMinutes = requiredMinutes,
+            ActualOtMinutes = actualOtMinutes,
+            RecognizedOtMinutes = recognizedOtMinutes,
+            ActualHours = workedMinutes / 60m,
+            RequiredHours = requiredMinutes > 0 ? requiredMinutes / 60m : null,
+            HasActual = hasCheckIn || hasCheckOut || workedMinutes > 0,
+            HasActualOt = actualOtMinutes > 0 || recognizedOtMinutes > 0,
+            IsNumericVariance = decimal.TryParse(
+                row.AttendanceDisplayValue,
+                NumberStyles.Float,
+                CultureInfo.InvariantCulture,
+                out _)
+                && requiredMinutes > 0
+                && hasCheckIn
+                && hasCheckOut
         };
     }
 
@@ -261,11 +297,19 @@ public sealed class AttendanceCalendarModuleProvider : ICalendarModuleProvider
         public DateOnly WorkDate { get; set; }
         public int HrmEmployeeId { get; set; }
         public string? EmployeeCode { get; set; }
+        public int? ShiftId { get; set; }
+        public string? ShiftAbbr { get; set; }
         public string? AttendanceDisplayValue { get; set; }
         public DateTime? CheckInTime { get; set; }
         public DateTime? CheckOutTime { get; set; }
         public int WorkMinutesDay { get; set; }
         public int WorkMinutesNight { get; set; }
+        public int OTMinutesDay { get; set; }
+        public int OTMinutesNight { get; set; }
+        public int OTMinutesDayTC { get; set; }
+        public int OTMinutesNightTC { get; set; }
+        public int OTRecognizedMinutesDay { get; set; }
+        public int OTRecognizedMinutesNight { get; set; }
         public int RequiredMinutes { get; set; }
         public int LateMinutesDay { get; set; }
         public int LateMinutesNight { get; set; }

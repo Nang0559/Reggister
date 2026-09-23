@@ -11,4 +11,10 @@ public sealed class WorkCalendarEventDto
     public string Status { get; set; } = string.Empty;
     public bool IsReadOnly { get; set; }
     public int? RequestId { get; set; }
+    public string? SourceId { get; set; }
+    public string? SubTypeCode { get; set; }
+    public bool IsHalfDay { get; set; }
+    public decimal DayValue { get; set; } = 1m;
+    public Guid? ActionId { get; set; }
+    public string? DetailRoute { get; set; }
 }

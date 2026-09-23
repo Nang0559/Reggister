@@ -4,6 +4,7 @@
 @using FVN_REGISTER.Contract.Dtos.Security
 @using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.OTs
 @using FVN_REGISTER.Shared.Components.Calendar
 @using FVN_REGISTER.Shared.Services.Calendar
 @using Microsoft.AspNetCore.Authorization
@@ -13,6 +14,8 @@
 @inject IDialogService DialogService
 @inject ISecurityClientService SecurityService
 @inject ICurrentUserClientService CurrentUser
+@inject IOTClientService OTClient
+@inject ISnackbar Snackbar
 
 <PageTitle>Lịch làm việc của tôi</PageTitle>
 
@@ -22,15 +25,23 @@
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="3">
             <div>
                 <MudText Typo="Typo.overline" Color="Color.Primary">FVN REGISTER • CALENDAR</MudText>
-                <MudText Typo="Typo.h4" Style="font-weight:850">@(IsCurrentEmployee ? "Lịch làm việc của tôi" : "Lịch làm việc theo phạm vi quản lý")</MudText>
+                <MudText Typo="Typo.h4" Style="font-weight:850">
+                    @(IsCurrentEmployee ? "Lịch làm việc của tôi" : "Lịch làm việc theo phạm vi quản lý")
+                </MudText>
                 <MudText Typo="Typo.body2" Class="mt-1 mud-text-secondary">
-                    Tổng quan chấm công, nghỉ phép, OT và công tác theo ngày.
+                    Một ô ngày hợp nhất lịch công ty, ca, chấm công, đăng ký và các vấn đề cần xử lý.
                 </MudText>
             </div>
+
             @if (_managedEmployees.Count > 0)
             {
-                <MudSelect T="string" Value="@_selectedEmployeeCode" ValueChanged="OnEmployeeChanged"
-                           Label="Phạm vi lịch" Variant="Variant.Outlined" Dense="true" Style="min-width:280px">
+                <MudSelect T="string"
+                           Value="@_selectedEmployeeCode"
+                           ValueChanged="OnEmployeeChanged"
+                           Label="Phạm vi lịch"
+                           Variant="Variant.Outlined"
+                           Dense="true"
+                           Style="min-width:280px">
                     @foreach (var employee in _managedEmployees)
                     {
                         <MudSelectItem Value="@employee.EmployeeCode">
@@ -39,6 +50,7 @@
                     }
                 </MudSelect>
             }
+
             <MudButton Variant="Variant.Outlined"
                        StartIcon="@Icons.Material.Filled.Home"
                        OnClick="@(() => NavigationManager.NavigateTo("/"))">
@@ -61,30 +73,28 @@
 
                 @foreach (var alert in _alerts)
                 {
-                    <MudPaper Outlined="true" Class="pa-3"
+                    <MudPaper Outlined="true"
+                              Class="pa-3"
                               Style="border-radius:12px; border-left:4px solid var(--mud-palette-warning);">
-                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="2">
+                        <MudStack Row="true"
+                                  Justify="Justify.SpaceBetween"
+                                  AlignItems="AlignItems.Center"
+                                  Wrap="Wrap.Wrap"
+                                  Spacing="2">
                             <div>
                                 <MudText Typo="Typo.body2" Style="font-weight:700">
                                     @alert.WorkDate.ToString("dd/MM/yyyy") · @alert.ModuleCode
                                 </MudText>
                                 <MudText Typo="Typo.body2">@alert.Summary</MudText>
                             </div>
-                            @if (alert.RequiresAction && alert.ActionId is not null)
+
+                            @if (alert.RequiresAction && !string.IsNullOrWhiteSpace(alert.DetailRoute))
                             {
                                 <MudButton Size="Size.Small"
                                            Variant="Variant.Filled"
                                            Color="Color.Warning"
-                                           OnClick="@(() => OpenAction(alert.DetailRoute, alert.SourceId))">
-                                    Xử lý
-                                </MudButton>
-                            }
-                            else if (!string.IsNullOrWhiteSpace(alert.DetailRoute))
-                            {
-                                <MudButton Size="Size.Small"
-                                           Variant="Variant.Outlined"
                                            OnClick="@(() => OpenRoute(alert.DetailRoute))">
-                                    Xem chi tiết
+                                    Xử lý
                                 </MudButton>
                             }
                         </MudStack>
@@ -95,15 +105,18 @@
     }
 
     <MudPaper Outlined="true" Class="pa-3" Style="border-radius:18px">
-        <WorkCalendar @key="_selectedEmployeeCode" EmployeeCode="@_selectedEmployeeCode" ModuleContext="ALL"
-                      OnEventSelected="HandleEventSelected"
-                      OnRegistrationRequested="HandleRegistrationRequested" />
+        <WorkCalendar @ref="_calendar"
+                      @key="_selectedEmployeeCode"
+                      EmployeeCode="@_selectedEmployeeCode"
+                      ModuleContext="ALL"
+                      OnDaySelected="HandleDaySelected" />
     </MudPaper>
 </MudContainer>
 
 @code {
     private readonly List<CalendarAlertItemDto> _alerts = new();
     private readonly List<ManagedEmployeeDto> _managedEmployees = new();
+    private WorkCalendar? _calendar;
     private string? _selectedEmployeeCode;
     private string? _currentEmployeeCode;
 
@@ -113,30 +126,17 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var today = DateTime.Today;
-        var from = new DateTime(today.Year, today.Month, 1);
-        var to = from.AddMonths(1).AddDays(-1);
-
         try
         {
             await CurrentUser.InitializeAsync();
 
             _currentEmployeeCode = CurrentUser.User?.EmployeeCode?.Trim();
-
-            // EmployeeCode is the identity of the calendar subject. Do not leave it
-            // null after profile initialization; the API /employee/{code} path then
-            // receives the same code used by the authenticated profile.
             _selectedEmployeeCode = _currentEmployeeCode;
 
-            if (CurrentUser.User?.UserId is int currentUserId && currentUserId > 0)
-            {
-                var managed = await SecurityService.GetMyManagedEmployeesAsync();
-                if (managed.IsSuccess && managed.Data != null)
-                    _managedEmployees.AddRange(managed.Data);
-            }
+            var managed = await SecurityService.GetMyManagedEmployeesAsync();
+            if (managed.IsSuccess && managed.Data != null)
+                _managedEmployees.AddRange(managed.Data);
 
-            // The current employee must also be a valid selectable calendar subject.
-            // Avoid adding a duplicate when ManagedScope already returns the current user.
             if (!string.IsNullOrWhiteSpace(_currentEmployeeCode)
                 && !_managedEmployees.Any(x =>
                     string.Equals(x.EmployeeCode?.Trim(), _currentEmployeeCode, StringComparison.OrdinalIgnoreCase)))
@@ -148,20 +148,24 @@
                 });
             }
 
-            await LoadAlertsAsync(from, to);
+            await LoadAlertsAsync();
         }
         catch
         {
-            // Calendar itself remains usable when the alert endpoint is temporarily unavailable.
+            // Calendar itself should remain usable if the alert list is temporarily unavailable.
         }
     }
 
-    private async Task LoadAlertsAsync(DateTime from, DateTime to)
+    private async Task LoadAlertsAsync()
     {
         _alerts.Clear();
 
         if (string.IsNullOrWhiteSpace(_selectedEmployeeCode))
             return;
+
+        var today = DateTime.Today;
+        var from = new DateTime(today.Year, today.Month, 1);
+        var to = from.AddMonths(1).AddDays(-1);
 
         var result = await CalendarService.GetAlertsForEmployeeAsync(
             _selectedEmployeeCode,
@@ -174,41 +178,44 @@
 
     private async Task OnEmployeeChanged(string? employeeCode)
     {
-        var normalized = employeeCode?.Trim();
-        if (string.IsNullOrWhiteSpace(normalized))
-            normalized = _currentEmployeeCode;
+        _selectedEmployeeCode = string.IsNullOrWhiteSpace(employeeCode)
+            ? _currentEmployeeCode
+            : employeeCode.Trim();
 
-        _selectedEmployeeCode = normalized;
-
-        var today = DateTime.Today;
-        var from = new DateTime(today.Year, today.Month, 1);
-        var to = from.AddMonths(1).AddDays(-1);
-        await LoadAlertsAsync(from, to);
+        await LoadAlertsAsync();
     }
 
-    private async Task HandleRegistrationRequested(DateTime date)
+    private async Task HandleDaySelected(CalendarDayDto day)
     {
-        var result = await CalendarService.GetAvailabilityAsync(date);
-        if (!result.IsSuccess || result.Data == null)
-        {
-            return;
-        }
-
         var parameters = new DialogParameters
         {
-            [nameof(CalendarRegistrationDialog.Date)] = date,
-            [nameof(CalendarRegistrationDialog.Availability)] = result.Data,
-            [nameof(CalendarRegistrationDialog.OnSelected)] =
-                EventCallback.Factory.Create<string>(this, module => OpenRegistration(module, date))
+            [nameof(CalendarDayDialog.Day)] = day,
+            [nameof(CalendarDayDialog.OnRegistrationSelected)] =
+                EventCallback.Factory.Create<CalendarRegistrationDto>(
+                    this,
+                    registration =>
+                    {
+                        OpenRegistration(registration.ModuleCode, day.Date);
+                        return Task.CompletedTask;
+                    }),
+            [nameof(CalendarDayDialog.OnActionSelected)] =
+                EventCallback.Factory.Create<CalendarActionRequestDto>(
+                    this,
+                    HandleCalendarActionAsync)
         };
 
-        await DialogService.ShowAsync<CalendarRegistrationDialog>(
-            "Đăng ký từ lịch",
+        await DialogService.ShowAsync<CalendarDayDialog>(
+            $"Lịch ngày {day.Date:dd/MM/yyyy}",
             parameters,
-            new DialogOptions { MaxWidth = MaxWidth.Medium, FullWidth = true, CloseOnEscapeKey = true });
+            new DialogOptions
+            {
+                MaxWidth = MaxWidth.Medium,
+                FullWidth = true,
+                CloseOnEscapeKey = true
+            });
     }
 
-    private void OpenRegistration(string moduleCode, DateTime date)
+    private void OpenRegistration(string moduleCode, DateOnly date)
     {
         var route = moduleCode switch
         {
@@ -221,33 +228,51 @@
         NavigationManager.NavigateTo(route);
     }
 
-    private void HandleEventSelected(CalendarItemDto item)
+    private async Task HandleCalendarActionAsync(CalendarActionRequestDto request)
     {
-        if (item.RequiresAction && item.ActionId is not null)
+        switch (request.ActionCode)
         {
-            OpenAction(item.DetailRoute, item.SourceId);
-            return;
+            case "OPEN_OT":
+                NavigationManager.NavigateTo($"/ot/create?date={request.Date:yyyy-MM-dd}");
+                return;
+
+            case "OPEN_HR_FEEDBACK":
+                NavigationManager.NavigateTo(
+                    string.IsNullOrWhiteSpace(request.DetailRoute)
+                        ? "/execution"
+                        : request.DetailRoute);
+                return;
+
+            case "CANCEL_OT":
+                if (request.RequestId is not int requestId)
+                {
+                    Snackbar.Add("Không xác định được đơn OT cần hủy.", Severity.Error);
+                    return;
+                }
+
+                if (string.IsNullOrWhiteSpace(request.Reason))
+                {
+                    Snackbar.Add("Vui lòng nhập lý do hủy OT.", Severity.Warning);
+                    return;
+                }
+
+                var result = await OTClient.CancelAsync(requestId, request.Reason);
+
+                Snackbar.Add(
+                    result.Message ?? (result.IsSuccess ? "Đã hủy OT." : "Không thể hủy OT."),
+                    result.IsSuccess ? Severity.Success : Severity.Error);
+
+                if (result.IsSuccess)
+                {
+                    if (_calendar is not null)
+                        await _calendar.RefreshAsync();
+
+                    await LoadAlertsAsync();
+                    await InvokeAsync(StateHasChanged);
+                }
+
+                return;
         }
-
-        if (!string.IsNullOrWhiteSpace(item.DetailRoute))
-        {
-            OpenRoute(item.DetailRoute);
-            return;
-        }
-
-        if (int.TryParse(item.SourceId, out var requestId))
-        {
-            NavigationManager.NavigateTo($"/history/{item.ModuleCode.ToLowerInvariant()}?id={requestId}");
-        }
-    }
-
-    private void OpenAction(string? detailRoute, string sourceId)
-    {
-        var route = !string.IsNullOrWhiteSpace(detailRoute)
-            ? detailRoute
-            : $"/execution?reconciliationId={Uri.EscapeDataString(sourceId)}";
-
-        NavigationManager.NavigateTo(route);
     }
 
     private void OpenRoute(string? route)

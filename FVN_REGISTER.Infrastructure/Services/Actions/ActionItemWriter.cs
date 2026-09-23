@@ -44,6 +44,7 @@ public sealed class ActionItemWriter : IActionItemWriter
                 && x.SourceId == draft.SourceId
                 && x.ParticipantId == draft.ParticipantId
                 && x.ActionType == draft.ActionType
+                && x.IsActive != false
                 && x.AssignedToEmployeeId == draft.AssignedToEmployeeId
                 && (x.Status == ActionItemStatus.Open
                     || x.Status == ActionItemStatus.InProgress
@@ -56,6 +57,7 @@ public sealed class ActionItemWriter : IActionItemWriter
             {
                 existing.Status = ActionItemStatus.Open;
                 existing.ExpiredAt = null;
+                existing.DueAt = dueAt;
             }
 
             existing.Title = title;
@@ -120,8 +122,11 @@ public sealed class ActionItemWriter : IActionItemWriter
                     && x.SourceId == draft.SourceId
                     && x.ParticipantId == draft.ParticipantId
                     && x.ActionType == draft.ActionType
+                    && x.IsActive != false
                     && x.AssignedToEmployeeId == draft.AssignedToEmployeeId
-                    && (x.Status == ActionItemStatus.Open || x.Status == ActionItemStatus.InProgress))
+                    && (x.Status == ActionItemStatus.Open
+                        || x.Status == ActionItemStatus.InProgress
+                        || x.Status == ActionItemStatus.Expired))
                 .Select(x => (Guid?)x.ActionId)
                 .FirstOrDefaultAsync(cancellationToken);
 

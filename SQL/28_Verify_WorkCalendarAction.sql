@@ -46,7 +46,35 @@ IF NOT EXISTS
     WHERE name=N'UX_F03ActionItems_OpenLogicalKey'
       AND object_id=OBJECT_ID(N'dbo.F03ActionItems')
 )
-    INSERT @Errors VALUES(N'ActionDedup',N'Open/InProgress logical unique index is missing');
+    INSERT @Errors VALUES(N'ActionDedup',N'Active Open/InProgress logical unique index is missing');
+
+
+
+IF OBJECT_ID(N'dbo.F03ActionItems',N'U') IS NOT NULL
+AND EXISTS
+(
+    SELECT 1
+    FROM sys.indexes
+    WHERE name=N'UX_F03ActionItems_OpenLogicalKey'
+      AND object_id=OBJECT_ID(N'dbo.F03ActionItems')
+)
+BEGIN
+    DECLARE @ActionDedupFilter nvarchar(4000) =
+    (
+        SELECT TOP (1) filter_definition
+        FROM sys.indexes
+        WHERE name=N'UX_F03ActionItems_OpenLogicalKey'
+          AND object_id=OBJECT_ID(N'dbo.F03ActionItems')
+    );
+
+    IF @ActionDedupFilter IS NULL
+       OR @ActionDedupFilter NOT LIKE N'%IsActive%'
+       OR @ActionDedupFilter NOT LIKE N'%Status%'
+        INSERT @Errors VALUES(
+            N'ActionDedup.Filter',
+            N'UX_F03ActionItems_OpenLogicalKey must filter active reusable Action rows (Open/InProgress).'
+        );
+END;
 
 IF NOT EXISTS
 (

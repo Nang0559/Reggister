@@ -19,6 +19,7 @@
             </MudChip>
         }
     </MudStack>
+
     <div @ref="_element" style="min-height:450px; touch-action:manipulation; user-select:none; -webkit-user-select:none;"></div>
 </MudPaper>
 
@@ -28,11 +29,16 @@
     [Parameter] public EventCallback<DateTime> OnDateSelected { get; set; }
     [Parameter] public EventCallback<CalendarItemDto> OnEventSelected { get; set; }
     [Parameter] public EventCallback<DateTime> OnRegistrationRequested { get; set; }
+    [Parameter] public EventCallback<CalendarDayDto> OnDaySelected { get; set; }
 
     private static readonly (string Code, string Name)[] Filters =
     [
-        ("ALL", "Tất cả"), ("COMPANY", "Công ty"), ("ATTENDANCE", "Chấm công"), ("LEAVE", "Nghỉ phép"),
-        ("OT", "OT"), ("TRIP", "Công tác")
+        ("ALL", "Tất cả"),
+        ("COMPANY", "Công ty"),
+        ("ATTENDANCE", "Chấm công"),
+        ("LEAVE", "Nghỉ phép"),
+        ("OT", "OT"),
+        ("TRIP", "Công tác")
     ];
 
     private ElementReference _element;
@@ -40,18 +46,22 @@
     private CalendarMonthDto _data = new();
     private string _moduleFilter = "ALL";
     private bool _initialized;
+    private DateTime _rangeFrom;
+    private DateTime _rangeTo;
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || _initialized) return;
+        if (!firstRender || _initialized)
+            return;
 
         if (!CurrentUser.IsLoggedIn)
             await CurrentUser.InitializeAsync();
 
-        // Context chỉ quyết định hành động khi click; không được tự động ẩn dữ liệu module khác.
         _moduleFilter = "ALL";
+        _rangeFrom = DateTime.Today.AddMonths(-1).Date;
+        _rangeTo = DateTime.Today.AddMonths(2).Date.AddDays(-1);
 
-        await LoadAsync(DateTime.Today.AddMonths(-1).Date, DateTime.Today.AddMonths(2).Date);
+        await LoadAsync(_rangeFrom, _rangeTo);
         _ref = DotNetObjectReference.Create(this);
 
         try
@@ -60,9 +70,8 @@
                 "workCalendar.init",
                 _element,
                 _ref,
-                BuildEvents(),
-                DateTime.Today.ToString("yyyy-MM-dd"),
-                BuildRegistrationDates());
+                BuildDays(),
+                DateTime.Today.ToString("yyyy-MM-dd"));
 
             _initialized = true;
         }
@@ -79,8 +88,9 @@
 
     private async Task LoadAsync(DateTime from, DateTime to)
     {
-        // The parent page may intentionally leave EmployeeCode null for the current user.
-        // Resolve the current employee from the authenticated profile before deciding which API to call.
+        _rangeFrom = from.Date;
+        _rangeTo = to.Date;
+
         var effectiveEmployeeCode = EmployeeCode?.Trim();
         if (string.IsNullOrWhiteSpace(effectiveEmployeeCode))
             effectiveEmployeeCode = CurrentUser.User?.EmployeeCode?.Trim();
@@ -88,117 +98,149 @@
         var result = string.IsNullOrWhiteSpace(effectiveEmployeeCode)
             ? await CalendarService.GetAsync(from.Date, to.Date)
             : await CalendarService.GetForEmployeeAsync(effectiveEmployeeCode, from.Date, to.Date);
-        if (result.IsSuccess && result.Data != null)
+
+        if (result.IsSuccess && result.Data is not null)
             _data = result.Data;
     }
 
-    private List<string> BuildRegistrationDates() =>
-        _data.RegistrationOpportunities
-            .Where(x => x.IsEnabled && (_moduleFilter == "ALL" || x.ModuleCode == _moduleFilter))
-            .Select(x => x.WorkDate.ToString("yyyy-MM-dd"))
-            .Distinct(StringComparer.Ordinal)
-            .ToList();
-
-    private List<object> BuildEvents()
+    private List<object> BuildDays()
     {
-        var events = _data.Items
-            .Where(Visible)
-            .Select(e => new
+        return _data.Days
+            .Where(VisibleDay)
+            .Select(day => new
             {
-                id = EventId(e),
-                title = BuildTitle(e),
-                start = e.WorkDate.ToDateTime(TimeOnly.MinValue).ToString("s"),
-                end = e.WorkDate.AddDays(1).ToDateTime(TimeOnly.MinValue).ToString("s"),
-                moduleCode = e.ModuleCode,
-                status = e.StatusCode,
-                severity = e.Severity,
-                requiresAction = e.RequiresAction,
-                actionId = e.ActionId,
-                detailRoute = e.DetailRoute,
-                sourceId = e.SourceId,
-                display = e.ModuleCode == "COMPANY" ? "background" : "auto"
+                date = day.Date.ToString("yyyy-MM-dd"),
+                holiday = day.Holiday?.Name,
+                shift = day.Shift?.ShiftAbbr,
+                attendance = day.Attendance is null
+                    ? null
+                    : new
+                    {
+                        checkIn = day.Attendance.CheckIn?.ToString("HH:mm"),
+                        checkOut = day.Attendance.CheckOut?.ToString("HH:mm"),
+                        display = day.Attendance.DisplayValue,
+                        actualHours = day.Attendance.ActualHours,
+                        requiredHours = day.Attendance.RequiredHours
+                    },
+                registrations = day.Registrations
+                    .Where(x => _moduleFilter == "ALL" || x.ModuleCode == _moduleFilter)
+                    .Select(x => new
+                    {
+                        moduleCode = x.ModuleCode,
+                        title = x.Title,
+                        isHalfDay = x.IsHalfDay,
+                        dayValue = x.DayValue
+                    }),
+                issues = day.Issues.Select(x => new
+                {
+                    code = x.Code,
+                    severity = x.Severity,
+                    marker = x.Marker,
+                    title = x.Title,
+                    summary = x.Summary
+                }),
+                canRegister = day.CanRegisterLeave || day.CanRegisterOT || day.CanRegisterTrip
             })
-            .ToList<object>();
-
-        return events;
+            .Cast<object>()
+            .ToList();
     }
 
-    private static string EventId(CalendarItemDto item) =>
-        $"{item.ModuleCode}:{item.WorkDate:yyyy-MM-dd}:{item.SourceId}";
-
-    private static string BuildTitle(CalendarItemDto item)
+    private bool VisibleDay(CalendarDayDto day)
     {
-        // Marker belongs to the calendar projection contract, not to a single module.
-        // OT actual-without-request uses "?" as an explicit action marker.
-        return string.IsNullOrWhiteSpace(item.Marker)
-            ? (item.Summary ?? item.StatusCode)
-            : $"{item.Marker} {item.Summary}".Trim();
-    }
+        if (_moduleFilter is "ALL" or "COMPANY")
+            return true;
 
-    private bool Visible(CalendarItemDto e) =>
-        _moduleFilter == "ALL" || e.ModuleCode == "COMPANY" || e.ModuleCode == _moduleFilter;
+        return _moduleFilter switch
+        {
+            "ATTENDANCE" => day.Attendance is not null
+                || day.Issues.Any(x => x.Code.StartsWith("ATTENDANCE_", StringComparison.OrdinalIgnoreCase)),
+            "LEAVE" => day.Registrations.Any(x => x.ModuleCode == "LEAVE"),
+            "OT" => day.Registrations.Any(x => x.ModuleCode == "OT")
+                || day.Issues.Any(x => x.Code.StartsWith("OT_", StringComparison.OrdinalIgnoreCase)),
+            "TRIP" => day.Registrations.Any(x => x.ModuleCode == "TRIP"),
+            _ => true
+        };
+    }
 
     private async Task SetFilter(string code)
     {
         _moduleFilter = code;
         if (_initialized)
-            await JS.InvokeVoidAsync("workCalendar.updateEvents", BuildEvents(), BuildRegistrationDates());
+            await JS.InvokeVoidAsync("workCalendar.updateDays", BuildDays());
     }
 
     [JSInvokable]
     public async Task OnCalendarDateClick(string date)
     {
-        if (!DateTime.TryParse(date, out var value))
+        if (!DateOnly.TryParse(date, out var parsed))
             return;
 
-        var existing = _data.Items
-            .Where(x => x.WorkDate == DateOnly.FromDateTime(value.Date)
-                && (x.ModuleCode != "ATTENDANCE"
-                    || (x.StatusCode != "NO_ATTENDANCE" && x.StatusCode != "HOLIDAY"))
-                && x.ModuleCode != "COMPANY")
-            .OrderByDescending(x => x.RequiresAction)
-            .ThenByDescending(x => x.Severity)
-            .ThenByDescending(x => x.DetailRoute != null)
-            .FirstOrDefault();
-
-        if (existing != null && OnEventSelected.HasDelegate)
+        var day = _data.Days.FirstOrDefault(x => x.Date == parsed);
+        if (day is not null && OnDaySelected.HasDelegate)
         {
-            await OnEventSelected.InvokeAsync(existing);
+            await OnDaySelected.InvokeAsync(day);
             return;
         }
 
-        if (OnDateSelected.HasDelegate)
-            await OnDateSelected.InvokeAsync(value.Date);
-
-        if (!OnDateSelected.HasDelegate && OnRegistrationRequested.HasDelegate)
-            await OnRegistrationRequested.InvokeAsync(value.Date);
+        if (DateTime.TryParse(date, out var value))
+        {
+            if (OnDateSelected.HasDelegate)
+                await OnDateSelected.InvokeAsync(value.Date);
+            else if (OnRegistrationRequested.HasDelegate)
+                await OnRegistrationRequested.InvokeAsync(value.Date);
+        }
     }
 
     [JSInvokable]
-    public async Task OnCalendarEventClick(string id)
+    public async Task OnCalendarIssueClick(string date, string issueCode)
     {
-        var item = _data.Items.FirstOrDefault(x => EventId(x) == id);
-        if (item != null && OnEventSelected.HasDelegate)
-            await OnEventSelected.InvokeAsync(item);
+        if (!DateOnly.TryParse(date, out var parsed))
+            return;
+
+        var day = _data.Days.FirstOrDefault(x => x.Date == parsed);
+        if (day is not null && OnDaySelected.HasDelegate)
+            await OnDaySelected.InvokeAsync(day);
     }
 
     [JSInvokable]
     public async Task OnCalendarRangeChanged(string start, string end)
     {
-        if (!DateTime.TryParse(start, out var from) || !DateTime.TryParse(end, out var to))
+        if (!DateTime.TryParse(start, out var from)
+            || !DateTime.TryParse(end, out var to))
             return;
 
-        await LoadAsync(from, to.AddDays(-1));
+        await LoadAsync(from.Date, to.Date.AddDays(-1));
+
         if (_initialized)
-            await JS.InvokeVoidAsync("workCalendar.updateEvents", BuildEvents(), BuildRegistrationDates());
+            await JS.InvokeVoidAsync("workCalendar.updateDays", BuildDays());
+    }
+
+    public async Task RefreshAsync()
+    {
+        var from = _rangeFrom == default ? DateTime.Today.AddMonths(-1).Date : _rangeFrom;
+        var to = _rangeTo == default ? DateTime.Today.AddMonths(2).Date.AddDays(-1) : _rangeTo;
+
+        await LoadAsync(from, to);
+
+        if (_initialized)
+            await JS.InvokeVoidAsync("workCalendar.updateDays", BuildDays());
+
+        await InvokeAsync(StateHasChanged);
     }
 
     public async ValueTask DisposeAsync()
     {
         _ref?.Dispose();
+
         if (_initialized)
         {
-            try { await JS.InvokeVoidAsync("workCalendar.destroy", _element); } catch { }
+            try
+            {
+                await JS.InvokeVoidAsync("workCalendar.destroy");
+            }
+            catch
+            {
+            }
         }
     }
 }
