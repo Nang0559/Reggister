@@ -65,6 +65,7 @@ using FVN_REGISTER.Infrastructure.Services.Users;
 using FVN_REGISTER.Infrastructure.Services.Security;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics;
+using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -89,6 +90,9 @@ var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<stri
 builder.Services.AddCors(options => options.AddPolicy("FccCorsPolicy", policy => policy
     .WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader().AllowCredentials()));
 builder.Services.AddMemoryCache();
+builder.Services.AddSingleton<BackgroundWorkerHealthRegistry>();
+builder.Services.AddHealthChecks()
+    .AddCheck<BackgroundWorkerHealthCheck>("background-workers");
 builder.Services.Configure<AuthDebugOptions>(builder.Configuration.GetSection("AuthDebug"));
 builder.Services.Configure<AppOptions>(opts => opts.SiteUrl = builder.Configuration["SiteUrl"] ?? "https://localhost:7264");
 
@@ -362,4 +366,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHub<NotificationHub>("/hubs/notification");
+app.MapHealthChecks("/health/workers", new HealthCheckOptions
+{
+    Predicate = check => check.Name == "background-workers"
+});
 app.Run();
