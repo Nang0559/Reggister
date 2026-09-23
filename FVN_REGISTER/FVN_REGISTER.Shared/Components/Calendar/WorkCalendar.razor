@@ -23,6 +23,7 @@
 
 @code {
     [Parameter] public string ModuleContext { get; set; } = "ALL";
+    [Parameter] public string? EmployeeCode { get; set; }
     [Parameter] public EventCallback<DateTime> OnDateSelected { get; set; }
     [Parameter] public EventCallback<CalendarItemDto> OnEventSelected { get; set; }
     [Parameter] public EventCallback<DateTime> OnRegistrationRequested { get; set; }
@@ -65,7 +66,9 @@
 
     private async Task LoadAsync(DateTime from, DateTime to)
     {
-        var result = await CalendarService.GetAsync(from.Date, to.Date);
+        var result = string.IsNullOrWhiteSpace(EmployeeCode)
+            ? await CalendarService.GetAsync(from.Date, to.Date)
+            : await CalendarService.GetForEmployeeAsync(EmployeeCode!, from.Date, to.Date);
         if (result.IsSuccess && result.Data != null)
             _data = result.Data;
     }
