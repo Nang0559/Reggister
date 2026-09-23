@@ -20,7 +20,7 @@ public sealed class LeaveExecutionReconciliationProvider : ExecutionReconciliati
     public async Task ReconcileAsync(DateOnly from, DateOnly to, byte reconciliationMode, CancellationToken ct)
     {
         var unresolved = reconciliationMode == 2
-            ? await GetUnresolvedSourceIdsAsync(_db, "LEAVE", ct)
+            ? await GetUnresolvedSourceIdsAsync("LEAVE", ct)
             : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var unresolvedLeaveIds = unresolved
