@@ -169,7 +169,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 enabled: true,
                 exception: ex,
                 message: "SharedWorkCalendarService.GetMonthAsync failed. EmployeeCode={EmployeeCode}, UserId={UserId}, From={From}, To={To}",
-                normalizedEmployeeCode: employeeCode,
+                employeeCode,
                 userId,
                 from,
                 to);
