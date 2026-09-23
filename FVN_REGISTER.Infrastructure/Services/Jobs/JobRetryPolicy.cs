@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Polly;
+using Polly.Retry;
 
 namespace FVN_REGISTER.Infrastructure.Services.Jobs;
 
