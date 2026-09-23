@@ -53,13 +53,16 @@ namespace FVN_REGISTER.Application.Orchestrators
 
             try
             {
+                var managedScopes = await _authorization.GetManagedScopesAsync(user.UserId);
+                var hasApprovalCapability =
+                    await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveApprove, ct) ||
+                    await _authorization.HasAsync(user, SecurityFunctionCodes.OTApprove, ct) ||
+                    await _authorization.HasAsync(user, SecurityFunctionCodes.TripApprove, ct) ||
+                    await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentApprove, ct);
+
                 var response = new DashboardResponse
                 {
-                    ShowManagerView =
-                        await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveApprove, ct) ||
-                        await _authorization.HasAsync(user, SecurityFunctionCodes.OTApprove, ct) ||
-                        await _authorization.HasAsync(user, SecurityFunctionCodes.TripApprove, ct) ||
-                        await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentApprove, ct)
+                    ShowManagerView = managedScopes.Count > 0 || hasApprovalCapability
                 };
 
                 if (!await _authorization.HasAsync(user, SecurityFunctionCodes.DashboardView, ct))
