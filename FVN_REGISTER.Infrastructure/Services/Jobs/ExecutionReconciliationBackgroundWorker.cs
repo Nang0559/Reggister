@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.Execution;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 

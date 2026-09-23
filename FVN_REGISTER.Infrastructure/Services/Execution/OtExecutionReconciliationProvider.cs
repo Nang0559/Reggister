@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.Execution;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 
 namespace FVN_REGISTER.Infrastructure.Services.Execution;
