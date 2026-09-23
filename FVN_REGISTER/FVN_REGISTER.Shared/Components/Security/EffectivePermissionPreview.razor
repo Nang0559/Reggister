@@ -1,0 +1,89 @@
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Contract.Dtos.Usermanagers
+@using FVN_REGISTER.Shared.Services.Security
+@inject ISecurityClientService SecurityService
+
+@if (User == null)
+{
+    <MudAlert Severity="Severity.Info">Chọn một tài khoản để xem Effective Permission.</MudAlert>
+}
+else if (_preview == null)
+{
+    <MudAlert Severity="Severity.Info">Đang tải Effective Permission...</MudAlert>
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" md="3"><MudText Typo="Typo.caption">Role</MudText><MudText>@string.Join(", ", _preview.RoleNames)</MudText></MudItem>
+        <MudItem xs="12" md="3"><MudText Typo="Typo.caption">Menu</MudText><MudText>@string.Join(", ", _preview.VisibleMenus)</MudText></MudItem>
+        <MudItem xs="12" md="3"><MudText Typo="Typo.caption">ManagedScope</MudText><MudText>@_preview.ManagedScopes.Count node</MudText></MudItem>
+        <MudItem xs="12" md="3"><MudText Typo="Typo.caption">Approval Policy</MudText><MudText>@_preview.ApprovalPolicies.Count match</MudText></MudItem>
+    </MudGrid>
+
+    <MudDivider Class="my-3" />
+    <MudText Typo="Typo.subtitle2">Actions</MudText>
+    @foreach (var group in _preview.Actions.GroupBy(x => x.ModuleCode))
+    {
+        <MudPaper Class="pa-2 mt-2" Outlined="true">
+            <MudText Typo="Typo.caption"><b>@group.Key</b></MudText>
+            @foreach (var action in group.OrderBy(x => x.FunctionCode))
+            {
+                <MudChip T="string" Size="Size.Small" Class="ma-1">@action.ActionCode · @action.ScopeCode</MudChip>
+            }
+        </MudPaper>
+    }
+
+    <MudText Typo="Typo.subtitle2" Class="mt-3">Approval Policy</MudText>
+    @if (_preview.ApprovalPolicies.Count == 0)
+    {
+        <MudAlert Class="mt-2" Severity="Severity.Warning" Variant="Variant.Outlined">
+            Không có policy match theo ApprovalPositionCode hiện tại. Không coi User là Approver chỉ vì Role.
+        </MudAlert>
+    }
+    else
+    {
+        <MudTable Items="_preview.ApprovalPolicies" Dense="true" Hover="true" Bordered="true" Class="mt-2">
+            <HeaderContent>
+                <MudTh>Module</MudTh><MudTh>Dept</MudTh><MudTh>Requester Position</MudTh>
+                <MudTh>Approval Position</MudTh><MudTh>Level</MudTh><MudTh>Sequence</MudTh>
+            </HeaderContent>
+            <RowTemplate>
+                <MudTd>@context.RequestTypeName</MudTd>
+                <MudTd>@context.DeptCode</MudTd>
+                <MudTd>@(context.PositionCode ?? "*")</MudTd>
+                <MudTd>@context.ApprovalPositionCode</MudTd>
+                <MudTd>@context.Level</MudTd>
+                <MudTd>@context.Sequence</MudTd>
+            </RowTemplate>
+        </MudTable>
+    }
+
+    <MudText Typo="Typo.subtitle2" Class="mt-3">Business State</MudText>
+    @foreach (var item in _preview.BusinessStateConstraints)
+    {
+        <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mt-1">@item</MudAlert>
+    }
+}
+
+@code {
+    [Parameter] public UserAccountDto? User { get; set; }
+
+    private EffectivePermissionPreviewDto? _preview;
+    private int? _loadedUserId;
+
+    protected override async Task OnParametersSetAsync()
+    {
+        if (User?.IdUser != _loadedUserId)
+        {
+            _loadedUserId = User?.IdUser;
+            await LoadAsync();
+        }
+    }
+
+    private async Task LoadAsync()
+    {
+        if (User == null) return;
+        var result = await SecurityService.GetEffectivePermissionPreviewAsync(User.IdUser);
+        if (result.IsSuccess) _preview = result.Data;
+    }
+}
