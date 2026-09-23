@@ -22,7 +22,7 @@
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Wrap="Wrap.Wrap" Spacing="3">
             <div>
                 <MudText Typo="Typo.overline" Color="Color.Primary">FVN REGISTER • CALENDAR</MudText>
-                <MudText Typo="Typo.h4" Style="font-weight:850">@IsCurrentEmployee ? "Lịch làm việc của tôi" : "Lịch làm việc theo phạm vi quản lý"</MudText>
+                <MudText Typo="Typo.h4" Style="font-weight:850">@(IsCurrentEmployee ? "Lịch làm việc của tôi" : "Lịch làm việc theo phạm vi quản lý")</MudText>
                 <MudText Typo="Typo.body2" Class="mt-1 mud-text-secondary">
                     Tổng quan chấm công, nghỉ phép, OT và công tác theo ngày.
                 </MudText>
