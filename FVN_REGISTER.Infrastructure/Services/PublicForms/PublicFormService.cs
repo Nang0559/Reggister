@@ -22,27 +22,54 @@ public sealed class PublicFormService : IPublicFormService
     {
         var rows = await _uow.Repository<F03PublicForm>().Query().AsNoTracking()
             .Include(x => x.Questions).ThenInclude(x => x.Options)
-            .Include(x => x.Audiences).OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
+            .Include(x => x.Audiences).AsSplitQuery().OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
         return rows.Select(Map).ToList();
     }
 
     public async Task<List<PublicFormDto>> GetAvailableAsync(string employeeCode, string? deptCode, string? positionCode, CancellationToken ct = default)
     {
+        var normalizedEmployeeCode = employeeCode.Trim();
+        var normalizedDeptCode = deptCode?.Trim();
+        var normalizedPositionCode = positionCode?.Trim();
+
+        if (normalizedEmployeeCode.Length == 0)
+            return new List<PublicFormDto>();
+
         var now = DateTime.Now;
-        var rows = await _uow.Repository<F03PublicForm>().Query().AsNoTracking()
-            .Where(x => x.IsActive == true && x.Status == "Published"
+
+        // Filter audience in SQL first. This avoids loading every published form
+        // and then evaluating Matches() in memory.
+        var query = _uow.Repository<F03PublicForm>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true
+                && x.Status == "Published"
                 && (!x.StartAt.HasValue || x.StartAt <= now)
-                && (!x.EndAt.HasValue || x.EndAt >= now))
-            .Include(x => x.Questions).ThenInclude(x => x.Options)
-            .Include(x => x.Audiences).ToListAsync(ct);
-        return rows.Where(x => Matches(x, employeeCode, deptCode, positionCode)).Select(Map).ToList();
+                && (!x.EndAt.HasValue || x.EndAt >= now)
+                && x.Audiences.Any(a => a.IsActive == true
+                    && (a.ScopeType == "AllCompany"
+                        || (a.ScopeType == "Employee" && a.ScopeValue == normalizedEmployeeCode)
+                        || (a.ScopeType == "Department"
+                            && !string.IsNullOrWhiteSpace(normalizedDeptCode)
+                            && a.ScopeValue == normalizedDeptCode)
+                        || (a.ScopeType == "Position"
+                            && !string.IsNullOrWhiteSpace(normalizedPositionCode)
+                            && a.ScopeValue == normalizedPositionCode))));
+
+        var rows = await query
+            .Include(x => x.Questions)
+                .ThenInclude(x => x.Options)
+            .Include(x => x.Audiences)
+            .AsSplitQuery()
+            .ToListAsync(ct);
+
+        return rows.Select(Map).ToList();
     }
 
     public async Task<PublicFormDto?> GetAsync(int id, CancellationToken ct = default)
     {
         var x = await _uow.Repository<F03PublicForm>().Query().AsNoTracking()
             .Include(x => x.Questions).ThenInclude(x => x.Options)
-            .Include(x => x.Audiences).FirstOrDefaultAsync(x => x.Id == id, ct);
+            .Include(x => x.Audiences).AsSplitQuery().FirstOrDefaultAsync(x => x.Id == id, ct);
         return x == null ? null : Map(x);
     }
 
