@@ -130,6 +130,16 @@ public sealed class SecurityController : BaseApiController
         }
     }
 
+    [HttpGet("users/{userId:int}/managed-employees")]
+    public async Task<IActionResult> GetManagedEmployees(int userId, CancellationToken ct)
+    {
+        if (!await CanManageAsync(SecurityFunctionCodes.SecurityView, ct))
+            return Forbid();
+
+        return Ok(ApiResponse<List<ManagedEmployeeDto>>.Ok(
+            await _authorization.GetManagedEmployeesAsync(userId, ct)));
+    }
+
     [HttpGet("users/{userId:int}/effective-permission")]
     public async Task<IActionResult> GetEffectivePermissionPreview(int userId, CancellationToken ct)
     {
