@@ -197,6 +197,28 @@ BEGIN
     );
 END;
 
+IF OBJECT_ID(N'dbo.F03UserRoles',N'U') IS NOT NULL
+BEGIN
+    DECLARE @LegacyApproverRoleId int = (SELECT TOP 1 Id FROM dbo.F03Roles WHERE RoleCode=4);
+    DECLARE @EditorRoleId int = (SELECT TOP 1 Id FROM dbo.F03Roles WHERE RoleCode=3);
+
+    IF @LegacyApproverRoleId IS NOT NULL AND @EditorRoleId IS NOT NULL
+    BEGIN
+        INSERT dbo.F03UserRoles(IsActive,CreatedBy,IdUser,IdRole,IsPrimary)
+        SELECT ur.IsActive,0,ur.IdUser,@EditorRoleId,ur.IsPrimary
+        FROM dbo.F03UserRoles ur
+        WHERE ur.IdRole=@LegacyApproverRoleId
+          AND NOT EXISTS
+          (
+              SELECT 1 FROM dbo.F03UserRoles x
+              WHERE x.IdUser=ur.IdUser AND x.IdRole=@EditorRoleId
+          );
+
+        DELETE FROM dbo.F03UserRoles
+        WHERE IdRole=@LegacyApproverRoleId;
+    END;
+END;
+
 IF OBJECT_ID(N'dbo.F03Users',N'U') IS NOT NULL
 BEGIN
     UPDATE dbo.F03Users
