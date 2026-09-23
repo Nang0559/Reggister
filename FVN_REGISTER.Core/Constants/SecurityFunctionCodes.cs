@@ -33,6 +33,12 @@ public static class SecurityFunctionCodes
     public const int EquipmentApprove = 2305;
     public const int EquipmentImport = 2306;
     public const int EquipmentExport = 2307;
+    public const int EquipmentAssign = 2309;
+    public const int EquipmentTransfer = 2310;
+    public const int EquipmentReturn = 2311;
+    public const int EquipmentLiquidate = 2312;
+    public const int EquipmentQR = 2313;
+    public const int EquipmentHistory = 2314;
 
     public const int UserManagementView = 2401;
     public const int UserManagementCreate = 2402;
