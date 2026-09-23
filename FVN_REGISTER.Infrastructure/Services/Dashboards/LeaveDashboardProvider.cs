@@ -1,6 +1,7 @@
 ﻿using FVN_REGISTER.Application.Interfaces.Leaves;
 using FVN_REGISTER.Application.Interfaces.Statics;
 using FVN_REGISTER.Application.Interfaces.Dashboards;
+using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Dashboard;
@@ -18,16 +19,19 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
     {
         private readonly ILeaveQueryService _leaveQuery;
         private readonly IStatisticsService _statistics;
+        private readonly IAuthorizationService _authorization;
 
         public RequestModule Module => RequestModule.Leave;
         public int RequiredFunctionCode => SecurityFunctionCodes.LeaveView;
 
         public LeaveDashboardProvider(
             ILeaveQueryService leaveQuery,
-            IStatisticsService statistics)
+            IStatisticsService statistics,
+            IAuthorizationService authorization)
         {
             _leaveQuery = leaveQuery;
             _statistics = statistics;
+            _authorization = authorization;
         }
 
         public async Task<ModuleDashboardContribution> GetContributionAsync(
@@ -46,24 +50,28 @@ namespace FVN_REGISTER.Infrastructure.Services.Dashboards
             AbsenceWarningDto? deptWarning = null;
             var departmentStatistics = new List<LeaveStatisticsDto>();
 
-            if (user.Permission.IsApprover())
-            {
-                if (!string.IsNullOrWhiteSpace(user.DeptCode))
-                {
-                    deptWarning = await _statistics.GetAbsenceWarningAsync(
-                        user.DeptCode, ct);
-                }
+            var canManageDepartment = !string.IsNullOrWhiteSpace(user.DeptCode)
+                && await _authorization.CanAccessAsync(
+                    user, SecurityFunctionCodes.LeaveView, null, user.DeptCode, ct);
 
-                if (user.Permission.IsAdmin())
+            if (canManageDepartment)
+            {
+                deptWarning = await _statistics.GetAbsenceWarningAsync(
+                    user.DeptCode!, ct);
+
+                var scope = await _authorization.GetScopeAsync(
+                    user.UserId, SecurityFunctionCodes.LeaveView, ct);
+
+                if (string.Equals(scope, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase))
                 {
                     departmentStatistics = await _statistics.GetLeaveStatisticsAsync(
                         includeCompanyTotal: true, ct);
                 }
-                else if (!string.IsNullOrWhiteSpace(user.DeptCode))
+                else
                 {
                     departmentStatistics.Add(
                         await _statistics.GetDepartmentStatisticsAsync(
-                            user.DeptCode, ct));
+                            user.DeptCode!, ct));
                 }
             }
 
