@@ -51,7 +51,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 var reportScope = await _authorization.GetScopeAsync(user.UserId, requiredFunction, ct);
                 if (string.Equals(reportScope, AuthorizationScopeCodes.Department, StringComparison.OrdinalIgnoreCase))
                 {
-                    query.DeptCode = user.DeptCode;
+                    query.DeptCode ??= user.DeptCode;
                 }
                 else if (string.Equals(reportScope, AuthorizationScopeCodes.Own, StringComparison.OrdinalIgnoreCase)
                       || string.Equals(reportScope, AuthorizationScopeCodes.Employee, StringComparison.OrdinalIgnoreCase))
@@ -188,12 +188,60 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
             {
                 if (!await HasAnyReportViewAsync(user, ct))
                     return ServiceResult<List<KeyValuePair<string, string>>>.Fail("Bạn không có quyền xem báo cáo.");
-                var list = await _uow.Repository<F03Department>().Query()
+                var departments = await _uow.Repository<F03Department>().Query()
                     .AsNoTracking()
                     .Where(x => x.IsActive == true)
+                    .Select(x => new { x.DeptCode, x.DeptName, x.ParentDeptCode })
                     .OrderBy(x => x.DeptName)
-                    .Select(x => new KeyValuePair<string, string>(x.DeptCode, x.DeptName))
                     .ToListAsync(ct);
+
+                var reportScope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.LeaveView, ct);
+                var allowedCodes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                if (string.Equals(reportScope, AuthorizationScopeCodes.All, StringComparison.OrdinalIgnoreCase))
+                {
+                    allowedCodes.UnionWith(departments.Select(x => x.DeptCode));
+                }
+                else
+                {
+                    if (!string.IsNullOrWhiteSpace(user.DeptCode))
+                        allowedCodes.Add(user.DeptCode);
+
+                    var managed = await _authorization.GetManagedScopesAsync(user.UserId, ct);
+                    foreach (var scope in managed)
+                    {
+                        var node = scope.SubDepartmentCode ?? scope.DeptCode ?? scope.NodeCode;
+                        if (scope.NodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase))
+                            node ??= scope.FactoryCode;
+                        if (string.IsNullOrWhiteSpace(node))
+                            continue;
+
+                        allowedCodes.Add(node);
+                        if (!scope.IncludeChildren)
+                            continue;
+
+                        var changed = true;
+                        while (changed)
+                        {
+                            changed = false;
+                            foreach (var department in departments)
+                            {
+                                if (allowedCodes.Contains(department.DeptCode)
+                                    && !string.IsNullOrWhiteSpace(department.DeptCode))
+                                    continue;
+
+                                if (!string.IsNullOrWhiteSpace(department.ParentDeptCode)
+                                    && allowedCodes.Contains(department.ParentDeptCode)
+                                    && allowedCodes.Add(department.DeptCode))
+                                    changed = true;
+                            }
+                        }
+                    }
+                }
+
+                var list = departments
+                    .Where(x => allowedCodes.Contains(x.DeptCode))
+                    .Select(x => new KeyValuePair<string, string>(x.DeptCode, x.DeptName))
+                    .ToList();
 
                 Logger.LogDebugIf(Debug, "[REPORT] Lookup Departments: {Count}", list.Count);
 
@@ -220,8 +268,26 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                     .AsNoTracking()
                     .Where(x => x.IsActive);
 
-                if (!string.IsNullOrWhiteSpace(deptCode))
-                    q = q.Where(x => x.DeptCode == deptCode);
+                var requestedDept = deptCode?.Trim();
+                if (!string.IsNullOrWhiteSpace(requestedDept))
+                {
+                    if (!await _authorization.CanAccessAsync(
+                        user, SecurityFunctionCodes.LeaveView, null, requestedDept, ct)
+                        && !await _authorization.CanAccessAsync(
+                            user, SecurityFunctionCodes.OTView, null, requestedDept, ct)
+                        && !await _authorization.CanAccessAsync(
+                            user, SecurityFunctionCodes.TripView, null, requestedDept, ct)
+                        && !await _authorization.CanAccessAsync(
+                            user, SecurityFunctionCodes.EquipmentView, null, requestedDept, ct)
+                        && !await _authorization.CanAccessAsync(
+                            user, SecurityFunctionCodes.AttendanceView, null, requestedDept, ct))
+                    {
+                        return ServiceResult<List<KeyValuePair<string, string>>>.Fail(
+                            "Bạn không có quyền truy cập phòng ban được chọn.");
+                    }
+
+                    q = q.Where(x => x.DeptCode == requestedDept);
+                }
 
                 if (!string.IsNullOrWhiteSpace(filterText))
                 {
