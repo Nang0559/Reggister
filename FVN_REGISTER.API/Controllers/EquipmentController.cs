@@ -40,6 +40,33 @@ public sealed class EquipmentController : ControllerBase
         _authorization = authorization;
     }
 
+    [HttpGet("actions")]
+    public async Task<ActionResult<EquipmentActionAccessDto>> Actions(CancellationToken ct)
+    {
+        var user = _currentUser.GetCurrentUser();
+        if (user == null) return Unauthorized();
+
+        if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentView, ct))
+            return Forbid();
+
+        return Ok(new EquipmentActionAccessDto
+        {
+            View = true,
+            Create = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentCreate, ct),
+            Edit = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentEdit, ct),
+            Assign = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentAssign, ct),
+            Transfer = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentTransfer, ct),
+            Return = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentReturn, ct),
+            Repair = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentRepair, ct),
+            Liquidate = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentLiquidate, ct),
+            Approve = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentApprove, ct),
+            Import = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentImport, ct),
+            Export = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentExport, ct),
+            QR = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentQR, ct),
+            History = await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentHistory, ct)
+        });
+    }
+
     [HttpGet("access")]
     public async Task<ActionResult<bool>> Access(CancellationToken ct)
     {
@@ -96,8 +123,16 @@ public sealed class EquipmentController : ControllerBase
     [HttpGet("scan/{qrToken}")]
     public async Task<ActionResult<EquipmentAssetDto>> Scan(string qrToken, CancellationToken ct)
     {
-        if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentQR, ct)) return Forbid();
         return Ok(await _service.ScanAsync(qrToken, ct));
+    }
+
+    [HttpGet("assets/{id:int}/history")]
+    public async Task<ActionResult<EquipmentAssetDto>> AssetHistory(int id, CancellationToken ct)
+    {
+        if (!await CanAsync(SecurityFunctionCodes.EquipmentHistory, ct)) return Forbid();
+        var result = await _service.GetAssetAsync(id, ct);
+        return result == null ? NotFound() : Ok(result);
     }
 
     [HttpGet("assets/{id:int}")]
