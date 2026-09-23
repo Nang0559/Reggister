@@ -19,4 +19,11 @@ public interface IApprovalPolicyService
 
     Task<ServiceResult<object>> DeleteAsync(
         int id, int actorUserId, CancellationToken ct = default);
+
+    Task<bool> CanApproveAsync(
+        RequestModule requestType,
+        string requesterEmployeeCode,
+        string approverEmployeeCode,
+        int level,
+        CancellationToken ct = default);
 }
