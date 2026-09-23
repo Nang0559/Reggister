@@ -115,7 +115,27 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 .Where(x => policies.ContainsKey(x.ModuleCode)
                     && (allowedModules is null || allowedModules.Contains(x.ModuleCode))))
             {
-                results.Add(await provider.GetItemsAsync(context, cancellationToken));
+                try
+                {
+                    results.Add(await provider.GetItemsAsync(context, cancellationToken));
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception ex)
+                {
+                    // One broken calendar projection must not tear down the Blazor circuit.
+                    // Keep the other modules visible and log the exact failing module/employee.
+                    _logger.LogError(
+                        ex,
+                        "Calendar provider failed. ModuleCode={ModuleCode}, EmployeeCode={EmployeeCode}, EmployeeId={EmployeeId}, From={From}, To={To}",
+                        provider.ModuleCode,
+                        context.EmployeeCode,
+                        context.EmployeeId,
+                        context.From,
+                        context.To);
+                }
             }
 
             var items = results
@@ -155,11 +175,30 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                 .Select(x => x.WorkDate)
                 .ToHashSet();
 
-            var opportunities = await _workCalendar.GetRegistrationOpportunitiesAsync(
-                resolvedEmployeeCode,
-                from.ToDateTime(TimeOnly.MinValue),
-                to.ToDateTime(TimeOnly.MinValue),
-                cancellationToken);
+            IReadOnlyList<CalendarRegistrationOpportunityDto> opportunities;
+            try
+            {
+                opportunities = await _workCalendar.GetRegistrationOpportunitiesAsync(
+                    resolvedEmployeeCode,
+                    from.ToDateTime(TimeOnly.MinValue),
+                    to.ToDateTime(TimeOnly.MinValue),
+                    cancellationToken);
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                throw;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "Calendar registration opportunities failed. EmployeeCode={EmployeeCode}, EmployeeId={EmployeeId}, From={From}, To={To}",
+                    resolvedEmployeeCode,
+                    employee.Id,
+                    from,
+                    to);
+                opportunities = Array.Empty<CalendarRegistrationOpportunityDto>();
+            }
 
             opportunities = opportunities
                 .Where(x => !occupiedDates.Contains(x.WorkDate)
