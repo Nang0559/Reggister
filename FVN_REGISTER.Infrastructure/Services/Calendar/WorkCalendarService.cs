@@ -334,13 +334,10 @@ public sealed class WorkCalendarService : IWorkCalendarService
                 .ToDictionary(x => x.Key, x => x.OrderByDescending(h => h.ActionAt).First());
 
             foreach (var calendarEvent in events.Where(x =>
-                x.RequestId.HasValue && x.ModuleCode switch
-                {
-                    "LEAVE" => group.Key == RequestModule.Leave,
-                    "OT" => group.Key == RequestModule.Overtime,
-                    "TRIP" => group.Key == RequestModule.Trip,
-                    _ => false
-                }))
+                x.RequestId.HasValue &&
+                ((group.Key == RequestModule.Leave && x.ModuleCode == "LEAVE") ||
+                 (group.Key == RequestModule.Overtime && x.ModuleCode == "OT") ||
+                 (group.Key == RequestModule.Trip && x.ModuleCode == "TRIP"))))
             {
                 var snapshot = snapshots.FirstOrDefault(x => x.RequestId == calendarEvent.RequestId!.Value);
                 if (snapshot is null)
@@ -360,10 +357,19 @@ public sealed class WorkCalendarService : IWorkCalendarService
                     })
                     .ToList();
 
-                var current = steps
-                    .Where(x => x.IsRequired && x.Decision == DecisionType.Pending)
-                    .OrderBy(x => x.Level)
-                    .FirstOrDefault();
+                var status = Enum.TryParse<ApprovalStatus>(calendarEvent.Status, true, out var parsedStatus)
+                    ? parsedStatus
+                    : ApprovalStatus.Draft;
+
+                var current = status is ApprovalStatus.Pending
+                    or ApprovalStatus.InProgress
+                    or ApprovalStatus.Escalated
+                    or ApprovalStatus.NeedsRevision
+                    ? steps
+                        .Where(x => x.IsRequired && x.Decision == DecisionType.Pending)
+                        .OrderBy(x => x.Level)
+                        .FirstOrDefault()
+                    : null;
 
                 calendarEvent.ApprovalStatus = calendarEvent.Status;
                 calendarEvent.IsApproved = string.Equals(
