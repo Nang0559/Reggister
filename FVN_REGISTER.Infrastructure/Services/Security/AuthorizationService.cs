@@ -406,7 +406,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             .ToListAsync(ct);
 
         var parents = departments.ToDictionary(x => x.DeptCode, x => x.ParentDeptCode);
-        return ManagedScopeMatches(managed, targetDept, parents);
+        return ManagedScopeMatches(scopes, targetDept, parents);
     }
 
     public async Task<PermissionSnapshotDto> GetSnapshotAsync(
