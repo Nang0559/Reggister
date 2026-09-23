@@ -324,6 +324,10 @@ builder.Services.AddHostedService<EmailBackgroundWorker>();
 builder.Services.AddHostedService<EscalationBackgroundWorker>();
 builder.Services.AddHostedService<HrmSyncBackgroundWorker>();
 builder.Services.AddHostedService<HrmAttendanceCalculationWorker>();
+builder.Services.AddScoped<IExecutionReconciliationModuleProvider, OtExecutionReconciliationProvider>();
+builder.Services.AddScoped<IExecutionReconciliationModuleProvider, LeaveExecutionReconciliationProvider>();
+builder.Services.AddScoped<IExecutionReconciliationModuleProvider, TripExecutionReconciliationProvider>();
+builder.Services.AddScoped<IExecutionReconciliationModuleProvider, AttendanceExecutionReconciliationProvider>();
 builder.Services.AddHostedService<ExecutionReconciliationBackgroundWorker>();
 builder.Services.AddHostedService<ActionItemLifecycleBackgroundWorker>();
 
