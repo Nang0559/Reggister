@@ -9,6 +9,45 @@ namespace FVN_REGISTER.Infrastructure.Tests;
 
 public sealed class CalendarDayRuleTests
 {
+
+    [Fact]
+    public void CalendarEventDateMatcher_CoversSameDayOtInterval()
+    {
+        var calendarEvent = new WorkCalendarEventDto
+        {
+            ModuleCode = "OT",
+            Start = new DateTime(2026, 9, 22, 18, 0, 0),
+            End = new DateTime(2026, 9, 22, 20, 0, 0)
+        };
+
+        Assert.True(CalendarEventDateMatcher.CoversDate(
+            calendarEvent,
+            new DateTime(2026, 9, 22)));
+
+        Assert.False(CalendarEventDateMatcher.CoversDate(
+            calendarEvent,
+            new DateTime(2026, 9, 23)));
+    }
+
+    [Fact]
+    public void CalendarEventDateMatcher_UsesHalfOpenIntervalAtMidnight()
+    {
+        var calendarEvent = new WorkCalendarEventDto
+        {
+            ModuleCode = "OT",
+            Start = new DateTime(2026, 9, 22, 22, 0, 0),
+            End = new DateTime(2026, 9, 23, 0, 0, 0)
+        };
+
+        Assert.True(CalendarEventDateMatcher.CoversDate(
+            calendarEvent,
+            new DateTime(2026, 9, 22)));
+
+        Assert.False(CalendarEventDateMatcher.CoversDate(
+            calendarEvent,
+            new DateTime(2026, 9, 23)));
+    }
+
     [Fact]
     public void NumericAttendanceVariance_ProducesWarningAndOtAction_WhenActualExceedsShift()
     {
