@@ -1,5 +1,6 @@
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Security;
+using FVN_REGISTER.Contract.Requests.Security;
 
 namespace FVN_REGISTER.Application.Interfaces.Security;
 
