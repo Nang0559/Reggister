@@ -39,6 +39,8 @@ public sealed class SecurityFunctionCapabilityMatrixTests
     {
         Assert.Equal(7, (int)UserRole.HR);
         Assert.Equal(8, (int)UserRole.IT);
+        Assert.Equal(7, UserPermissionCodes.HR);
+        Assert.Equal(8, UserPermissionCodes.IT);
         Assert.Equal(4, (int)UserRole.Approver);
     }
 
