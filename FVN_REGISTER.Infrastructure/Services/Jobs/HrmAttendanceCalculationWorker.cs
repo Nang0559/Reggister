@@ -20,20 +20,24 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<HrmAttendanceCalculationWorker> _logger;
+    private readonly BackgroundWorkerHealthRegistry _health;
 
     private static readonly TimeSpan DailyRunAt = new(0, 30, 0);
 
     public HrmAttendanceCalculationWorker(
         IServiceProvider serviceProvider,
-        ILogger<HrmAttendanceCalculationWorker> logger)
+        ILogger<HrmAttendanceCalculationWorker> logger,
+        BackgroundWorkerHealthRegistry health)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
+        _health = health;
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         _logger.LogInformation("[HRM_ATTENDANCE_WORKER] Khởi động.");
+        _health.Started(nameof(HrmAttendanceCalculationWorker));
 
         // Never wait for the first scheduled run when the application starts.
         // This closes the gap after deployment/restart and guarantees the current
@@ -123,6 +127,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
 
             if (result.IsSuccess && result.Data is not null)
             {
+                _health.Success(nameof(HrmAttendanceCalculationWorker));
                 _logger.LogInformation(
                     "[HRM_ATTENDANCE_WORKER] Calculation OK {From} -> {To}: {Employees} nhân viên / {Rows} dòng. Batch={BatchId}",
                     from.ToString("dd/MM/yyyy"),
@@ -133,6 +138,9 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
             }
             else
             {
+                _health.Failure(
+                    nameof(HrmAttendanceCalculationWorker),
+                    new InvalidOperationException(result.Message ?? "Attendance calculation failed."));
                 _logger.LogWarning(
                     "[HRM_ATTENDANCE_WORKER] Calculation failed {From} -> {To}: {Message}",
                     from.ToString("dd/MM/yyyy"),
@@ -149,6 +157,7 @@ public sealed class HrmAttendanceCalculationWorker : BackgroundService
         }
         catch (Exception ex)
         {
+            _health.Failure(nameof(HrmAttendanceCalculationWorker), ex);
             _logger.LogError(
                 ex,
                 "[HRM_ATTENDANCE_WORKER] Lỗi khi tính {From} -> {To}.",
