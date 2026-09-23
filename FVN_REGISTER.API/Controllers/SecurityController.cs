@@ -130,6 +130,17 @@ public sealed class SecurityController : BaseApiController
         }
     }
 
+    [HttpGet("me/managed-employees")]
+    public async Task<IActionResult> GetMyManagedEmployees(CancellationToken ct)
+    {
+        if (UserInfo == null) return Unauthorized();
+        if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.CalendarView, ct))
+            return Forbid();
+
+        return Ok(ApiResponse<List<ManagedEmployeeDto>>.Ok(
+            await _authorization.GetManagedEmployeesAsync(UserInfo.UserId, ct)));
+    }
+
     [HttpGet("users/{userId:int}/managed-employees")]
     public async Task<IActionResult> GetManagedEmployees(int userId, CancellationToken ct)
     {
