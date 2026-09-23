@@ -129,7 +129,12 @@
                         moduleCode = x.ModuleCode,
                         title = x.Title,
                         isHalfDay = x.IsHalfDay,
-                        dayValue = x.DayValue
+                        dayValue = x.DayValue,
+                        approvalStatus = x.ApprovalStatus ?? x.Status,
+                        approvalLevel = x.ApprovalLevel,
+                        approvalLevelName = x.ApprovalLevelName,
+                        currentApproverName = x.CurrentApproverName,
+                        isApproved = x.IsApproved
                     }),
                 issues = day.Issues.Select(x => new
                 {
