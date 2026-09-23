@@ -165,7 +165,6 @@ END;
 
 CLOSE AuditCursor;
 DEALLOCATE AuditCursor;
-GO
 
 /* Verification: only tables that exist are reported. */
 SELECT
