@@ -115,8 +115,7 @@ else if (_model != null)
             <MudText Typo="Typo.caption" Class="mud-text-secondary">Cập nhật @_loadedAt?.ToString("dd/MM/yyyy HH:mm")</MudText>
         </MudStack>
 
-        @if (CurrentUserService.User?.IsAdmin == true ||
-             CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.EquipmentView) == true)
+        @if (CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.EquipmentView) == true)
         {
             <MudPaper Outlined="true" Class="pa-4 mb-4" Style="border-radius:18px">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
@@ -126,8 +125,7 @@ else if (_model != null)
                             Sổ thiết bị, QR, repair và workspace Excel theo schema phòng ban.
                         </MudText>
                     </div>
-                    @if (CurrentUserService.User?.IsAdmin == true ||
-                         CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.EquipmentImport) == true)
+                    @if (CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.EquipmentImport) == true)
                     {
                         <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile"
                                    OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">
