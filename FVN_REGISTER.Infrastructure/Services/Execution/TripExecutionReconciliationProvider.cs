@@ -20,7 +20,7 @@ public sealed class TripExecutionReconciliationProvider : ExecutionReconciliatio
     public async Task ReconcileAsync(DateOnly from, DateOnly to, byte reconciliationMode, CancellationToken ct)
     {
         var unresolved = reconciliationMode == 2
-            ? await GetUnresolvedSourceIdsAsync(_db, "TRIP", ct)
+            ? await GetUnresolvedSourceIdsAsync("TRIP", ct)
             : new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         var requests = await _db.TripRequests.AsNoTracking()
