@@ -3,6 +3,7 @@ using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Reports;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Reports;
 using FVN_REGISTER.Contract.Responses;
@@ -77,50 +78,33 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null)
                 return false;
 
-            if (!string.IsNullOrWhiteSpace(query.EmployeeCode))
+            var functionCode = query.Type switch
             {
-                var targetEmployee = await _authorization.CanAccessAsync(
-                    UserInfo,
-                    SecurityFunctionCodes.LeaveView,
-                    query.EmployeeCode,
-                    null,
-                    ct);
-                return targetEmployee;
-            }
+                ReportType.OTSummaryByDept or ReportType.OTSummaryByEmployee or
+                ReportType.OTDetail or ReportType.OTApprovalStatus or ReportType.OTLimitUsage
+                    => SecurityFunctionCodes.OTView,
+
+                ReportType.TripSummaryByDept or ReportType.TripSummaryByEmployee or
+                ReportType.TripDetail or ReportType.TripApprovalStatus
+                    => SecurityFunctionCodes.TripView,
+
+                ReportType.EquipmentSummaryByDept or ReportType.EquipmentAssetDetail or
+                ReportType.EquipmentRepairSummary
+                    => SecurityFunctionCodes.EquipmentView,
+
+                ReportType.AttendanceSummary or ReportType.AttendanceDetail
+                    => SecurityFunctionCodes.AttendanceView,
+
+                _ => SecurityFunctionCodes.LeaveView
+            };
+
+            if (!string.IsNullOrWhiteSpace(query.EmployeeCode))
+                return await _authorization.CanAccessAsync(
+                    UserInfo, functionCode, query.EmployeeCode, null, ct);
 
             if (!string.IsNullOrWhiteSpace(query.DeptCode))
-            {
                 return await _authorization.CanAccessAsync(
-                    UserInfo,
-                    SecurityFunctionCodes.LeaveView,
-                    null,
-                    query.DeptCode,
-                    ct)
-                    || await _authorization.CanAccessAsync(
-                        UserInfo,
-                        SecurityFunctionCodes.OTView,
-                        null,
-                        query.DeptCode,
-                        ct)
-                    || await _authorization.CanAccessAsync(
-                        UserInfo,
-                        SecurityFunctionCodes.TripView,
-                        null,
-                        query.DeptCode,
-                        ct)
-                    || await _authorization.CanAccessAsync(
-                        UserInfo,
-                        SecurityFunctionCodes.EquipmentView,
-                        null,
-                        query.DeptCode,
-                        ct)
-                    || await _authorization.CanAccessAsync(
-                        UserInfo,
-                        SecurityFunctionCodes.AttendanceView,
-                        null,
-                        query.DeptCode,
-                        ct);
-            }
+                    UserInfo, functionCode, null, query.DeptCode, ct);
 
             // Domain report services still enforce their own required capability and
             // reject report types that need an explicit scope. ManagedScope is applied
