@@ -3,6 +3,7 @@ using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Calendar;
 using FVN_REGISTER.Core.Entities.Common;
+using FVN_REGISTER.Core.Entities.Approvers;
 using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Entities.Leaves;
 using FVN_REGISTER.Core.Entities.OT;
@@ -122,7 +123,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
 
         var trips = canViewTrip
             ? await _uow.Repository<F03TripRequest>().Query().AsNoTracking()
-                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
+                .Where(x => x.EmployeeCode == normalizedEmployeeCode && x.IsActive == true
                     && x.EndDate >= start && x.StartDate <= end
                     && x.RequestStatus != ApprovalStatus.Cancelled
                     && x.RequestStatus != ApprovalStatus.Rejected)
@@ -276,7 +277,104 @@ public sealed class WorkCalendarService : IWorkCalendarService
             }
         }
 
+        await ApplyApprovalInfoAsync(result.Events, ct);
+
         return result;
+    }
+
+    private async Task ApplyApprovalInfoAsync(
+        List<WorkCalendarEventDto> events,
+        CancellationToken ct)
+    {
+        var requestGroups = events
+            .Where(x => x.RequestId.HasValue && x.ModuleCode is "LEAVE" or "OT" or "TRIP")
+            .Select(x => new
+            {
+                x.RequestId,
+                Module = x.ModuleCode switch
+                {
+                    "LEAVE" => RequestModule.Leave,
+                    "OT" => RequestModule.Overtime,
+                    "TRIP" => RequestModule.Trip,
+                    _ => (RequestModule?)null
+                }
+            })
+            .Where(x => x.Module.HasValue)
+            .GroupBy(x => x.Module!.Value);
+
+        foreach (var group in requestGroups)
+        {
+            var requestIds = group
+                .Where(x => x.RequestId.HasValue)
+                .Select(x => x.RequestId!.Value)
+                .Distinct()
+                .ToList();
+            if (requestIds.Count == 0)
+                continue;
+
+            var snapshots = await _uow.Repository<F03ApprovalSnapshot>()
+                .Query()
+                .AsNoTracking()
+                .Include(x => x.Steps)
+                .Where(x => x.RequestType == group.Key && requestIds.Contains(x.RequestId))
+                .ToListAsync(ct);
+
+            if (snapshots.Count == 0)
+                continue;
+
+            var snapshotIds = snapshots.Select(x => x.Id).ToList();
+            var histories = await _uow.Repository<F03ApprovalHistory>()
+                .Query()
+                .AsNoTracking()
+                .Where(x => x.RequestType == group.Key && snapshotIds.Contains(x.StepId))
+                .ToListAsync(ct);
+
+            var historyByStepId = histories
+                .GroupBy(x => x.StepId)
+                .ToDictionary(x => x.Key, x => x.OrderByDescending(h => h.ActionAt).First());
+
+            foreach (var calendarEvent in events.Where(x =>
+                x.RequestId.HasValue && x.ModuleCode switch
+                {
+                    "LEAVE" => group.Key == RequestModule.Leave,
+                    "OT" => group.Key == RequestModule.Overtime,
+                    "TRIP" => group.Key == RequestModule.Trip,
+                    _ => false
+                }))
+            {
+                var snapshot = snapshots.FirstOrDefault(x => x.RequestId == calendarEvent.RequestId!.Value);
+                if (snapshot is null)
+                    continue;
+
+                var steps = snapshot.Steps
+                    .OrderBy(x => x.Level)
+                    .Select(step => new
+                    {
+                        step.Level,
+                        step.RoleName,
+                        step.ApproverName,
+                        step.IsRequired,
+                        Decision = historyByStepId.TryGetValue(step.Id, out var history)
+                            ? history.Decision
+                            : DecisionType.Pending
+                    })
+                    .ToList();
+
+                var current = steps
+                    .Where(x => x.IsRequired && x.Decision == DecisionType.Pending)
+                    .OrderBy(x => x.Level)
+                    .FirstOrDefault();
+
+                calendarEvent.ApprovalStatus = calendarEvent.Status;
+                calendarEvent.IsApproved = string.Equals(
+                    calendarEvent.Status,
+                    ApprovalStatus.Approved.ToString(),
+                    StringComparison.OrdinalIgnoreCase);
+                calendarEvent.ApprovalLevel = calendarEvent.IsApproved ? null : current?.Level;
+                calendarEvent.ApprovalLevelName = calendarEvent.IsApproved ? null : current?.RoleName;
+                calendarEvent.CurrentApproverName = calendarEvent.IsApproved ? null : current?.ApproverName;
+            }
+        }
     }
 
     public async Task<IReadOnlyList<CalendarRegistrationOpportunityDto>> GetRegistrationOpportunitiesAsync(
@@ -295,8 +393,8 @@ public sealed class WorkCalendarService : IWorkCalendarService
                 continue;
 
             var hasLeave = calendar.Events.Any(x => x.ModuleCode == "LEAVE" && CalendarEventDateMatcher.CoversDate(x, date));
-            var hasOt = calendar.Events.Any(x => x.ModuleCode == "OT" && x.Start.Date <= date && x.End > date);
-            var hasTrip = calendar.Events.Any(x => x.ModuleCode == "TRIP" && x.Start.Date <= date && x.End > date);
+            var hasOt = calendar.Events.Any(x => x.ModuleCode == "OT" && CalendarEventDateMatcher.CoversDate(x, date));
+            var hasTrip = calendar.Events.Any(x => x.ModuleCode == "TRIP" && CalendarEventDateMatcher.CoversDate(x, date));
 
             if (day.CanRegisterLeave && !hasLeave)
             {
@@ -356,7 +454,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
             warnings.Add("Đã có đăng ký nghỉ trong ngày.");
         if (calendar.Events.Any(x => x.ModuleCode == "OT" && CalendarEventDateMatcher.CoversDate(x, day)))
             warnings.Add("Đã có đăng ký OT trong ngày.");
-        if (calendar.Events.Any(x => x.ModuleCode == "TRIP" && x.Start.Date <= day && x.End > day))
+        if (calendar.Events.Any(x => x.ModuleCode == "TRIP" && CalendarEventDateMatcher.CoversDate(x, day)))
             warnings.Add("Đã có đăng ký công tác trong ngày.");
 
         return new CalendarAvailabilityDto
