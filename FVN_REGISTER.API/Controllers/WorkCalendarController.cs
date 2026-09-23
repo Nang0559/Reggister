@@ -101,6 +101,9 @@ public sealed class WorkCalendarController : BaseApiController
         if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
+        if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.CalendarView, ct))
+            return Forbid();
+
         var modules = await GetAuthorizedModulesAsync(UserInfo, ct);
         if (modules.Count == 0)
             return Forbid();
