@@ -1,0 +1,9 @@
+@page "/trip"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+<ModuleOverview Title="Công tác — Tổng quan"
+                 Description="Tổng hợp tình hình công tác và các yêu cầu đã đăng ký."
+                 CreateUrl="/trip/create"
+                 HistoryUrl="/trip/history"
+                 ModulePrefix="/trip/history" />
