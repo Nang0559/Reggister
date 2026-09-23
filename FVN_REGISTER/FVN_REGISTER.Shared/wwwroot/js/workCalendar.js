@@ -117,6 +117,45 @@ window.workCalendar = (function () {
                 prefix + registration.moduleCode + ' · ' + registration.title,
                 'fcc-calendar-day-line registration ' +
                     String(registration.moduleCode).toLowerCase());
+
+            const status = String(registration.approvalStatus || '').toLowerCase();
+            let statusText = registration.approvalStatus || '';
+
+            if (registration.isApproved || status === 'approved') {
+                statusText = '✓ Đã duyệt';
+            } else if (status === 'pending') {
+                statusText = '⏳ Chờ duyệt';
+            } else if (status === 'inprogress') {
+                statusText = '⏳ Đang duyệt';
+            } else if (status === 'rejected') {
+                statusText = '✕ Từ chối';
+            } else if (status === 'cancelled') {
+                statusText = 'Đã hủy';
+            } else if (status === 'needsrevision') {
+                statusText = '↻ Cần chỉnh sửa';
+            }
+
+            const approvalParts = [statusText];
+
+            if (registration.approvalLevel != null && !registration.isApproved) {
+                approvalParts.push(
+                    'Cấp ' + registration.approvalLevel +
+                    (registration.approvalLevelName
+                        ? ' · ' + registration.approvalLevelName
+                        : ''));
+            }
+
+            if (registration.currentApproverName && !registration.isApproved) {
+                approvalParts.push(registration.currentApproverName);
+            }
+
+            if (approvalParts.some(Boolean)) {
+                appendLine(
+                    body,
+                    approvalParts.filter(Boolean).join(' · '),
+                    'fcc-calendar-day-line registration-status ' +
+                        String(registration.moduleCode).toLowerCase());
+            }
         });
 
         if (day.canRegister) {
