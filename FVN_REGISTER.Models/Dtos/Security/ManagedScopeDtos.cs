@@ -59,6 +59,7 @@ public sealed class EffectiveApprovalPolicyDto
     public int Sequence { get; set; }
     public string? LevelName { get; set; }
     public string? RoleName { get; set; }
+    public bool Required { get; set; }
 }
 
 
