@@ -7,4 +7,5 @@ public sealed record CalendarContext(
     DateOnly To,
     IReadOnlySet<string>? AllowedModules = null,
     string? DeptCode = null,
-    string? PositionCode = null);
+    string? PositionCode = null,
+    string? EmployeeCode = null);
