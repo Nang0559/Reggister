@@ -66,9 +66,15 @@
 
     private async Task LoadAsync(DateTime from, DateTime to)
     {
-        var result = string.IsNullOrWhiteSpace(EmployeeCode)
+        // The parent page may intentionally leave EmployeeCode null for the current user.
+        // Resolve the current employee from the authenticated profile before deciding which API to call.
+        var effectiveEmployeeCode = EmployeeCode?.Trim();
+        if (string.IsNullOrWhiteSpace(effectiveEmployeeCode))
+            effectiveEmployeeCode = CurrentUser.User?.EmployeeCode?.Trim();
+
+        var result = string.IsNullOrWhiteSpace(effectiveEmployeeCode)
             ? await CalendarService.GetAsync(from.Date, to.Date)
-            : await CalendarService.GetForEmployeeAsync(EmployeeCode!, from.Date, to.Date);
+            : await CalendarService.GetForEmployeeAsync(effectiveEmployeeCode, from.Date, to.Date);
         if (result.IsSuccess && result.Data != null)
             _data = result.Data;
     }
