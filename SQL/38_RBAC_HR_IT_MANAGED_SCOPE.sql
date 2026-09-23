@@ -134,10 +134,10 @@ BEGIN
         Id int IDENTITY(1,1) NOT NULL CONSTRAINT PK_F03ManagedScopes PRIMARY KEY,
         IsActive bit NOT NULL CONSTRAINT DF_F03ManagedScopes_IsActive DEFAULT(1),
         CreatedBy int NOT NULL CONSTRAINT DF_F03ManagedScopes_CreatedBy DEFAULT(0),
-        CreatedAt datetime2(0) NOT NULL CONSTRAINT DF_F03ManagedScopes_CreatedAt DEFAULT(GETDATE()),
+        CreatedAt datetime2(7) NOT NULL CONSTRAINT DF_F03ManagedScopes_CreatedAt DEFAULT(GETDATE()),
         ModifiedBy int NULL,
-        ModifiedAt datetime2(0) NULL,
-        LastModifiedSource nvarchar(50) NULL,
+        ModifiedAt datetime2(7) NULL,
+        LastModifiedSource nvarchar(max) NULL,
 
         EmployeeCode nvarchar(50) NOT NULL,
         NodeType nvarchar(30) NOT NULL,
