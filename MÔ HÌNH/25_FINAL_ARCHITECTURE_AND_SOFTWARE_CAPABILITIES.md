@@ -604,19 +604,28 @@ Không tầng nào được phép biến projection thành source-of-truth của
 
 ## 33. Khả năng mở rộng module
 
-Module mới chỉ cần cung cấp:
-1. ModuleCode.
-2. Planned provider.
-3. Actual provider.
-4. Reconciliation mapping.
-5. Execution policy.
-6. Confirmation/Evidence policy.
-7. Action mapping.
-8. Notification mapping.
-9. Calendar projection.
-10. Correction producer nếu cần.
+Reconciliation engine phải pluggable giống Calendar provider.
 
-Nhờ vậy module mới dùng chung Calendar, Action, Notification, Confirmation và HR Resolution thay vì tạo workflow riêng.
+Worker không được chứa method riêng cho từng module. Worker chỉ:
+1. đọc ExecutionPolicy;
+2. resolve danh sách `IExecutionReconciliationModuleProvider`;
+3. truyền execution window + reconciliation mode;
+4. chạy từng provider độc lập và cô lập lỗi theo ModuleCode.
+
+Contract mở rộng hiện có:
+- `IExecutionReconciliationModuleProvider` — module entry point.
+- `IPlannedProvider` — extension contract cho nguồn Planned/Approved.
+- `IActualProvider` — extension contract cho nguồn Actual.
+- `IReconciliationMapper` — extension contract cho mapping Planned ↔ Actual → reconciliation request.
+
+Các module OT / Leave / Trip / Attendance hiện được tách thành provider riêng; shared base chỉ giữ helper hạ tầng (unresolved-source lookup, employee resolution và worker row DTO), không chứa business branch theo ModuleCode.
+
+Module mới chỉ cần thêm provider + các thành phần Planned/Actual/Mapper phù hợp và đăng ký DI. Không sửa `ExecutionReconciliationBackgroundWorker`.
+
+Module tiếp tục dùng chung:
+Calendar → Action → Notification → Confirmation → Evidence → HR Resolution → Correction.
+
+Không tạo workflow execution riêng chỉ vì thêm module.
 
 ## 34. Trạng thái hiện tại
 
@@ -670,6 +679,20 @@ Dashboard trả lời: tình hình tổng thể thế nào?
 
 Đây là ranh giới trách nhiệm cuối cùng cần giữ khi tiếp tục mở rộng hệ thống.
 ## 37. Implementation status — §22–§35 hardening
+
+### Current implementation after reconciliation/dashboard hardening
+
+- `ExecutionReconciliationBackgroundWorker` đã trở thành orchestration-only worker; không còn `ReconcileOtAsync`, `ReconcileLeaveAsync`, `ReconcileTripAsync`, `ReconcileAttendanceAsync` hard-code trong worker.
+- OT / Leave / Trip / Attendance đã có module provider riêng và đăng ký DI qua `IExecutionReconciliationModuleProvider`.
+- Planned / Actual / Mapper extension contracts đã được bổ sung để module mới có điểm cắm chuẩn.
+- Manager Workspace chỉ được bật bởi `ManagedScope`; quyền Approve không còn là điều kiện bật Manager Workspace.
+- Approval Inbox được compose độc lập với Manager Workspace và tiếp tục để Approval Policy quyết định route/level.
+- Dashboard đã có thêm provider cho Execution, HR, IT và Administration; các widget được compose theo effective capability.
+- Home có quick-create Leave/OT/Trip theo capability.
+- Leave / OT / Trip có trang Overview riêng.
+- Guest thiếu `DashboardView` được đưa về Public Information thay vì nhận Dashboard error.
+
+
 
 Các hạng mục triển khai trên branch này được map như sau:
 
