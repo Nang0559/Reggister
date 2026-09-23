@@ -44,6 +44,9 @@ public sealed class WorkCalendarController : BaseApiController
         if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
             return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
 
+        if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.CalendarView, ct))
+            return Forbid();
+
         var modules = await GetAuthorizedModulesAsync(UserInfo, ct);
         if (modules.Count == 0)
             return Forbid();
@@ -59,6 +62,33 @@ public sealed class WorkCalendarController : BaseApiController
             return BadRequest(ApiResponse<object>.Fail("Lịch chỉ cho phép tối đa 94 ngày mỗi lần tải."));
 
         var result = await _calendar.GetMonthAsync(UserInfo.EmployeeCode, userId, first, last, modules, ct);
+        return Ok(ApiResponse<object>.Ok(result));
+    }
+
+    [HttpGet("employee/{employeeCode}")]
+    public async Task<IActionResult> GetEmployee(
+        string employeeCode,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        CancellationToken ct)
+    {
+        if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
+
+        if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.CalendarView, ct))
+            return Forbid();
+
+        var modules = await GetAuthorizedModulesAsync(UserInfo, ct);
+        if (modules.Count == 0)
+            return Forbid();
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var first = from ?? new DateOnly(today.Year, today.Month, 1);
+        var last = to ?? new DateOnly(today.Year, today.Month, DateTime.DaysInMonth(today.Year, today.Month));
+        if (last < first || last.DayNumber - first.DayNumber > 93)
+            return BadRequest(ApiResponse<object>.Fail("Khoảng ngày không hợp lệ hoặc vượt quá 94 ngày."));
+
+        var result = await _calendar.GetMonthAsync(employeeCode, userId, first, last, modules, ct);
         return Ok(ApiResponse<object>.Ok(result));
     }
 
@@ -83,6 +113,33 @@ public sealed class WorkCalendarController : BaseApiController
             return BadRequest(ApiResponse<object>.Fail("Khoảng ngày không hợp lệ."));
 
         var result = await _calendar.GetAlertsAsync(UserInfo.EmployeeCode, userId, first, last, modules, ct);
+        return Ok(ApiResponse<object>.Ok(result));
+    }
+
+    [HttpGet("employee/{employeeCode}/alerts")]
+    public async Task<IActionResult> GetEmployeeAlerts(
+        string employeeCode,
+        [FromQuery] DateOnly? from,
+        [FromQuery] DateOnly? to,
+        CancellationToken ct)
+    {
+        if (UserInfo?.UserId is not int userId || string.IsNullOrWhiteSpace(UserInfo.EmployeeCode))
+            return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không có định danh nhân viên hợp lệ."));
+
+        if (!await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.CalendarView, ct))
+            return Forbid();
+
+        var modules = await GetAuthorizedModulesAsync(UserInfo, ct);
+        if (modules.Count == 0)
+            return Forbid();
+
+        var today = DateOnly.FromDateTime(DateTime.Today);
+        var first = from ?? today.AddDays(-30);
+        var last = to ?? today.AddDays(30);
+        if (last < first)
+            return BadRequest(ApiResponse<object>.Fail("Khoảng ngày không hợp lệ."));
+
+        var result = await _calendar.GetAlertsAsync(employeeCode, userId, first, last, modules, ct);
         return Ok(ApiResponse<object>.Ok(result));
     }
 
