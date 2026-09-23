@@ -53,12 +53,18 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             .SingleOrDefaultAsync(cancellationToken)
             ?? throw new UnauthorizedAccessException("Không xác định được tài khoản hiện tại.");
 
+        var normalizedEmployeeCode = employeeCode.Trim();
+        if (normalizedEmployeeCode.Length == 0)
+            throw new ArgumentException("Mã nhân viên là bắt buộc.", nameof(employeeCode));
+
         var employeeId = await _db.Employees
             .AsNoTracking()
-            .Where(x => x.IsActive != false && x.EmployeeCode == employeeCode)
+            .Where(x => x.IsActive != false
+                && x.EmployeeCode != null
+                && x.EmployeeCode.Trim() == normalizedEmployeeCode)
             .Select(x => (int?)x.Id)
             .SingleOrDefaultAsync(cancellationToken)
-            ?? throw new KeyNotFoundException("Không tìm thấy nhân viên.");
+            ?? throw new KeyNotFoundException($"Không tìm thấy nhân viên có mã '{normalizedEmployeeCode}'.");
 
         if (!string.Equals(actor.EmployeeCode, employeeCode, StringComparison.OrdinalIgnoreCase)
             && !await _authorization.CanAccessAsync(
@@ -127,7 +133,7 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
             .ToHashSet();
 
         var opportunities = await _workCalendar.GetRegistrationOpportunitiesAsync(
-            employeeCode,
+            normalizedEmployeeCode,
             from.ToDateTime(TimeOnly.MinValue),
             to.ToDateTime(TimeOnly.MinValue),
             cancellationToken);
