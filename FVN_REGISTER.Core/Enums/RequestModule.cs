@@ -6,6 +6,10 @@
         Overtime,
         Trip,
         Equipment,
-        Attendance
+        Attendance,
+        Administration,
+        IT,
+        Execution,
+        HR
     }
 }
