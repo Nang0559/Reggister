@@ -286,6 +286,30 @@
                 }
             </MudPaper>
         </MudTabPanel>
+
+        <MudTabPanel Text="Organization Scope" Icon="@Icons.Material.Filled.AccountTree">
+            <ManagedScopeEditor User="_selected" />
+        </MudTabPanel>
+
+        <MudTabPanel Text="Approval Policy + Effective Preview" Icon="@Icons.Material.Filled.Policy">
+            <MudStack Spacing="2">
+                <MudPaper Class="pa-4" Outlined="true" Style="border-radius:16px">
+                    <MudStack Row="true" AlignItems="AlignItems.Center">
+                        <MudText Typo="Typo.h6">Approval Policy</MudText>
+                        <MudSpacer />
+                        <MudButton Variant="Variant.Outlined" Href="/admin/approval-policies">
+                            Mở cấu hình Approval Policy
+                        </MudButton>
+                    </MudStack>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mt-2">
+                        Approval không được cấp bởi Role Approver. Route và level được resolve từ F03ApprovalPolicies + ApprovalRouteService.
+                    </MudText>
+                </MudPaper>
+                <MudPaper Class="pa-4" Outlined="true" Style="border-radius:16px">
+                    <EffectivePermissionPreview User="_selected" />
+                </MudPaper>
+            </MudStack>
+        </MudTabPanel>
     </MudTabs>
 </MudStack>
 
