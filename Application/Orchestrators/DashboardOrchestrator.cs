@@ -111,14 +111,13 @@ namespace FVN_REGISTER.Application.Orchestrators
                 response.ActionCount = actionCount;
                 response.Actions = actions.Take(5).ToList();
 
-                // Pending inbox is useful only to users who can approve.
-                if (response.ShowManagerView)
-                {
-                    var pendingResult = await _approvalInbox.GetPendingAsync(user, ct);
-                    response.PendingApprovals = pendingResult.IsSuccess
-                        ? pendingResult.Data ?? new List<PendingApprovalGroupDto>()
-                        : new List<PendingApprovalGroupDto>();
-                }
+                // Approval inbox is independent from Manager Workspace.
+                // A user may be an approver without ManagedScope; the inbox service
+                // resolves actual approval policy/route and returns only actionable items.
+                var pendingResult = await _approvalInbox.GetPendingAsync(user, ct);
+                response.PendingApprovals = pendingResult.IsSuccess
+                    ? pendingResult.Data ?? new List<PendingApprovalGroupDto>()
+                    : new List<PendingApprovalGroupDto>();
 
                 return ServiceResult<DashboardResponse>.Ok(response);
             }
