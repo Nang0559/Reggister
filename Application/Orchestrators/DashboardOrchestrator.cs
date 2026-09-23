@@ -54,15 +54,11 @@ namespace FVN_REGISTER.Application.Orchestrators
             try
             {
                 var managedScopes = await _authorization.GetManagedScopesAsync(user.UserId);
-                var hasApprovalCapability =
-                    await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveApprove, ct) ||
-                    await _authorization.HasAsync(user, SecurityFunctionCodes.OTApprove, ct) ||
-                    await _authorization.HasAsync(user, SecurityFunctionCodes.TripApprove, ct) ||
-                    await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentApprove, ct);
-
                 var response = new DashboardResponse
                 {
-                    ShowManagerView = managedScopes.Count > 0 || hasApprovalCapability
+                    // Manager Workspace is a data-scope concept, never an approval-role shortcut.
+                    // Approval inbox is resolved independently by F03ApprovalPolicies below.
+                    ShowManagerView = managedScopes.Count > 0
                 };
 
                 if (!await _authorization.HasAsync(user, SecurityFunctionCodes.DashboardView, ct))
