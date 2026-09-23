@@ -11,18 +11,24 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
         private readonly IServiceProvider _serviceProvider;
         private readonly ILogger<EmailBackgroundWorker> _logger;
         private readonly TimeSpan _period = TimeSpan.FromMinutes(5);
+        private readonly BackgroundWorkerHealthRegistry _health;
+        private readonly Polly.ResiliencePipeline _retry;
 
         public EmailBackgroundWorker(
             IServiceProvider serviceProvider,
-            ILogger<EmailBackgroundWorker> logger)
+            ILogger<EmailBackgroundWorker> logger,
+            BackgroundWorkerHealthRegistry health)
         {
             _serviceProvider = serviceProvider;
             _logger = logger;
+            _health = health;
+            _retry = JobRetryPolicy.Create("email-queue", logger);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation("Email Background Worker started");
+            _health.Started(nameof(EmailBackgroundWorker));
 
             while (!stoppingToken.IsCancellationRequested)
             {
@@ -32,10 +38,15 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                         "Email queue processing at {Time}",
                         DateTimeOffset.Now);
 
-                    await using var scope = _serviceProvider.CreateAsyncScope();
-                    var emailService = scope.ServiceProvider
-                        .GetRequiredService<IEmailService>();
-                    await emailService.ProcessQueue(stoppingToken);
+                    await _retry.ExecuteAsync(async token =>
+                    {
+                        await using var scope = _serviceProvider.CreateAsyncScope();
+                        var emailService = scope.ServiceProvider
+                            .GetRequiredService<IEmailService>();
+                        await emailService.ProcessQueue(token);
+                    }, stoppingToken);
+
+                    _health.Success(nameof(EmailBackgroundWorker));
                 }
                 catch (OperationCanceledException)
                 {
@@ -48,9 +59,10 @@ namespace FVN_REGISTER.Infrastructure.Services.Jobs
                 catch (Exception ex)
                 {
                     // Dùng Console thay Logger để tránh ObjectDisposedException
+                    _health.Failure(nameof(EmailBackgroundWorker), ex);
                     try
                     {
-                        _logger.LogError(ex, "Error executing email queue");
+                        _logger.LogError(ex, "Error executing email queue after retry policy");
                     }
                     catch
                     {
