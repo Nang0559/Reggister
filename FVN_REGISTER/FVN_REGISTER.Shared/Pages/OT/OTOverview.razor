@@ -1,0 +1,9 @@
+@page "/ot"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+<ModuleOverview Title="OT — Tổng quan"
+                 Description="Tổng hợp trạng thái OT và các yêu cầu liên quan."
+                 CreateUrl="/ot/create"
+                 HistoryUrl="/history/ot"
+                 ModulePrefix="/history/ot" />
