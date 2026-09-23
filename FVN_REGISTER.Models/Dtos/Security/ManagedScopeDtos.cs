@@ -60,3 +60,11 @@ public sealed class EffectiveApprovalPolicyDto
     public string? LevelName { get; set; }
     public string? RoleName { get; set; }
 }
+
+
+public sealed class ManagedEmployeeDto
+{
+    public string EmployeeCode { get; set; } = string.Empty;
+    public string EmployeeName { get; set; } = string.Empty;
+    public string? DeptCode { get; set; }
+}
