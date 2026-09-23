@@ -31,6 +31,22 @@ namespace FVN_REGISTER.Infrastructure.Services.Notifications
 
         public async Task<NotificationDto> CreateAsync(CreateNotificationDto dto, CancellationToken ct = default)
         {
+            if (dto.ActionId.HasValue && !string.IsNullOrWhiteSpace(dto.NotificationType))
+            {
+                var existing = await _uow.Repository<F03AppNotification>().Query()
+                    .AsNoTracking()
+                    .Where(x => x.IsActive != false
+                        && x.UserId == dto.UserId
+                        && x.ActionId == dto.ActionId
+                        && x.NotificationType == dto.NotificationType
+                        && !x.IsRead)
+                    .OrderByDescending(x => x.Id)
+                    .FirstOrDefaultAsync(ct);
+
+                if (existing != null)
+                    return NotificationMapper.ToDto(existing);
+            }
+
             var entity = new F03AppNotification
             {
                 UserId = dto.UserId,
