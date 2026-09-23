@@ -192,7 +192,12 @@ public sealed class SharedWorkCalendarService : ISharedWorkCalendarService
                         IsHalfDay = x.IsHalfDay,
                         DayValue = x.DayValue <= 0 ? 1m : x.DayValue,
                         ActionId = projection?.ActionId ?? x.ActionId,
-                        DetailRoute = projection?.DetailRoute ?? x.DetailRoute
+                        DetailRoute = projection?.DetailRoute ?? x.DetailRoute,
+                        ApprovalLevel = x.ApprovalLevel,
+                        ApprovalLevelName = x.ApprovalLevelName,
+                        CurrentApproverName = x.CurrentApproverName,
+                        ApprovalStatus = x.ApprovalStatus,
+                        IsApproved = x.IsApproved
                     };
                 })
                 .ToArray();
