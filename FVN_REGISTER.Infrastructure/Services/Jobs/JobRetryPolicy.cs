@@ -8,7 +8,7 @@ public static class JobRetryPolicy
 {
     public static ResiliencePipeline Create(string operationName, ILogger logger)
         => new ResiliencePipelineBuilder()
-            .AddRetry(new Polly.Retry.RetryStrategyOptions
+            .AddRetry(new RetryStrategyOptions
             {
                 Name = operationName,
                 MaxRetryAttempts = 3,
