@@ -14,5 +14,6 @@ public interface ISecurityClientService
     Task<ApiResponse<SecurityRoleDto>> SetRoleFunctionsAsync(int roleCode, List<int> functionCodes, CancellationToken ct = default);
     Task<ApiResponse<List<ManagedScopeDto>>> GetManagedScopesAsync(int userId, CancellationToken ct = default);
     Task<ApiResponse<PermissionSnapshotDto>> SetManagedScopesAsync(int userId, List<ManagedScopeRequest> scopes, CancellationToken ct = default);
+    Task<ApiResponse<List<ManagedEmployeeDto>>> GetManagedEmployeesAsync(int userId, CancellationToken ct = default);
     Task<ApiResponse<EffectivePermissionPreviewDto>> GetEffectivePermissionPreviewAsync(int userId, CancellationToken ct = default);
 }
