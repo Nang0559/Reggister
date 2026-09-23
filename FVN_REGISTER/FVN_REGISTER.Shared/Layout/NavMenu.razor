@@ -33,6 +33,7 @@
     @if (Can(SecurityFunctionCodes.LeaveCreate))
     {
         <MudNavGroup Title="Nghỉ phép" Icon="@Icons.Material.Filled.EventBusy" Expanded="true">
+            <MudNavLink href="/leave" Icon="@Icons.Material.Filled.Dashboard">Tổng quan</MudNavLink>
             <MudNavLink href="/leave/create" Icon="@Icons.Material.Filled.Add">Tạo đơn mới</MudNavLink>
             <MudNavLink href="/leave/history" Icon="@Icons.Material.Filled.History">Lịch sử nghỉ phép</MudNavLink>
         </MudNavGroup>
@@ -41,6 +42,7 @@
     @if (Can(SecurityFunctionCodes.OTCreate))
     {
         <MudNavGroup Title="Làm thêm giờ (OT)" Icon="@Icons.Material.Filled.AccessTime" Expanded="false">
+            <MudNavLink href="/ot" Icon="@Icons.Material.Filled.Dashboard">Tổng quan</MudNavLink>
             <MudNavLink href="/ot/create" Icon="@Icons.Material.Filled.AddAlarm">Đăng ký OT</MudNavLink>
             <MudNavLink href="/ot/history" Icon="@Icons.Material.Filled.ManageHistory">Lịch sử OT</MudNavLink>
         </MudNavGroup>
@@ -49,6 +51,7 @@
     @if (Can(SecurityFunctionCodes.TripCreate))
     {
         <MudNavGroup Title="Công tác" Icon="@Icons.Material.Filled.FlightTakeoff" Expanded="false">
+            <MudNavLink href="/trip" Icon="@Icons.Material.Filled.Dashboard">Tổng quan</MudNavLink>
             <MudNavLink href="/trip/create" Icon="@Icons.Material.Filled.Add">Đăng ký công tác</MudNavLink>
             <MudNavLink href="/trip/history" Icon="@Icons.Material.Filled.History">Lịch sử công tác</MudNavLink>
         </MudNavGroup>
