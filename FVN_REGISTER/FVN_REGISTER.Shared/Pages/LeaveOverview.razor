@@ -1,0 +1,9 @@
+@page "/leave"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+<ModuleOverview Title="Nghỉ phép — Tổng quan"
+                 Description="Tình hình số dư, đơn nghỉ và các việc cần chú ý của module Leave."
+                 CreateUrl="/leave/create"
+                 HistoryUrl="/history/leave"
+                 ModulePrefix="/history/leave" />
