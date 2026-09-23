@@ -277,6 +277,45 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
     private static string? Normalize(string? value)
         => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
 
+    public async Task<bool> CanApproveAsync(
+        RequestModule requestType,
+        string requesterEmployeeCode,
+        string approverEmployeeCode,
+        int level,
+        CancellationToken ct = default)
+    {
+        if (string.IsNullOrWhiteSpace(requesterEmployeeCode) ||
+            string.IsNullOrWhiteSpace(approverEmployeeCode) ||
+            level <= 0)
+            return false;
+
+        var requester = await _uow.Repository<F03Employee>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true && x.EmployeeCode == requesterEmployeeCode)
+            .Select(x => new { x.DeptCode, x.PositionCode })
+            .FirstOrDefaultAsync(ct);
+
+        var approver = await _uow.Repository<F03Employee>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true && x.EmployeeCode == approverEmployeeCode)
+            .Select(x => new { x.DeptCode, x.PositionCode })
+            .FirstOrDefaultAsync(ct);
+
+        if (requester == null || approver == null)
+            return false;
+
+        return await _uow.Repository<F03ApprovalPolicy>().Query()
+            .AsNoTracking()
+            .AnyAsync(x =>
+                x.IsActive == true
+                && x.RequestType == requestType
+                && x.DeptCode == requester.DeptCode
+                && (x.PositionCode == null || x.PositionCode == requester.PositionCode)
+                && x.ApprovalPositionCode == approver.PositionCode
+                && x.Level == level,
+                ct);
+    }
+
     private static string RoleNameFromPosition(int? level)
         => level switch
         {
