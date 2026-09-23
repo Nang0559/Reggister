@@ -48,7 +48,7 @@ public sealed class BackgroundWorkerHealthCheck : IHealthCheck
 
         var data = unhealthy.ToDictionary(
             x => x.Name,
-            x => (object?)new
+            x => (object)new
             {
                 x.StartedAt,
                 x.LastSuccessAt,
