@@ -156,7 +156,12 @@ public sealed class EquipmentController : ControllerBase
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
         var result = await _service.GetAssetAsync(id, ct);
-        return result == null ? NotFound() : Ok(result);
+        if (!result.IsSuccess)
+            return BadRequest(ApiResponse<EquipmentAssetDto>.FromResult(result));
+
+        return result.Data == null
+            ? NotFound(ApiResponse<EquipmentAssetDto>.Fail("Không tìm thấy thiết bị.", 404))
+            : Ok(ApiResponse<EquipmentAssetDto>.FromResult(result));
     }
 
     [HttpGet("import/access")]
