@@ -9,6 +9,7 @@ using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Dashboard;
+using FVN_REGISTER.Contract.Dtos.Equipment;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Constants;
@@ -91,6 +92,10 @@ namespace FVN_REGISTER.Application.Orchestrators
 
                         case RequestModule.Trip:
                             response.Trip = contribution.Detail;
+                            break;
+
+                        case RequestModule.Equipment when contribution.Detail is List<EquipmentRequestDto> equipment:
+                            response.Equipment = equipment;
                             break;
 
                         default:
