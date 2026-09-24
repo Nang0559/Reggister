@@ -57,6 +57,24 @@
         </MudNavGroup>
     }
 
+    @if (Can(SecurityFunctionCodes.EquipmentView))
+    {
+        <MudNavGroup Title="Thiết bị" Icon="@Icons.Material.Filled.Devices" Expanded="false">
+            <MudNavLink href="/equipment" Icon="@Icons.Material.Filled.Dashboard">
+                Sổ quản lý thiết bị
+            </MudNavLink>
+            <MudNavLink href="/equipment/scan" Icon="@Icons.Material.Filled.QrCodeScanner">
+                Quét QR thiết bị
+            </MudNavLink>
+            @if (Can(SecurityFunctionCodes.EquipmentImport))
+            {
+                <MudNavLink href="/equipment/workspace" Icon="@Icons.Material.Filled.UploadFile">
+                    Import Excel thiết bị
+                </MudNavLink>
+            }
+        </MudNavGroup>
+    }
+
     @if (CanAny(SecurityFunctionCodes.DepartmentView, SecurityFunctionCodes.EmployeeView, SecurityFunctionCodes.LeaveTypeView, SecurityFunctionCodes.ApproverView, SecurityFunctionCodes.HrmSyncViewStatus, SecurityFunctionCodes.HrmSyncReview, SecurityFunctionCodes.HrmUserRoleRuleManage, SecurityFunctionCodes.ApprovalPolicyManage, SecurityFunctionCodes.AttendanceCalculate, SecurityFunctionCodes.DepartmentStatusView))
     {
         <MudNavGroup Title="Dữ liệu" Icon="@Icons.Material.Filled.Storage" Expanded="false">
