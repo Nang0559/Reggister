@@ -69,7 +69,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("access")]
-    public async Task<ActionResult<bool>> Access(CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<bool>>> Access(CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
         var result = await _service.HasModuleAccessAsync(ct);
@@ -78,7 +78,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("approvers")]
-    public async Task<ActionResult<List<EquipmentApproverDto>>> Approvers([FromQuery] string deptCode, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<EquipmentApproverDto>>>> Approvers([FromQuery] string deptCode, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
         var result = await _service.GetApproversAsync(deptCode, ct);
@@ -87,7 +87,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpPost("registrations")]
-    public async Task<ActionResult<EquipmentRequestDto>> CreateRegistration([FromBody] CreateEquipmentRegistrationDto request, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<EquipmentRequestDto>>> CreateRegistration([FromBody] CreateEquipmentRegistrationDto request, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentCreate, ct)) return Forbid();
         var result = await _service.CreateRegistrationDraftAsync(request, ct);
@@ -96,7 +96,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpPost("registrations/{id:int}/submit")]
-    public async Task<ActionResult<EquipmentRequestDto>> SubmitRegistration(int id, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<EquipmentRequestDto>>> SubmitRegistration(int id, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentEdit, ct)) return Forbid();
         var result = await _service.SubmitRegistrationAsync(id, ct);
@@ -105,7 +105,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("registrations/mine")]
-    public async Task<ActionResult<List<EquipmentRequestDto>>> Mine(CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<EquipmentRequestDto>>>> Mine(CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
         var result = await _service.GetMineAsync(ct);
@@ -114,7 +114,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpPost("repairs")]
-    public async Task<ActionResult<EquipmentRequestDto>> CreateRepair([FromBody] CreateEquipmentRepairDto request, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<EquipmentRequestDto>>> CreateRepair([FromBody] CreateEquipmentRepairDto request, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentRepair, ct)) return Forbid();
         var result = await _service.CreateRepairDraftAsync(request, ct);
@@ -123,7 +123,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpPost("repairs/{id:int}/submit")]
-    public async Task<ActionResult<EquipmentRequestDto>> SubmitRepair(int id, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<EquipmentRequestDto>>> SubmitRepair(int id, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentRepair, ct)) return Forbid();
         var result = await _service.SubmitRepairAsync(id, ct);
@@ -132,7 +132,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("scan/{qrToken}")]
-    public async Task<ActionResult<EquipmentAssetDto>> Scan(string qrToken, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<EquipmentAssetDto>>> Scan(string qrToken, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentQR, ct)) return Forbid();
         var result = await _service.ScanAsync(qrToken, ct);
@@ -141,7 +141,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("assets/{id:int}/history")]
-    public async Task<ActionResult<EquipmentAssetDto>> AssetHistory(int id, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<EquipmentAssetDto>>> AssetHistory(int id, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentHistory, ct)) return Forbid();
         var result = await _service.GetAssetAsync(id, ct);
@@ -152,7 +152,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("assets/{id:int}")]
-    public async Task<ActionResult<EquipmentAssetDto>> Asset(int id, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<EquipmentAssetDto>>> Asset(int id, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
         var result = await _service.GetAssetAsync(id, ct);
