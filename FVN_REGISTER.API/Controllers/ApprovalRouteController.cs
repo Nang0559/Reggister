@@ -31,7 +31,7 @@ public sealed class ApprovalRouteController : ControllerBase
     }
 
     [HttpGet("preview")]
-    public async Task<ActionResult<ServiceResult<ApprovalRoutePreviewDto>>> Preview(
+    public async Task<ActionResult<ApiResponse<ApprovalRoutePreviewDto>>> Preview(
         [FromQuery] RequestModule requestType,
         CancellationToken ct)
     {
@@ -42,7 +42,7 @@ public sealed class ApprovalRouteController : ControllerBase
 
         if (string.IsNullOrWhiteSpace(user.EmployeeCode))
             return BadRequest(
-                ServiceResult<ApprovalRoutePreviewDto>.Fail(
+                ApiResponse<ApprovalRoutePreviewDto>.Fail(
                     "Tài khoản chưa có EmployeeCode."));
 
         var functionCode = requestType switch
@@ -57,7 +57,7 @@ public sealed class ApprovalRouteController : ControllerBase
         if (functionCode == 0)
         {
             return BadRequest(
-                ServiceResult<ApprovalRoutePreviewDto>.Fail(
+                ApiResponse<ApprovalRoutePreviewDto>.Fail(
                     "Loại yêu cầu không hỗ trợ."));
         }
 
