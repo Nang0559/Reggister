@@ -13,8 +13,10 @@ public sealed class F03CalendarModulePolicyConfiguration : IEntityTypeConfigurat
         entity.HasKey(x => x.Id);
         entity.HasIndex(x => x.ModuleCode).IsUnique();
         entity.Property(x => x.ModuleCode).HasMaxLength(50).IsRequired();
-        entity.Property(x => x.DisplayMode).HasConversion<byte>().HasDefaultValue(CalendarDisplayMode.MarkerAndSummary);
-        entity.Property(x => x.NoteMode).HasConversion<byte>().HasDefaultValue(CalendarNoteMode.AlertsOnly);
+        entity.Property(x => x.DisplayMode).HasConversion<byte>().HasDefaultValue(CalendarDisplayMode.MarkerAndSummary)
+            .HasSentinel(CalendarDisplayMode.None);
+        entity.Property(x => x.NoteMode).HasConversion<byte>().HasDefaultValue(CalendarNoteMode.AlertsOnly)
+            .HasSentinel(CalendarNoteMode.None);
         entity.Property(x => x.ConfirmationMode).HasConversion<byte>().HasDefaultValue(CalendarConfirmationMode.None);
         entity.Property(x => x.ReconciliationMode).HasConversion<byte>().HasDefaultValue(CalendarReconciliationMode.None);
         entity.Property(x => x.SummaryTemplate).HasMaxLength(500);
