@@ -35,13 +35,12 @@ public sealed class SecurityFunctionCapabilityMatrixTests
     }
 
     [Fact]
-    public void HrAndItRoles_AreCanonicalAndLegacyApproverIsObsolete()
+    public void HrAndItRoles_AreCanonical()
     {
         Assert.Equal(7, (int)UserRole.HR);
         Assert.Equal(8, (int)UserRole.IT);
         Assert.Equal(7, UserPermissionCodes.HR);
         Assert.Equal(8, UserPermissionCodes.IT);
-        Assert.Equal(4, (int)UserRole.Approver);
     }
 
     [Fact]
