@@ -66,6 +66,27 @@ public class FVNWEBAPPContext : DbContext
         base.OnModelCreating(modelBuilder);
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
         modelBuilder.Entity<VwShiftCheckInOut>(entity => { entity.HasNoKey(); entity.ToView("VwShiftCheckInOut"); });
+        // Explicit SQL precision for legacy decimal staging/payroll/public-form fields.
+        // This removes EF Core 9 precision warnings and matches the canonical SQL schema.
+        modelBuilder.Entity<F03StagingEmployee>()
+            .Property(x => x.TotalLeaveDays)
+            .HasPrecision(10, 2);
+
+        modelBuilder.Entity<F03StagingOTType>()
+            .Property(x => x.RateMultiplier)
+            .HasPrecision(10, 2);
+
+        modelBuilder.Entity<F03PayrollInput>(entity =>
+        {
+            entity.Property(x => x.WorkMinutes).HasPrecision(10, 2);
+            entity.Property(x => x.LeaveTotal).HasPrecision(10, 2);
+            entity.Property(x => x.OTMinutes).HasPrecision(10, 2);
+        });
+
+        modelBuilder.Entity<F03PublicFormAnswer>()
+            .Property(x => x.NumberValue)
+            .HasPrecision(18, 4);
+
         modelBuilder.Entity<F03HrmAttendanceCalculated>(entity =>
         {
             entity.HasKey(x => x.Id);
