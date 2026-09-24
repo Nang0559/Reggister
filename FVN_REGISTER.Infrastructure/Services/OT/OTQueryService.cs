@@ -187,9 +187,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 return new List<OTRequestDto>();
 
             var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.OTView, ct);
-            var managedEmployees = scope == AuthorizationScopeCodes.All
-                ? new List<ManagedEmployeeDto>()
-                : await _authorization.GetManagedEmployeesAsync(user.UserId, ct);
+            var managedEmployees = await _authorization.GetManagedEmployeesAsync(user.UserId, ct);
             var managedEmployeeCodes = managedEmployees
                 .Select(x => x.EmployeeCode)
                 .Where(x => !string.IsNullOrWhiteSpace(x))
