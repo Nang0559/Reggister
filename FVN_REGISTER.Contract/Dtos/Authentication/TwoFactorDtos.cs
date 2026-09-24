@@ -23,6 +23,9 @@ public sealed class TwoFactorAdminUserDto
     public string EmployeeCode { get; set; } = string.Empty;
     public string? FullName { get; set; }
     public string? DeptCode { get; set; }
+    public string? DeptName { get; set; }
+    public string? PositionCode { get; set; }
+    public string? PositionName { get; set; }
     public bool IsActive { get; set; }
     public bool Required { get; set; }
     public bool Enabled { get; set; }
