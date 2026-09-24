@@ -41,7 +41,13 @@ else
                 <MudItem xs="12" md="4"><MudNumericField @bind-Value="_form.PurchasePrice" Label="Giá thành" Min="0" /></MudItem>
                 <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_purchase" Label="Ngày mua" /></MudItem>
                 <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_depreciation" Label="Ngày khấu hao dự kiến" /></MudItem>
-                <MudItem xs="12" md="6"><MudTextField @bind-Value="_form.DeptCode" Label="Bộ phận" Required="true" /></MudItem>
+                <MudItem xs="12" md="6">
+                    <MudTextField @bind-Value="_form.DeptCode"
+                                  Label="Bộ phận"
+                                  Required="true"
+                                  ReadOnly="true"
+                                  Variant="Variant.Outlined" />
+                </MudItem>
                 <MudItem xs="12"><ApprovalRouteSelector @ref="_approvalSelector" Route="@_approvalRoute" /></MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="_form.Note" Label="Ghi chú" Lines="3" /></MudItem>
                 <MudItem xs="12"><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="CreateAsync" Disabled="_busy">Tạo đăng ký & sinh QR</MudButton></MudItem>
