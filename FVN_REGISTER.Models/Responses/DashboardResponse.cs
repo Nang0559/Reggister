@@ -3,6 +3,7 @@ using FVN_REGISTER.Contract.Dtos.Actions;
 using FVN_REGISTER.Contract.Dtos.Approvals;
 using FVN_REGISTER.Contract.Dtos.Dashboard;
 using FVN_REGISTER.Contract.Dtos.Leaves;
+using FVN_REGISTER.Contract.Dtos.Equipment;
 
 namespace FVN_REGISTER.Contract.Responses
 {
@@ -35,5 +36,8 @@ namespace FVN_REGISTER.Contract.Responses
         public List<LeaveStatisticsDto> DepartmentStatistics { get; set; } = new();
 
         public object? Trip { get; set; }
+
+        /// <summary>Recent equipment requests contributed by the Equipment dashboard provider.</summary>
+        public List<EquipmentRequestDto> Equipment { get; set; } = new();
     }
 }
