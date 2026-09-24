@@ -22,11 +22,120 @@ public sealed class EquipmentService : IEquipmentService
 {
     private readonly IUnitOfWork _uow; private readonly ICurrentUserService _currentUser; private readonly IApprovalWorkflowOrchestrator<EquipmentRequestSubject> _workflow; private readonly IAuthorizationService _authorization; private readonly IApprovalSelectionService _approvalSelections;
     public EquipmentService(IUnitOfWork uow, ICurrentUserService currentUser, IApprovalWorkflowOrchestrator<EquipmentRequestSubject> workflow, IAuthorizationService authorization, IApprovalSelectionService approvalSelections) { _uow = uow; _currentUser = currentUser; _workflow = workflow; _authorization = authorization; _approvalSelections = approvalSelections; }
-    public async Task<bool> HasModuleAccessAsync(CancellationToken ct = default) { var user = RequireUser(); return await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentView, ct); }
-    public async Task<List<EquipmentApproverDto>> GetApproversAsync(string deptCode, CancellationToken ct = default)
-    { var user = RequireModuleUser(); if (string.IsNullOrWhiteSpace(deptCode)) throw new ArgumentException("Bộ phận là bắt buộc."); await EnsureScopeAsync(user, SecurityFunctionCodes.EquipmentView, user.EmployeeCode, deptCode, ct); return await _uow.Repository<F03Approver>().Query().AsNoTracking().Where(x => x.RequestType == RequestModule.Equipment && x.IsActive == true && (x.ApproveForDeptCode == deptCode || x.ApproveForDeptCode == ApproveForDept.All)).OrderBy(x => x.Level).ThenBy(x => x.ApproverName).Select(x => new EquipmentApproverDto { ApproverCode = x.ApproverCode, ApproverName = x.ApproverName, ApproverEmail = x.ApproverEmail, Level = x.Level, RoleName = x.RoleName, ApproveForDeptCode = x.ApproveForDeptCode }).ToListAsync(ct); }
-    public async Task<EquipmentRequestDto> CreateRegistrationDraftAsync(CreateEquipmentRegistrationDto request, CancellationToken ct = default)
-    { var user = RequireModuleUser(); ValidateRegistration(request); await EnsureScopeAsync(user, SecurityFunctionCodes.EquipmentCreate, user.EmployeeCode, request.DeptCode, ct); await EnsureDepartmentScopeForOwnedDataAsync(user, request.DeptCode, ct); if (request.ApprovalSelections == null || request.ApprovalSelections.Count == 0) throw new ArgumentException("Vui lòng chọn người phê duyệt cho từng cấp."); var entity = new F03EquipmentRequest { RequestKind = EquipmentRequestKind.Registration, EmployeeCode = user.EmployeeCode ?? string.Empty, DeptCode = request.DeptCode, RequestStatus = ApprovalStatus.Draft, CreatedBy = user.UserId, OperatorUserId = user.UserId, SelectedApproverCode = request.ApprovalSelections.OrderBy(x => x.Level).Select(x => x.ApproverCode).FirstOrDefault() ?? request.SelectedApproverCode?.Trim() ?? string.Empty, QrToken = Convert.ToHexString(Guid.NewGuid().ToByteArray()) + Guid.NewGuid().ToString("N"), EquipmentName = request.EquipmentName.Trim(), Specification = request.Specification?.Trim(), SerialNumber = request.SerialNumber?.Trim(), AssetCode = request.AssetCode?.Trim(), PurchasePrice = request.PurchasePrice, PurchaseDate = request.PurchaseDate, ExpectedDepreciationDate = request.ExpectedDepreciationDate, Location = request.Location?.Trim(), Note = request.Note?.Trim() }; await _uow.Repository<F03EquipmentRequest>().AddAsync(entity, ct); await _uow.SaveChangesAsync(ct); await _approvalSelections.ReplaceAsync(RequestModule.Equipment, entity.Id, request.ApprovalSelections, user.UserId, ct); return await MapRequestAsync(entity, ct); }
+    public async Task<ServiceResult<bool>> HasModuleAccessAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireUser();
+            return ServiceResult<bool>.Ok(
+                await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentView, ct));
+        }
+        catch (UnauthorizedAccessException ex) { return ServiceResult<bool>.Fail(ex.Message); }
+    }
+    public async Task<ServiceResult<List<EquipmentApproverDto>>> GetApproversAsync(
+        string deptCode,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireModuleUser();
+            if (string.IsNullOrWhiteSpace(deptCode))
+                return ServiceResult<List<EquipmentApproverDto>>.Fail("Bộ phận là bắt buộc.");
+
+            await EnsureScopeAsync(
+                user, SecurityFunctionCodes.EquipmentView,
+                user.EmployeeCode, deptCode, ct);
+
+            var data = await _uow.Repository<F03Approver>()
+                .Query()
+                .AsNoTracking()
+                .Where(x => x.RequestType == RequestModule.Equipment &&
+                            x.IsActive == true &&
+                            (x.ApproveForDeptCode == deptCode ||
+                             x.ApproveForDeptCode == ApproveForDept.All))
+                .OrderBy(x => x.Level)
+                .ThenBy(x => x.ApproverName)
+                .Select(x => new EquipmentApproverDto
+                {
+                    ApproverCode = x.ApproverCode,
+                    ApproverName = x.ApproverName,
+                    ApproverEmail = x.ApproverEmail,
+                    Level = x.Level,
+                    RoleName = x.RoleName,
+                    ApproveForDeptCode = x.ApproveForDeptCode
+                })
+                .ToListAsync(ct);
+
+            return ServiceResult<List<EquipmentApproverDto>>.Ok(data);
+        }
+        catch (UnauthorizedAccessException ex) { return ServiceResult<List<EquipmentApproverDto>>.Fail(ex.Message); }
+        catch (ArgumentException ex) { return ServiceResult<List<EquipmentApproverDto>>.Fail(ex.Message); }
+    }
+    public async Task<ServiceResult<EquipmentRequestDto>> CreateRegistrationDraftAsync(
+        CreateEquipmentRegistrationDto request,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireModuleUser();
+            ValidateRegistration(request);
+
+            await EnsureScopeAsync(
+                user, SecurityFunctionCodes.EquipmentCreate,
+                user.EmployeeCode, request.DeptCode, ct);
+
+            await EnsureDepartmentScopeForOwnedDataAsync(user, request.DeptCode, ct);
+
+            if (request.ApprovalSelections == null ||
+                request.ApprovalSelections.Count == 0)
+                return ServiceResult<EquipmentRequestDto>.Fail(
+                    "Vui lòng chọn người phê duyệt cho từng cấp.");
+
+            var entity = new F03EquipmentRequest
+            {
+                RequestKind = EquipmentRequestKind.Registration,
+                EmployeeCode = user.EmployeeCode ?? string.Empty,
+                DeptCode = request.DeptCode,
+                RequestStatus = ApprovalStatus.Draft,
+                CreatedBy = user.UserId,
+                OperatorUserId = user.UserId,
+                SelectedApproverCode = request.ApprovalSelections
+                    .OrderBy(x => x.Level)
+                    .Select(x => x.ApproverCode)
+                    .FirstOrDefault()
+                    ?? request.SelectedApproverCode?.Trim()
+                    ?? string.Empty,
+                QrToken = Convert.ToHexString(Guid.NewGuid().ToByteArray()) +
+                          Guid.NewGuid().ToString("N"),
+                EquipmentName = request.EquipmentName.Trim(),
+                Specification = request.Specification?.Trim(),
+                SerialNumber = request.SerialNumber?.Trim(),
+                AssetCode = request.AssetCode?.Trim(),
+                PurchasePrice = request.PurchasePrice,
+                PurchaseDate = request.PurchaseDate,
+                ExpectedDepreciationDate = request.ExpectedDepreciationDate,
+                Location = request.Location?.Trim(),
+                Note = request.Note?.Trim()
+            };
+
+            await _uow.Repository<F03EquipmentRequest>().AddAsync(entity, ct);
+            await _uow.SaveChangesAsync(ct);
+
+            await _approvalSelections.ReplaceAsync(
+                RequestModule.Equipment,
+                entity.Id,
+                request.ApprovalSelections,
+                user.UserId,
+                ct);
+
+            return ServiceResult<EquipmentRequestDto>.Ok(
+                await MapRequestAsync(entity, ct),
+                "Đã tạo đăng ký thiết bị ở trạng thái nháp.");
+        }
+        catch (UnauthorizedAccessException ex) { return ServiceResult<EquipmentRequestDto>.Fail(ex.Message); }
+        catch (KeyNotFoundException ex) { return ServiceResult<EquipmentRequestDto>.Fail(ex.Message); }
+        catch (ArgumentException ex) { return ServiceResult<EquipmentRequestDto>.Fail(ex.Message); }
+    }
     public async Task<ServiceResult<EquipmentRequestDto>> SubmitRegistrationAsync(int requestId, CancellationToken ct = default)
     {
         try
@@ -55,39 +164,130 @@ public sealed class EquipmentService : IEquipmentService
         catch (KeyNotFoundException ex) { return ServiceResult<EquipmentRequestDto>.Fail(ex.Message); }
         catch (ArgumentException ex) { return ServiceResult<EquipmentRequestDto>.Fail(ex.Message); }
     }
-    public async Task<List<EquipmentRequestDto>> GetMineAsync(CancellationToken ct = default)
+    public async Task<ServiceResult<List<EquipmentRequestDto>>> GetMineAsync(
+        CancellationToken ct = default)
     {
-        var user = RequireModuleUser();
-        var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.EquipmentView, ct);
-        var query = _uow.Repository<F03EquipmentRequest>().Query()
-            .AsNoTracking()
-            .Where(x => x.IsActive == true);
-
-        if (scope != AuthorizationScopeCodes.All)
+        try
         {
-            var managedEmployees = await _authorization.GetManagedEmployeesAsync(user.UserId, ct);
-            var managedEmployeeCodes = managedEmployees
-                .Select(x => x.EmployeeCode)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
-            var managedDeptCodes = managedEmployees
-                .Select(x => x.DeptCode)
-                .Where(x => !string.IsNullOrWhiteSpace(x))
-                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var user = RequireModuleUser();
+            var scope = await _authorization.GetScopeAsync(
+                user.UserId, SecurityFunctionCodes.EquipmentView, ct);
 
-            if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
-                query = query.Where(x => x.EmployeeCode == user.EmployeeCode || managedEmployeeCodes.Contains(x.EmployeeCode));
-            else if (scope == AuthorizationScopeCodes.Department)
-                query = query.Where(x => x.DeptCode == user.DeptCode || managedDeptCodes.Contains(x.DeptCode));
-            else
-                query = query.Where(x => false);
+            var query = _uow.Repository<F03EquipmentRequest>()
+                .Query()
+                .AsNoTracking()
+                .Where(x => x.IsActive == true);
+
+            if (scope != AuthorizationScopeCodes.All)
+            {
+                var managedEmployees =
+                    await _authorization.GetManagedEmployeesAsync(user.UserId, ct);
+
+                var managedEmployeeCodes = managedEmployees
+                    .Select(x => x.EmployeeCode)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                var managedDeptCodes = managedEmployees
+                    .Select(x => x.DeptCode)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                if (scope == AuthorizationScopeCodes.Own ||
+                    scope == AuthorizationScopeCodes.Employee)
+                {
+                    query = query.Where(x =>
+                        x.EmployeeCode == user.EmployeeCode ||
+                        managedEmployeeCodes.Contains(x.EmployeeCode));
+                }
+                else if (scope == AuthorizationScopeCodes.Department)
+                {
+                    query = query.Where(x =>
+                        x.DeptCode == user.DeptCode ||
+                        managedDeptCodes.Contains(x.DeptCode));
+                }
+                else
+                {
+                    query = query.Where(x => false);
+                }
+            }
+
+            var rows = await query
+                .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync(ct);
+
+            return ServiceResult<List<EquipmentRequestDto>>.Ok(
+                rows.Select(x => MapRequest(x)).ToList());
         }
-
-        var rows = await query.OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
-        return rows.Select(x => MapRequest(x)).ToList();
+        catch (UnauthorizedAccessException ex) { return ServiceResult<List<EquipmentRequestDto>>.Fail(ex.Message); }
     }
-    public async Task<EquipmentRequestDto> CreateRepairDraftAsync(CreateEquipmentRepairDto request, CancellationToken ct = default)
-    { var user = RequireModuleUser(); var asset = await GetActiveAssetForUserAsync(request.AssetId, ct); if (string.IsNullOrWhiteSpace(request.RepairContent)) throw new ArgumentException("Nội dung sửa chữa là bắt buộc."); if (request.ApprovalSelections == null || request.ApprovalSelections.Count == 0) throw new ArgumentException("Vui lòng chọn người phê duyệt cho từng cấp."); var entity = new F03EquipmentRequest { RequestKind = EquipmentRequestKind.Repair, AssetId = asset.Id, EmployeeCode = user.EmployeeCode ?? string.Empty, DeptCode = asset.DeptCode, RequestStatus = ApprovalStatus.Draft, CreatedBy = user.UserId, OperatorUserId = user.UserId, SelectedApproverCode = request.ApprovalSelections.OrderBy(x => x.Level).Select(x => x.ApproverCode).FirstOrDefault() ?? request.SelectedApproverCode?.Trim() ?? string.Empty, QrToken = asset.QrToken, EquipmentName = asset.EquipmentName, AssetCode = asset.AssetCode, PurchasePrice = asset.PurchasePrice, PurchaseDate = asset.PurchaseDate, ExpectedDepreciationDate = asset.ExpectedDepreciationDate, RepairDate = request.RepairDate, RepairContent = request.RepairContent.Trim(), RepairVendor = request.RepairVendor?.Trim(), RepairCost = request.RepairCost, RepairResult = request.RepairResult?.Trim(), Note = request.Note?.Trim() }; await _uow.Repository<F03EquipmentRequest>().AddAsync(entity, ct); await _uow.SaveChangesAsync(ct); return await MapRequestAsync(entity, ct); }
+    public async Task<ServiceResult<EquipmentRequestDto>> CreateRepairDraftAsync(
+        CreateEquipmentRepairDto request,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireModuleUser();
+            var asset = await GetActiveAssetForUserAsync(request.AssetId, ct);
+
+            if (string.IsNullOrWhiteSpace(request.RepairContent))
+                return ServiceResult<EquipmentRequestDto>.Fail(
+                    "Nội dung sửa chữa là bắt buộc.");
+
+            if (request.ApprovalSelections == null ||
+                request.ApprovalSelections.Count == 0)
+                return ServiceResult<EquipmentRequestDto>.Fail(
+                    "Vui lòng chọn người phê duyệt cho từng cấp.");
+
+            var entity = new F03EquipmentRequest
+            {
+                RequestKind = EquipmentRequestKind.Repair,
+                AssetId = asset.Id,
+                EmployeeCode = user.EmployeeCode ?? string.Empty,
+                DeptCode = asset.DeptCode,
+                RequestStatus = ApprovalStatus.Draft,
+                CreatedBy = user.UserId,
+                OperatorUserId = user.UserId,
+                SelectedApproverCode = request.ApprovalSelections
+                    .OrderBy(x => x.Level)
+                    .Select(x => x.ApproverCode)
+                    .FirstOrDefault()
+                    ?? request.SelectedApproverCode?.Trim()
+                    ?? string.Empty,
+                QrToken = asset.QrToken,
+                EquipmentName = asset.EquipmentName,
+                AssetCode = asset.AssetCode,
+                PurchasePrice = asset.PurchasePrice,
+                PurchaseDate = asset.PurchaseDate,
+                ExpectedDepreciationDate = asset.ExpectedDepreciationDate,
+                RepairDate = request.RepairDate,
+                RepairContent = request.RepairContent.Trim(),
+                RepairVendor = request.RepairVendor?.Trim(),
+                RepairCost = request.RepairCost,
+                RepairResult = request.RepairResult?.Trim(),
+                Note = request.Note?.Trim()
+            };
+
+            await _uow.Repository<F03EquipmentRequest>().AddAsync(entity, ct);
+            await _uow.SaveChangesAsync(ct);
+
+            // Registration already persisted its selections. Repair must do the same;
+            // otherwise submit-time snapshot creation cannot resolve the selected approvers.
+            await _approvalSelections.ReplaceAsync(
+                RequestModule.Equipment,
+                entity.Id,
+                request.ApprovalSelections,
+                user.UserId,
+                ct);
+
+            return ServiceResult<EquipmentRequestDto>.Ok(
+                await MapRequestAsync(entity, ct),
+                "Đã tạo yêu cầu sửa chữa ở trạng thái nháp.");
+        }
+        catch (UnauthorizedAccessException ex) { return ServiceResult<EquipmentRequestDto>.Fail(ex.Message); }
+        catch (KeyNotFoundException ex) { return ServiceResult<EquipmentRequestDto>.Fail(ex.Message); }
+        catch (ArgumentException ex) { return ServiceResult<EquipmentRequestDto>.Fail(ex.Message); }
+    }
     public async Task<ServiceResult<EquipmentRequestDto>> SubmitRepairAsync(int requestId, CancellationToken ct = default)
     {
         try
@@ -116,10 +316,66 @@ public sealed class EquipmentService : IEquipmentService
         catch (KeyNotFoundException ex) { return ServiceResult<EquipmentRequestDto>.Fail(ex.Message); }
         catch (ArgumentException ex) { return ServiceResult<EquipmentRequestDto>.Fail(ex.Message); }
     }
-    public async Task<EquipmentAssetDto> ScanAsync(string qrToken, CancellationToken ct = default)
-    { var user = RequireModuleUser(); if (string.IsNullOrWhiteSpace(qrToken)) throw new ArgumentException("QR token không hợp lệ."); var asset = await _uow.Repository<F03EquipmentAsset>().Query().AsNoTracking().FirstOrDefaultAsync(x => x.QrToken == qrToken && x.IsActive == true, ct); if (asset == null || !asset.IsQrActive) throw new KeyNotFoundException("QR chưa có hiệu lực hoặc thiết bị không tồn tại."); await EnsureScopeAsync(user, SecurityFunctionCodes.EquipmentQR, null, asset.DeptCode, ct); return await MapAssetAsync(asset, ct); }
-    public async Task<EquipmentAssetDto?> GetAssetAsync(int assetId, CancellationToken ct = default)
-    { var user = RequireModuleUser(); var asset = await _uow.Repository<F03EquipmentAsset>().Query().AsNoTracking().FirstOrDefaultAsync(x => x.Id == assetId && x.IsActive == true && x.IsQrActive, ct); if (asset == null) return null; await EnsureScopeAsync(user, SecurityFunctionCodes.EquipmentView, null, asset.DeptCode, ct); return await MapAssetAsync(asset, ct); }
+    public async Task<ServiceResult<EquipmentAssetDto>> ScanAsync(
+        string qrToken,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireModuleUser();
+
+            if (string.IsNullOrWhiteSpace(qrToken))
+                return ServiceResult<EquipmentAssetDto>.Fail("QR token không hợp lệ.");
+
+            var asset = await _uow.Repository<F03EquipmentAsset>()
+                .Query()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    x => x.QrToken == qrToken && x.IsActive == true, ct);
+
+            if (asset == null || !asset.IsQrActive)
+                return ServiceResult<EquipmentAssetDto>.Fail(
+                    "QR chưa có hiệu lực hoặc thiết bị không tồn tại.");
+
+            await EnsureScopeAsync(
+                user, SecurityFunctionCodes.EquipmentQR,
+                null, asset.DeptCode, ct);
+
+            return ServiceResult<EquipmentAssetDto>.Ok(
+                await MapAssetAsync(asset, ct));
+        }
+        catch (UnauthorizedAccessException ex) { return ServiceResult<EquipmentAssetDto>.Fail(ex.Message); }
+        catch (ArgumentException ex) { return ServiceResult<EquipmentAssetDto>.Fail(ex.Message); }
+    }
+    public async Task<ServiceResult<EquipmentAssetDto?>> GetAssetAsync(
+        int assetId,
+        CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireModuleUser();
+
+            var asset = await _uow.Repository<F03EquipmentAsset>()
+                .Query()
+                .AsNoTracking()
+                .FirstOrDefaultAsync(
+                    x => x.Id == assetId &&
+                         x.IsActive == true &&
+                         x.IsQrActive,
+                    ct);
+
+            if (asset == null)
+                return ServiceResult<EquipmentAssetDto?>.Ok(null);
+
+            await EnsureScopeAsync(
+                user, SecurityFunctionCodes.EquipmentView,
+                null, asset.DeptCode, ct);
+
+            return ServiceResult<EquipmentAssetDto?>.Ok(
+                await MapAssetAsync(asset, ct));
+        }
+        catch (UnauthorizedAccessException ex) { return ServiceResult<EquipmentAssetDto?>.Fail(ex.Message); }
+    }
     private async Task<ServiceResult> InitApprovalAsync(F03EquipmentRequest entity, CancellationToken ct)
     {
         var user = RequireUser();
