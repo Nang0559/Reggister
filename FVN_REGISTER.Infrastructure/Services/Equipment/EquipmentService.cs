@@ -56,7 +56,36 @@ public sealed class EquipmentService : IEquipmentService
         catch (ArgumentException ex) { return ServiceResult<EquipmentRequestDto>.Fail(ex.Message); }
     }
     public async Task<List<EquipmentRequestDto>> GetMineAsync(CancellationToken ct = default)
-    { var user = RequireModuleUser(); var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.EquipmentView, ct); var query = _uow.Repository<F03EquipmentRequest>().Query().AsNoTracking().Where(x => x.IsActive == true); if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee) query = query.Where(x => x.EmployeeCode == user.EmployeeCode); else if (scope == AuthorizationScopeCodes.Department) query = query.Where(x => x.DeptCode == user.DeptCode); else if (scope != AuthorizationScopeCodes.All) query = query.Where(x => false); var rows = await query.OrderByDescending(x => x.CreatedAt).ToListAsync(ct); return rows.Select(x => MapRequest(x)).ToList(); }
+    {
+        var user = RequireModuleUser();
+        var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.EquipmentView, ct);
+        var query = _uow.Repository<F03EquipmentRequest>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true);
+
+        if (scope != AuthorizationScopeCodes.All)
+        {
+            var managedEmployees = await _authorization.GetManagedEmployeesAsync(user.UserId, ct);
+            var managedEmployeeCodes = managedEmployees
+                .Select(x => x.EmployeeCode)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var managedDeptCodes = managedEmployees
+                .Select(x => x.DeptCode)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
+                query = query.Where(x => x.EmployeeCode == user.EmployeeCode || managedEmployeeCodes.Contains(x.EmployeeCode));
+            else if (scope == AuthorizationScopeCodes.Department)
+                query = query.Where(x => x.DeptCode == user.DeptCode || managedDeptCodes.Contains(x.DeptCode));
+            else
+                query = query.Where(x => false);
+        }
+
+        var rows = await query.OrderByDescending(x => x.CreatedAt).ToListAsync(ct);
+        return rows.Select(x => MapRequest(x)).ToList();
+    }
     public async Task<EquipmentRequestDto> CreateRepairDraftAsync(CreateEquipmentRepairDto request, CancellationToken ct = default)
     { var user = RequireModuleUser(); var asset = await GetActiveAssetForUserAsync(request.AssetId, ct); if (string.IsNullOrWhiteSpace(request.RepairContent)) throw new ArgumentException("Nội dung sửa chữa là bắt buộc."); if (request.ApprovalSelections == null || request.ApprovalSelections.Count == 0) throw new ArgumentException("Vui lòng chọn người phê duyệt cho từng cấp."); var entity = new F03EquipmentRequest { RequestKind = EquipmentRequestKind.Repair, AssetId = asset.Id, EmployeeCode = user.EmployeeCode ?? string.Empty, DeptCode = asset.DeptCode, RequestStatus = ApprovalStatus.Draft, CreatedBy = user.UserId, OperatorUserId = user.UserId, SelectedApproverCode = request.ApprovalSelections.OrderBy(x => x.Level).Select(x => x.ApproverCode).FirstOrDefault() ?? request.SelectedApproverCode?.Trim() ?? string.Empty, QrToken = asset.QrToken, EquipmentName = asset.EquipmentName, AssetCode = asset.AssetCode, PurchasePrice = asset.PurchasePrice, PurchaseDate = asset.PurchaseDate, ExpectedDepreciationDate = asset.ExpectedDepreciationDate, RepairDate = request.RepairDate, RepairContent = request.RepairContent.Trim(), RepairVendor = request.RepairVendor?.Trim(), RepairCost = request.RepairCost, RepairResult = request.RepairResult?.Trim(), Note = request.Note?.Trim() }; await _uow.Repository<F03EquipmentRequest>().AddAsync(entity, ct); await _uow.SaveChangesAsync(ct); return await MapRequestAsync(entity, ct); }
     public async Task<ServiceResult<EquipmentRequestDto>> SubmitRepairAsync(int requestId, CancellationToken ct = default)
