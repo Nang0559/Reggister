@@ -98,7 +98,10 @@ public sealed class SecurityController : BaseApiController
     [HttpGet("users/{userId:int}/managed-scopes")]
     public async Task<IActionResult> GetManagedScopes(int userId, CancellationToken ct)
     {
-        if (!await CanManageAsync(SecurityFunctionCodes.SecurityView, ct))
+        // ManagedScope is an assignment surface. Use the same capability for
+        // reading/editing this configuration so the UI cannot open an editor
+        // that the current user is unable to save.
+        if (!await CanManageAsync(SecurityFunctionCodes.UserManagementAssignPermission, ct))
             return Forbid();
 
         return Ok(ApiResponse<List<ManagedScopeDto>>.Ok(
