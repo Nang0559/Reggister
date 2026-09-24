@@ -467,7 +467,10 @@
                         </HeaderContent>
                         <RowTemplate>
                             <MudTd><b>@context.FullName</b><br /><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd>
-                            <MudTd>@context.DeptCode</MudTd>
+                            <MudTd>
+                                <b>@context.DeptCode</b> — @context.DeptName<br />
+                                <MudText Typo="Typo.caption" Color="Color.Secondary">@context.PositionCode — @context.PositionName</MudText>
+                            </MudTd>
                             <MudTd>
                                 <MudChip T="string" Size="Size.Small" Color="@(context.Required ? Color.Warning : Color.Default)">
                                     @(context.Required ? "BẮT BUỘC" : "Không")
