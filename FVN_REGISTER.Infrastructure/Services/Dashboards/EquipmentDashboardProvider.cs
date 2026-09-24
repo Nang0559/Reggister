@@ -3,6 +3,7 @@ using FVN_REGISTER.Application.Interfaces.Equipment;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Dashboard;
+using FVN_REGISTER.Contract.Dtos.Equipment;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Enums;
 
