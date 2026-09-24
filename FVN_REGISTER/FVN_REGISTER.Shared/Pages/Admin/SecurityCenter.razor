@@ -287,9 +287,12 @@
             </MudPaper>
         </MudTabPanel>
 
-        <MudTabPanel Text="Organization Scope" Icon="@Icons.Material.Filled.AccountTree">
-            <ManagedScopeEditor User="_selected" />
-        </MudTabPanel>
+        @if (CanAssignPermissions)
+        {
+            <MudTabPanel Text="Organization Scope" Icon="@Icons.Material.Filled.AccountTree">
+                <ManagedScopeEditor User="_selected" />
+            </MudTabPanel>
+        }
 
         <MudTabPanel Text="Approval Policy + Effective Preview" Icon="@Icons.Material.Filled.Policy">
             <MudStack Spacing="2">
@@ -334,9 +337,14 @@
     private PermissionSnapshotDto? _myPermissions;
 
     private const int UserManagementResetPasswordFunctionCode = 2405;
+    private const int UserManagementAssignPermissionFunctionCode = 2406;
 
     private bool CanResetPassword
         => _myPermissions?.Has(UserManagementResetPasswordFunctionCode) == true;
+
+    private bool CanAssignPermissions
+        => _myPermissions?.Has(UserManagementAssignPermissionFunctionCode) == true;
+
     private int? _processingResetRequestId;
 
     private IEnumerable<UserAccountDto> FilteredUsers =>
