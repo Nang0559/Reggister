@@ -17,7 +17,19 @@ public sealed class EquipmentAssetDto
     public string QrUrl { get; set; } = string.Empty;
     public bool IsQrActive { get; set; }
     public string? Note { get; set; }
+    public string? ResponsibleDeptCode { get; set; }
+    public string? ResponsibleEmployeeCode { get; set; }
+    public string? ResponsibleEmployeeName { get; set; }
+    public string? ResponsibleApproverEmployeeCode { get; set; }
+    public string? ResponsibleApproverEmployeeName { get; set; }
+    public DateTime? ResponsibleAssignedAt { get; set; }
+    public string? OperatingResponsibleDeptCode { get; set; }
+    public string? OperatingResponsibleDeptName { get; set; }
+    public string? OperatingResponsibleEmployeeCode { get; set; }
+    public string? OperatingResponsibleEmployeeName { get; set; }
+    public DateTime? OperatingResponsibleAssignedAt { get; set; }
     public List<EquipmentRepairHistoryDto> RepairHistory { get; set; } = new();
+    public List<EquipmentHandoverHistoryDto> HandoverHistory { get; set; } = new();
 }
 
 public sealed class EquipmentRepairHistoryDto
@@ -31,4 +43,20 @@ public sealed class EquipmentRepairHistoryDto
     public string? RepairVendor { get; set; }
     public string? RepairResult { get; set; }
     public string? Note { get; set; }
+    public string? ResponsibleDeptCode { get; set; }
+    public string? RepairerEmployeeCode { get; set; }
+    public string? RepairFeedback { get; set; }
+    public DateTime? CompletedAt { get; set; }
+}
+
+public sealed class EquipmentHandoverHistoryDto
+{
+    public int Id { get; set; }
+    public DateTime HandoverAt { get; set; }
+    public string? PreviousResponsibleEmployeeCode { get; set; }
+    public string? NewResponsibleEmployeeCode { get; set; }
+    public string? PreviousApproverEmployeeCode { get; set; }
+    public string? NewApproverEmployeeCode { get; set; }
+    public string Reason { get; set; } = string.Empty;
+    public int HandoverByUserId { get; set; }
 }

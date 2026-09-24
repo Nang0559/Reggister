@@ -12,6 +12,10 @@ public sealed class CreateEquipmentRepairDto
     [Range(0, 999999999999)] public decimal? RepairCost { get; set; }
     [StringLength(1000)] public string? RepairResult { get; set; }
     [StringLength(1000)] public string? Note { get; set; }
+    [StringLength(20)] public string? RepairResponsibleDeptCode { get; set; }
+    [StringLength(50)] public string? RepairAssigneeEmployeeCode { get; set; }
+    /// <summary>Exactly one of RepairResponsibleDeptCode or RepairAssigneeEmployeeCode must be selected.</summary>
+    [Required] public string RepairAssignmentType { get; set; } = string.Empty;
     [StringLength(50)] public string? SelectedApproverCode { get; set; }
     public List<ApprovalSelectionDto> ApprovalSelections { get; set; } = new();
 }

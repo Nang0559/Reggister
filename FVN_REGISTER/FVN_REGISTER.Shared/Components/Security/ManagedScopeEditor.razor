@@ -31,7 +31,7 @@ else
                 <MudTextField Class="mt-2" Label="Ghi chú" @bind-Value="_remark" Variant="Variant.Outlined" />
                 <MudStack Row="true" Class="mt-3" Spacing="1">
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Add">Thêm</MudButton>
-                    <MudButton Variant="Variant.Outlined" OnClick="Save" Disabled="_saving">
+                    <MudButton Variant="Variant.Outlined" OnClick="Save" Disabled="_saving || !_dirty">
                         @(_saving ? "Đang lưu..." : "Lưu ManagedScope")
                     </MudButton>
                 </MudStack>
@@ -60,7 +60,7 @@ else
                             </div>
                             <MudSpacer />
                             <MudChip T="string" Size="Size.Small">@(scope.IncludeChildren ? "Bao phủ node con" : "Chỉ node")</MudChip>
-                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => _scopes.Remove(scope))" />
+                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" OnClick="@(() => Remove(scope))" />
                         </MudStack>
                     </MudPaper>
                 }
@@ -81,6 +81,7 @@ else
     private string _remark = string.Empty;
     private bool _includeChildren = true;
     private bool _saving;
+    private bool _dirty;
     private int? _loadedUserId;
 
     protected override async Task OnParametersSetAsync()
@@ -96,30 +97,75 @@ else
     {
         if (User == null) return;
         var result = await SecurityService.GetManagedScopesAsync(User.IdUser);
-        if (result.IsSuccess) _scopes = result.Data ?? new();
-        else Snackbar.Add(result.Message ?? "Không tải được ManagedScope.", Severity.Error);
+        if (result.IsSuccess)
+        {
+            _scopes = result.Data ?? new();
+            _dirty = false;
+        }
+        else
+        {
+            Snackbar.Add(result.Message ?? "Không tải được ManagedScope.", Severity.Error);
+        }
     }
 
     private void Add()
     {
         if (User == null) return;
+
+        var nodeType = (_nodeType ?? string.Empty).Trim();
+        var nodeCode = NullIfWhite(_nodeCode);
+        var factoryCode = NullIfWhite(_factoryCode);
+        var deptCode = NullIfWhite(_deptCode);
+        var subDepartmentCode = NullIfWhite(_subDepartmentCode);
+
+        var valid = nodeType switch
+        {
+            "Company" => true,
+            "Factory" => !string.IsNullOrWhiteSpace(factoryCode) || !string.IsNullOrWhiteSpace(nodeCode),
+            "Department" => !string.IsNullOrWhiteSpace(deptCode) || !string.IsNullOrWhiteSpace(nodeCode),
+            "SubDepartment" => !string.IsNullOrWhiteSpace(subDepartmentCode) || !string.IsNullOrWhiteSpace(nodeCode),
+            _ => false
+        };
+
+        if (!valid)
+        {
+            Snackbar.Add(
+                nodeType switch
+                {
+                    "Factory" => "Factory cần FactoryCode hoặc NodeCode.",
+                    "Department" => "Department cần DeptCode hoặc NodeCode.",
+                    "SubDepartment" => "SubDepartment cần SubDepartmentCode hoặc NodeCode.",
+                    _ => "NodeType ManagedScope không hợp lệ."
+                },
+                Severity.Warning);
+            return;
+        }
+
         _scopes.Add(new ManagedScopeDto
         {
             EmployeeCode = User.EmployeeCode ?? string.Empty,
-            NodeType = _nodeType,
-            NodeCode = NullIfWhite(_nodeCode),
-            FactoryCode = NullIfWhite(_factoryCode),
-            DeptCode = NullIfWhite(_deptCode),
-            SubDepartmentCode = NullIfWhite(_subDepartmentCode),
+            NodeType = nodeType,
+            NodeCode = nodeCode,
+            FactoryCode = factoryCode,
+            DeptCode = deptCode,
+            SubDepartmentCode = subDepartmentCode,
             IncludeChildren = _includeChildren,
             Remark = NullIfWhite(_remark)
         });
+
+        _dirty = true;
         _nodeCode = _factoryCode = _deptCode = _subDepartmentCode = _remark = string.Empty;
+    }
+
+    private void Remove(ManagedScopeDto scope)
+    {
+        if (_scopes.Remove(scope))
+            _dirty = true;
     }
 
     private async Task Save()
     {
-        if (User == null) return;
+        if (User == null || !_dirty) return;
         _saving = true;
         try
         {

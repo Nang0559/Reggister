@@ -12,6 +12,14 @@ public sealed class ExecutionReconciliationClientService : IExecutionReconciliat
 
     public ExecutionReconciliationClientService(IHttpClientWithAuth http) => _http = http;
 
+    public Task<ApiResponse<ExecutionReconciliationDto>> EnsureAttendanceFeedbackAsync(
+        DateOnly workDate,
+        CancellationToken ct = default) =>
+        _http.PostAsync<ExecutionReconciliationDto>(
+            $"api/execution/me/attendance-feedback?date={workDate:yyyy-MM-dd}",
+            new { },
+            ct);
+
     public Task<ApiResponse<IReadOnlyList<ExecutionReconciliationDto>>> GetMineAsync(
         DateOnly from, DateOnly to, CancellationToken ct = default) =>
         _http.GetAsync<IReadOnlyList<ExecutionReconciliationDto>>(

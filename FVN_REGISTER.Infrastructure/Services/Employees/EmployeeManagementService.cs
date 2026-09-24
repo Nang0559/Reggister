@@ -106,7 +106,6 @@ namespace FVN_REGISTER.Infrastructure.Services.Employees
             {
                 if (await _uow.Repository<F03Employee>().Query().AnyAsync(x => x.EmployeeCode == model.EmployeeCode, ct)) return ServiceResult.Fail($"Mã nhân viên '{model.EmployeeCode}' đã tồn tại.");
                 if (string.IsNullOrWhiteSpace(model.PositionCode)) return ServiceResult.Fail("Chức vụ không được để trống.");
-                if (string.IsNullOrWhiteSpace(model.PositionCode)) return ServiceResult.Fail("Chức vụ không được để trống.");
                 if (!await _uow.Repository<F03Position>().Query().AnyAsync(x => x.PositionCode == model.PositionCode, ct)) return ServiceResult.Fail("Chức vụ không tồn tại.");
                 var entity = new F03Employee
                 {

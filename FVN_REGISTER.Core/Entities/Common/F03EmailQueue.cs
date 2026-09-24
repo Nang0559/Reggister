@@ -1,4 +1,4 @@
-﻿using FVN_REGISTER.Core.Enums;
+using FVN_REGISTER.Core.Enums;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -14,22 +14,30 @@ public partial class F03EmailQueue : BaseAuditEntity
     public string Subject { get; set; } = string.Empty;
 
     [Required]
-    public string Body { get; set; } = string.Empty; // Nội dung HTML sau khi đã replace template
+    public string Body { get; set; } = string.Empty;
 
     [StringLength(50)]
     public string? TemplateCode { get; set; }
 
-    // Dữ liệu dạng JSON dùng để điền vào template nếu cần xử lý bất đồng bộ
+    [StringLength(20)]
+    public string? EmailProfileCode { get; set; }
+
+    public EmailDispatchMode DispatchMode { get; set; } = EmailDispatchMode.AutoSend;
+
     public string? Payload { get; set; }
 
     public EmailStatus Status { get; set; } = EmailStatus.Pending;
 
-    public int RetryCount { get; set; } = 0;
-
+    public int RetryCount { get; set; }
     public int MaxRetry { get; set; } = 3;
 
     [StringLength(1000)]
     public string? ErrorMessage { get; set; }
 
     public DateTime? SentAt { get; set; }
+    public DateTime? LastAttemptAt { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+    public int? ApprovedBy { get; set; }
+    public DateTime? CancelledAt { get; set; }
+    public int? CancelledBy { get; set; }
 }

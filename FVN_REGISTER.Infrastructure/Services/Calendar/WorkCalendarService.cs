@@ -3,6 +3,8 @@ using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Calendar;
 using FVN_REGISTER.Core.Entities.Common;
+using FVN_REGISTER.Core.Entities.Approvers;
+using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Entities.Leaves;
 using FVN_REGISTER.Core.Entities.OT;
 using FVN_REGISTER.Core.Entities.Trips;
@@ -39,12 +41,43 @@ public sealed class WorkCalendarService : IWorkCalendarService
         var end = to.Date < start ? start : to.Date;
 
         var user = _currentUser.GetCurrentUser();
-        if (user == null || !string.Equals(user.EmployeeCode, employeeCode, StringComparison.OrdinalIgnoreCase))
-            throw new UnauthorizedAccessException("Calendar chỉ được truy vấn cho người dùng hiện tại.");
+        if (user == null || string.IsNullOrWhiteSpace(user.EmployeeCode))
+            throw new UnauthorizedAccessException("Calendar chỉ được truy vấn khi phiên đăng nhập có nhân viên.");
 
-        var canLeave = await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveView, ct);
-        var canOt = await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct);
-        var canTrip = await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct);
+        var normalizedEmployeeCode = employeeCode.Trim();
+        if (normalizedEmployeeCode.Length == 0)
+            throw new ArgumentException("Mã nhân viên là bắt buộc.", nameof(employeeCode));
+
+        var sameEmployee = string.Equals(
+            user.EmployeeCode.Trim(),
+            normalizedEmployeeCode,
+            StringComparison.OrdinalIgnoreCase);
+
+        if (!sameEmployee
+            && !await _authorization.CanAccessAsync(
+                user,
+                SecurityFunctionCodes.CalendarView,
+                normalizedEmployeeCode,
+                null,
+                ct))
+        {
+            throw new UnauthorizedAccessException("Bạn không có Calendar.View hoặc ManagedScope tới nhân viên này.");
+        }
+
+        var canViewLeave = await _authorization.HasAsync(user, SecurityFunctionCodes.LeaveView, ct);
+        var canViewOt = await _authorization.HasAsync(user, SecurityFunctionCodes.OTView, ct);
+        var canViewTrip = await _authorization.HasAsync(user, SecurityFunctionCodes.TripView, ct);
+
+        // Reading a managed employee's calendar and being allowed to create a
+        // registration for that employee are different capabilities. Calendar
+        // must expose registration opportunities only when the caller has the
+        // corresponding Create permission for the target employee.
+        var canCreateLeave = await _authorization.CanAccessAsync(
+            user, SecurityFunctionCodes.LeaveCreate, normalizedEmployeeCode, null, ct);
+        var canCreateOt = await _authorization.CanAccessAsync(
+            user, SecurityFunctionCodes.OTCreate, normalizedEmployeeCode, null, ct);
+        var canCreateTrip = await _authorization.CanAccessAsync(
+            user, SecurityFunctionCodes.TripCreate, normalizedEmployeeCode, null, ct);
 
         var workYears = await _uow.Repository<F03WorkYear>().Query()
             .AsNoTracking()
@@ -60,27 +93,37 @@ public sealed class WorkCalendarService : IWorkCalendarService
             .OrderBy(x => x.HolidayDate)
             .ToListAsync(ct);
 
-        var leave = canLeave
+        var leave = canViewLeave
             ? await _uow.Repository<VF03LeaveRequest>().Query().AsNoTracking()
-                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
+                .Where(x => x.EmployeeCode == normalizedEmployeeCode && x.IsActive == true
                     && x.EndDate >= start && x.StartDate <= end
                     && x.RequestStatus != ApprovalStatus.Cancelled
                     && x.RequestStatus != ApprovalStatus.Rejected)
                 .ToListAsync(ct)
             : new List<VF03LeaveRequest>();
 
-        var ot = canOt
+        var leaveIds = leave.Select(x => x.Id).Where(x => x > 0).Distinct().ToList();
+        var leaveDetails = leaveIds.Count == 0
+            ? new List<VF03LeaveRequestDetail>()
+            : await _uow.Repository<VF03LeaveRequestDetail>().Query().AsNoTracking()
+                .Where(x => leaveIds.Contains(x.LeaveId)
+                    && x.LeaveDate >= DateOnly.FromDateTime(start)
+                    && x.LeaveDate <= DateOnly.FromDateTime(end))
+                .OrderBy(x => x.LeaveDate)
+                .ToListAsync(ct);
+
+        var ot = canViewOt
             ? await _uow.Repository<VF03OTRequest>().Query().AsNoTracking()
-                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
+                .Where(x => x.EmployeeCode == normalizedEmployeeCode && x.IsActive == true
                     && x.OTDate >= start && x.OTDate <= end
                     && x.RequestStatus != ApprovalStatus.Cancelled
                     && x.RequestStatus != ApprovalStatus.Rejected)
                 .ToListAsync(ct)
             : new List<VF03OTRequest>();
 
-        var trips = canTrip
+        var trips = canViewTrip
             ? await _uow.Repository<F03TripRequest>().Query().AsNoTracking()
-                .Where(x => x.EmployeeCode == employeeCode && x.IsActive == true
+                .Where(x => x.EmployeeCode == normalizedEmployeeCode && x.IsActive == true
                     && x.EndDate >= start && x.StartDate <= end
                     && x.RequestStatus != ApprovalStatus.Cancelled
                     && x.RequestStatus != ApprovalStatus.Rejected)
@@ -108,24 +151,30 @@ public sealed class WorkCalendarService : IWorkCalendarService
             var holiday = holidayByDate.GetValueOrDefault(date.Date);
             var workYear = workYearByDate.GetValueOrDefault(date.Date);
             var weekend = date.DayOfWeek is DayOfWeek.Saturday or DayOfWeek.Sunday;
-            var working = workYear != null && !weekend && holiday == null;
+            var future = date.Date > DateTime.Today;
+            var past = date.Date < DateTime.Today;
+            var working = workYear != null && holiday == null;
 
             var day = new WorkCalendarDayDto
             {
                 Date = date,
                 WorkYear = workYear?.WorkYear,
                 IsWeekend = weekend,
+                IsFuture = future,
+                IsPast = past,
                 IsWorkingDay = working,
                 HolidayName = holiday?.Description,
                 HolidayCode = holiday == null ? null : $"HOL-{holiday.HolidayDate:yyyyMMdd}",
-                CanRegisterLeave = working,
-                CanRegisterOT = workYear != null && (!weekend || holiday != null),
-                CanRegisterTrip = true,
+                CanRegisterLeave = canCreateLeave && future && workYear != null && holiday == null,
+                CanRegisterOT = canCreateOt && future && workYear != null,
+                CanRegisterTrip = canCreateTrip && future && workYear != null && holiday == null,
                 AvailabilityNote = holiday != null
-                    ? $"Nghỉ công ty: {holiday.Description}"
-                    : workYear == null
-                        ? "Chưa cấu hình năm làm việc."
-                        : weekend ? "Cuối tuần" : null
+                    ? $"Ngày nghỉ công ty: {holiday.Description} — chỉ đăng ký OT."
+                    : !future
+                        ? "Chỉ mở đăng ký từ ngày sau hôm nay."
+                        : workYear == null
+                            ? "Chưa cấu hình năm làm việc."
+                            : null
             };
 
             result.Days.Add(day);
@@ -148,18 +197,36 @@ public sealed class WorkCalendarService : IWorkCalendarService
 
         foreach (var x in leave)
         {
-            result.Events.Add(new WorkCalendarEventDto
+            var requestStart = x.StartDate.Date < start ? start : x.StartDate.Date;
+            var requestEnd = x.EndDate.Date > end ? end : x.EndDate.Date;
+            var details = leaveDetails
+                .Where(d => d.LeaveId == x.Id)
+                .ToDictionary(d => d.LeaveDate, d => d);
+
+            for (var date = requestStart; date <= requestEnd; date = date.AddDays(1))
             {
-                Id = $"LEAVE_{x.Id}",
-                ModuleCode = "LEAVE",
-                EventType = "LEAVE",
-                Title = string.IsNullOrWhiteSpace(x.LeaveTypeName) ? "Nghỉ phép" : x.LeaveTypeName,
-                Start = x.StartDate.Date,
-                End = x.EndDate.Date.AddDays(1),
-                Status = x.RequestStatus.ToString(),
-                IsReadOnly = true,
-                RequestId = x.Id
-            });
+                var detail = details.GetValueOrDefault(DateOnly.FromDateTime(date));
+                var dayValue = detail?.DayValue ?? (x.TotalDay < 1m && requestStart == requestEnd ? x.TotalDay : 1m);
+
+                result.Events.Add(new WorkCalendarEventDto
+                {
+                    Id = $"LEAVE_{x.Id}_{date:yyyyMMdd}",
+                    ModuleCode = "LEAVE",
+                    EventType = "LEAVE",
+                    Title = string.IsNullOrWhiteSpace(detail?.LeaveTypeName ?? x.LeaveTypeName)
+                        ? "Nghỉ phép"
+                        : (detail?.LeaveTypeName ?? x.LeaveTypeName)!,
+                    Start = date,
+                    End = date.AddDays(1),
+                    Status = x.RequestStatus.ToString(),
+                    IsReadOnly = true,
+                    RequestId = x.Id,
+                    SourceId = $"{x.Id}:{date:yyyyMMdd}",
+                    SubTypeCode = detail?.LeaveTypeCode ?? x.LeaveTypeCode,
+                    IsHalfDay = detail?.IsHalfDay ?? dayValue < 1m,
+                    DayValue = dayValue
+                });
+            }
         }
 
         foreach (var x in ot)
@@ -175,32 +242,145 @@ public sealed class WorkCalendarService : IWorkCalendarService
                 Id = $"OT_{x.Id}",
                 ModuleCode = "OT",
                 EventType = "OT",
-                Title = $"OT {(x.TotalOTHours ?? 0):0.#}h",
+                Title = $"OT {x.TotalOTHours:0.#}h",
                 Start = s,
                 End = e,
                 Status = x.RequestStatus.ToString(),
                 IsReadOnly = true,
-                RequestId = x.Id
+                RequestId = x.Id,
+                SourceId = x.OTCode + ":" + normalizedEmployeeCode,
+                DayValue = 1m
             });
         }
 
         foreach (var x in trips)
         {
-            result.Events.Add(new WorkCalendarEventDto
+            var requestStart = x.StartDate.Date < start ? start : x.StartDate.Date;
+            var requestEnd = x.EndDate.Date > end ? end : x.EndDate.Date;
+
+            for (var date = requestStart; date <= requestEnd; date = date.AddDays(1))
             {
-                Id = $"TRIP_{x.Id}",
-                ModuleCode = "TRIP",
-                EventType = "TRIP",
-                Title = string.IsNullOrWhiteSpace(x.Destination) ? "Công tác" : $"Công tác: {x.Destination}",
-                Start = x.StartDate.Date,
-                End = x.EndDate.Date.AddDays(1),
-                Status = x.RequestStatus.ToString(),
-                IsReadOnly = true,
-                RequestId = x.Id
-            });
+                result.Events.Add(new WorkCalendarEventDto
+                {
+                    Id = $"TRIP_{x.Id}_{date:yyyyMMdd}",
+                    ModuleCode = "TRIP",
+                    EventType = "TRIP",
+                    Title = string.IsNullOrWhiteSpace(x.Destination) ? "Công tác" : $"Công tác: {x.Destination}",
+                    Start = date,
+                    End = date.AddDays(1),
+                    Status = x.RequestStatus.ToString(),
+                    IsReadOnly = true,
+                    RequestId = x.Id,
+                    SourceId = x.TripCode,
+                    DayValue = 1m
+                });
+            }
         }
 
+        await ApplyApprovalInfoAsync(result.Events, ct);
+
         return result;
+    }
+
+    private async Task ApplyApprovalInfoAsync(
+        List<WorkCalendarEventDto> events,
+        CancellationToken ct)
+    {
+        var requestGroups = events
+            .Where(x => x.RequestId.HasValue && (x.ModuleCode is "LEAVE" or "OT" or "TRIP"))
+            .Select(x => new
+            {
+                x.RequestId,
+                Module = x.ModuleCode switch
+                {
+                    "LEAVE" => RequestModule.Leave,
+                    "OT" => RequestModule.Overtime,
+                    "TRIP" => RequestModule.Trip,
+                    _ => (RequestModule?)null
+                }
+            })
+            .Where(x => x.Module.HasValue)
+            .GroupBy(x => x.Module!.Value);
+
+        foreach (var group in requestGroups)
+        {
+            var requestIds = group
+                .Where(x => x.RequestId.HasValue)
+                .Select(x => x.RequestId!.Value)
+                .Distinct()
+                .ToList();
+            if (requestIds.Count == 0)
+                continue;
+
+            var snapshots = await _uow.Repository<F03ApprovalSnapshot>()
+                .Query()
+                .AsNoTracking()
+                .Include(x => x.Steps)
+                .Where(x => x.RequestType == group.Key && requestIds.Contains(x.RequestId))
+                .ToListAsync(ct);
+
+            if (snapshots.Count == 0)
+                continue;
+
+            var stepIds = snapshots.SelectMany(x => x.Steps).Select(x => x.Id).Distinct().ToList();
+            var histories = await _uow.Repository<F03ApprovalHistory>()
+                .Query()
+                .AsNoTracking()
+                .Where(x => x.RequestType == group.Key && stepIds.Contains(x.StepId))
+                .ToListAsync(ct);
+
+            var historyByStepId = histories
+                .GroupBy(x => x.StepId)
+                .ToDictionary(x => x.Key, x => x.OrderByDescending(h => h.ActionAt).First());
+
+            foreach (var calendarEvent in events.Where(x =>
+                x.RequestId.HasValue &&
+                ((group.Key == RequestModule.Leave && x.ModuleCode == "LEAVE") ||
+                 (group.Key == RequestModule.Overtime && x.ModuleCode == "OT") ||
+                 (group.Key == RequestModule.Trip && x.ModuleCode == "TRIP"))))
+            {
+                var snapshot = snapshots.FirstOrDefault(x => x.RequestId == calendarEvent.RequestId!.Value);
+                if (snapshot is null)
+                    continue;
+
+                var steps = snapshot.Steps
+                    .OrderBy(x => x.Level)
+                    .Select(step => new
+                    {
+                        step.Level,
+                        step.RoleName,
+                        step.ApproverName,
+                        step.IsRequired,
+                        Decision = historyByStepId.TryGetValue(step.Id, out var history)
+                            ? history.Decision
+                            : DecisionType.Pending
+                    })
+                    .ToList();
+
+                var status = Enum.TryParse<ApprovalStatus>(calendarEvent.Status, true, out var parsedStatus)
+                    ? parsedStatus
+                    : ApprovalStatus.Draft;
+
+                var current = status is ApprovalStatus.Pending
+                    or ApprovalStatus.InProgress
+                    or ApprovalStatus.Escalated
+                    or ApprovalStatus.NeedsRevision
+                    ? steps
+                        .Where(x => x.IsRequired && x.Decision == DecisionType.Pending)
+                        .OrderBy(x => x.Level)
+                        .FirstOrDefault()
+                    : null;
+
+                calendarEvent.ApprovalStatus = calendarEvent.Status;
+                calendarEvent.IsApproved = string.Equals(
+                    calendarEvent.Status,
+                    ApprovalStatus.Approved.ToString(),
+                    StringComparison.OrdinalIgnoreCase);
+                calendarEvent.ApprovalLevel = calendarEvent.IsApproved ? null : current?.Level;
+                calendarEvent.ApprovalLevelName = calendarEvent.IsApproved ? null : current?.RoleName;
+                calendarEvent.CurrentApproverName = calendarEvent.IsApproved ? null : current?.ApproverName;
+            }
+        }
     }
 
     public async Task<IReadOnlyList<CalendarRegistrationOpportunityDto>> GetRegistrationOpportunitiesAsync(
@@ -215,15 +395,14 @@ public sealed class WorkCalendarService : IWorkCalendarService
         foreach (var day in calendar.Days)
         {
             var date = day.Date.Date;
-            var hasLeave = calendar.Events.Any(x => x.ModuleCode == "LEAVE" && x.Start.Date <= date && x.End.Date > date);
-            var hasOt = calendar.Events.Any(x => x.ModuleCode == "OT" && x.Start.Date <= date && x.End.Date > date);
-            var hasTrip = calendar.Events.Any(x => x.ModuleCode == "TRIP" && x.Start.Date <= date && x.End.Date > date);
-
-            // Existing actionable data takes precedence over creating a new registration.
-            if (hasLeave || hasOt || hasTrip)
+            if (!day.IsFuture)
                 continue;
 
-            if (day.CanRegisterLeave)
+            var hasLeave = calendar.Events.Any(x => x.ModuleCode == "LEAVE" && CalendarEventDateMatcher.CoversDate(x, date));
+            var hasOt = calendar.Events.Any(x => x.ModuleCode == "OT" && CalendarEventDateMatcher.CoversDate(x, date));
+            var hasTrip = calendar.Events.Any(x => x.ModuleCode == "TRIP" && CalendarEventDateMatcher.CoversDate(x, date));
+
+            if (day.CanRegisterLeave && !hasLeave)
             {
                 result.Add(new CalendarRegistrationOpportunityDto
                 {
@@ -235,7 +414,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
                 });
             }
 
-            if (day.CanRegisterOT)
+            if (day.CanRegisterOT && !hasOt)
             {
                 result.Add(new CalendarRegistrationOpportunityDto
                 {
@@ -247,7 +426,7 @@ public sealed class WorkCalendarService : IWorkCalendarService
                 });
             }
 
-            if (day.CanRegisterTrip)
+            if (day.CanRegisterTrip && !hasTrip)
             {
                 result.Add(new CalendarRegistrationOpportunityDto
                 {
@@ -273,15 +452,15 @@ public sealed class WorkCalendarService : IWorkCalendarService
         var item = calendar.Days.First();
 
         var warnings = new List<string>();
-        if (item.IsWeekend) warnings.Add("Ngày cuối tuần.");
+        if (!item.IsFuture) warnings.Add("Chỉ mở đăng ký từ ngày sau hôm nay.");
         if (!string.IsNullOrWhiteSpace(item.HolidayName))
-            warnings.Add($"Ngày nghỉ công ty: {item.HolidayName}");
+            warnings.Add($"Ngày nghỉ công ty: {item.HolidayName} — chỉ OT.");
 
-        if (calendar.Events.Any(x => x.ModuleCode == "LEAVE" && x.Start.Date <= day && x.End.Date > day))
+        if (calendar.Events.Any(x => x.ModuleCode == "LEAVE" && CalendarEventDateMatcher.CoversDate(x, day)))
             warnings.Add("Đã có đăng ký nghỉ trong ngày.");
-        if (calendar.Events.Any(x => x.ModuleCode == "OT" && x.Start.Date <= day && x.End.Date > day))
+        if (calendar.Events.Any(x => x.ModuleCode == "OT" && CalendarEventDateMatcher.CoversDate(x, day)))
             warnings.Add("Đã có đăng ký OT trong ngày.");
-        if (calendar.Events.Any(x => x.ModuleCode == "TRIP" && x.Start.Date <= day && x.End.Date > day))
+        if (calendar.Events.Any(x => x.ModuleCode == "TRIP" && CalendarEventDateMatcher.CoversDate(x, day)))
             warnings.Add("Đã có đăng ký công tác trong ngày.");
 
         return new CalendarAvailabilityDto

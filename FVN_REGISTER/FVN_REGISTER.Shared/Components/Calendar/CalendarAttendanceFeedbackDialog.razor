@@ -1,0 +1,273 @@
+@using FVN_REGISTER.Contract.Dtos.Calendar
+@using FVN_REGISTER.Contract.Dtos.Execution
+@using FVN_REGISTER.Shared.Services.Execution
+@using Microsoft.AspNetCore.Components.Forms
+@using MudBlazor
+@inject IExecutionReconciliationClientService ExecutionService
+@inject ISnackbar Snackbar
+
+<MudDialog>
+    <DialogContent>
+        @if (_loading)
+        {
+            <MudProgressLinear Indeterminate="true" Class="mb-3" />
+        }
+
+        <MudStack Spacing="2">
+            <MudAlert Severity="Severity.Warning" Dense="true">
+                <b>@Day.Date.ToString("dd/MM/yyyy")</b> — @Issue.Title
+                <div class="mt-1">@Issue.Summary</div>
+            </MudAlert>
+
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudText Typo="Typo.subtitle1">Dữ liệu chấm công hệ thống</MudText>
+                <MudGrid Class="mt-1">
+                    <MudItem xs="6" md="3">
+                        <MudText Typo="Typo.caption">Ca</MudText>
+                        <MudText Typo="Typo.body2"><b>@(Day.Shift?.ShiftAbbr ?? "-")</b></MudText>
+                    </MudItem>
+                    <MudItem xs="6" md="3">
+                        <MudText Typo="Typo.caption">IN</MudText>
+                        <MudText Typo="Typo.body2"><b>@(Day.Attendance?.CheckIn?.ToString("HH:mm") ?? "-")</b></MudText>
+                    </MudItem>
+                    <MudItem xs="6" md="3">
+                        <MudText Typo="Typo.caption">OUT</MudText>
+                        <MudText Typo="Typo.body2"><b>@(Day.Attendance?.CheckOut?.ToString("HH:mm") ?? "-")</b></MudText>
+                    </MudItem>
+                    <MudItem xs="6" md="3">
+                        <MudText Typo="Typo.caption">Giờ công</MudText>
+                        <MudText Typo="Typo.body2">
+                            <b>@(Day.Attendance?.ActualHours?.ToString("0.##") ?? "-") / @(Day.Attendance?.RequiredHours?.ToString("0.##") ?? "-") giờ</b>
+                        </MudText>
+                    </MudItem>
+                    <MudItem xs="6" md="3">
+                        <MudText Typo="Typo.caption">OT thực tế</MudText>
+                        <MudText Typo="Typo.body2"><b>@FormatMinutes(Day.Attendance?.ActualOtMinutes)</b></MudText>
+                    </MudItem>
+                    <MudItem xs="6" md="3">
+                        <MudText Typo="Typo.caption">OT được ghi nhận</MudText>
+                        <MudText Typo="Typo.body2"><b>@FormatMinutes(Day.Attendance?.RecognizedOtMinutes)</b></MudText>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudText Typo="Typo.caption">Hồ sơ đối soát</MudText>
+                        <MudText Typo="Typo.body2"><b>#@ReconciliationId</b></MudText>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+
+            @if (_detail?.Confirmation is not null)
+            {
+                <MudAlert Severity="Severity.Info">
+                    Phản hồi cho ngày này đã được gửi trước đó và đang chờ Nhân sự xử lý.
+                    @if (!string.IsNullOrWhiteSpace(_detail.Confirmation.Comment))
+                    {
+                        <div class="mt-1"><b>Ý kiến đã gửi:</b> @_detail.Confirmation.Comment</div>
+                    }
+                </MudAlert>
+            }
+            else
+            {
+                <MudText Typo="Typo.subtitle1">Phản hồi Nhân sự</MudText>
+
+                <MudSelect T="string"
+                           @bind-Value="_decision"
+                           Label="Kết luận phản hồi"
+                           Variant="Variant.Outlined"
+                           Required="true">
+                    <MudSelectItem Value="@("CONFIRMED")">
+                        Xác nhận dữ liệu chấm công / OT thực tế là đúng
+                    </MudSelectItem>
+                    <MudSelectItem Value="@("REJECTED")">
+                        Dữ liệu chấm công / OT thực tế không đúng
+                    </MudSelectItem>
+                </MudSelect>
+
+                <MudTextField @bind-Value="_comment"
+                              Label="Ý kiến / giải trình"
+                              Variant="Variant.Outlined"
+                              Lines="4"
+                              Required="true"
+                              MaxLength="2000"
+                              HelperText="Nêu rõ nội dung cần Nhân sự kiểm tra hoặc điều chỉnh." />
+
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudText Typo="Typo.subtitle2">Bằng chứng đính kèm</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @(Action.RequiresAttachment
+                            ? "Vui lòng đính kèm file bằng chứng (ảnh, PDF hoặc tài liệu liên quan)."
+                            : "Có thể đính kèm file bằng chứng nếu cần.")
+                    </MudText>
+
+                    <InputFile OnChange="OnFileSelected" class="mt-2" />
+
+                    @if (_file is not null)
+                    {
+                        <MudText Typo="Typo.body2" Class="mt-2">
+                            <b>@_file.Name</b> — @FormatFileSize(_file.Size)
+                        </MudText>
+                    }
+                </MudPaper>
+
+                @if (!string.IsNullOrWhiteSpace(_error))
+                {
+                    <MudAlert Severity="Severity.Error">@_error</MudAlert>
+                }
+
+                <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1">
+                    <MudButton OnClick="Close">Hủy</MudButton>
+                    <MudButton Color="Color.Primary"
+                               Variant="Variant.Filled"
+                               Disabled="@(_saving || _loading || string.IsNullOrWhiteSpace(_comment) || (Action.RequiresAttachment && _file is null))"
+                               OnClick="SubmitAsync">
+                        @(_saving ? "Đang gửi..." : "Gửi phản hồi Nhân sự")
+                    </MudButton>
+                </MudStack>
+            }
+        </MudStack>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Close">Đóng</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance DialogInstance { get; set; } = default!;
+
+    [Parameter] public CalendarDayDto Day { get; set; } = new();
+    [Parameter] public CalendarIssueDto Issue { get; set; } = new();
+    [Parameter] public CalendarActionOptionDto Action { get; set; } = new();
+    [Parameter] public long ReconciliationId { get; set; }
+
+    private bool _loading;
+    private bool _saving;
+    private string _decision = "CONFIRMED";
+    private string? _comment;
+    private IBrowserFile? _file;
+    private string? _error;
+    private ExecutionReconciliationDetailDto? _detail;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+        try
+        {
+            var result = await ExecutionService.GetDetailAsync(ReconciliationId);
+            if (result.IsSuccess)
+                _detail = result.Data;
+            else
+                _error = result.Message ?? "Không tải được hồ sơ đối soát.";
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private void OnFileSelected(InputFileChangeEventArgs args)
+    {
+        _file = args.File;
+        _error = null;
+    }
+
+    private async Task SubmitAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_comment))
+        {
+            _error = "Vui lòng nhập ý kiến / giải trình.";
+            return;
+        }
+
+        if (Action.RequiresAttachment && _file is null)
+        {
+            _error = "Vui lòng đính kèm file bằng chứng.";
+            return;
+        }
+
+        _saving = true;
+        _error = null;
+
+        try
+        {
+            var confirmation = await ExecutionService.SubmitConfirmationAsync(
+                ReconciliationId,
+                new ExecutionConfirmationRequest(
+                    _decision,
+                    _comment.Trim(),
+                    Action.RequiresAttachment || _file is not null));
+
+            if (!confirmation.IsSuccess || confirmation.Data is null)
+            {
+                _error = confirmation.Message ?? "Không gửi được phản hồi Nhân sự.";
+                return;
+            }
+
+            if (_file is not null)
+            {
+                var upload = await ExecutionService.UploadEvidenceFileAsync(
+                    confirmation.Data.Id,
+                    _file);
+
+                if (!upload.IsSuccess || upload.Data <= 0)
+                {
+                    _error = upload.Message
+                        ?? "Phản hồi đã gửi nhưng không upload được file bằng chứng. Bạn có thể bổ sung evidence sau.";
+                    return;
+                }
+
+                var evidence = await ExecutionService.AddEvidenceAsync(
+                    confirmation.Data.Id,
+                    new ExecutionEvidenceRequest(
+                        "ATTENDANCE_FEEDBACK",
+                        upload.Data,
+                        null,
+                        null,
+                        $"Bằng chứng phản hồi ngày {Day.Date:dd/MM/yyyy}."));
+
+                if (!evidence.IsSuccess)
+                {
+                    _error = evidence.Message
+                        ?? "Phản hồi đã gửi nhưng chưa lưu được thông tin file bằng chứng.";
+                    return;
+                }
+            }
+
+            Snackbar.Add(
+                "Đã gửi phản hồi ngày công cho Nhân sự.",
+                Severity.Success);
+
+            DialogInstance.Close();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+        finally
+        {
+            _saving = false;
+        }
+    }
+
+    private void Close() => DialogInstance.Cancel();
+
+    private static string FormatMinutes(int? minutes)
+    {
+        if (!minutes.HasValue)
+            return "-";
+
+        var hours = minutes.Value / 60;
+        var remainder = minutes.Value % 60;
+        return hours > 0 ? $"{hours} giờ {remainder} phút" : $"{remainder} phút";
+    }
+
+    private static string FormatFileSize(long bytes)
+    {
+        if (bytes < 1024) return $"{bytes} B";
+        if (bytes < 1024 * 1024) return $"{bytes / 1024d:0.##} KB";
+        return $"{bytes / (1024d * 1024d):0.##} MB";
+    }
+}

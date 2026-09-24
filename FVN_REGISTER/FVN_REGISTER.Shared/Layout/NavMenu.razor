@@ -23,6 +23,16 @@
         }
     </MudNavGroup>
 
+    @if (CanAny(SecurityFunctionCodes.SecurityAccessChangeView, SecurityFunctionCodes.SecurityAccessChangeCreate, SecurityFunctionCodes.SecurityAccessChangeApprove, SecurityFunctionCodes.SecurityAccessChangeExecute))
+    {
+        <MudNavGroup Title="Thay đổi quyền" Icon="@Icons.Material.Filled.ManageAccounts" Expanded="false">
+            @if (CanAny(SecurityFunctionCodes.SecurityAccessChangeView, SecurityFunctionCodes.SecurityAccessChangeCreate))
+            {
+                <MudNavLink href="/security/access-change" Icon="@Icons.Material.Filled.SwapHoriz">Phiếu thay đổi quyền / bàn giao</MudNavLink>
+            }
+        </MudNavGroup>
+    }
+
     @if (CanAny(SecurityFunctionCodes.LeaveApprove, SecurityFunctionCodes.OTApprove, SecurityFunctionCodes.TripApprove, SecurityFunctionCodes.EquipmentApprove))
     {
         <MudNavGroup Title="Phê duyệt" Icon="@Icons.Material.Filled.CheckCircle" Expanded="false">
@@ -54,6 +64,21 @@
             <MudNavLink href="/trip" Icon="@Icons.Material.Filled.Dashboard">Tổng quan</MudNavLink>
             <MudNavLink href="/trip/create" Icon="@Icons.Material.Filled.Add">Đăng ký công tác</MudNavLink>
             <MudNavLink href="/trip/history" Icon="@Icons.Material.Filled.History">Lịch sử công tác</MudNavLink>
+        </MudNavGroup>
+    }
+
+    @if (Can(SecurityFunctionCodes.EquipmentView))
+    {
+        <MudNavGroup Title="Thiết bị" Icon="@Icons.Material.Filled.Devices" Expanded="false">
+            <MudNavLink href="/equipment" Icon="@Icons.Material.Filled.Dashboard">
+                Sổ quản lý thiết bị
+            </MudNavLink>
+            @if (Can(SecurityFunctionCodes.EquipmentImport))
+            {
+                <MudNavLink href="/equipment/workspace" Icon="@Icons.Material.Filled.UploadFile">
+                    Import Excel thiết bị
+                </MudNavLink>
+            }
         </MudNavGroup>
     }
 

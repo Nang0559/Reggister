@@ -1,107 +1,297 @@
-
 window.workCalendar = (function () {
     let _calendar = null;
     let _dotNetRef = null;
-    let _registrationDates = new Set();
+    let _days = new Map();
 
-    function init(element, dotNetRef, events, initialDate, registrationDates) {
+    function dayKey(date) {
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        return year + '-' + month + '-' + day;
+    }
+
+    function clearCustomContent(cell) {
+        cell.querySelectorAll('.fcc-calendar-day-content, .fcc-calendar-issue-marker').forEach(x => x.remove());
+    }
+
+    function appendLine(container, text, className) {
+        if (!text) return;
+
+        const line = document.createElement('div');
+        line.className = className || 'fcc-calendar-day-line';
+        line.textContent = text;
+        container.appendChild(line);
+    }
+
+    function renderCell(arg) {
+        const key = dayKey(arg.date);
+        const day = _days.get(key);
+
+        clearCustomContent(arg.el);
+
+        if (!day) return;
+
+        const top = arg.el.querySelector('.fc-daygrid-day-top');
+        const frame = arg.el.querySelector('.fc-daygrid-day-frame');
+
+        if (!frame) return;
+
+        const critical = (day.issues || []).some(x => Number(x.severity || 0) >= 3);
+        const warning = (day.issues || []).some(x => Number(x.severity || 0) === 2);
+
+        if ((day.issues || []).length > 0 && top) {
+            const marker = document.createElement('button');
+            marker.type = 'button';
+            marker.className =
+                'fcc-calendar-issue-marker ' +
+                (critical ? 'critical' : warning ? 'warning' : 'info');
+
+            marker.textContent = '?';
+            marker.title = 'Có vấn đề cần xử lý';
+
+            marker.addEventListener('click', function (event) {
+                event.preventDefault();
+                event.stopPropagation();
+
+                const first = day.issues[0];
+
+                if (_dotNetRef) {
+                    _dotNetRef.invokeMethodAsync(
+                        'OnCalendarIssueClick',
+                        key,
+                        first.code);
+                }
+            });
+
+            top.appendChild(marker);
+        }
+
+        const body = document.createElement('div');
+        body.className = 'fcc-calendar-day-content';
+
+        if (day.holiday) {
+            appendLine(
+                body,
+                'Nghỉ: ' + day.holiday,
+                'fcc-calendar-day-line holiday');
+        }
+
+        if (day.shift) {
+            appendLine(
+                body,
+                'Ca ' + day.shift,
+                'fcc-calendar-day-line shift');
+        }
+
+        if (day.attendance) {
+            const inText = day.attendance.checkIn || '--:--';
+            const outText = day.attendance.checkOut || '--:--';
+
+            appendLine(
+                body,
+                inText + ' → ' + outText,
+                'fcc-calendar-day-line attendance');
+
+            if (day.attendance.actualHours != null
+                && day.attendance.requiredHours != null) {
+                appendLine(
+                    body,
+                    Number(day.attendance.actualHours).toFixed(2).replace(/\.00$/, '') +
+                        'h / ' +
+                        Number(day.attendance.requiredHours).toFixed(2).replace(/\.00$/, '') +
+                        'h',
+                    'fcc-calendar-day-line hours');
+            } else if (day.attendance.display) {
+                appendLine(
+                    body,
+                    String(day.attendance.display),
+                    'fcc-calendar-day-line hours');
+            }
+        }
+
+        (day.registrations || []).forEach(function (registration) {
+            const prefix = registration.isHalfDay ? '½ ' : '';
+
+            appendLine(
+                body,
+                prefix + registration.moduleCode + ' · ' + registration.title,
+                'fcc-calendar-day-line registration ' +
+                    String(registration.moduleCode).toLowerCase());
+
+            const status = String(registration.approvalStatus || '').toLowerCase();
+            let statusText = registration.approvalStatus || '';
+
+            if (registration.isApproved || status === 'approved') {
+                statusText = '✓ Đã duyệt';
+            } else if (status === 'pending') {
+                statusText = '⏳ Chờ duyệt';
+            } else if (status === 'inprogress') {
+                statusText = '⏳ Đang duyệt';
+            } else if (status === 'rejected') {
+                statusText = '✕ Từ chối';
+            } else if (status === 'cancelled') {
+                statusText = 'Đã hủy';
+            } else if (status === 'needsrevision') {
+                statusText = '↻ Cần chỉnh sửa';
+            }
+
+            const approvalParts = [statusText];
+
+            if (registration.approvalLevel != null && !registration.isApproved) {
+                approvalParts.push(
+                    'Cấp ' + registration.approvalLevel +
+                    (registration.approvalLevelName
+                        ? ' · ' + registration.approvalLevelName
+                        : ''));
+            }
+
+            if (registration.currentApproverName && !registration.isApproved) {
+                approvalParts.push(registration.currentApproverName);
+            }
+
+            if (approvalParts.some(Boolean)) {
+                appendLine(
+                    body,
+                    approvalParts.filter(Boolean).join(' · '),
+                    'fcc-calendar-day-line registration-status ' +
+                        String(registration.moduleCode).toLowerCase());
+            }
+        });
+
+        if (day.canRegister) {
+            appendLine(
+                body,
+                '+ Đăng ký',
+                'fcc-calendar-day-line registration-open');
+        }
+
+        frame.appendChild(body);
+    }
+
+    function renderAllCells() {
+        if (!_calendar) return;
+
+        _calendar.el
+            .querySelectorAll('.fc-daygrid-day')
+            .forEach(function (cell) {
+                const date = cell.getAttribute('data-date');
+
+                if (!date) return;
+
+                renderCell({
+                    date: new Date(date + 'T00:00:00'),
+                    el: cell
+                });
+            });
+    }
+
+    function setDays(days) {
+        _days = new Map();
+
+        (days || []).forEach(function (day) {
+            _days.set(day.date, day);
+        });
+    }
+
+    function init(element, dotNetRef, days, initialDate) {
         _dotNetRef = dotNetRef;
-        _registrationDates = new Set(registrationDates || []);
-        if (_calendar) _calendar.destroy();
+        setDays(days);
+
+        if (_calendar) {
+            _calendar.destroy();
+        }
 
         _calendar = new FullCalendar.Calendar(element, {
             initialView: 'dayGridMonth',
             initialDate: initialDate,
             locale: 'vi',
+
             headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
                 right: 'dayGridMonth,listMonth'
             },
-            buttonText: { today: 'Hôm nay', month: 'Tháng', list: 'Danh sách' },
-            height: 'auto',
-            selectable: false,
-            events: events || [],
 
-            dateClick: function (info) {
-                if (_dotNetRef)
-                    _dotNetRef.invokeMethodAsync('OnCalendarDateClick', info.dateStr);
+            buttonText: {
+                today: 'Hôm nay',
+                month: 'Tháng',
+                list: 'Danh sách'
             },
 
-            eventClick: function (info) {
-                if (_dotNetRef)
-                    _dotNetRef.invokeMethodAsync('OnCalendarEventClick', String(info.event.id));
+            height: 'auto',
+            selectable: false,
+            events: [],
+
+            dateClick: function (info) {
+                if (_dotNetRef) {
+                    _dotNetRef.invokeMethodAsync(
+                        'OnCalendarDateClick',
+                        info.dateStr);
+                }
+            },
+
+            datesSet: function (info) {
+                if (_dotNetRef) {
+                    _dotNetRef.invokeMethodAsync(
+                        'OnCalendarRangeChanged',
+                        info.startStr,
+                        info.endStr);
+                }
             },
 
             dayCellClassNames: function (arg) {
-                const d = arg.date.getDay();
-                const classes = (d === 0 || d === 6) ? ['fc-weekend'] : [];
-                const key = arg.date.toISOString().slice(0, 10);
-                if (_registrationDates.has(key))
-                    classes.push('fc-registration-open');
+                const key = dayKey(arg.date);
+                const day = _days.get(key);
+                const classes = [];
+                const weekDay = arg.date.getDay();
+
+                if (weekDay === 0 || weekDay === 6) {
+                    classes.push('fc-weekend');
+                }
+
+                if (day?.holiday) {
+                    classes.push('fcc-company-holiday');
+                }
+
+                if (day?.canRegister) {
+                    classes.push('fcc-registration-open');
+                }
+
+                if ((day?.issues || []).some(x => Number(x.severity || 0) >= 3)) {
+                    classes.push('fcc-day-critical');
+                } else if ((day?.issues || []).some(x => Number(x.severity || 0) === 2)) {
+                    classes.push('fcc-day-warning');
+                }
+
                 return classes;
             },
-            
-            dayCellDidMount: function (arg) {
-                const key = arg.date.toISOString().slice(0, 10);
-                if (!_registrationDates.has(key)) return;
 
-                arg.el.title = 'Có thể đăng ký từ lịch';
-                const marker = document.createElement('span');
-                marker.textContent = '+ Đăng ký';
-                marker.style.display = 'block';
-                marker.style.marginTop = '2px';
-                marker.style.fontSize = '10px';
-                marker.style.fontWeight = '700';
-                marker.style.cursor = 'pointer';
-                marker.style.opacity = '0.75';
-                arg.el.querySelector('.fc-daygrid-day-top')?.appendChild(marker);
-            },
-
-            eventContent: function (arg) {
-                const module = arg.event.extendedProps?.moduleCode || '';
-                const status = arg.event.extendedProps?.status || '';
-                const severity = Number(arg.event.extendedProps?.severity || 0);
-                const requiresAction = !!arg.event.extendedProps?.requiresAction;
-                const title = arg.event.title || '';
-                const wrapper = document.createElement('div');
-                wrapper.className = 'fc-event-custom';
-                wrapper.title = module + ' · ' + status;
-                if (severity >= 2) {
-                    wrapper.style.fontWeight = '700';
-                    wrapper.style.borderLeft = severity >= 3 ? '4px solid var(--mud-palette-error)' : '4px solid var(--mud-palette-warning)';
-                    wrapper.style.paddingLeft = '4px';
-                    wrapper.style.color = severity >= 3 ? 'var(--mud-palette-error)' : 'var(--mud-palette-warning)';
-                }
-                if (requiresAction)
-                    wrapper.style.cursor = 'pointer';
-
-                const label = document.createElement('span');
-                label.className = 'fc-event-label';
-                label.textContent = title;
-                wrapper.appendChild(label);
-                return { domNodes: [wrapper] };
-            }
+            dayCellDidMount: renderCell
         });
 
         _calendar.render();
     }
 
-    function updateEvents(newEvents, registrationDates) {
+    function updateDays(days) {
         if (!_calendar) return;
-        _registrationDates = new Set(registrationDates || []);
-        _calendar.removeAllEvents();
-        (newEvents || []).forEach(e => _calendar.addEvent(e));
+
+        setDays(days);
+        requestAnimationFrame(renderAllCells);
     }
 
-    function destroy(element) {
+    function destroy() {
         if (_calendar) {
             _calendar.destroy();
             _calendar = null;
         }
+
         _dotNetRef = null;
-        _registrationDates = new Set();
+        _days = new Map();
     }
 
-    return { init, updateEvents, destroy };
+    return {
+        init: init,
+        updateDays: updateDays,
+        destroy: destroy
+    };
 })();

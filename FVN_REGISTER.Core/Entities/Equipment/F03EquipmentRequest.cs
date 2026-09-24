@@ -10,6 +10,7 @@ public sealed class F03EquipmentRequest : BaseRequestEntity
     [Required, StringLength(50)] public string SelectedApproverCode { get; set; } = string.Empty;
     [Required, StringLength(128)] public string QrToken { get; set; } = string.Empty;
     public int OperatorUserId { get; set; }
+    [StringLength(50)] public string? ResponsibleEmployeeCode { get; set; }
     [Required, StringLength(250)] public string EquipmentName { get; set; } = string.Empty;
     [StringLength(1000)] public string? Specification { get; set; }
     [StringLength(100)] public string? SerialNumber { get; set; }
@@ -24,5 +25,13 @@ public sealed class F03EquipmentRequest : BaseRequestEntity
     [StringLength(250)] public string? RepairVendor { get; set; }
     [Column(TypeName = "decimal(18,2)")] public decimal? RepairCost { get; set; }
     [StringLength(1000)] public string? RepairResult { get; set; }
+
+    [StringLength(20)] public string? RepairResponsibleDeptCode { get; set; }
+    [StringLength(50)] public string? RepairAssigneeEmployeeCode { get; set; }
+    public int? RepairAssigneeUserId { get; set; }
+    [StringLength(1000)] public string? RepairFeedback { get; set; }
+    public DateTime? RepairCompletedAt { get; set; }
+
+
     public F03EquipmentAsset? Asset { get; set; }
 }

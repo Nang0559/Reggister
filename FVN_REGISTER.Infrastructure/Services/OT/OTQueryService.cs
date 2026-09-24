@@ -138,12 +138,25 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 return new PaginationResult<OTSummaryDto>(new List<OTSummaryDto>(), 0, page, pageSize);
 
             var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.OTView, ct);
-            if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
-                query = query.Where(x => x.EmployeeCode == user.EmployeeCode);
-            else if (scope == AuthorizationScopeCodes.Department)
-                query = query.Where(x => x.DeptCode == user.DeptCode);
-            else if (scope != AuthorizationScopeCodes.All)
-                query = query.Where(x => false);
+            if (scope != AuthorizationScopeCodes.All)
+            {
+                var managedEmployees = await _authorization.GetManagedEmployeesAsync(user.UserId, ct);
+                var managedEmployeeCodes = managedEmployees
+                    .Select(x => x.EmployeeCode)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+                var managedDeptCodes = managedEmployees
+                    .Select(x => x.DeptCode)
+                    .Where(x => !string.IsNullOrWhiteSpace(x))
+                    .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+                if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
+                    query = query.Where(x => x.EmployeeCode == user.EmployeeCode || managedEmployeeCodes.Contains(x.EmployeeCode));
+                else if (scope == AuthorizationScopeCodes.Department)
+                    query = query.Where(x => x.DeptCode == user.DeptCode || managedDeptCodes.Contains(x.DeptCode));
+                else
+                    query = query.Where(x => false);
+            }
 
             if (!string.IsNullOrWhiteSpace(deptCode) && scope == AuthorizationScopeCodes.All)
                 query = query.Where(x => x.DeptCode == deptCode);
@@ -174,17 +187,27 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                 return new List<OTRequestDto>();
 
             var scope = await _authorization.GetScopeAsync(user.UserId, SecurityFunctionCodes.OTView, ct);
+            var managedEmployees = await _authorization.GetManagedEmployeesAsync(user.UserId, ct);
+            var managedEmployeeCodes = managedEmployees
+                .Select(x => x.EmployeeCode)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            var canSeeRequestedDepartment = scope == AuthorizationScopeCodes.All
+                || string.Equals(user.DeptCode, deptCode, StringComparison.OrdinalIgnoreCase)
+                || managedEmployees.Any(x => string.Equals(x.DeptCode, deptCode, StringComparison.OrdinalIgnoreCase));
+
+            if (!canSeeRequestedDepartment)
+                return new List<OTRequestDto>();
+
             var data = await Uow.Repository<VF03OTRequest>().Query()
                 .AsNoTracking()
                 .Where(x => x.IsActive == true
-                    && (scope == AuthorizationScopeCodes.All
-                        ? x.DeptCode == deptCode
-                        : scope == AuthorizationScopeCodes.Department
-                            ? x.DeptCode == user.DeptCode
-                            : (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
-                                ? x.EmployeeCode == user.EmployeeCode
-                                : false)
                     && x.DeptCode == deptCode
+                    && (scope == AuthorizationScopeCodes.All
+                        || scope == AuthorizationScopeCodes.Department
+                        || managedEmployeeCodes.Contains(x.EmployeeCode)
+                        || x.EmployeeCode == user.EmployeeCode)
                     && x.OTDate.Date == date.Date
                     && x.RequestStatus != ApprovalStatus.Cancelled
                     && x.RequestStatus != ApprovalStatus.Rejected)

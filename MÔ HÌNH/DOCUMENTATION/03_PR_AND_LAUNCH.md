@@ -1,134 +1,273 @@
-# FVN REGISTER — PR, GIỚI THIỆU VÀ KẾ HOẠCH TRUYỀN THÔNG
+# FVN REGISTER — PR, GIỚI THIỆU VÀ BUSINESS CASE
 
 ## 1. Product statement
 
-> **FVN REGISTER — Smart Employee Request & e-Approval Platform**
+> **FVN REGISTER — Smart Employee Request, e-Approval & Operational Control Platform**
 
-Một nền tảng tập trung cho đăng ký nghiệp vụ nhân sự, phê duyệt điện tử, theo dõi thực tế, đối soát và quản trị dữ liệu.
+FVN REGISTER là nền tảng tập trung cho đăng ký nghiệp vụ, phê duyệt điện tử, theo dõi thực tế, đối soát, quản lý thiết bị, checklist, báo cáo và kiểm soát công việc.
 
-## 2. PR message
+Điểm khác biệt không nằm ở việc “đưa biểu mẫu giấy lên web”, mà ở việc nối toàn bộ vòng đời:
 
-### FVN REGISTER — TỪ REQUEST ĐẾN RESOLUTION
+**Request → Approval → Planned → Actual → Reconciliation → Action → Resolution → Reporting / Payroll**
 
-Trong quy trình truyền thống, một yêu cầu có thể bắt đầu từ email, Excel hoặc chat và kết thúc bằng nhiều bước kiểm tra thủ công.
+## 2. Executive PR message
 
-FVN REGISTER đưa quy trình đó lên một nền tảng thống nhất:
+### Từ “xử lý hồ sơ” sang “quản trị ngoại lệ”
 
-**Request → Approval → Execution → Reconciliation → HR Review → Reporting**
+Trong quy trình giấy/Excel/email, phần lớn thời gian của Employee, Approver và HR bị tiêu tốn cho:
 
-Người dùng biết mình cần làm gì. Người phê duyệt biết request đang ở đâu. HR có dữ liệu đối soát. Quản lý có dashboard. Doanh nghiệp có lịch sử và khả năng truy vết.
+- nhập lại;
+- tìm hồ sơ;
+- kiểm tra trạng thái;
+- đối chiếu Planned vs Actual;
+- gửi mail/điện thoại nhắc;
+- sửa file;
+- tổng hợp báo cáo;
+- tìm lịch sử thiết bị/checklist.
 
-## 3. Thông điệp theo đối tượng
+FVN REGISTER biến phần việc lặp lại đó thành:
 
-| Đối tượng | Thông điệp |
+**Dữ liệu tập trung + Workflow + Validation + Automation + Reconciliation + Action + Audit**
+
+```mermaid
+flowchart LR
+    OLD[Giấy / Excel / Email / Chat] --> P1[Nhập lại]
+    P1 --> P2[Tìm hồ sơ]
+    P2 --> P3[Đối chiếu]
+    P3 --> P4[Nhắc người xử lý]
+    P4 --> P5[Sửa / tổng hợp]
+    P5 --> P6[Payroll / Report]
+
+    FVN[FVN REGISTER]
+    FVN --> V[Validation]
+    FVN --> W[Workflow]
+    FVN --> A[Automation]
+    FVN --> R[Reconciliation]
+    FVN --> AC[Action / Notification]
+    FVN --> AU[Audit / History]
+```
+
+### Thông điệp một câu
+
+> **FVN REGISTER không chỉ số hóa biểu mẫu; hệ thống số hóa cả phần công việc phía sau biểu mẫu.**
+
+## 3. Business value cho doanh nghiệp
+
+| Giá trị | Tác động |
 |---|---|
-| Employee | Đăng ký dễ dàng, theo dõi minh bạch |
-| Approver | Tập trung việc cần duyệt |
-| HR | Chuẩn hóa review, reconciliation và attendance |
-| Manager | Dashboard, Calendar, Reports |
-| Admin | Security, capability, scope, configuration |
-| Leadership | Minh bạch, kiểm soát, truy vết, chuẩn hóa |
+| **Giảm giờ công thủ công** | Ít nhập lại, ít tìm hồ sơ, ít tổng hợp Excel |
+| **Giảm chi phí giấy tờ** | Giảm in, scan, lưu trữ và luân chuyển hồ sơ |
+| **Giảm rework** | Validation + workflow + reconciliation phát hiện sai lệch sớm |
+| **Giảm việc bị quên / quá hạn** | Notification, reminder, Action, escalation |
+| **Tăng khả năng truy vết** | Snapshot, History, Evidence, Resolution |
+| **Giảm thời gian báo cáo** | Dashboard / Reports / Export theo scope |
+| **Quản lý tài sản tốt hơn** | QR + lịch sử sửa chữa + checklist + evidence |
 
-## 4. One-slide product story
+## 4. Before / After — Attendance, Leave, OT, Trip
 
-```mermaid
-flowchart LR
-    OLD[Quy trình phân tán] --> DIGITAL[Số hóa Request]
-    DIGITAL --> APPROVAL[Approval tập trung]
-    APPROVAL --> EXEC[Execution]
-    EXEC --> RECON[Planned vs Actual]
-    RECON --> HR[HR Resolution]
-    HR --> REPORT[Reports / Payroll]
-```
-
-## 5. Key benefits
-
-### Đối với nhân viên
-- Không phải theo dõi bằng nhiều kênh.
-- Biết trạng thái request.
-- Nhận notification.
-- Có lịch sử.
-
-### Đối với Approver
-- Một nơi xử lý approval.
-- Biết cấp hiện tại.
-- Có lịch sử quyết định.
-- Có Action Center.
-
-### Đối với HR
-- Có queue review.
-- Có reconciliation.
-- Có evidence.
-- Có audit.
-- Có pipeline correction.
-
-### Đối với doanh nghiệp
-- Quy trình chuẩn hóa.
-- Quyền kiểm soát.
-- Dữ liệu tập trung.
-- Truy vết.
-- Có nền tảng mở rộng.
-
-## 6. Launch communication
-
-### Phase 1 — Awareness
-
-```mermaid
-flowchart LR
-    A[Giới thiệu FVN REGISTER] --> B[Demo Dashboard]
-    B --> C[Demo Leave / OT / Trip]
-    C --> D[Demo Approval]
-    D --> E[Demo Calendar / Action]
-```
-
-### Phase 2 — Training
-
-- Employee training.
-- Approver training.
-- HR training.
-- Admin training.
-
-### Phase 3 — Go-live
+### BEFORE
 
 ```mermaid
 flowchart TD
-    T[Training] --> PILOT[Pilot]
-    PILOT --> FEEDBACK[Collect Feedback]
-    FEEDBACK --> FIX[Correct / Improve]
-    FIX --> GO[Go-live]
-    GO --> MON[Monitor]
-    MON --> IMP[Continuous Improvement]
-    IMP --> MON
+    A[Phiếu / Excel / Email] --> B[Ký]
+    B --> C[HR nhận]
+    C --> D[Nhập lại]
+    D --> E[Đối chiếu Attendance]
+    E --> F{Sai?}
+    F -->|Có| G[Hỏi / sửa / bổ sung]
+    G --> E
+    F -->|Không| H[Payroll]
 ```
 
-### Phase 4 — Adoption
+### AFTER
 
-Theo dõi:
-- Tỷ lệ request tạo trên hệ thống.
-- Tỷ lệ approval xử lý trên hệ thống.
-- Số request tồn.
-- Thời gian xử lý.
-- Số reconciliation chưa giải quyết.
-- Mức sử dụng reports/dashboard.
+```mermaid
+flowchart TD
+    A[Digital Request] --> B[Validation]
+    B --> C[Approval Snapshot]
+    C --> D[Approval + Notification]
+    D --> E[Approved Planned]
+    H[HRM Attendance] --> F[Actual]
+    E --> G[Reconciliation]
+    F --> G
+    G --> I{Mismatch?}
+    I -->|No| J[Resolved]
+    I -->|Yes| K[Action + ?]
+    K --> L[Confirmation / Evidence]
+    L --> M[HR Resolution]
+    M --> J
+    J --> N[Payroll Ready]
+```
 
-## 7. Poster / Banner copy
+### Kết quả kinh tế
 
-**FVN REGISTER**
+- Giảm số lần HR phải nhập lại dữ liệu.
+- Giảm thời gian tìm trạng thái request.
+- Giảm đối chiếu bằng Excel.
+- Phát hiện OT thực tế chưa có đơn.
+- Phát hiện đơn OT đã duyệt nhưng không có Actual.
+- Phát hiện ngày nghỉ/công tác nhưng có attendance.
+- Tập trung issue thành queue/action thay vì theo dõi thủ công.
+
+## 5. Before / After — Equipment & Checklist
+
+### BEFORE
+
+**Phiếu → Sổ → Tìm hồ sơ → Checklist giấy → Ký → Lưu → Có thể quên hạn / thất lạc lịch sử**
+
+### AFTER
+
+**Equipment Request → Approval → Asset + QR → Assignment → Scheduled Task → Reminder → Inspection → Evidence → Approval → History / Report**
+
+```mermaid
+flowchart LR
+    R[Request] --> AP[Approval]
+    AP --> AS[Asset + QR]
+    AS --> SCH[Schedule]
+    SCH --> TASK[Inspection Task]
+    TASK --> ACT[Action]
+    TASK --> REM[Reminder]
+    TASK --> EVI[Evidence]
+    EVI --> OK[Approval]
+    OK --> HIST[History]
+```
+
+### Giá trị
+
+- Tìm thiết bị nhanh bằng QR.
+- Lưu lịch sử tập trung.
+- Import Excel có staging/validation.
+- Schema riêng theo phòng ban.
+- Checklist có version.
+- Checklist có lịch định kỳ.
+- Tự sinh task kiểm tra.
+- Nhắc trước deadline.
+- Evidence có ảnh.
+- Action Center cho người phải xử lý.
+
+## 6. Giá trị đối với từng nhóm
+
+| Nhóm | Trước đây | FVN REGISTER |
+|---|---|---|
+| Employee | Điền giấy / gửi file / hỏi trạng thái | Tạo, theo dõi, nhận notification |
+| Approver | Tìm hồ sơ, theo dõi mail | Approval Inbox + Action |
+| HR | Nhập/tổng hợp/đối chiếu | Reconciliation + HR Review |
+| Equipment owner | Sổ tài sản + checklist giấy | QR + Task + Evidence + History |
+| Manager | Chờ tổng hợp | Dashboard / Calendar / Reports |
+| Payroll | Nhận dữ liệu sau nhiều vòng kiểm tra | Payroll gate dựa trên readiness |
+| Admin | Quản lý rời rạc | Capability + Data Scope + Audit |
+
+## 7. Business case: cách lượng hóa lợi ích
+
+### Giảm giờ công
+
+HoursSaved = (Transactions × MinutesSavedPerTransaction + MonthlyReportingHoursSaved) / 60
+
+LaborValue = HoursSaved × LoadedLaborCostPerHour
+
+### Giảm chi phí giấy tờ
+
+PaperSaving = Printing + Scan + Filing + Storage + InternalTransport
+
+### Giảm chi phí rework
+
+ReworkSaving = BaselineReworkCost - PostGoLiveReworkCost
+
+### Tổng lợi ích
+
+AnnualBenefit = LaborValue + PaperSaving + ReworkSaving + RiskAvoidance
+
+### ROI
+
+ROI = (AnnualBenefit - AnnualRunCost) / TotalInvestment
+
+> Không trình “% tiết kiệm” như kết quả đạt được nếu chưa có baseline/pilot.
+
+## 8. Cách trình Ban lãnh đạo
+
+```mermaid
+flowchart LR
+    PROBLEM[Vấn đề hiện tại] --> COST[Chi phí ẩn]
+    COST --> DIGITAL[Giải pháp FVN REGISTER]
+    DIGITAL --> KPI[Đo Before / After]
+    KPI --> ROI[Ngân sách / ROI]
+```
+
+### Nên bắt đầu bằng
+
+- bao nhiêu giờ công đang dành cho công việc lặp lại;
+- bao nhiêu hồ sơ phải nhập lại;
+- bao nhiêu lần HR phải đối chiếu;
+- bao nhiêu checklist có nguy cơ trễ;
+- bao nhiêu thời gian cần để lập báo cáo;
+- chi phí của việc tìm lại lịch sử;
+- số issue phát hiện trước payroll.
+
+## 9. KPI đề xuất cho pilot
+
+| KPI | Baseline | After |
+|---|---:|---:|
+| Minutes / request | Đo thực tế | So sánh |
+| HR minutes / request | Đo thực tế | So sánh |
+| Approver minutes / request | Đo thực tế | So sánh |
+| Manual touches / request | Đo thực tế | So sánh |
+| Report preparation hours | Đo thực tế | So sánh |
+| Checklist on-time % | Đo thực tế | So sánh |
+| Rework % | Đo thực tế | So sánh |
+| Missing history | Đo thực tế | So sánh |
+| Payroll exception rate | Đo thực tế | So sánh |
+| Digital adoption rate | Đo thực tế | So sánh |
+
+## 10. One-slide management story
+
+```mermaid
+flowchart TB
+    OLD[Quy trình giấy / Excel]
+    OLD --> COST[Chi phí nhân công + giấy tờ + rework]
+    COST --> FVN[FVN REGISTER]
+    FVN --> AUTO[Automation]
+    FVN --> CTRL[Control]
+    FVN --> TRACE[Traceability]
+    FVN --> DATA[Management Data]
+    AUTO --> SAVING[Giải phóng giờ công]
+    CTRL --> ERROR[Giảm lỗi / quá hạn]
+    TRACE --> AUDIT[Audit nhanh]
+    DATA --> DECISION[Quyết định nhanh hơn]
+```
+
+> **Thông điệp:** đầu tư vào FVN REGISTER là đầu tư vào năng lực vận hành có thể đo lường, không chỉ vào phần mềm.
+
+## 11. Adoption & rollout
+
+```mermaid
+flowchart LR
+    BASE[Baseline 2–4 tuần] --> PILOT[Pilot 1–2 phòng ban]
+    PILOT --> MEASURE[Đo KPI]
+    MEASURE --> BUSINESS[Chốt Business Case]
+    BUSINESS --> SCALE[Mở rộng toàn công ty]
+    SCALE --> MONITOR[Theo dõi định kỳ]
+```
+
+**Measure first → Pilot → Prove → Scale**
+
+## 12. Kết luận truyền thông
+
+### FVN REGISTER
 
 **Một nền tảng. Một quy trình. Một nơi để theo dõi.**
 
-Nghỉ phép • OT • Công tác • Thiết bị • Approval • Calendar • Action • HR Review • Reports
+Không chỉ:
 
-**Request → Approval → Execution → Reconciliation → Resolution**
+**“Không dùng giấy.”**
 
-## 8. Email launch mẫu
+Mà là:
 
-**Tiêu đề:** FVN REGISTER — Chính thức triển khai nền tảng đăng ký và phê duyệt điện tử
+**“Giảm công việc lặp lại, giảm thời gian kiểm tra, giảm lỗi, giảm việc quên hạn, tăng khả năng truy vết và tạo dữ liệu quản trị.”**
 
-FVN REGISTER được triển khai nhằm số hóa các nghiệp vụ đăng ký và phê duyệt nhân sự trên một nền tảng thống nhất.
+**Request → Approval → Actual → Reconciliation → Action → Resolution → Management Insight**
 
-Người dùng có thể đăng ký và theo dõi các nghiệp vụ như Nghỉ phép, OT, Công tác và Thiết bị. Người phê duyệt có thể tập trung các công việc cần xử lý trên Dashboard/Action Center. HR có thể theo dõi đối soát và xử lý các trường hợp cần review.
+## 13. Detailed business case
 
-Trong quá trình sử dụng, vui lòng thực hiện request và approval trực tiếp trên FVN REGISTER theo hướng dẫn người dùng.
+Phần công thức, sơ đồ Before/After, KPI và phương pháp đo chi tiết nằm tại:
 
-**FVN REGISTER — từ yêu cầu đến phê duyệt, từ thực tế đến đối soát.**
+**MÔ HÌNH/DOCUMENTATION/09_BUSINESS_CASE_COST_REDUCTION.md**

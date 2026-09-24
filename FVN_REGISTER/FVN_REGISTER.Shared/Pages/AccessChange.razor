@@ -1,0 +1,385 @@
+@page "/security/access-change"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Contract.Dtos.Equipment
+@using FVN_REGISTER.Core.Enums
+@using FVN_REGISTER.Shared.Services.Security
+@using FVN_REGISTER.Shared.Services.Users
+@using Microsoft.AspNetCore.Authorization
+@inject IAccessChangeClientService AccessChangeClient
+@inject ICurrentUserClientService CurrentUser
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>Thay đổi quyền / bàn giao</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-5">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <div>
+            <MudText Typo="Typo.h5">Phiếu thay đổi quyền / bàn giao</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">
+                Người tiếp nhận tự lập phiếu. Luồng duyệt dùng đúng Approval Policy của nghiệp vụ; IT chỉ thiết lập sau khi duyệt đủ cấp.
+            </MudText>
+        </div>
+        <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/"))">Quay lại</MudButton>
+    </MudStack>
+
+    <MudTabs Rounded="true" Elevation="2">
+        <MudTabPanel Text="Lập phiếu">
+            <MudPaper Outlined="true" Class="pa-4">
+                <MudAlert Severity="Severity.Info" Class="mb-4">
+                    Người tiếp nhận hiện tại: <b>@(CurrentUser.User?.EmployeeCode ?? "...") - @(CurrentUser.User?.FullName ?? "")</b>.
+                    Server sẽ từ chối nếu người lập không phải người tiếp nhận.
+                </MudAlert>
+
+                <MudGrid Spacing="3">
+                    <MudItem xs="12" md="4">
+                        <MudSelect T="RequestModule" Value="_module" ValueChanged="OnModuleChanged" Label="Nghiệp vụ" Variant="Variant.Outlined">
+                            <MudSelectItem Value="RequestModule.Leave">Nghỉ phép</MudSelectItem>
+                            <MudSelectItem Value="RequestModule.Overtime">OT</MudSelectItem>
+                            <MudSelectItem Value="RequestModule.Trip">Công tác</MudSelectItem>
+                            <MudSelectItem Value="RequestModule.Equipment">Thiết bị</MudSelectItem>
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="8">
+                        <MudSelect T="AccessChangeEmployeeOptionDto" Value="_oldEmployee" ValueChanged="OnOldChanged"
+                                   Label="Nhân sự cũ" Variant="Variant.Outlined" ToStringFunc="EmployeeLabel">
+                            @foreach (var e in _employees.Where(x => !string.Equals(x.EmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase)))
+                            {
+                                <MudSelectItem T="AccessChangeEmployeeOptionDto" Value="@e">@EmployeeLabel(e)</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudItem>
+
+                    @if (_module == RequestModule.Equipment)
+                    {
+                        <MudItem xs="12" md="6">
+                            <MudCheckBox Value="_transferResponsible" ValueChanged="OnTransferResponsibleChanged"
+                                         Label="Bàn giao thiết bị người cũ đang phụ trách" />
+                        </MudItem>
+                        <MudItem xs="12" md="6">
+                            <MudCheckBox @bind-Value="_transferApprover" Label="Bàn giao vai trò approver thiết bị" />
+                        </MudItem>
+                        @if (_transferResponsible || _transferApprover)
+                        {
+                            <MudItem xs="12">
+                                <MudAlert Severity="Severity.Info">
+                                    Chọn đúng các tài sản cần bàn giao. Server sẽ kiểm tra lại quan hệ người cũ/tài sản khi lập phiếu.
+                                </MudAlert>
+                                @if (_loadingAssets)
+                                {
+                                    <MudProgressLinear Indeterminate="true" />
+                                }
+                                else if (_equipmentCandidates.Count == 0)
+                                {
+                                    <MudAlert Severity="Severity.Warning">Người cũ hiện không có tài sản phù hợp để bàn giao.</MudAlert>
+                                }
+                                else
+                                {
+                                    <MudTable Items="_equipmentCandidates" Dense="true" Hover="true">
+                                        <HeaderContent>
+                                            <MudTh>Chọn</MudTh><MudTh>Mã</MudTh><MudTh>Thiết bị</MudTh><MudTh>Bộ phận</MudTh>
+                                            <MudTh>Phụ trách</MudTh><MudTh>Approver</MudTh><MudTh>Vị trí</MudTh>
+                                        </HeaderContent>
+                                        <RowTemplate>
+                                            <MudTd>
+                                                <MudCheckBox T="bool"
+                                                             Value="@_selectedAssetIds.Contains(context.AssetId)"
+                                                             ValueChanged="@(v => ToggleAsset(context.AssetId, v))" />
+                                            </MudTd>
+                                            <MudTd>@context.EquipmentCode</MudTd>
+                                            <MudTd>@context.EquipmentName</MudTd>
+                                            <MudTd>@context.DeptCode</MudTd>
+                                            <MudTd>@context.ResponsibleEmployeeCode</MudTd>
+                                            <MudTd>@context.ApproverEmployeeCode</MudTd>
+                                            <MudTd>@context.Location</MudTd>
+                                        </RowTemplate>
+                                    </MudTable>
+                                }
+                            </MudItem>
+                        }
+                        @if (_transferApprover)
+                        {
+                            <MudItem xs="12" md="6">
+                                <MudSelect T="AccessChangeEmployeeOptionDto" @bind-Value="_oldEquipmentApprover"
+                                           Label="Approver thiết bị cũ (nếu khác người phụ trách)" Variant="Variant.Outlined"
+                                           ToStringFunc="EmployeeLabel">
+                                    @foreach (var e in _employees)
+                                    {
+                                        <MudSelectItem T="AccessChangeEmployeeOptionDto" Value="@e">@EmployeeLabel(e)</MudSelectItem>
+                                    }
+                                </MudSelect>
+                            </MudItem>
+                        }
+                    }
+
+                    <MudItem xs="12">
+                        <MudText Typo="Typo.subtitle2">Quyền sẽ chuyển</MudText>
+                        @if (_loadingFunctions)
+                        {
+                            <MudProgressLinear Indeterminate="true" />
+                        }
+                        else if (_functions.Count == 0)
+                        {
+                            <MudAlert Severity="Severity.Warning">Không tìm thấy function của nhân sự cũ trong nghiệp vụ đã chọn.</MudAlert>
+                        }
+                        else
+                        {
+                            <MudGrid>
+                                @foreach (var f in _functions)
+                                {
+                                    <MudItem xs="12" md="6" lg="4">
+                                        <MudCheckBox T="bool"
+                                                     Value="@_selectedFunctions.Contains(f.FunctionCode)"
+                                                     ValueChanged="@(v => ToggleFunction(f.FunctionCode, v))"
+                                                     Label="@($"{f.FunctionCode} - {f.FunctionName}")" />
+                                    </MudItem>
+                                }
+                            </MudGrid>
+                        }
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudTextField @bind-Value="_reason" Label="Lý do" Lines="3" Variant="Variant.Outlined" Required="true" />
+                    </MudItem>
+
+                    <MudItem xs="12">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_busy" OnClick="SubmitAsync">
+                            Gửi phiếu phê duyệt
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Phiếu của tôi">
+            <MudTable Items="_mine" Dense="true" Hover="true" Class="pa-4">
+                <HeaderContent><MudTh>ID</MudTh><MudTh>Nghiệp vụ</MudTh><MudTh>Người cũ</MudTh><MudTh>Người nhận</MudTh><MudTh>Trạng thái</MudTh><MudTh>Thông tin trước bàn giao</MudTh></HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Id</MudTd>
+                    <MudTd>@context.BusinessModuleName</MudTd>
+                    <MudTd>@context.OldEmployeeCode</MudTd>
+                    <MudTd>@context.NewEmployeeCode</MudTd>
+                    <MudTd>@context.Status</MudTd>
+                    <MudTd>@if (!string.IsNullOrWhiteSpace(context.PreChangeSnapshotJson)) { <MudExpansionPanels><MudExpansionPanel Text="Thông tin trước bàn giao"><MudText Typo="Typo.caption" Style="white-space:pre-wrap">@context.PreChangeSnapshotJson</MudText></MudExpansionPanel></MudExpansionPanels> }</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Chờ tôi duyệt">
+            <MudTable Items="_pending" Dense="true" Hover="true" Class="pa-4">
+                <HeaderContent><MudTh>ID</MudTh><MudTh>Nghiệp vụ</MudTh><MudTh>Thay đổi</MudTh><MudTh>Trạng thái</MudTh><MudTh>Thông tin trước bàn giao</MudTh><MudTh></MudTh></HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Id</MudTd>
+                    <MudTd>@context.BusinessModuleName</MudTd>
+                    <MudTd>@context.OldEmployeeCode → @context.NewEmployeeCode</MudTd>
+                    <MudTd>@context.Status</MudTd>
+                    <MudTd>
+                        @{
+                            var step = context.ApprovalSteps.FirstOrDefault(x => x.Decision == "Pending");
+                        }
+                        @if (step != null)
+                        {
+                            <MudButton Size="Size.Small" Color="Color.Success" OnClick="@(() => ApproveAsync(context.Id, step.Level))">Duyệt</MudButton>
+                            <MudButton Size="Size.Small" Color="Color.Error" Class="ml-2" OnClick="@(() => RejectAsync(context.Id, step.Level))">Từ chối</MudButton>
+                        }
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+
+        <MudTabPanel Text="IT xử lý">
+            <MudTable Items="_itQueue" Dense="true" Hover="true" Class="pa-4">
+                <HeaderContent><MudTh>ID</MudTh><MudTh>Nghiệp vụ</MudTh><MudTh>Người cũ</MudTh><MudTh>Người nhận</MudTh><MudTh>Function</MudTh><MudTh></MudTh></HeaderContent>
+                <RowTemplate>
+                    <MudTd>@context.Id</MudTd>
+                    <MudTd>@context.BusinessModuleName</MudTd>
+                    <MudTd>@context.OldEmployeeCode</MudTd>
+                    <MudTd>@context.NewEmployeeCode - @context.NewEmployeeName</MudTd>
+                    <MudTd>@string.Join(", ", context.FunctionCodes)</MudTd>
+                    <MudTd><MudButton Size="Size.Small" Color="Color.Primary" OnClick="@(() => ExecuteItAsync(context.Id))">Thiết lập</MudButton></MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
+
+@code {
+    private RequestModule _module = RequestModule.Leave;
+    private List<AccessChangeEmployeeOptionDto> _employees = new();
+    private List<AccessChangeFunctionOptionDto> _functions = new();
+    private List<AccessChangeRequestDto> _mine = new();
+    private List<AccessChangeRequestDto> _pending = new();
+    private List<AccessChangeItQueueItemDto> _itQueue = new();
+    private AccessChangeEmployeeOptionDto? _oldEmployee;
+    private AccessChangeEmployeeOptionDto? _oldEquipmentApprover;
+    private readonly HashSet<int> _selectedFunctions = new();
+    private bool _transferResponsible;
+    private bool _transferApprover;
+    private bool _loadingFunctions;
+    private bool _loadingAssets;
+    private bool _busy;
+    private List<EquipmentHandoverCandidateDto> _equipmentCandidates = new();
+    private readonly HashSet<int> _selectedAssetIds = new();
+    private string _reason = "Bàn giao quyền do nhân sự nghỉ việc/chuyển công tác.";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await CurrentUser.InitializeAsync();
+        var employees = await AccessChangeClient.GetEmployeesAsync();
+        if (employees.IsSuccess) _employees = employees.Data ?? new();
+        else Snackbar.Add(employees.Message ?? "Không tải được danh sách nhân sự HRM.", Severity.Error);
+        await ReloadAsync();
+    }
+
+    private async Task OnModuleChanged(RequestModule value)
+    {
+        _module = value;
+        if (_oldEmployee != null)
+            await OnOldChanged(_oldEmployee);
+    }
+
+    private async Task OnOldChanged(AccessChangeEmployeeOptionDto? value)
+    {
+        _oldEmployee = value;
+        _oldEquipmentApprover = value;
+        _functions.Clear();
+        _selectedFunctions.Clear();
+        _equipmentCandidates.Clear();
+        _selectedAssetIds.Clear();
+        if (_oldEmployee == null) return;
+
+        _loadingFunctions = true;
+        try
+        {
+            var result = await AccessChangeClient.GetFunctionOptionsAsync(_module, _oldEmployee.EmployeeCode);
+            if (result.IsSuccess)
+            {
+                _functions = result.Data ?? new();
+                foreach (var f in _functions) _selectedFunctions.Add(f.FunctionCode);
+            }
+            else Snackbar.Add(result.Message ?? "Không tải được quyền của nhân sự cũ.", Severity.Error);
+        }
+        finally { _loadingFunctions = false; }
+
+        if (_module == RequestModule.Equipment)
+            await LoadEquipmentCandidatesAsync();
+    }
+
+    private async Task OnTransferResponsibleChanged(bool value)
+    {
+        _transferResponsible = value;
+        if (_module == RequestModule.Equipment && _oldEmployee != null)
+            await LoadEquipmentCandidatesAsync();
+    }
+
+    private async Task LoadEquipmentCandidatesAsync()
+    {
+        if (_oldEmployee == null) return;
+        _loadingAssets = true;
+        try
+        {
+            var result = await AccessChangeClient.GetEquipmentCandidatesAsync(_oldEmployee.EmployeeCode);
+            if (result.IsSuccess)
+            {
+                _equipmentCandidates = result.Data ?? new();
+                if (!_transferResponsible && !_transferApprover)
+                    _selectedAssetIds.Clear();
+            }
+            else
+            {
+                _equipmentCandidates.Clear();
+                Snackbar.Add(result.Message ?? "Không tải được danh sách tài sản bàn giao.", Severity.Error);
+            }
+        }
+        finally { _loadingAssets = false; }
+    }
+
+    private void ToggleAsset(int assetId, bool selected)
+    {
+        if (selected) _selectedAssetIds.Add(assetId);
+        else _selectedAssetIds.Remove(assetId);
+    }
+
+    private async Task SubmitAsync
+    {
+        if (_oldEmployee == null || string.IsNullOrWhiteSpace(_reason))
+        {
+            Snackbar.Add("Vui lòng chọn nhân sự cũ và nhập lý do.", Severity.Warning);
+            return;
+        }
+        if (_module == RequestModule.Equipment && (_transferResponsible || _transferApprover) && _selectedAssetIds.Count == 0)
+        {
+            Snackbar.Add("Vui lòng chọn ít nhất một tài sản cần bàn giao.", Severity.Warning);
+            return;
+        }
+
+        _busy = true;
+        try
+        {
+            var result = await AccessChangeClient.CreateAsync(new AccessChangeRequestCreateDto
+            {
+                BusinessModule = _module,
+                OldEmployeeCode = _oldEmployee.EmployeeCode,
+                Reason = _reason,
+                FunctionCodes = _selectedFunctions.ToList(),
+                TransferEquipmentResponsible = _module == RequestModule.Equipment && _transferResponsible,
+                TransferEquipmentApprover = _module == RequestModule.Equipment && _transferApprover,
+                OldEquipmentApproverCode = _module == RequestModule.Equipment && _transferApprover ? _oldEquipmentApprover?.EmployeeCode : null,
+                EquipmentAssetIds = _module == RequestModule.Equipment && (_transferResponsible || _transferApprover)
+                    ? _selectedAssetIds.ToList()
+                    : new List<int>()
+            });
+
+            if (result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Đã gửi phiếu.", Severity.Success);
+                _mine.Insert(0, result.Data!);
+            }
+            else Snackbar.Add(result.Message ?? "Không thể gửi phiếu.", Severity.Error);
+        }
+        finally { _busy = false; }
+    }
+
+    private void ToggleFunction(int code, bool selected)
+    {
+        if (selected) _selectedFunctions.Add(code);
+        else _selectedFunctions.Remove(code);
+    }
+
+    private async Task ReloadAsync()
+    {
+        var mine = await AccessChangeClient.GetMineAsync();
+        if (mine.IsSuccess) _mine = mine.Data ?? new();
+
+        var pending = await AccessChangeClient.GetPendingAsync();
+        if (pending.IsSuccess) _pending = pending.Data ?? new();
+
+        var it = await AccessChangeClient.GetItQueueAsync();
+        if (it.IsSuccess) _itQueue = it.Data ?? new();
+    }
+
+    private async Task ApproveAsync(int id, int level)
+    {
+        var result = await AccessChangeClient.ApproveAsync(id, level, null);
+        Snackbar.Add(result.Message ?? (result.IsSuccess ? "Đã duyệt." : "Duyệt thất bại."), result.IsSuccess ? Severity.Success : Severity.Error);
+        if (result.IsSuccess) await ReloadAsync();
+    }
+
+    private async Task RejectAsync(int id, int level)
+    {
+        var result = await AccessChangeClient.RejectAsync(id, level, "Từ chối theo xử lý của người duyệt.");
+        Snackbar.Add(result.Message ?? (result.IsSuccess ? "Đã từ chối." : "Từ chối thất bại."), result.IsSuccess ? Severity.Success : Severity.Error);
+        if (result.IsSuccess) await ReloadAsync();
+    }
+
+    private async Task ExecuteItAsync(int id)
+    {
+        var result = await AccessChangeClient.ExecuteByItAsync(id, new AccessChangeItExecuteDto { Note = "IT đã thiết lập quyền theo phiếu." });
+        Snackbar.Add(result.Message ?? (result.IsSuccess ? "Đã hoàn tất." : "Thiết lập thất bại."), result.IsSuccess ? Severity.Success : Severity.Error);
+        if (result.IsSuccess) await ReloadAsync();
+    }
+
+    private static string EmployeeLabel(AccessChangeEmployeeOptionDto? x)
+        => x == null ? string.Empty : $"{x.EmployeeCode} - {x.EmployeeName} ({x.DeptCode}) {(x.IsActive ? "" : "[Đã nghỉ]")}";
+}

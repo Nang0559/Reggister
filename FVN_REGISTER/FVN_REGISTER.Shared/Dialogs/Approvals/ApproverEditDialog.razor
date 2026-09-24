@@ -12,13 +12,13 @@
                 <MudItem xs="12">
                     <MudSelect T="string" Label="Bộ phận của approver (*)" Value="Model.DeptCode" ValueChanged="OnDeptChanged" Variant="Variant.Outlined" Disabled="LockDept" Required="true">
                         @foreach (var dept in Departments.Where(x => x.DeptCode != "ALL"))
-                        { <MudSelectItem Value="@dept.DeptCode">@dept.DeptName</MudSelectItem> }
+                        { <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12">
                     <MudSelect T="string" @bind-Value="Model.ApproveForDeptCode" Label="Áp dụng phê duyệt cho bộ phận (*)" Variant="Variant.Outlined" Required="true">
                         @foreach (var dept in Departments)
-                        { <MudSelectItem Value="@dept.DeptCode">@dept.DeptName</MudSelectItem> }
+                        { <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
                 <MudItem xs="12" sm="6">
@@ -38,11 +38,11 @@
                 <MudItem xs="12">
                     <MudSelect T="string" Label="Chọn nhân viên (*)" Value="Model.ApproverCode" ValueChanged="OnEmployeeSelected" Variant="Variant.Outlined" Disabled="@(_employees.Count == 0)" Required="true">
                         @foreach (var emp in _employees.Where(x => x.IsApprover))
-                        { <MudSelectItem Value="@emp.EmployeeCode">@emp.EmployeeCode - @emp.EmployeeName</MudSelectItem> }
+                        { <MudSelectItem Value="@emp.EmployeeCode">@emp.EmployeeCode - @emp.EmployeeName — @emp.CvCode — @emp.PositionName</MudSelectItem> }
                     </MudSelect>
                 </MudItem>
-                <MudItem xs="12" sm="6"><MudTextField @bind-Value="Model.ApproverName" Label="Họ tên" Variant="Variant.Outlined" Required="true" /></MudItem>
-                <MudItem xs="12" sm="6"><MudTextField @bind-Value="Model.ApproverEmail" Label="Email" Variant="Variant.Outlined" InputType="InputType.Email" /></MudItem>
+                <MudItem xs="12" sm="6"><MudTextField @bind-Value="Model.ApproverName" Label="Họ tên" Variant="Variant.Outlined" ReadOnly="true" /></MudItem>
+                <MudItem xs="12" sm="6"><MudTextField @bind-Value="Model.ApproverEmail" Label="Email" Variant="Variant.Outlined" InputType="InputType.Email" ReadOnly="true" /></MudItem>
                 <MudItem xs="12"><MudTextField @bind-Value="Model.RoleName" Label="Tên vai trò" Variant="Variant.Outlined" /></MudItem>
             </MudGrid>
         </MudForm>

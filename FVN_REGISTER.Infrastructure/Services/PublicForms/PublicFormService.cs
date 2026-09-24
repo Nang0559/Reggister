@@ -65,6 +65,81 @@ public sealed class PublicFormService : IPublicFormService
         return rows.Select(Map).ToList();
     }
 
+    public async Task<List<PublicFormAudienceLookupDto>> GetAudienceDepartmentsAsync(CancellationToken ct = default)
+    {
+        return await _uow.Repository<F03Department>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true)
+            .OrderBy(x => x.DisplayPriority ?? int.MaxValue)
+            .ThenBy(x => x.DeptCode)
+            .Select(x => new PublicFormAudienceLookupDto
+            {
+                Code = x.DeptCode,
+                Name = x.DeptName
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<PublicFormAudienceLookupDto>> GetAudiencePositionsAsync(CancellationToken ct = default)
+    {
+        return await _uow.Repository<F03Position>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true)
+            .OrderBy(x => x.PositionCode)
+            .Select(x => new PublicFormAudienceLookupDto
+            {
+                Code = x.PositionCode,
+                Name = x.PositionName
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task<PublicFormAudienceEmployeePageDto> SearchAudienceEmployeesAsync(
+        string? search,
+        int page,
+        int pageSize,
+        CancellationToken ct = default)
+    {
+        page = Math.Max(1, page);
+        pageSize = Math.Clamp(pageSize, 10, 50);
+
+        var q = _uow.Repository<F03Employee>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true
+                && (!x.EndWorkingDate.HasValue || x.EndWorkingDate.Value.Date >= DateTime.Today));
+
+        var term = search?.Trim();
+        if (!string.IsNullOrWhiteSpace(term))
+        {
+            q = q.Where(x =>
+                x.EmployeeCode.Contains(term) ||
+                x.EmployeeName.Contains(term) ||
+                x.DeptCode.Contains(term) ||
+                x.PositionCode.Contains(term));
+        }
+
+        var total = await q.CountAsync(ct);
+        var rows = await q
+            .OrderBy(x => x.EmployeeCode)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(x => new PublicFormAudienceLookupDto
+            {
+                Code = x.EmployeeCode,
+                Name = x.EmployeeName,
+                Secondary = x.DeptCode + " · " + x.PositionCode
+            })
+            .ToListAsync(ct);
+
+        return new PublicFormAudienceEmployeePageDto
+        {
+            Items = rows,
+            TotalCount = total,
+            Page = page,
+            PageSize = pageSize
+        };
+    }
+
     public async Task<PublicFormDto?> GetAsync(int id, CancellationToken ct = default)
     {
         var x = await _uow.Repository<F03PublicForm>().Query().AsNoTracking()
@@ -75,7 +150,7 @@ public sealed class PublicFormService : IPublicFormService
 
     public async Task<ServiceResult<PublicFormDto>> CreateAsync(SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
     {
-        Validate(request);
+        await ValidateAsync(request, ct);
         var exists = await _uow.Repository<F03PublicForm>().Query().AnyAsync(x => x.FormCode == request.FormCode.Trim(), ct);
         if (exists) return ServiceResult<PublicFormDto>.Fail("Mã biểu mẫu đã tồn tại.");
         var entity = BuildEntity(request, actorUserId);
@@ -86,7 +161,7 @@ public sealed class PublicFormService : IPublicFormService
 
     public async Task<ServiceResult<PublicFormDto>> UpdateAsync(int id, SavePublicFormRequest request, int actorUserId, CancellationToken ct = default)
     {
-        Validate(request);
+        await ValidateAsync(request, ct);
         var entity = await _uow.Repository<F03PublicForm>().Query().Include(x=>x.Questions).ThenInclude(x=>x.Options).Include(x=>x.Audiences).FirstOrDefaultAsync(x=>x.Id==id,ct);
         if (entity == null) return ServiceResult<PublicFormDto>.Fail("Không tìm thấy biểu mẫu.");
         if (entity.Status == "Published") return ServiceResult<PublicFormDto>.Fail("Không sửa trực tiếp biểu mẫu đã Publish.");
@@ -158,22 +233,114 @@ public sealed class PublicFormService : IPublicFormService
             || a.IsActive==true && a.ScopeType=="Department" && !string.IsNullOrWhiteSpace(deptCode) && string.Equals(a.ScopeValue,deptCode,StringComparison.OrdinalIgnoreCase)
             || a.IsActive==true && a.ScopeType=="Position" && !string.IsNullOrWhiteSpace(positionCode) && string.Equals(a.ScopeValue,positionCode,StringComparison.OrdinalIgnoreCase));
 
-    private static void Validate(SavePublicFormRequest r)
+    private async Task ValidateAsync(SavePublicFormRequest r, CancellationToken ct)
     {
-        if (string.IsNullOrWhiteSpace(r.FormCode)||string.IsNullOrWhiteSpace(r.Title)) throw new ArgumentException("Mã và tiêu đề biểu mẫu là bắt buộc.");
-        if (r.EndAt.HasValue && r.StartAt.HasValue && r.EndAt < r.StartAt) throw new ArgumentException("EndAt phải lớn hơn hoặc bằng StartAt.");
-        if (r.Questions.Count==0) throw new ArgumentException("Biểu mẫu phải có ít nhất một câu hỏi.");
-        foreach(var q in r.Questions)
+        if (string.IsNullOrWhiteSpace(r.FormCode) || string.IsNullOrWhiteSpace(r.Title))
+            throw new ArgumentException("Mã và tiêu đề biểu mẫu là bắt buộc.");
+
+        if (r.EndAt.HasValue && r.StartAt.HasValue && r.EndAt < r.StartAt)
+            throw new ArgumentException("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.");
+
+        if (r.Questions.Count == 0)
+            throw new ArgumentException("Biểu mẫu phải có ít nhất một câu hỏi.");
+
+        foreach (var q in r.Questions)
         {
-            if(!QuestionTypes.Contains(q.QuestionType)) throw new ArgumentException($"QuestionType không hợp lệ: {q.QuestionType}");
-            if((q.QuestionType.Equals("SingleChoice",StringComparison.OrdinalIgnoreCase)||q.QuestionType.Equals("MultiChoice",StringComparison.OrdinalIgnoreCase))&&!q.Options.Any())
+            if (!QuestionTypes.Contains(q.QuestionType))
+                throw new ArgumentException($"QuestionType không hợp lệ: {q.QuestionType}");
+
+            if ((q.QuestionType.Equals("SingleChoice", StringComparison.OrdinalIgnoreCase)
+                || q.QuestionType.Equals("MultiChoice", StringComparison.OrdinalIgnoreCase))
+                && !q.Options.Any())
                 throw new ArgumentException($"Câu hỏi {q.QuestionCode} phải có lựa chọn.");
         }
-        foreach(var a in r.Audiences)
+
+        if (r.Audiences.Count == 0)
+            throw new ArgumentException("Biểu mẫu phải có ít nhất một đối tượng đăng ký.");
+
+        foreach (var a in r.Audiences)
         {
-            if(!AudienceTypes.Contains(a.ScopeType)) throw new ArgumentException($"ScopeType không hợp lệ: {a.ScopeType}");
-            if(!a.ScopeType.Equals("AllCompany",StringComparison.OrdinalIgnoreCase)&&string.IsNullOrWhiteSpace(a.ScopeValue))
-                throw new ArgumentException($"ScopeValue bắt buộc cho {a.ScopeType}.");
+            a.ScopeType = a.ScopeType.Trim();
+
+            if (!AudienceTypes.Contains(a.ScopeType))
+                throw new ArgumentException($"ScopeType không hợp lệ: {a.ScopeType}");
+
+            if (a.ScopeType.Equals("AllCompany", StringComparison.OrdinalIgnoreCase))
+            {
+                a.ScopeValue = null;
+                continue;
+            }
+
+            if (string.IsNullOrWhiteSpace(a.ScopeValue))
+                throw new ArgumentException($"Chưa chọn {a.ScopeType}.");
+
+            a.ScopeValue = a.ScopeValue.Trim();
+        }
+
+        var allCompanyCount = r.Audiences.Count(x =>
+            x.ScopeType.Equals("AllCompany", StringComparison.OrdinalIgnoreCase));
+
+        if (allCompanyCount > 0 && r.Audiences.Count != 1)
+            throw new ArgumentException("Toàn công ty không được kết hợp với Phòng ban, Vị trí hoặc Nhân viên.");
+
+        var nonAllTypes = r.Audiences
+            .Where(x => !x.ScopeType.Equals("AllCompany", StringComparison.OrdinalIgnoreCase))
+            .Select(x => x.ScopeType)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
+        if (nonAllTypes.Count > 1)
+            throw new ArgumentException("Chỉ được chọn một loại đối tượng: Phòng ban, Vị trí hoặc Nhân viên.");
+
+        var grouped = r.Audiences
+            .Where(x => !x.ScopeType.Equals("AllCompany", StringComparison.OrdinalIgnoreCase))
+            .GroupBy(x => x.ScopeType, StringComparer.OrdinalIgnoreCase);
+
+        foreach (var group in grouped)
+        {
+            var values = group.Select(x => x.ScopeValue!)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            if (group.Key.Equals("Department", StringComparison.OrdinalIgnoreCase))
+            {
+                var found = await _uow.Repository<F03Department>().Query()
+                    .AsNoTracking()
+                    .Where(x => x.IsActive == true && values.Contains(x.DeptCode))
+                    .Select(x => x.DeptCode)
+                    .ToListAsync(ct);
+
+                var missing = values.Where(v => !found.Contains(v, StringComparer.OrdinalIgnoreCase)).ToList();
+                if (missing.Count > 0)
+                    throw new ArgumentException($"Phòng ban không tồn tại hoặc đã ngừng hoạt động: {string.Join(", ", missing)}");
+            }
+            else if (group.Key.Equals("Position", StringComparison.OrdinalIgnoreCase))
+            {
+                var found = await _uow.Repository<F03Position>().Query()
+                    .AsNoTracking()
+                    .Where(x => x.IsActive == true && values.Contains(x.PositionCode))
+                    .Select(x => x.PositionCode)
+                    .ToListAsync(ct);
+
+                var missing = values.Where(v => !found.Contains(v, StringComparer.OrdinalIgnoreCase)).ToList();
+                if (missing.Count > 0)
+                    throw new ArgumentException($"Vị trí không tồn tại hoặc đã ngừng hoạt động: {string.Join(", ", missing)}");
+            }
+            else if (group.Key.Equals("Employee", StringComparison.OrdinalIgnoreCase))
+            {
+                var today = DateTime.Today;
+                var found = await _uow.Repository<F03Employee>().Query()
+                    .AsNoTracking()
+                    .Where(x => x.IsActive == true
+                        && (!x.EndWorkingDate.HasValue || x.EndWorkingDate.Value.Date >= today)
+                        && values.Contains(x.EmployeeCode))
+                    .Select(x => x.EmployeeCode)
+                    .ToListAsync(ct);
+
+                var missing = values.Where(v => !found.Contains(v, StringComparer.OrdinalIgnoreCase)).ToList();
+                if (missing.Count > 0)
+                    throw new ArgumentException($"Nhân viên không tồn tại hoặc đã nghỉ việc: {string.Join(", ", missing)}");
+            }
         }
     }
 

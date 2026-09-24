@@ -1,0 +1,60 @@
+@page "/equipment/help"
+@attribute [Authorize]
+@using Microsoft.AspNetCore.Authorization
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
+    <MudText Typo="Typo.h4">Trợ giúp — Quản lý thiết bị</MudText>
+    <MudText Typo="Typo.body2" Class="mud-text-secondary mb-4">
+        Hướng dẫn vận hành chuẩn cho import, checklist, sửa chữa, bàn giao và báo cáo.
+    </MudText>
+    <MudExpansionPanels MultiExpansion="true">
+        <MudExpansionPanel Text="1. Import thiết bị và giao nhân viên">
+            <MudText>Chọn Equipment → Import Excel, chọn DeptCode/schema và bật “Giao cho nhân viên” nếu muốn gán ngay khi import.</MudText>
+            <MudList Dense="true">
+                <MudListItem>Excel phải có mã thiết bị, tên thiết bị và EmployeeCode khi bật giao nhân viên.</MudListItem>
+                <MudListItem>Staging kiểm tra nhân viên tồn tại, đang làm việc và thuộc đúng DeptCode.</MudListItem>
+                <MudListItem>Chỉ batch không có dòng lỗi mới ở trạng thái Ready.</MudListItem>
+                <MudListItem>Commit kiểm tra lại HRM lần cuối, gồm cả DeptCode, để tránh dữ liệu bị thay đổi sau staging.</MudListItem>
+            </MudList>
+            <MudAlert Severity="Severity.Warning">Không sửa database để bỏ qua validation hoặc ép batch sang Ready.</MudAlert>
+        </MudExpansionPanel>
+        <MudExpansionPanel Text="2. Import checklist theo schema">
+            <MudText>Mỗi dòng là một item. Các cột chuẩn gồm TemplateCode, TemplateName, DeptCode, Frequency, ItemCode, ItemLabel, InputType, DisplayOrder; có thể dùng Description, IsRequired, RequireImage, MinImages, MaxImages, MinValue, MaxValue, Unit và OptionsJson.</MudText>
+            <MudText Class="mt-2">InputType hỗ trợ PassFail, YesNo, Number, Text và Select. Với Select, OptionsJson chứa danh sách lựa chọn, ví dụ ["OK","NG","N/A"]. Import tạo Draft; phải review và publish Active.</MudText>
+        </MudExpansionPanel>
+        <MudExpansionPanel Text="3. Yêu cầu sửa chữa">
+            <MudText>Người phụ trách hoặc người vận hành thiết bị được giao có thể tạo repair cho chính asset đó. Server vẫn kiểm tra quan hệ asset, vì vậy không cần cấp quyền EquipmentRepair toàn hệ thống chỉ để một người phụ trách thiết bị của mình báo hỏng.</MudText>
+            <MudList Dense="true">
+                <MudListItem>Chọn đúng một kiểu chịu trách nhiệm sửa chữa: Bộ phận hoặc Nhân viên.</MudListItem>
+                <MudListItem>Bộ phận phải active; nhân viên phải active và chưa có EndWorkingDate.</MudListItem>
+                <MudListItem>Chọn approver theo Approval Policy rồi gửi duyệt.</MudListItem>
+                <MudListItem>Sau khi đủ cấp duyệt, hệ thống sinh REPAIR_EXECUTION Action.</MudListItem>
+                <MudListItem>Nếu giao bộ phận, tất cả nhân viên active trong bộ phận nhận Action + notification + email.</MudListItem>
+                <MudListItem>Người đầu tiên hoàn thành sẽ đóng Action của mình và cancel các Action song song.</MudListItem>
+            </MudList>
+        </MudExpansionPanel>
+        <MudExpansionPanel Text="4. Bàn giao thiết bị">
+            <MudText>Người tiếp quản đăng nhập bằng tài khoản của mình và mở Phiếu thay đổi quyền / bàn giao. Không có đường API công khai để bỏ qua Approval + IT.</MudText>
+            <MudList Dense="true">
+                <MudListItem>Chọn nhân sự cũ.</MudListItem>
+                <MudListItem>Chọn “Bàn giao trách nhiệm” và/hoặc “Bàn giao approver”.</MudListItem>
+                <MudListItem>Chọn từng tài sản cần bàn giao; không mặc định chuyển toàn bộ tài sản.</MudListItem>
+                <MudListItem>Server xác minh tài sản thực sự thuộc người cũ ở vai trò tương ứng.</MudListItem>
+                <MudListItem>PreChangeSnapshot lưu tài sản, trách nhiệm, approver, lịch sử sửa chữa, lịch sử bàn giao và checklist/evidence.</MudListItem>
+                <MudListItem>Sau đủ approval, IT là điểm thực thi duy nhất và hệ thống ghi PostChangeResult + lịch sử bàn giao.</MudListItem>
+            </MudList>
+        </MudExpansionPanel>
+        <MudExpansionPanel Text="5. Báo cáo">
+            <MudText>Báo cáo lọc theo bộ phận, người phụ trách, bộ phận sửa chữa và khoảng thời gian. Excel gồm TaiSan, LichSuSuaChua, LichSuBanGiao và Checklist.</MudText>
+        </MudExpansionPanel>
+        <MudExpansionPanel Text="6. Quy tắc không được bỏ qua">
+            <MudList Dense="true">
+                <MudListItem>Không gán nhân viên không tồn tại, đã nghỉ việc hoặc ngoài DeptCode khi import.</MudListItem>
+                <MudListItem>Không tạo repair thiếu Department/Employee chịu trách nhiệm.</MudListItem>
+                <MudListItem>Không hoàn thành cùng một repair hai lần.</MudListItem>
+                <MudListItem>Không sửa Active checklist version.</MudListItem>
+                <MudListItem>Không tự điều chuyển thiết bị bỏ qua Approval + IT.</MudListItem>
+            </MudList>
+        </MudExpansionPanel>
+    </MudExpansionPanels>
+</MudContainer>

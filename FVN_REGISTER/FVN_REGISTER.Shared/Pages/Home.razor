@@ -8,7 +8,6 @@
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @implements IDisposable
-
 @inject IDashboardClientService DashboardService
 @inject ICurrentUserClientService CurrentUserService
 @inject ISnackbar Snackbar
@@ -35,35 +34,19 @@ else if (_model != null)
             <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Spacing="4" Wrap="Wrap.Wrap">
                 <div>
                     <MudText Typo="Typo.overline" Color="Color.Primary">FVN REGISTER • WORKSPACE</MudText>
-                    <MudText Typo="Typo.h4" Style="font-weight:850">
-                        Xin chào, @(CurrentUserService.User?.FullName ?? "Cán bộ FCC")
-                    </MudText>
-                    <MudText Typo="Typo.body2" Class="mt-1 mud-text-secondary">
-                        Đây là trung tâm công việc cá nhân: theo dõi đơn, xử lý phê duyệt và các thông tin cần chú ý.
-                    </MudText>
+                    <MudText Typo="Typo.h4" Style="font-weight:850">Xin chào, @(CurrentUserService.User?.FullName ?? "Cán bộ FCC")</MudText>
+                    <MudText Typo="Typo.body2" Class="mt-1 mud-text-secondary">Đây là trung tâm công việc cá nhân: theo dõi đơn, xử lý phê duyệt và các thông tin cần chú ý.</MudText>
                 </div>
                 <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
-                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Campaign"
-                               OnClick="@(() => Navigation.NavigateTo("/thong-tin-cong-khai"))">
-                        Thông tin
-                    </MudButton>
-                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.EventAvailable"
-                               OnClick="@(() => Navigation.NavigateTo("/leave/create"))">
-                        Tạo Leave
-                    </MudButton>
+                    <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Campaign" OnClick="@(() => Navigation.NavigateTo("/thong-tin-cong-khai"))">Thông tin</MudButton>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.EventAvailable" OnClick="@(() => Navigation.NavigateTo("/leave/create"))">Tạo Leave</MudButton>
                     @if (CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.OTCreate) == true)
                     {
-                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Schedule"
-                                   OnClick="@(() => Navigation.NavigateTo("/ot/create"))">
-                            Tạo OT
-                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Warning" StartIcon="@Icons.Material.Filled.Schedule" OnClick="@(() => Navigation.NavigateTo("/ot/create"))">Tạo OT</MudButton>
                     }
                     @if (CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.TripCreate) == true)
                     {
-                        <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.FlightTakeoff"
-                                   OnClick="@(() => Navigation.NavigateTo("/trip/create"))">
-                            Tạo công tác
-                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" Color="Color.Info" StartIcon="@Icons.Material.Filled.FlightTakeoff" OnClick="@(() => Navigation.NavigateTo("/trip/create"))">Tạo công tác</MudButton>
                     }
                 </MudStack>
             </MudStack>
@@ -72,42 +55,10 @@ else if (_model != null)
         <MudText Typo="Typo.h6" Class="mb-3" Style="font-weight:750">Trung tâm công việc</MudText>
         <MudAlert Severity="Severity.Info" Variant="Variant.Outlined" Class="mb-4">Thông báo và phê duyệt dùng chung một Action Center. Thiết bị cũng được mở ngay trong Workspace.</MudAlert>
         <MudGrid Spacing="3" Class="mb-5">
-            <MudItem xs="12" sm="3">
-                <MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/work/inbox"))">
-                    <MudCardContent Class="pa-5">
-                        <MudIcon Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Primary" Size="Size.Large" />
-                        <MudText Typo="Typo.h6" Class="mt-3">Phê duyệt</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Tập trung các việc đang chờ xử lý theo quyền của tài khoản.</MudText>
-                    </MudCardContent>
-                </MudCard>
-            </MudItem>
-            <MudItem xs="12" sm="3">
-                <MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/history/leave"))">
-                    <MudCardContent Class="pa-5">
-                        <MudIcon Icon="@Icons.Material.Filled.EventAvailable" Color="Color.Success" Size="Size.Large" />
-                        <MudText Typo="Typo.h6" Class="mt-3">Nghỉ phép của tôi</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Xem số dư, lịch sử và trạng thái các đơn nghỉ.</MudText>
-                    </MudCardContent>
-                </MudCard>
-            </MudItem>
-            <MudItem xs="12" sm="3">
-                <MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/history/ot"))">
-                    <MudCardContent Class="pa-5">
-                        <MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Warning" Size="Size.Large" />
-                        <MudText Typo="Typo.h6" Class="mt-3">OT của tôi</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Theo dõi giờ OT và các yêu cầu đã gửi.</MudText>
-                    </MudCardContent>
-                </MudCard>
-            </MudItem>
-            <MudItem xs="12" sm="3">
-                <MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/calendar"))">
-                    <MudCardContent Class="pa-5">
-                        <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Info" Size="Size.Large" />
-                        <MudText Typo="Typo.h6" Class="mt-3">Lịch làm việc</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Xem tổng quan lịch làm việc, chấm công và các đơn trong tháng.</MudText>
-                    </MudCardContent>
-                </MudCard>
-            </MudItem>
+            <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/work/inbox"))"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.TaskAlt" Color="Color.Primary" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">Phê duyệt</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">Tập trung các việc đang chờ xử lý theo quyền của tài khoản.</MudText></MudCardContent></MudCard></MudItem>
+            <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/history/leave"))"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.EventAvailable" Color="Color.Success" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">Nghỉ phép của tôi</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">Xem số dư, lịch sử và trạng thái các đơn nghỉ.</MudText></MudCardContent></MudCard></MudItem>
+            <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/history/ot"))"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.Schedule" Color="Color.Warning" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">OT của tôi</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">Theo dõi giờ OT và các yêu cầu đã gửi.</MudText></MudCardContent></MudCard></MudItem>
+            <MudItem xs="12" sm="3"><MudCard Elevation="1" Style="height:100%; border-radius:18px; cursor:pointer" @onclick="@(() => Navigation.NavigateTo("/calendar"))"><MudCardContent Class="pa-5"><MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Color="Color.Info" Size="Size.Large" /><MudText Typo="Typo.h6" Class="mt-3">Lịch làm việc</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">Xem tổng quan lịch làm việc, chấm công và các đơn trong tháng.</MudText></MudCardContent></MudCard></MudItem>
         </MudGrid>
 
         <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
@@ -115,65 +66,41 @@ else if (_model != null)
             <MudText Typo="Typo.caption" Class="mud-text-secondary">Cập nhật @_loadedAt?.ToString("dd/MM/yyyy HH:mm")</MudText>
         </MudStack>
 
-        @if (CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.EquipmentView) == true)
+        <EquipmentDashboardTile />
+
+        @if (CurrentUserService.User?.IsAdmin == true || CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.EquipmentView) == true)
         {
             <MudPaper Outlined="true" Class="pa-4 mb-4" Style="border-radius:18px">
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
                     <div>
                         <MudText Typo="Typo.h6">Thiết bị</MudText>
-                        <MudText Typo="Typo.body2" Class="mud-text-secondary">
-                            Sổ thiết bị, QR, repair và workspace Excel theo schema phòng ban.
-                        </MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Sổ thiết bị, QR, repair và workspace Excel theo schema phòng ban.</MudText>
                     </div>
-                    @if (CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.EquipmentImport) == true)
+                    @if (CurrentUserService.User?.IsAdmin == true || CurrentUserService.User?.Functions.Contains(SecurityFunctionCodes.EquipmentImport) == true)
                     {
-                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile"
-                                   OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">
-                            Import Excel
-                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.UploadFile" OnClick="@(() => Navigation.NavigateTo("/equipment/workspace"))">Import Excel</MudButton>
                     }
                     else
                     {
-                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Devices"
-                                   OnClick="@(() => Navigation.NavigateTo("/equipment"))">
-                            Mở Equipment
-                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Devices" OnClick="@(() => Navigation.NavigateTo("/equipment"))">Mở Equipment</MudButton>
                     }
                 </MudStack>
             </MudPaper>
 
-            <EquipmentDashboardTile />
-        }
         <DashboardOverview Data="_model" />
     </MudContainer>
 }
 else if (_guestFallback)
 {
-    <MudContainer MaxWidth="MaxWidth.Medium" Class="py-8">
-        <MudPaper Outlined="true" Class="pa-6" Style="border-radius:20px">
-            <MudText Typo="Typo.h5">Thông tin công khai</MudText>
-            <MudText Typo="Typo.body2" Class="mt-2 mb-4 mud-text-secondary">
-                Tài khoản hiện không có capability Dashboard.View. Bạn chỉ thấy các thông tin công khai được phép.
-            </MudText>
-            <MudButton Variant="Variant.Filled" Color="Color.Primary"
-                       StartIcon="@Icons.Material.Filled.Campaign"
-                       OnClick="@(() => Navigation.NavigateTo("/thong-tin-cong-khai"))">
-                Mở thông tin công khai
-            </MudButton>
-        </MudPaper>
-    </MudContainer>
+    <MudContainer MaxWidth="MaxWidth.Medium" Class="py-8"><MudPaper Outlined="true" Class="pa-6" Style="border-radius:20px"><MudText Typo="Typo.h5">Thông tin công khai</MudText><MudText Typo="Typo.body2" Class="mt-2 mb-4 mud-text-secondary">Tài khoản hiện không có capability Dashboard.View. Bạn chỉ thấy các thông tin công khai được phép.</MudText><MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Campaign" OnClick="@(() => Navigation.NavigateTo("/thong-tin-cong-khai"))">Mở thông tin công khai</MudButton></MudPaper></MudContainer>
 }
 else if (!string.IsNullOrWhiteSpace(_errorMessage))
 {
-    <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
-        <MudAlert Severity="Severity.Error">@_errorMessage</MudAlert>
-    </MudContainer>
+    <MudContainer MaxWidth="MaxWidth.Large" Class="py-6"><MudAlert Severity="Severity.Error">@_errorMessage</MudAlert></MudContainer>
 }
 else
 {
-    <MudContainer MaxWidth="MaxWidth.Large" Class="py-6">
-        <MudAlert Severity="Severity.Info">Dashboard chưa có dữ liệu để hiển thị.</MudAlert>
-    </MudContainer>
+    <MudContainer MaxWidth="MaxWidth.Large" Class="py-6"><MudAlert Severity="Severity.Info">Dashboard chưa có dữ liệu để hiển thị.</MudAlert></MudContainer>
 }
 
 @code {
@@ -189,53 +116,21 @@ else
         try
         {
             await CurrentUserService.InitializeAsync();
-
-            if (!CurrentUserService.IsLoggedIn)
-            {
-                _errorMessage = "Phiên đăng nhập không hợp lệ hoặc đã hết hạn.";
-                return;
-            }
-
+            if (!CurrentUserService.IsLoggedIn) { _errorMessage = "Phiên đăng nhập không hợp lệ hoặc đã hết hạn."; return; }
             var result = await DashboardService.GetDashboardDataAsync(_cts.Token);
-            if (result.IsSuccess && result.Data != null)
-            {
-                _model = result.Data;
-                _loadedAt = DateTime.Now;
-            }
-            else if (result.IsUnauthorized)
-            {
-                _errorMessage = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
-            }
+            if (result.IsSuccess && result.Data != null) { _model = result.Data; _loadedAt = DateTime.Now; }
+            else if (result.IsUnauthorized) _errorMessage = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.";
             else
             {
                 var message = result.Message ?? "Không thể tải Dashboard.";
-                if (message.Contains("chưa được cấp quyền xem Dashboard", StringComparison.OrdinalIgnoreCase))
-                {
-                    _guestFallback = true;
-                }
-                else
-                {
-                    _errorMessage = message;
-                }
+                if (message.Contains("chưa được cấp quyền xem Dashboard", StringComparison.OrdinalIgnoreCase)) _guestFallback = true;
+                else _errorMessage = message;
             }
         }
-        catch (OperationCanceledException) when (_cts.IsCancellationRequested)
-        {
-        }
-        catch (Exception ex)
-        {
-            _errorMessage = $"Không thể tải Dashboard: {ex.Message}";
-            Snackbar.Add(_errorMessage, Severity.Error);
-        }
-        finally
-        {
-            _isLoading = false;
-        }
+        catch (OperationCanceledException) when (_cts.IsCancellationRequested) { }
+        catch (Exception ex) { _errorMessage = $"Không thể tải Dashboard: {ex.Message}"; Snackbar.Add(_errorMessage, Severity.Error); }
+        finally { _isLoading = false; }
     }
 
-    public void Dispose()
-    {
-        _cts.Cancel();
-        _cts.Dispose();
-    }
+    public void Dispose() { _cts.Cancel(); _cts.Dispose(); }
 }

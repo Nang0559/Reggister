@@ -1,0 +1,305 @@
+@page "/equipment/inspection-management"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Depts
+@using FVN_REGISTER.Contract.Dtos.Equipment
+@using FVN_REGISTER.Contract.Dtos.Employees
+@using FVN_REGISTER.Shared.Services.Equipment
+@using FVN_REGISTER.Shared.Services.Employees
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@inherits AppComponentBase
+@inject IEquipmentClientService EquipmentClient
+@inject IEmployeeManagementClientService EmployeeClient
+@inject ISnackbar Snackbar
+
+<PageTitle>Quản lý Checklist thiết bị</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
+    <MudText Typo="Typo.h4">Quản lý Checklist thiết bị</MudText>
+    <MudText Typo="Typo.body2" Class="mb-4 mud-text-secondary">Checklist là tùy chọn theo từng thiết bị đã đăng ký. Không thể tạo phân công cho thiết bị chưa đăng ký.</MudText>
+
+    <MudTabs Rounded="true" Elevation="1">
+        <MudTabPanel Text="Thiết kế Checklist">
+            <MudPaper Class="pa-4 ma-4" Outlined="true">
+                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                    <div>
+                        <MudText Typo="Typo.h6">Import Checklist từ Excel</MudText>
+                        <MudText Typo="Typo.body2" Class="mud-text-secondary">Một schema dùng cho nhiều loại checklist; tất cả dòng phải hợp lệ thì mới tạo template Draft.</MudText>
+                    </div>
+                    <InputFile OnChange="ImportChecklistAsync" accept=".xls,.xlsx,.xlsm" />
+                </MudStack>
+                <MudAlert Severity="Severity.Info" Class="mt-3">
+                    Cột bắt buộc: TemplateCode, TemplateName, DeptCode, Frequency, ItemCode, ItemLabel, InputType, DisplayOrder.
+                    Cột tùy chọn: Description, IsRequired, RequireImage, MinImages, MaxImages, MinValue, MaxValue, Unit, OptionsJson.
+                </MudAlert>
+                @if (_importResult != null)
+                {
+                    <MudAlert Severity="@(_importResult.Errors.Count == 0 ? Severity.Success : Severity.Error)" Class="mt-3">
+                        @(_importResult.Errors.Count == 0 ? $"Đã import {_importResult.ItemCount} hạng mục vào template {_importResult.TemplateCode} ở Draft." : string.Join(" ", _importResult.Errors))
+                    </MudAlert>
+                }
+            </MudPaper>
+
+            <MudGrid Class="pa-4">
+                <MudItem xs="12" md="4">
+                    <MudPaper Class="pa-4" Outlined="true">
+                        <MudText Typo="Typo.h6">Thông tin checklist</MudText>
+                        <MudSelect T="string" Label="Department" @bind-Value="_deptCode" Variant="Variant.Outlined" Dense="true">
+                            @foreach (var d in _departments)
+                            {
+                                <MudSelectItem Value="@d.DeptCode">@d.DeptCode – @d.DeptName</MudSelectItem>
+                            }
+                        </MudSelect>
+                        <MudTextField @bind-Value="_template.TemplateCode" Label="Template Code" Variant="Variant.Outlined" Class="mt-3" />
+                        <MudTextField @bind-Value="_template.TemplateName" Label="Tên checklist" Variant="Variant.Outlined" Class="mt-3" Required="true" />
+                        <MudSelect T="string" @bind-Value="_template.Frequency" Label="Chu kỳ" Variant="Variant.Outlined" Class="mt-3">
+                            <MudSelectItem Value="@("Daily")">Hàng ngày</MudSelectItem>
+                            <MudSelectItem Value="@("Weekly")">Hàng tuần</MudSelectItem>
+                            <MudSelectItem Value="@("Monthly")">Hàng tháng</MudSelectItem>
+                            <MudSelectItem Value="@("Quarterly")">Hàng quý</MudSelectItem>
+                            <MudSelectItem Value="@("Yearly")">Hàng năm</MudSelectItem>
+                        </MudSelect>
+                        <MudSelect T="string" @bind-Value="_template.Status" Label="Trạng thái" Variant="Variant.Outlined" Class="mt-3">
+                            <MudSelectItem Value="@("Draft")">Draft</MudSelectItem>
+                            <MudSelectItem Value="@("Active")">Active</MudSelectItem>
+                            <MudSelectItem Value="@("Inactive")">Inactive</MudSelectItem>
+                        </MudSelect>
+                        <MudTextField @bind-Value="_template.Description" Label="Mô tả" Lines="3" Variant="Variant.Outlined" Class="mt-3" />
+                        <MudStack Row="true" Class="mt-4">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveTemplateAsync">Lưu</MudButton>
+                            @if (_template.Id > 0)
+                            {
+                                <MudButton Variant="Variant.Outlined" OnClick="CloneTemplateAsync">Nhân bản version</MudButton>
+                            }
+                        </MudStack>
+                    </MudPaper>
+                </MudItem>
+
+                <MudItem xs="12" md="8">
+                    <MudPaper Class="pa-4" Outlined="true">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <MudText Typo="Typo.h6">Các hạng mục kiểm tra</MudText>
+                            <MudButton StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Outlined" OnClick="AddItem">Thêm hạng mục</MudButton>
+                        </MudStack>
+                        @foreach (var item in _template.Items.OrderBy(x => x.DisplayOrder))
+                        {
+                            <MudPaper Class="pa-3 my-3" Outlined="true">
+                                <MudGrid>
+                                    <MudItem xs="12" sm="2"><MudTextField @bind-Value="item.ItemCode" Label="Code" Dense="true" /></MudItem>
+                                    <MudItem xs="12" sm="4"><MudTextField @bind-Value="item.ItemLabel" Label="Hạng mục" Dense="true" /></MudItem>
+                                    <MudItem xs="12" sm="3">
+                                        <MudSelect T="string" @bind-Value="item.InputType" Label="Kiểu" Dense="true">
+                                            <MudSelectItem Value="@("PassFail")">Đạt / Không đạt</MudSelectItem>
+                                            <MudSelectItem Value="@("YesNo")">Có / Không</MudSelectItem>
+                                            <MudSelectItem Value="@("Number")">Số</MudSelectItem>
+                                            <MudSelectItem Value="@("Text")">Text</MudSelectItem>
+                                            <MudSelectItem Value="@("Select")">Danh sách</MudSelectItem>
+                                        </MudSelect>
+                                    </MudItem>
+                                    <MudItem xs="12" sm="1"><MudNumericField T="int" @bind-Value="item.DisplayOrder" Label="STT" Dense="true" /></MudItem>
+                                    <MudItem xs="12" sm="2">
+                                        <MudCheckBox @bind-Value="item.IsRequired" Label="Required" Dense="true" />
+                                        <MudCheckBox @bind-Value="item.RequireImage" Label="Ảnh" Dense="true" />
+                                    </MudItem>
+                                    @if (item.InputType == "Number")
+                                    {
+                                        <MudItem xs="12" sm="3"><MudNumericField T="decimal?" @bind-Value="item.MinValue" Label="Min" Dense="true" /></MudItem>
+                                        <MudItem xs="12" sm="3"><MudNumericField T="decimal?" @bind-Value="item.MaxValue" Label="Max" Dense="true" /></MudItem>
+                                        <MudItem xs="12" sm="2"><MudTextField @bind-Value="item.Unit" Label="Đơn vị" Dense="true" /></MudItem>
+                                    }
+                                    @if (item.RequireImage)
+                                    {
+                                        <MudItem xs="12" sm="4"><MudNumericField T="int" @bind-Value="item.MinImages" Label="Ảnh tối thiểu" Dense="true" Min="1" /></MudItem>
+                                        <MudItem xs="12" sm="4"><MudNumericField T="int" @bind-Value="item.MaxImages" Label="Ảnh tối đa" Dense="true" Min="1" /></MudItem>
+                                    }
+                                    @if (item.InputType == "Select")
+                                    {
+                                        <MudItem xs="12"><MudTextField @bind-Value="item.OptionsJson" Label="Options JSON" Dense="true" HelperText='Ví dụ: ["OK","NG","N/A"]' /></MudItem>
+                                    }
+                                    <MudItem xs="12"><MudButton Color="Color.Error" Variant="Variant.Text" OnClick="@(() => RemoveItem(item))">Xóa hạng mục</MudButton></MudItem>
+                                </MudGrid>
+                            </MudPaper>
+                        }
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+
+            <MudPaper Class="pa-4 ma-4" Outlined="true">
+                <MudText Typo="Typo.h6">Checklist hiện có</MudText>
+                <MudTable Items="_templates" Dense="true" Hover="true">
+                    <HeaderContent><MudTh>Department</MudTh><MudTh>Tên</MudTh><MudTh>Version</MudTh><MudTh>Chu kỳ</MudTh><MudTh>Status</MudTh><MudTh></MudTh></HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.DeptCode</MudTd><MudTd>@context.TemplateName</MudTd><MudTd>v@context.Version</MudTd><MudTd>@context.Frequency</MudTd><MudTd>@context.Status</MudTd>
+                        <MudTd><MudButton Size="Size.Small" OnClick="@(() => EditTemplate(context))">Mở</MudButton><MudButton Size="Size.Small" OnClick="@(() => CloneExistingAsync(context))">Nhân bản</MudButton></MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Phân công thiết bị">
+            <MudPaper Class="pa-4" Outlined="true">
+                <MudAlert Severity="Severity.Info" Class="mb-4">Chỉ thiết bị đã đăng ký và đang Active mới xuất hiện trong danh sách.</MudAlert>
+                <MudGrid>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="int" @bind-Value="_assignment.EquipmentId" Label="Thiết bị" Variant="Variant.Outlined">
+                            @foreach (var a in _assets) { <MudSelectItem Value="@a.Id">@a.EquipmentCode – @a.EquipmentName</MudSelectItem> }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="int" Value="@_assignment.TemplateId" ValueChanged="OnTemplateChanged" Label="Checklist Active" Variant="Variant.Outlined">
+                            @foreach (var t in _templates.Where(x => x.Status == "Active")) { <MudSelectItem Value="@t.Id">@t.DeptCode – @t.TemplateName v@t.Version</MudSelectItem> }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="3"><MudTextField Value="@_assignment.Frequency" Label="Chu kỳ theo checklist" ReadOnly="true" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" md="3"><MudTextField @bind-Value="_dueTime" Label="Giờ đến hạn (HH:mm)" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" md="3"><MudNumericField T="int" @bind-Value="_assignment.ReminderHoursBefore" Label="Nhắc trước (giờ)" Min="0" Max="168" /></MudItem>
+                    <MudItem xs="12" md="3"><MudNumericField T="int?" @bind-Value="_assignment.ScheduleDayOfMonth" Label="Ngày trong tháng" Min="1" Max="31" /></MudItem>
+                    @if (_assignment.Frequency == "Weekly")
+                    {
+                        <MudItem xs="12" md="3"><MudSelect T="int?" @bind-Value="_assignment.ScheduleDayOfWeek" Label="Thứ"><MudSelectItem Value="@((int?)1)">Thứ 2</MudSelectItem><MudSelectItem Value="@((int?)2)">Thứ 3</MudSelectItem><MudSelectItem Value="@((int?)3)">Thứ 4</MudSelectItem><MudSelectItem Value="@((int?)4)">Thứ 5</MudSelectItem><MudSelectItem Value="@((int?)5)">Thứ 6</MudSelectItem><MudSelectItem Value="@((int?)6)">Thứ 7</MudSelectItem><MudSelectItem Value="@((int?)0)">Chủ nhật</MudSelectItem></MudSelect></MudItem>
+                    }
+                    @if (_assignment.Frequency == "Quarterly" || _assignment.Frequency == "Yearly")
+                    {
+                        <MudItem xs="12" md="3"><MudNumericField T="int?" @bind-Value="_assignment.ScheduleMonth" Label="@(_assignment.Frequency == "Quarterly" ? "Tháng neo trong quý (1-3)" : "Tháng (1-12)")" Min="1" Max="12" /></MudItem>
+                    }
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="string" @bind-Value="_assignment.InspectorEmployeeCode" Label="Người check" Variant="Variant.Outlined">
+                            @foreach (var e in _employees) { <MudSelectItem Value="@e.EmployeeCode">@e.EmployeeCode – @e.EmployeeName</MudSelectItem> }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" md="6">
+                        <MudSelect T="string" @bind-Value="_assignment.ApproverEmployeeCode" Label="Người approve" Variant="Variant.Outlined">
+                            @foreach (var e in _employees) { <MudSelectItem Value="@e.EmployeeCode">@e.EmployeeCode – @e.EmployeeName</MudSelectItem> }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12"><MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="AssignAsync">Gán checklist cho thiết bị</MudButton></MudItem>
+                </MudGrid>
+                <MudTable Items="_assignments" Dense="true" Class="mt-4">
+                    <HeaderContent><MudTh>Thiết bị</MudTh><MudTh>Checklist</MudTh><MudTh>Chu kỳ</MudTh><MudTh>Check</MudTh><MudTh>Approve</MudTh></HeaderContent>
+                    <RowTemplate><MudTd>@context.EquipmentCode</MudTd><MudTd>@context.TemplateName</MudTd><MudTd>@context.Frequency</MudTd><MudTd>@context.InspectorEmployeeCode</MudTd><MudTd>@context.ApproverEmployeeCode</MudTd></RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Báo cáo">
+            <MudPaper Class="pa-4" Outlined="true">
+                <MudStack Row="true" Spacing="2" AlignItems="AlignItems.End">
+                    <MudDatePicker @bind-Date="_from" Label="Từ ngày" />
+                    <MudDatePicker @bind-Date="_to" Label="Đến ngày" />
+                    <MudButton Variant="Variant.Filled" OnClick="LoadReportAsync">Xem báo cáo</MudButton>
+                </MudStack>
+                @if (_report != null)
+                {
+                    <MudGrid Class="mt-4">
+                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">Tổng<br/><b>@_report.Total</b></MudPaper></MudItem>
+                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">Hoàn thành<br/><b>@_report.Completed</b></MudPaper></MudItem>
+                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">Chờ xử lý<br/><b>@_report.Pending</b></MudPaper></MudItem>
+                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">Quá hạn<br/><b>@_report.Overdue</b></MudPaper></MudItem>
+                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">Tỷ lệ hoàn thành<br/><b>@_report.CompletionRate%</b></MudPaper></MudItem>
+                        <MudItem xs="6" md="2"><MudPaper Class="pa-3">Tỷ lệ đạt<br/><b>@_report.PassRate%</b></MudPaper></MudItem>
+                    </MudGrid>
+                    <MudTable Items="_report.Rows" Dense="true" Class="mt-4">
+                        <HeaderContent><MudTh>Ngày</MudTh><MudTh>Thiết bị</MudTh><MudTh>Checklist</MudTh><MudTh>Người check</MudTh><MudTh>Trạng thái</MudTh><MudTh>Kết quả</MudTh></HeaderContent>
+                        <RowTemplate><MudTd>@context.ScheduledDate.ToString("dd/MM/yyyy")</MudTd><MudTd>@context.EquipmentCode</MudTd><MudTd>@context.TemplateName</MudTd><MudTd>@context.InspectorEmployeeCode</MudTd><MudTd>@context.Status</MudTd><MudTd>@context.Result</MudTd></RowTemplate>
+                    </MudTable>
+                }
+            </MudPaper>
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
+
+@code {    private async Task ImportChecklistAsync(InputFileChangeEventArgs args)
+    {
+        var file = args.File;
+        if (file == null) return;
+        _importResult = null;
+        var result = await EquipmentClient.ImportInspectionTemplateExcelAsync(file);
+        if (result.IsSuccess) { _importResult = result.Data; await LoadAsync(); Snackbar.Add(result.Message ?? "Đã import checklist.", Severity.Success); }
+        else Snackbar.Add(result.Message ?? "Import checklist thất bại.", Severity.Error);
+    }
+
+
+    private bool _loading;
+    private EquipmentInspectionTemplateImportResultDto? _importResult;
+    private string _deptCode = "";
+    private List<DepartmentDto> _departments = new();
+    private List<EquipmentInspectionTemplateDto> _templates = new();
+    private List<EquipmentAssetDto> _assets = new();
+    private List<EmployeeCardDto> _employees = new();
+    private List<EquipmentInspectionAssignmentDto> _assignments = new();
+    private EquipmentInspectionTemplateUpsertRequest _template = NewTemplate();
+    private EquipmentInspectionAssignmentRequest _assignment = new();
+    private string _dueTime = "08:00";
+    private DateTime? _from = DateTime.Today.AddDays(-30);
+    private DateTime? _to = DateTime.Today;
+    private EquipmentInspectionDashboardDto? _report;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _loading = true;
+        try
+        {
+            var d = await EquipmentClient.GetEquipmentDepartmentsAsync(); if (d.IsSuccess) _departments = d.Data ?? new();
+            if (_departments.Count > 0) _deptCode = _departments[0].DeptCode;
+            var e = await EmployeeClient.GetTreeAsync(); if (e.IsSuccess) _employees = (e.Data ?? new()).SelectMany(x => x.Employees).Where(x => x.IsActive).OrderBy(x => x.EmployeeCode).ToList();
+            await LoadAllAsync();
+        }
+        finally { _loading = false; }
+    }
+
+    private async Task LoadAllAsync()
+    {
+        var t = await EquipmentClient.GetInspectionTemplatesAsync(); if (t.IsSuccess) _templates = t.Data ?? new();
+        var a = await EquipmentClient.GetRegisteredInspectionAssetsAsync(); if (a.IsSuccess) _assets = a.Data ?? new();
+        var x = await EquipmentClient.GetInspectionAssignmentsAsync(); if (x.IsSuccess) _assignments = x.Data ?? new();
+    }
+    private static EquipmentInspectionTemplateUpsertRequest NewTemplate() => new() { Frequency="Daily", Status="Draft" };
+    private void AddItem() => _template.Items.Add(new EquipmentInspectionItemDto { ItemCode=$"ITEM-{_template.Items.Count+1:000}", DisplayOrder=_template.Items.Count+1, InputType="PassFail", MaxImages=3 });
+    private void RemoveItem(EquipmentInspectionItemDto item) => _template.Items.Remove(item);
+    private void EditTemplate(EquipmentInspectionTemplateDto x) => _template = new EquipmentInspectionTemplateUpsertRequest { Id=x.Id, TemplateCode=x.TemplateCode, TemplateName=x.TemplateName, DeptCode=x.DeptCode, Frequency=x.Frequency, Status=x.Status, Description=x.Description, Items=x.Items.Select(i=>new EquipmentInspectionItemDto { Id=i.Id, ItemCode=i.ItemCode, ItemLabel=i.ItemLabel, InputType=i.InputType, IsRequired=i.IsRequired, RequireImage=i.RequireImage, MinImages=i.MinImages, MaxImages=i.MaxImages, MinValue=i.MinValue, MaxValue=i.MaxValue, Unit=i.Unit, OptionsJson=i.OptionsJson, DisplayOrder=i.DisplayOrder }).ToList() };
+    private async Task SaveTemplateAsync()
+    {
+        _template.DeptCode = _deptCode;
+        if (string.IsNullOrWhiteSpace(_template.TemplateName)) { Snackbar.Add("Tên checklist là bắt buộc.", Severity.Warning); return; }
+        var r = await EquipmentClient.SaveInspectionTemplateAsync(_template);
+        Snackbar.Add(r.IsSuccess ? "Đã lưu checklist." : (r.Message ?? "Không thể lưu checklist."), r.IsSuccess ? Severity.Success : Severity.Error);
+        if (r.IsSuccess) { _template = NewTemplate(); await LoadAllAsync(); }
+    }
+    private async Task CloneTemplateAsync()
+    {
+        var r = await EquipmentClient.CloneInspectionTemplateAsync(_template.Id, _template.TemplateName + " - Draft");
+        Snackbar.Add(r.IsSuccess ? "Đã nhân bản checklist." : (r.Message ?? "Không thể nhân bản."), r.IsSuccess ? Severity.Success : Severity.Error);
+        if (r.IsSuccess) await LoadAllAsync();
+    }
+    private async Task CloneExistingAsync(EquipmentInspectionTemplateDto x)
+    {
+        var r = await EquipmentClient.CloneInspectionTemplateAsync(x.Id);
+        Snackbar.Add(r.IsSuccess ? "Đã nhân bản checklist." : (r.Message ?? "Không thể nhân bản."), r.IsSuccess ? Severity.Success : Severity.Error);
+        if (r.IsSuccess) await LoadAllAsync();
+    }
+    private Task OnTemplateChanged(int value)
+    {
+        _assignment.TemplateId = value;
+        var template = _templates.FirstOrDefault(x => x.Id == value);
+        _assignment.Frequency = template?.Frequency ?? "Daily";
+        return Task.CompletedTask;
+    }
+    private async Task AssignAsync()
+    {
+        var selectedTemplate = _templates.FirstOrDefault(x => x.Id == _assignment.TemplateId && x.Status == "Active");
+        if (selectedTemplate == null) { Snackbar.Add("Hãy chọn checklist Active.", Severity.Warning); return; }
+        _assignment.Frequency = selectedTemplate.Frequency;
+        if (!TimeSpan.TryParse(_dueTime, out var time)) { Snackbar.Add("Giờ đến hạn không hợp lệ.", Severity.Warning); return; }
+        _assignment.Frequency = _assignment.Frequency.Trim();
+        _assignment.DueTime = time;
+        _assignment.EffectiveFrom = DateTime.Today;
+        var r = await EquipmentClient.AssignInspectionAsync(_assignment);
+        Snackbar.Add(r.IsSuccess ? "Đã gán checklist." : (r.Message ?? "Không thể gán checklist."), r.IsSuccess ? Severity.Success : Severity.Error);
+        if (r.IsSuccess) { _assignment = new(); _dueTime = "08:00"; await LoadAllAsync(); }
+    }
+    private async Task LoadReportAsync()
+    {
+        var r = await EquipmentClient.GetInspectionDashboardAsync(_from ?? DateTime.Today.AddDays(-30), _to ?? DateTime.Today, _deptCode);
+        if (r.IsSuccess) _report = r.Data; else Snackbar.Add(r.Message ?? "Không tải được báo cáo.", Severity.Error);
+    }
+}

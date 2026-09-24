@@ -105,6 +105,14 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         var validation = await ValidateAsync(request, null, ct);
         if (validation != null) return ServiceResult<ApprovalPolicyDto>.Fail(validation);
 
+        var approvalPosition = await GetApprovalPositionAsync(request.ApprovalPositionCode, ct);
+        if (approvalPosition == null)
+            return ServiceResult<ApprovalPolicyDto>.Fail("Chức vụ phê duyệt không còn hoạt động.");
+
+        request.Level = approvalPosition.DefaultApproveLevel!.Value;
+        request.LevelName = approvalPosition.PositionName;
+        request.RoleName = RoleNameFromPosition(request.Level);
+
         var entity = new F03ApprovalPolicy
         {
             RequestType = (RequestModule)request.RequestType,
@@ -138,6 +146,14 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         var validation = await ValidateAsync(request, id, ct);
         if (validation != null)
             return ServiceResult<ApprovalPolicyDto>.Fail(validation);
+
+        var approvalPosition = await GetApprovalPositionAsync(request.ApprovalPositionCode, ct);
+        if (approvalPosition == null)
+            return ServiceResult<ApprovalPolicyDto>.Fail("Chức vụ phê duyệt không còn hoạt động.");
+
+        request.Level = approvalPosition.DefaultApproveLevel!.Value;
+        request.LevelName = approvalPosition.PositionName;
+        request.RoleName = RoleNameFromPosition(request.Level);
 
         entity.RequestType = (RequestModule)request.RequestType;
         entity.DeptCode = request.DeptCode.Trim();
@@ -234,6 +250,26 @@ public sealed class ApprovalPolicyService : IApprovalPolicyService
         return duplicate
             ? "Policy active đã tồn tại cho RequestType + Phòng ban + Position + Level."
             : null;
+    }
+
+    private async Task<ApprovalPolicyPositionDto?> GetApprovalPositionAsync(
+        string code, CancellationToken ct)
+    {
+        var normalized = code?.Trim() ?? string.Empty;
+        if (normalized.Length == 0) return null;
+
+        return await _uow.Repository<F03Position>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true && x.PositionCode == normalized)
+            .Select(x => new ApprovalPolicyPositionDto
+            {
+                PositionCode = x.PositionCode,
+                PositionName = x.PositionName,
+                DefaultApproveLevel = x.DefaultApproveLevel,
+                RoleName = RoleNameFromPosition(x.DefaultApproveLevel),
+                IsActive = x.IsActive == true
+            })
+            .FirstOrDefaultAsync(ct);
     }
 
     private async Task<ApprovalPolicyDto> MapAsync(

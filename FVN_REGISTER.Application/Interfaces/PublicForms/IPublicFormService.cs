@@ -9,6 +9,9 @@ public interface IPublicFormService
     Task<List<PublicFormDto>> GetManageListAsync(CancellationToken ct = default);
     Task<List<PublicFormDto>> GetAvailableAsync(string employeeCode, string? deptCode, string? positionCode, CancellationToken ct = default);
     Task<PublicFormDto?> GetAsync(int id, CancellationToken ct = default);
+    Task<List<PublicFormAudienceLookupDto>> GetAudienceDepartmentsAsync(CancellationToken ct = default);
+    Task<List<PublicFormAudienceLookupDto>> GetAudiencePositionsAsync(CancellationToken ct = default);
+    Task<PublicFormAudienceEmployeePageDto> SearchAudienceEmployeesAsync(string? search, int page, int pageSize, CancellationToken ct = default);
     Task<ServiceResult<PublicFormDto>> CreateAsync(SavePublicFormRequest request, int actorUserId, CancellationToken ct = default);
     Task<ServiceResult<PublicFormDto>> UpdateAsync(int id, SavePublicFormRequest request, int actorUserId, CancellationToken ct = default);
     Task<ServiceResult> PublishAsync(int id, int actorUserId, CancellationToken ct = default);

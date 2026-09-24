@@ -120,6 +120,10 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                 if (entity.RequestStatus != ApprovalStatus.Pending && entity.RequestStatus != ApprovalStatus.Draft)
                     return ServiceResult.Fail("Đơn đã xử lý, không thể tham gia thêm.");
 
+                if (!await _authorization.CanAccessAsync(
+                    user, SecurityFunctionCodes.OTCreate, user.EmployeeCode, entity.DeptCode, ct))
+                    return ServiceResult.Fail("Không có quyền tham gia đơn OT này theo phạm vi dữ liệu được cấp.");
+
                 var empRepo = Uow.Repository<F03OTEmployee>();
                 var exists = await empRepo.Query().AnyAsync(x => x.OTRequestId == otRequestId && x.EmployeeCode == user.EmployeeCode && x.IsActive == true, ct);
                 if (exists) return ServiceResult.Fail("Bạn đã có trong đơn này.");
@@ -277,9 +281,19 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                 if (IsFinalized(entity) || (entity.RequestStatus != ApprovalStatus.Draft && entity.RequestStatus != ApprovalStatus.Pending))
                     return ServiceResult.Fail("Đơn đã xử lý, không thể thêm nhân viên.");
                 var empRepo = Uow.Repository<F03OTEmployee>();
-                var existingCodes = await empRepo.Query().Where(x => x.OTRequestId == otRequestId && x.IsActive == true).Select(x => x.EmployeeCode).ToListAsync(ct);
+                var existingCodes = await empRepo.Query()
+                    .Where(x => x.OTRequestId == otRequestId && x.IsActive == true)
+                    .Select(x => x.EmployeeCode)
+                    .ToListAsync(ct);
 
-                foreach (var e in newEmployees.Where(e => !existingCodes.Contains(e.EmployeeCode)))
+                var candidates = newEmployees
+                    .Where(e => !string.IsNullOrWhiteSpace(e.EmployeeCode))
+                    .GroupBy(e => e.EmployeeCode, StringComparer.OrdinalIgnoreCase)
+                    .Select(g => g.First())
+                    .Where(e => !existingCodes.Contains(e.EmployeeCode, StringComparer.OrdinalIgnoreCase))
+                    .ToList();
+
+                foreach (var e in candidates)
                 {
                     var validation = await _validator.ValidateEmployeeHoursAsync(
                         e.EmployeeCode,
@@ -292,7 +306,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                         return ServiceResult.Fail(validation.Errors.FirstOrDefault() ?? $"Giờ OT của {e.EmployeeCode} vượt giới hạn.");
                 }
 
-                foreach (var e in newEmployees.Where(e => !existingCodes.Contains(e.EmployeeCode)))
+                foreach (var e in candidates)
                 {
                     await empRepo.AddAsync(new F03OTEmployee
                     {
@@ -305,7 +319,9 @@ namespace FVN_REGISTER.Infrastructure.Services.OTs
                         CreatedBy = user.UserId
                     }, ct);
                 }
-                entity.TotalOTHours = (await empRepo.Query().Where(x => x.OTRequestId == otRequestId && x.IsActive == true).SumAsync(x => (decimal?)x.OTHours, ct) ?? 0) + newEmployees.Sum(e => e.OTHours);
+                entity.TotalOTHours = (await empRepo.Query()
+                    .Where(x => x.OTRequestId == otRequestId && x.IsActive == true)
+                    .SumAsync(x => (decimal?)x.OTHours, ct) ?? 0) + candidates.Sum(e => e.OTHours);
                 await Uow.SaveChangesAsync(ct);
                 return ServiceResult.Ok("Đã thêm nhân viên vào đơn.");
             }

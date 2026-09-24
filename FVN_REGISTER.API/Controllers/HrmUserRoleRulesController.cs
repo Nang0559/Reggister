@@ -42,6 +42,20 @@ public sealed class HrmUserRoleRulesController : BaseApiController
         return HandleResult(await _service.GetAllAsync(ct));
     }
 
+    [HttpGet("departments")]
+    public async Task<IActionResult> GetDepartments(CancellationToken ct)
+    {
+        if (!await CanManageAsync(ct)) return Forbid();
+        return HandleResult(await _service.GetDepartmentsAsync(ct));
+    }
+
+    [HttpGet("positions")]
+    public async Task<IActionResult> GetPositions(CancellationToken ct)
+    {
+        if (!await CanManageAsync(ct)) return Forbid();
+        return HandleResult(await _service.GetPositionsAsync(ct));
+    }
+
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] HrmUserRoleRuleRequest request, CancellationToken ct)
     {

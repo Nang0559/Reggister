@@ -1,0 +1,252 @@
+@using FVN_REGISTER.Contract.Dtos.Calendar
+@using MudBlazor
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="2">
+            <MudText Typo="Typo.h6">Ngày @Day.Date.ToString("dd/MM/yyyy")</MudText>
+
+            @if (Day.Holiday is not null)
+            {
+                <MudAlert Severity="Severity.Info" Dense="true">
+                    <b>@Day.Holiday.Name</b>
+                    <div>Ngày nghỉ công ty — chỉ đăng ký OT.</div>
+                </MudAlert>
+            }
+
+            <MudPaper Outlined="true" Class="pa-3">
+                <MudText Typo="Typo.subtitle2">Kế hoạch & chấm công</MudText>
+
+                @if (Day.Shift is not null && !string.IsNullOrWhiteSpace(Day.Shift.ShiftAbbr))
+                {
+                    <MudText Typo="Typo.body2">
+                        <b>Ca:</b> @Day.Shift.ShiftAbbr
+                    </MudText>
+                }
+
+                @if (Day.Attendance is not null)
+                {
+                    <MudText Typo="Typo.body2">
+                        <b>IN:</b> @(Day.Attendance.CheckIn?.ToString("HH:mm") ?? "-")
+                        &nbsp; <b>OUT:</b> @(Day.Attendance.CheckOut?.ToString("HH:mm") ?? "-")
+                    </MudText>
+                    <MudText Typo="Typo.body2">
+                        <b>Giờ công:</b>
+                        @(Day.Attendance.ActualHours?.ToString("0.##") ?? "-")
+                        / @(Day.Attendance.RequiredHours?.ToString("0.##") ?? "-") giờ
+                    </MudText>
+                }
+                else
+                {
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">Chưa có dữ liệu chấm công.</MudText>
+                }
+            </MudPaper>
+
+            @if (Day.Registrations.Count > 0)
+            {
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudText Typo="Typo.subtitle2">Đăng ký</MudText>
+                    <MudStack Spacing="1" Class="mt-2">
+                        @foreach (var registration in Day.Registrations)
+                        {
+                            <MudChip T="string" Variant="Variant.Outlined" Size="Size.Small">
+                                <b>@registration.ModuleCode</b>&nbsp; @registration.Title
+                                @if (registration.IsHalfDay)
+                                {
+                                    <span>&nbsp;• nửa ngày</span>
+                                }
+                            </MudChip>
+                        }
+                    </MudStack>
+                </MudPaper>
+            }
+
+            @if (Day.Issues.Count > 0)
+            {
+                <MudStack Spacing="1">
+                    <MudText Typo="Typo.subtitle2">Cần chú ý</MudText>
+
+                    @foreach (var issue in Day.Issues)
+                    {
+                        var color = issue.Severity >= 3 ? Color.Error : Color.Warning;
+
+                        <MudPaper Outlined="true"
+                                  Class="pa-3"
+                                  Style="@($"border-left:4px solid var(--mud-palette-{(issue.Severity >= 3 ? "error" : "warning")})")">
+                            <MudStack Spacing="1">
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                    <MudChip T="string"
+                                             Size="Size.Small"
+                                             Color="@color"
+                                             Variant="Variant.Filled">
+                                        @issue.Marker @issue.Code
+                                    </MudChip>
+                                    <MudText Typo="Typo.body2" Style="font-weight:700">@issue.Title</MudText>
+                                </MudStack>
+
+                                @if (!string.IsNullOrWhiteSpace(issue.Summary))
+                                {
+                                    <MudText Typo="Typo.body2">@issue.Summary</MudText>
+                                }
+
+                                <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap">
+                                    @foreach (var action in issue.Actions)
+                                    {
+                                        <MudButton Size="Size.Small"
+                                                   Variant="Variant.Outlined"
+                                                   Color="@color"
+                                                   OnClick="@(() => ExecuteAction(issue, action))">
+                                            @action.Title
+                                        </MudButton>
+                                    }
+                                </MudStack>
+                            </MudStack>
+                        </MudPaper>
+                    }
+                </MudStack>
+            }
+
+            @if (Day.IsFuture)
+            {
+                <MudPaper Outlined="true" Class="pa-3">
+                    <MudText Typo="Typo.subtitle2">Đăng ký mới</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @Day.AvailabilityNote
+                    </MudText>
+
+                    <MudStack Row="true" Spacing="1" Wrap="Wrap.Wrap" Class="mt-2">
+                        @if (Day.CanRegisterLeave)
+                        {
+                            <MudButton Size="Size.Small"
+                                       Variant="Variant.Filled"
+                                       StartIcon="@Icons.Material.Filled.EventAvailable"
+                                       OnClick="@(() => Register("LEAVE"))">
+                                Nghỉ phép
+                            </MudButton>
+                        }
+
+                        @if (Day.CanRegisterOT)
+                        {
+                            <MudButton Size="Size.Small"
+                                       Variant="Variant.Filled"
+                                       Color="Color.Warning"
+                                       StartIcon="@Icons.Material.Filled.MoreTime"
+                                       OnClick="@(() => Register("OT"))">
+                                OT
+                            </MudButton>
+                        }
+
+                        @if (Day.CanRegisterTrip)
+                        {
+                            <MudButton Size="Size.Small"
+                                       Variant="Variant.Filled"
+                                       Color="Color.Info"
+                                       StartIcon="@Icons.Material.Filled.FlightTakeoff"
+                                       OnClick="@(() => Register("TRIP"))">
+                                Công tác
+                            </MudButton>
+                        }
+                    </MudStack>
+                </MudPaper>
+            }
+
+            @if (_cancelAction is not null)
+            {
+                <MudPaper Outlined="true" Class="pa-3 mt-3">
+                    <MudText Typo="Typo.subtitle2">Hủy OT</MudText>
+                    <MudTextField @bind-Value="_cancelReason"
+                                  Label="Lý do hủy"
+                                  Variant="Variant.Outlined"
+                                  Required="true"
+                                  Lines="3"
+                                  Placeholder="Ví dụ: Tôi bị ốm, xin hủy OT ngày này." />
+
+                    <MudStack Row="true" Justify="Justify.FlexEnd" Spacing="1" Class="mt-2">
+                        <MudButton OnClick="@(() => _cancelAction = null)">Không</MudButton>
+                        <MudButton Color="Color.Error"
+                                   Variant="Variant.Filled"
+                                   Disabled="@string.IsNullOrWhiteSpace(_cancelReason)"
+                                   OnClick="ConfirmCancelOt">
+                            Xác nhận hủy
+                        </MudButton>
+                    </MudStack>
+                </MudPaper>
+            }
+        </MudStack>
+    </DialogContent>
+
+    <DialogActions>
+        <MudButton OnClick="Close">Đóng</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance DialogInstance { get; set; } = default!;
+
+    [Parameter] public CalendarDayDto Day { get; set; } = new();
+    [Parameter] public EventCallback<CalendarRegistrationDto> OnRegistrationSelected { get; set; }
+    [Parameter] public EventCallback<CalendarActionRequestDto> OnActionSelected { get; set; }
+
+    private CalendarActionOptionDto? _cancelAction;
+    private CalendarIssueDto? _cancelIssue;
+    private string? _cancelReason;
+
+    private async Task Register(string moduleCode)
+    {
+        await OnRegistrationSelected.InvokeAsync(new CalendarRegistrationDto
+        {
+            ModuleCode = moduleCode,
+            Title = moduleCode,
+            Start = Day.Date.ToDateTime(TimeOnly.MinValue),
+            End = Day.Date.AddDays(1).ToDateTime(TimeOnly.MinValue),
+            DayValue = 1m
+        });
+
+        DialogInstance.Close();
+    }
+
+    private async Task ExecuteAction(CalendarIssueDto issue, CalendarActionOptionDto action)
+    {
+        if (action.Code == "CANCEL_OT")
+        {
+            _cancelIssue = issue;
+            _cancelAction = action;
+            _cancelReason = null;
+            return;
+        }
+
+        await OnActionSelected.InvokeAsync(new CalendarActionRequestDto
+        {
+            Date = Day.Date,
+            IssueCode = issue.Code,
+            ActionCode = action.Code,
+            RequestId = action.RequestId,
+            ReconciliationId = action.ReconciliationId,
+            DetailRoute = action.DetailRoute
+        });
+
+        DialogInstance.Close();
+    }
+
+    private async Task ConfirmCancelOt()
+    {
+        if (_cancelAction is null)
+            return;
+
+        await OnActionSelected.InvokeAsync(new CalendarActionRequestDto
+        {
+            Date = Day.Date,
+            IssueCode = _cancelIssue?.Code ?? "OT_NO_ACTUAL",
+            ActionCode = "CANCEL_OT",
+            RequestId = _cancelAction.RequestId,
+            DetailRoute = _cancelAction.DetailRoute,
+            Reason = _cancelReason
+        });
+
+        _cancelAction = null;
+        _cancelIssue = null;
+        DialogInstance.Close();
+    }
+
+    private void Close() => DialogInstance.Cancel();
+}

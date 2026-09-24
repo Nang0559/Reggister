@@ -3,6 +3,7 @@ using FVN_REGISTER.Application.Interfaces.Equipment;
 using FVN_REGISTER.Contract.Dtos;
 using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Dtos.Dashboard;
+using FVN_REGISTER.Contract.Dtos.Equipment;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Enums;
 
@@ -17,9 +18,17 @@ public sealed class EquipmentDashboardProvider : IModuleDashboardProvider
 
     public async Task<ModuleDashboardContribution> GetContributionAsync(UserIdentityDto user, CancellationToken ct = default)
     {
-        var rows = await _service.GetMineAsync(ct);
-        var pending = rows.Count(x => x.RequestStatus == ApprovalStatus.Pending || x.RequestStatus == ApprovalStatus.InProgress);
-        var approved = rows.Count(x => x.RequestStatus == ApprovalStatus.Approved);
+        var result = await _service.GetMineAsync(ct);
+        var rows = result.IsSuccess && result.Data != null
+            ? result.Data
+            : new List<EquipmentRequestDto>();
+
+        var pending = rows.Count(x =>
+            x.RequestStatus == ApprovalStatus.Pending ||
+            x.RequestStatus == ApprovalStatus.InProgress);
+
+        var approved = rows.Count(x =>
+            x.RequestStatus == ApprovalStatus.Approved);
         var widgets = new List<WidgetCounterDto>
         {
             new() { Title = "Thiết bị chờ duyệt", Value = pending.ToString(), Icon = "Devices", Color = "Info", Link = "/equipment", IsPersonal = true },

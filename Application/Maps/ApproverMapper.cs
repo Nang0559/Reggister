@@ -57,6 +57,9 @@ namespace FVN_REGISTER.Application.Maps
             entity.ApproverName = dto.ApproverName ?? string.Empty;
             entity.ApproverEmail = dto.ApproverEmail ?? string.Empty;
             entity.Level = dto.Level;
+            entity.PositionCode = dto.PositionCode ?? string.Empty;
+            entity.ApproverDeptCode = dto.DeptCode ?? entity.ApproverDeptCode;
+            entity.ApproverDeptName = dto.DeptName ?? entity.ApproverDeptName;
             entity.RoleName = dto.RoleName ?? string.Empty;
             entity.ApproveForDeptCode = dto.ApproveForDeptCode ?? string.Empty;
             entity.ApproveForDeptName = dto.ApproveForDeptName ?? string.Empty;

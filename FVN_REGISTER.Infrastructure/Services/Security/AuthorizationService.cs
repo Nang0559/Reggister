@@ -163,12 +163,21 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         var departments = await _uow.Repository<F03Department>().Query()
             .AsNoTracking()
             .Where(x => x.IsActive == true)
-            .Select(x => new { x.DeptCode, x.ParentDeptCode })
+            .Select(x => new { x.DeptCode, x.ParentDeptCode, x.BlockCode })
             .ToListAsync(ct);
 
-        var parents = departments.ToDictionary(x => x.DeptCode, x => x.ParentDeptCode);
+        var departmentMap = departments
+            .Where(x => !string.IsNullOrWhiteSpace(x.DeptCode))
+            .GroupBy(x => x.DeptCode.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => (
+                    g.First().ParentDeptCode,
+                    g.First().BlockCode),
+                StringComparer.OrdinalIgnoreCase);
+
         return employees
-            .Where(x => ManagedScopeMatches(scopes, x.DeptCode, parents))
+            .Where(x => ManagedScopeMatches(scopes, x.DeptCode, departmentMap))
             .OrderBy(x => x.DeptCode)
             .ThenBy(x => x.EmployeeCode)
             .Select(x => new ManagedEmployeeDto
@@ -344,22 +353,39 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
     private static bool ManagedScopeMatches(
         IReadOnlyCollection<ManagedScopeDto> scopes,
         string? targetDept,
-        IReadOnlyDictionary<string, string?> parents)
+        IReadOnlyDictionary<string, (string? ParentDeptCode, string? BlockCode)> departments)
     {
         if (string.IsNullOrWhiteSpace(targetDept))
-            return scopes.Any(x => x.NodeType.Equals("Company", StringComparison.OrdinalIgnoreCase));
+            return scopes.Any(x => string.Equals(x.NodeType, "Company", StringComparison.OrdinalIgnoreCase));
+
+        if (!departments.TryGetValue(targetDept.Trim(), out var target))
+            target = (null, null);
 
         foreach (var scope in scopes)
         {
-            if (scope.NodeType.Equals("Company", StringComparison.OrdinalIgnoreCase))
+            var nodeType = (scope.NodeType ?? string.Empty).Trim();
+
+            if (nodeType.Equals("Company", StringComparison.OrdinalIgnoreCase))
                 return true;
 
-            var node = scope.SubDepartmentCode ?? scope.DeptCode ?? scope.NodeCode;
-            if (scope.NodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase))
-                node ??= scope.FactoryCode;
+            string? node = nodeType switch
+            {
+                "Factory" => scope.FactoryCode ?? scope.NodeCode,
+                "Department" => scope.DeptCode ?? scope.NodeCode,
+                "SubDepartment" => scope.SubDepartmentCode ?? scope.NodeCode,
+                _ => scope.NodeCode
+            };
 
+            node = node?.Trim();
             if (string.IsNullOrWhiteSpace(node))
                 continue;
+
+            // Factory has no FactoryCode on F03Department. Support both models:
+            // 1) factory represented by a department ancestor, and
+            // 2) factory represented by the HR BlockCode field.
+            if (nodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase)
+                && string.Equals(target.BlockCode, node, StringComparison.OrdinalIgnoreCase))
+                return true;
 
             if (string.Equals(targetDept, node, StringComparison.OrdinalIgnoreCase))
                 return true;
@@ -367,12 +393,24 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
             if (!scope.IncludeChildren)
                 continue;
 
-            var cursor = targetDept;
-            while (parents.TryGetValue(cursor, out var parent) && !string.IsNullOrWhiteSpace(parent))
+            var cursor = targetDept.Trim();
+            var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            while (departments.TryGetValue(cursor, out var current)
+                   && !string.IsNullOrWhiteSpace(current.ParentDeptCode)
+                   && visited.Add(cursor))
             {
+                var parent = current.ParentDeptCode!.Trim();
+
                 if (string.Equals(parent, node, StringComparison.OrdinalIgnoreCase))
                     return true;
-                cursor = parent!;
+
+                if (nodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase)
+                    && departments.TryGetValue(parent, out var parentNode)
+                    && string.Equals(parentNode.BlockCode, node, StringComparison.OrdinalIgnoreCase))
+                    return true;
+
+                cursor = parent;
             }
         }
 
@@ -403,17 +441,43 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         var departments = await _uow.Repository<F03Department>().Query()
             .AsNoTracking()
             .Where(x => x.IsActive == true)
-            .Select(x => new { x.DeptCode, x.ParentDeptCode })
+            .Select(x => new { x.DeptCode, x.ParentDeptCode, x.BlockCode })
             .ToListAsync(ct);
 
-        var parents = departments.ToDictionary(x => x.DeptCode, x => x.ParentDeptCode);
-        return ManagedScopeMatches(scopes, targetDept, parents);
+        var departmentMap = departments
+            .Where(x => !string.IsNullOrWhiteSpace(x.DeptCode))
+            .GroupBy(x => x.DeptCode.Trim(), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                g => g.Key,
+                g => (
+                    g.First().ParentDeptCode,
+                    g.First().BlockCode),
+                StringComparer.OrdinalIgnoreCase);
+
+        return ManagedScopeMatches(scopes, targetDept, departmentMap);
     }
 
     public async Task<PermissionSnapshotDto> GetSnapshotAsync(
         int userId,
         CancellationToken ct = default)
     {
+        var active = await _uow.Repository<F03User>().Query()
+            .AsNoTracking()
+            .Where(x => x.Id == userId)
+            .Select(x => (bool?)x.IsActive)
+            .FirstOrDefaultAsync(ct);
+
+        if (active != true)
+        {
+            return new PermissionSnapshotDto
+            {
+                UserId = userId,
+                RoleCodes = new List<int>(),
+                Functions = new List<SecurityFunctionDto>(),
+                FunctionCodes = new HashSet<int>()
+            };
+        }
+
         var roleCodes = await (
             from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
@@ -528,6 +592,26 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 ActionCode = x.ActionCode,
                 ScopeCode = x.ScopeCode,
                 DisplayOrder = x.DisplayOrder
+            })
+            .ToListAsync(ct);
+    }
+
+    public async Task<List<TwoFactorAdminUserDto>> GetTwoFactorUsersAsync(CancellationToken ct = default)
+    {
+        return await _uow.Repository<F03User>().Query()
+            .AsNoTracking()
+            .OrderBy(x => x.EmployeeCode)
+            .Select(x => new TwoFactorAdminUserDto
+            {
+                UserId = x.Id,
+                EmployeeCode = x.EmployeeCode,
+                FullName = x.FullName,
+                DeptCode = x.DeptCode,
+                IsActive = x.IsActive == true,
+                Required = x.TwoFactorRequired,
+                Enabled = x.TwoFactorEnabled,
+                RequiredAt = x.TwoFactorRequiredAt,
+                EnabledAt = x.TwoFactorEnabledAt
             })
             .ToListAsync(ct);
     }

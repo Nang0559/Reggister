@@ -197,6 +197,13 @@ public sealed class ApprovalRouteService : IApprovalRouteService
             });
         }
 
+        if (levels.Count == 0)
+        {
+            return ServiceResult<ApprovalRoutePreviewDto>.Fail(
+                $"Không có cấp phê duyệt khả dụng cho {requestType} / " +
+                $"phòng ban {resolvedDeptCode} / chức vụ {position.PositionCode}.");
+        }
+
         var preview = new ApprovalRoutePreviewDto
         {
             RequestType = requestType,

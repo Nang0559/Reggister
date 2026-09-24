@@ -191,7 +191,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                 var departments = await _uow.Repository<F03Department>().Query()
                     .AsNoTracking()
                     .Where(x => x.IsActive == true)
-                    .Select(x => new { x.DeptCode, x.DeptName, x.ParentDeptCode })
+                    .Select(x => new { x.DeptCode, x.DeptName, x.ParentDeptCode, x.BlockCode })
                     .OrderBy(x => x.DeptName)
                     .ToListAsync(ct);
 
@@ -207,32 +207,67 @@ namespace FVN_REGISTER.Infrastructure.Services.Reports
                         allowedCodes.Add(user.DeptCode);
 
                     var managed = await _authorization.GetManagedScopesAsync(user.UserId, ct);
+                    var departmentMap = departments
+                        .Where(x => !string.IsNullOrWhiteSpace(x.DeptCode))
+                        .GroupBy(x => x.DeptCode.Trim(), StringComparer.OrdinalIgnoreCase)
+                        .ToDictionary(
+                            g => g.Key,
+                            g => g.First(),
+                            StringComparer.OrdinalIgnoreCase);
+
                     foreach (var scope in managed)
                     {
-                        var node = scope.SubDepartmentCode ?? scope.DeptCode ?? scope.NodeCode;
-                        if (scope.NodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase))
-                            node ??= scope.FactoryCode;
+                        var nodeType = (scope.NodeType ?? string.Empty).Trim();
+                        var node = nodeType switch
+                        {
+                            "Factory" => scope.FactoryCode ?? scope.NodeCode,
+                            "Department" => scope.DeptCode ?? scope.NodeCode,
+                            "SubDepartment" => scope.SubDepartmentCode ?? scope.NodeCode,
+                            _ => scope.NodeCode
+                        };
+
+                        node = node?.Trim();
                         if (string.IsNullOrWhiteSpace(node))
                             continue;
 
-                        allowedCodes.Add(node);
+                        // F03Department has no FactoryCode. A Factory scope can
+                        // therefore be represented either by a department ancestor
+                        // or by the HR BlockCode field.
+                        if (nodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase))
+                        {
+                            foreach (var department in departments)
+                            {
+                                if (string.Equals(department.BlockCode, node, StringComparison.OrdinalIgnoreCase))
+                                    allowedCodes.Add(department.DeptCode);
+                            }
+                        }
+
+                        if (departmentMap.ContainsKey(node))
+                            allowedCodes.Add(node);
+
                         if (!scope.IncludeChildren)
                             continue;
 
+                        // Expand descendants safely and stop on malformed parent cycles.
                         var changed = true;
                         while (changed)
                         {
                             changed = false;
                             foreach (var department in departments)
                             {
-                                if (allowedCodes.Contains(department.DeptCode)
-                                    && !string.IsNullOrWhiteSpace(department.DeptCode))
+                                if (allowedCodes.Contains(department.DeptCode))
                                     continue;
 
                                 if (!string.IsNullOrWhiteSpace(department.ParentDeptCode)
-                                    && allowedCodes.Contains(department.ParentDeptCode)
-                                    && allowedCodes.Add(department.DeptCode))
+                                    && allowedCodes.Contains(department.ParentDeptCode))
                                     changed = true;
+                                else if (nodeType.Equals("Factory", StringComparison.OrdinalIgnoreCase)
+                                    && !string.IsNullOrWhiteSpace(department.BlockCode)
+                                    && string.Equals(department.BlockCode, node, StringComparison.OrdinalIgnoreCase))
+                                    changed = true;
+
+                                if (changed)
+                                    allowedCodes.Add(department.DeptCode);
                             }
                         }
                     }

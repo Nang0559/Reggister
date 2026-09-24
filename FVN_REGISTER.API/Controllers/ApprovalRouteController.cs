@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Interfaces.Approvals;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Approvals;
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Enums;
@@ -31,7 +32,7 @@ public sealed class ApprovalRouteController : ControllerBase
     }
 
     [HttpGet("preview")]
-    public async Task<ActionResult<ServiceResult<ApprovalRoutePreviewDto>>> Preview(
+    public async Task<ActionResult<ApiResponse<ApprovalRoutePreviewDto>>> Preview(
         [FromQuery] RequestModule requestType,
         CancellationToken ct)
     {
@@ -42,7 +43,7 @@ public sealed class ApprovalRouteController : ControllerBase
 
         if (string.IsNullOrWhiteSpace(user.EmployeeCode))
             return BadRequest(
-                ServiceResult<ApprovalRoutePreviewDto>.Fail(
+                ApiResponse<ApprovalRoutePreviewDto>.Fail(
                     "Tài khoản chưa có EmployeeCode."));
 
         var functionCode = requestType switch
@@ -57,7 +58,7 @@ public sealed class ApprovalRouteController : ControllerBase
         if (functionCode == 0)
         {
             return BadRequest(
-                ServiceResult<ApprovalRoutePreviewDto>.Fail(
+                ApiResponse<ApprovalRoutePreviewDto>.Fail(
                     "Loại yêu cầu không hỗ trợ."));
         }
 
@@ -71,9 +72,11 @@ public sealed class ApprovalRouteController : ControllerBase
             user.EmployeeCode,
             ct);
 
-        if (!result.IsSuccess)
-            return UnprocessableEntity(result);
+        var response = ApiResponse<ApprovalRoutePreviewDto>.FromResult(result);
 
-        return Ok(result);
+        if (!result.IsSuccess)
+            return UnprocessableEntity(response);
+
+        return Ok(response);
     }
 }

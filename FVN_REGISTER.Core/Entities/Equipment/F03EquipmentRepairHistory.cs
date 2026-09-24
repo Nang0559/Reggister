@@ -16,5 +16,11 @@ public sealed class F03EquipmentRepairHistory : BaseAuditEntity
     [StringLength(1000)] public string? RepairResult { get; set; }
     [StringLength(1000)] public string? Note { get; set; }
     public bool IsApproved { get; set; }
+
+    [StringLength(20)] public string? ResponsibleDeptCode { get; set; }
+    [StringLength(50)] public string? RepairerEmployeeCode { get; set; }
+    [StringLength(1000)] public string? RepairFeedback { get; set; }
+    public DateTime? CompletedAt { get; set; }
+
     public F03EquipmentAsset Asset { get; set; } = null!;
 }

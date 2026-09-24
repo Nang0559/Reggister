@@ -1,6 +1,7 @@
 @page "/admin/security"
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Contract.Dtos.Authentication
 @using FVN_REGISTER.Contract.Dtos.Usermanagers
 @using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Shared.Services.Users
@@ -287,9 +288,144 @@
             </MudPaper>
         </MudTabPanel>
 
-        <MudTabPanel Text="Organization Scope" Icon="@Icons.Material.Filled.AccountTree">
-            <ManagedScopeEditor User="_selected" />
-        </MudTabPanel>
+        @if (CanAssignPermissions)
+        {
+            <MudTabPanel Text="Organization Scope" Icon="@Icons.Material.Filled.AccountTree">
+                <ManagedScopeEditor User="_selected" />
+            </MudTabPanel>
+        }
+
+        @if (CanAssignPermissions)
+        {
+            <MudTabPanel Text="Feature Operator Assignment" Icon="@Icons.Material.Filled.PersonAdd">
+                <MudPaper Class="pa-4" Outlined="true" Style="border-radius:16px">
+                    <MudText Typo="Typo.h6">Chỉ định người thao tác</MudText>
+                    <MudText Typo="body2" Color="Color.Secondary" Class="mb-4">
+                        Capability vẫn do RBAC quyết định. Tab này chỉ xác định nhân viên cụ thể được thao tác
+                        trên Public Information, Public Form hoặc xử lý phản hồi HR.
+                    </MudText>
+
+                    <MudGrid>
+                        <MudItem xs="12" md="3">
+                            <MudSelect T="int" Label="Function / Action" Variant="Variant.Outlined"
+                                       Value="_operatorFunctionCode" ValueChanged="OperatorFunctionChanged">
+                                @foreach (var f in _operatorFunctions)
+                                {
+                                    <MudSelectItem T="int" Value="@f.FunctionCode">
+                                        @f.FunctionCode — @f.ModuleCode.@f.ActionCode
+                                    </MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudSelect T="string" Label="Resource" Variant="Variant.Outlined"
+                                       Value="_operatorResourceType" ValueChanged="OperatorResourceTypeChanged">
+                                <MudSelectItem Value="@("EXECUTION_REVIEW")">HR Feedback — toàn module</MudSelectItem>
+                                <MudSelectItem Value="@("PUBLIC_INFORMATION")">Public Information</MudSelectItem>
+                                <MudSelectItem Value="@("PUBLIC_FORM")">Public Form</MudSelectItem>
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudSelect T="int?" Label="Đối tượng cụ thể" Variant="Variant.Outlined"
+                                       Value="_operatorResourceId" ValueChanged="OperatorResourceChanged" Disabled="@(_operatorResourceType == "EXECUTION_REVIEW")">
+                                @if (_operatorResourceType != "EXECUTION_REVIEW")
+                                {
+                                    @foreach (var resource in _operatorResources)
+                                    {
+                                        <MudSelectItem T="int?" Value="@((int?)resource.Id)">
+                                            @resource.Code — @resource.Name
+                                        </MudSelectItem>
+                                    }
+                                }
+                            </MudSelect>
+                        </MudItem>
+                        <MudItem xs="12" md="3">
+                            <MudSelect T="string" Label="Nhân viên thao tác" Variant="Variant.Outlined"
+                                       @bind-Value="_operatorEmployeeCode">
+                                @foreach (var employee in _operatorEmployees)
+                                {
+                                    <MudSelectItem T="string" Value="@employee.EmployeeCode">
+                                        @employee.EmployeeCode — @employee.EmployeeName — @employee.DeptCode — @employee.PositionCode
+                                    </MudSelectItem>
+                                }
+                            </MudSelect>
+                        </MudItem>
+                    </MudGrid>
+
+                    <MudStack Row="true" Class="mt-3">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                   StartIcon="@Icons.Material.Filled.PersonAdd"
+                                   OnClick="AddFeatureOperatorAsync"
+                                   Disabled="@(_savingOperator || string.IsNullOrWhiteSpace(_operatorEmployeeCode))">
+                            Chỉ định
+                        </MudButton>
+                        <MudButton Variant="Variant.Outlined" OnClick="LoadFeatureOperatorsAsync"
+                                   Disabled="_loadingOperators">Làm mới</MudButton>
+                    </MudStack>
+
+                    <MudDivider Class="my-4" />
+
+                    <MudTable T="FeatureOperatorAssignmentDto" Items="_operatorAssignments"
+                              Dense="true" Hover="true" Bordered="true" Striped="true">
+                        <HeaderContent>
+                            <MudTh>Function</MudTh>
+                            <MudTh>Resource</MudTh>
+                            <MudTh>Nhân viên</MudTh>
+                            <MudTh>Phòng ban</MudTh>
+                            <MudTh>Chức vụ</MudTh>
+                            <MudTh Style="text-align:center">Xử lý</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.FunctionCode</MudTd>
+                            <MudTd>@context.ResourceType @(context.ResourceId.HasValue ? $"#{context.ResourceId}" : "· ALL")</MudTd>
+                            <MudTd><b>@context.EmployeeCode</b> — @context.EmployeeName</MudTd>
+                            <MudTd>@context.DeptCode — @context.DeptName</MudTd>
+                            <MudTd>@context.PositionCode — @context.PositionName</MudTd>
+                            <MudTd Style="text-align:center">
+                                <MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text"
+                                           OnClick="@(() => RemoveFeatureOperatorAsync(context))">
+                                    Bỏ chỉ định
+                                </MudButton>
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudTabPanel>
+        }
+
+
+        @if (_myPermissions?.Has(2604) == true)
+        {
+            <MudTabPanel Text="Security Audit" Icon="@Icons.Material.Filled.Security">
+                <MudPaper Class="pa-4" Outlined="true" Style="border-radius:16px">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-3">
+                        <MudText Typo="Typo.h6">Security Audit</MudText>
+                        <MudSpacer />
+                        <MudTextField T="string" Label="Tìm actor / action / nội dung"
+                                      @bind-Value="_auditSearch" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                        <MudButton Class="ms-2" Variant="Variant.Outlined" OnClick="LoadSecurityAuditAsync">
+                            Làm mới
+                        </MudButton>
+                    </MudStack>
+                    <MudTable T="SecurityAuditEntryDto" Items="_auditEntries" Dense="true" Hover="true" Bordered="true" Striped="true">
+                        <HeaderContent>
+                            <MudTh>Thời gian</MudTh>
+                            <MudTh>User</MudTh>
+                            <MudTh>Action</MudTh>
+                            <MudTh>Nội dung</MudTh>
+                            <MudTh>IP</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd>@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")</MudTd>
+                            <MudTd>@context.UserName</MudTd>
+                            <MudTd><b>@context.Action</b></MudTd>
+                            <MudTd>@context.Description</MudTd>
+                            <MudTd>@context.IpAddress</MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            </MudTabPanel>
+        }
 
         <MudTabPanel Text="Approval Policy + Effective Preview" Icon="@Icons.Material.Filled.Policy">
             <MudStack Spacing="2">
@@ -310,6 +446,67 @@
                 </MudPaper>
             </MudStack>
         </MudTabPanel>
+        <MudTabPanel Text="2FA theo tài khoản" Icon="@Icons.Material.Filled.Security">
+            @if (CanManageTwoFactor)
+            {
+                <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
+                    <MudAlert Severity="Severity.Info" Class="mb-3">
+                        Chỉ SuperAdmin có quyền cấu hình. 2FA được áp dụng theo từng tài khoản; hệ thống không tự suy luận từ quyền dữ liệu.
+                        Khi bật, người dùng sẽ đăng ký Microsoft Authenticator/Google Authenticator ở lần đăng nhập kế tiếp.
+                    </MudAlert>
+                    <MudTextField @bind-Value="_twoFactorSearch" Placeholder="Tìm mã nhân viên / họ tên..." Immediate="true"
+                                  Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search"
+                                  Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-3" />
+                    <MudTable T="TwoFactorAdminUserDto" Items="FilteredTwoFactorUsers" Hover="true" Dense="true" Loading="_loadingTwoFactor">
+                        <HeaderContent>
+                            <MudTh>Nhân viên</MudTh>
+                            <MudTh>Phòng ban</MudTh>
+                            <MudTh>Bắt buộc 2FA</MudTh>
+                            <MudTh>Đã đăng ký</MudTh>
+                            <MudTh>Thao tác</MudTh>
+                        </HeaderContent>
+                        <RowTemplate>
+                            <MudTd><b>@context.FullName</b><br /><MudText Typo="Typo.caption">@context.EmployeeCode</MudText></MudTd>
+                            <MudTd>@context.DeptCode</MudTd>
+                            <MudTd>
+                                <MudChip T="string" Size="Size.Small" Color="@(context.Required ? Color.Warning : Color.Default)">
+                                    @(context.Required ? "BẮT BUỘC" : "Không")
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>
+                                <MudChip T="string" Size="Size.Small" Color="@(context.Enabled ? Color.Success : Color.Default)">
+                                    @(context.Enabled ? "Đã đăng ký" : "Chưa đăng ký")
+                                </MudChip>
+                            </MudTd>
+                            <MudTd>
+                                <MudButton Size="Size.Small" Variant="Variant.Outlined"
+                                           Color="@(context.Required ? Color.Warning : Color.Primary)"
+                                           OnClick="@(() => SetTwoFactorRequiredAsync(context))"
+                                           Disabled="_savingTwoFactor">
+                                    @(context.Required ? "Tắt bắt buộc" : "Bật 2FA")
+                                </MudButton>
+                                @if (context.Enabled)
+                                {
+                                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Error"
+                                               Class="ms-2"
+                                               OnClick="@(() => ResetTwoFactorAsync(context))"
+                                               Disabled="_savingTwoFactor">
+                                        Reset factor
+                                    </MudButton>
+                                }
+                            </MudTd>
+                        </RowTemplate>
+                    </MudTable>
+                </MudPaper>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Warning">
+                    Tính năng này chỉ hiển thị cho tài khoản có quyền UserManagement.ManageTwoFactor (2407).
+                </MudAlert>
+            }
+        </MudTabPanel>
+
     </MudTabs>
 </MudStack>
 
@@ -333,11 +530,45 @@
     private bool _loadingResetRequests;
     private PermissionSnapshotDto? _myPermissions;
 
+    private readonly int[] _operatorFunctionCodes = { 2801, 2802, 2807, 2808, 2809 };
+    private List<SecurityFunctionDto> _operatorFunctions = new();
+    private List<FeatureOperatorEmployeeDto> _operatorEmployees = new();
+    private List<FeatureOperatorResourceDto> _operatorResources = new();
+    private List<FeatureOperatorAssignmentDto> _operatorAssignments = new();
+    private int _operatorFunctionCode = 2801;
+    private string _operatorResourceType = "PUBLIC_INFORMATION";
+    private int? _operatorResourceId;
+    private string _operatorEmployeeCode = string.Empty;
+    private bool _loadingOperators;
+    private bool _savingOperator;
+
     private const int UserManagementResetPasswordFunctionCode = 2405;
+    private const int UserManagementAssignPermissionFunctionCode = 2406;
 
     private bool CanResetPassword
         => _myPermissions?.Has(UserManagementResetPasswordFunctionCode) == true;
+
+    private bool CanAssignPermissions
+        => _myPermissions?.Has(UserManagementAssignPermissionFunctionCode) == true;
+
     private int? _processingResetRequestId;
+    private string _auditSearch = string.Empty;
+    private List<SecurityAuditEntryDto> _auditEntries = new();
+    private List<TwoFactorAdminUserDto> _twoFactorUsers = new();
+    private string _twoFactorSearch = string.Empty;
+    private bool _loadingTwoFactor;
+    private bool _savingTwoFactor;
+    private const int ManageTwoFactorFunctionCode = 2407;
+
+    private bool CanManageTwoFactor
+        => _myPermissions?.Has(ManageTwoFactorFunctionCode) == true;
+
+    private IEnumerable<TwoFactorAdminUserDto> FilteredTwoFactorUsers =>
+        string.IsNullOrWhiteSpace(_twoFactorSearch)
+            ? _twoFactorUsers
+            : _twoFactorUsers.Where(x =>
+                (x.EmployeeCode ?? string.Empty).Contains(_twoFactorSearch, StringComparison.OrdinalIgnoreCase) ||
+                (x.FullName ?? string.Empty).Contains(_twoFactorSearch, StringComparison.OrdinalIgnoreCase));
 
     private IEnumerable<UserAccountDto> FilteredUsers =>
         string.IsNullOrWhiteSpace(_search)
@@ -374,11 +605,89 @@
             _users = users.Data ?? new();
             _roles = roles.Data ?? new();
             _matrixFunctions = functions.Data ?? new();
+            _operatorFunctions = _matrixFunctions.Where(x => _operatorFunctionCodes.Contains(x.FunctionCode)).ToList();
             BuildMatrix();
+            if (CanAssignPermissions)
+                await LoadFeatureOperatorsAsync();
             if (CanResetPassword)
                 await LoadPasswordResetRequestsAsync();
+            if (_myPermissions?.Has(2604) == true)
+                await LoadSecurityAuditAsync();
+            if (CanManageTwoFactor)
+                await LoadTwoFactorUsersAsync();
         }
         finally { _loading = false; }
+    }
+
+
+    private async Task LoadTwoFactorUsersAsync()
+    {
+        _loadingTwoFactor = true;
+        try
+        {
+            var result = await SecurityService.GetTwoFactorUsersAsync();
+            if (result.IsSuccess)
+                _twoFactorUsers = result.Data ?? new();
+            else
+                Snackbar.Add(result.Message ?? "Không tải được danh sách 2FA.", Severity.Error);
+        }
+        finally
+        {
+            _loadingTwoFactor = false;
+        }
+    }
+
+    private async Task SetTwoFactorRequiredAsync(TwoFactorAdminUserDto user)
+    {
+        _savingTwoFactor = true;
+        try
+        {
+            var result = await SecurityService.SetTwoFactorRequiredAsync(user.UserId, !user.Required);
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể cập nhật chính sách 2FA.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add(
+                user.Required
+                    ? $"Đã tắt bắt buộc 2FA cho {user.EmployeeCode}."
+                    : $"Đã bật bắt buộc 2FA cho {user.EmployeeCode}.",
+                Severity.Success);
+            await LoadTwoFactorUsersAsync();
+        }
+        finally
+        {
+            _savingTwoFactor = false;
+        }
+    }
+
+    private async Task ResetTwoFactorAsync(TwoFactorAdminUserDto user)
+    {
+        _savingTwoFactor = true;
+        try
+        {
+            var result = await SecurityService.ResetTwoFactorAsync(user.UserId);
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể reset factor.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add($"Đã reset factor 2FA cho {user.EmployeeCode}.", Severity.Success);
+            await LoadTwoFactorUsersAsync();
+        }
+        finally
+        {
+            _savingTwoFactor = false;
+        }
+    }
+
+    private async Task LoadSecurityAuditAsync()
+    {
+        var result = await SecurityService.GetSecurityAuditAsync(search: _auditSearch);
+        if (result.IsSuccess) _auditEntries = result.Data ?? new();
+        else Snackbar.Add(result.Message ?? "Không tải được Security Audit.", Severity.Error);
     }
 
     private async Task LoadPasswordResetRequestsAsync()
@@ -431,6 +740,83 @@
         {
             _processingResetRequestId = null;
         }
+    }
+
+    private async Task OperatorResourceChanged(int? value) { _operatorResourceId = value; await LoadFeatureOperatorsAsync(); }
+
+    private async Task OperatorFunctionChanged(int value)
+    {
+        _operatorFunctionCode = value;
+        await LoadFeatureOperatorsAsync();
+    }
+
+    private async Task OperatorResourceTypeChanged(string value)
+    {
+        _operatorResourceType = value;
+        _operatorResourceId = null;
+        await LoadFeatureOperatorsAsync();
+    }
+
+    private async Task LoadFeatureOperatorsAsync()
+    {
+        _loadingOperators = true;
+        try
+        {
+            var resources = await SecurityService.GetFeatureOperatorResourcesAsync(_operatorResourceType);
+            _operatorResources = resources.IsSuccess ? resources.Data ?? new() : new();
+            var assignments = await SecurityService.GetFeatureOperatorsAsync(
+                _operatorFunctionCode,
+                _operatorResourceType,
+                _operatorResourceId);
+            _operatorAssignments = assignments.IsSuccess ? assignments.Data ?? new() : new();
+
+            if (_operatorEmployees.Count == 0)
+            {
+                var employees = await SecurityService.GetFeatureOperatorEmployeesAsync();
+                _operatorEmployees = employees.IsSuccess ? employees.Data ?? new() : new();
+            }
+        }
+        finally { _loadingOperators = false; }
+    }
+
+    private async Task AddFeatureOperatorAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_operatorEmployeeCode)) return;
+        _savingOperator = true;
+        try
+        {
+            var result = await SecurityService.AddFeatureOperatorAsync(
+                new SaveFeatureOperatorAssignmentRequest
+                {
+                    FunctionCode = _operatorFunctionCode,
+                    ResourceType = _operatorResourceType,
+                    ResourceId = _operatorResourceType == "EXECUTION_REVIEW" ? null : _operatorResourceId,
+                    EmployeeCode = _operatorEmployeeCode
+                });
+
+            if (!result.IsSuccess)
+            {
+                Snackbar.Add(result.Message ?? "Không thể chỉ định người thao tác.", Severity.Error);
+                return;
+            }
+
+            Snackbar.Add("Đã chỉ định người thao tác.", Severity.Success);
+            await LoadFeatureOperatorsAsync();
+        }
+        finally { _savingOperator = false; }
+    }
+
+    private async Task RemoveFeatureOperatorAsync(FeatureOperatorAssignmentDto assignment)
+    {
+        var result = await SecurityService.RemoveFeatureOperatorAsync(assignment.Id);
+        if (!result.IsSuccess)
+        {
+            Snackbar.Add(result.Message ?? "Không thể bỏ chỉ định.", Severity.Error);
+            return;
+        }
+
+        Snackbar.Add("Đã bỏ chỉ định.", Severity.Success);
+        await LoadFeatureOperatorsAsync();
     }
 
     private void BuildMatrix()

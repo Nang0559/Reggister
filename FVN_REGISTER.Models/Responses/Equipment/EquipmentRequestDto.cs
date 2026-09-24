@@ -9,6 +9,7 @@ public sealed class EquipmentRequestDto
     public ApprovalStatus RequestStatus { get; set; }
     public int? AssetId { get; set; }
     public string EmployeeCode { get; set; } = string.Empty;
+    public string? ResponsibleEmployeeCode { get; set; }
     public string? EmployeeName { get; set; }
     public string DeptCode { get; set; } = string.Empty;
     public string EquipmentName { get; set; } = string.Empty;
@@ -22,4 +23,8 @@ public sealed class EquipmentRequestDto
     public string QrToken { get; set; } = string.Empty;
     public string QrUrl { get; set; } = string.Empty;
     public string SelectedApproverCode { get; set; } = string.Empty;
+    public string? RepairResponsibleDeptCode { get; set; }
+    public string? RepairAssigneeEmployeeCode { get; set; }
+    public string? RepairFeedback { get; set; }
+    public DateTime? RepairCompletedAt { get; set; }
 }

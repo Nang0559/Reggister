@@ -1,5 +1,7 @@
 using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Contract.Dtos.HrmSync;
+using FVN_REGISTER.Contract.Dtos.Positions;
+using FVN_REGISTER.Contract.Dtos.Depts;
 using FVN_REGISTER.Contract.Requests.HrmSync;
 using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Entities.Security;
@@ -45,6 +47,45 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
             Priority = x.Priority,
             Note = x.Note
         }).ToList());
+    }
+
+    public async Task<ServiceResult<List<DepartmentDto>>> GetDepartmentsAsync(CancellationToken ct = default)
+    {
+        var rows = await _uow.Repository<F03Department>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true)
+            .OrderBy(x => x.DeptCode)
+            .Select(x => new DepartmentDto
+            {
+                Id = x.Id,
+                DeptCode = x.DeptCode,
+                DeptName = x.DeptName,
+                IsActive = x.IsActive == true,
+                CreatedAt = x.CreatedAt
+            })
+            .ToListAsync(ct);
+
+        return ServiceResult<List<DepartmentDto>>.Ok(rows);
+    }
+
+    public async Task<ServiceResult<List<PositionDto>>> GetPositionsAsync(CancellationToken ct = default)
+    {
+        var rows = await _uow.Repository<F03Position>().Query()
+            .AsNoTracking()
+            .Where(x => x.IsActive == true)
+            .OrderBy(x => x.PositionCode)
+            .Select(x => new PositionDto
+            {
+                Id = x.Id,
+                PositionCode = x.PositionCode,
+                PositionName = x.PositionName,
+                IsApprove = x.IsApprove,
+                IsAllowApprove = x.IsAllowApprove,
+                IsActive = x.IsActive == true
+            })
+            .ToListAsync(ct);
+
+        return ServiceResult<List<PositionDto>>.Ok(rows);
     }
 
     public async Task<ServiceResult<HrmUserRoleRuleDto>> CreateAsync(HrmUserRoleRuleRequest request, int actorUserId, CancellationToken ct = default)
@@ -154,6 +195,16 @@ public sealed class HrmUserRoleRuleService : IHrmUserRoleRuleService
 
         var dept = Normalize(request.DeptCode);
         var position = Normalize(request.PositionCode);
+
+        if (dept != null &&
+            !await _uow.Repository<F03Department>().Query()
+                .AnyAsync(x => x.IsActive == true && x.DeptCode == dept, ct))
+            return $"Phòng ban '{dept}' không tồn tại hoặc đã inactive.";
+
+        if (position != null &&
+            !await _uow.Repository<F03Position>().Query()
+                .AnyAsync(x => x.IsActive == true && x.PositionCode == position, ct))
+            return $"Chức vụ '{position}' không tồn tại hoặc đã inactive.";
 
         var duplicate = await _uow.Repository<F03HrmUserRoleRule>().Query()
             .AnyAsync(x => x.IsActive == true &&

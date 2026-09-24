@@ -1,7 +1,7 @@
 # PRODUCT READINESS PLAN & TRACKING
 
 > **Repository:** `Nang0559/Reggister`  
-> **Branch:** `feature/security-rbac-dashboard`  
+> **Branch:** `feature/work-calendar-action-implementation`  
 > **Baseline:** `95cee16d7edca1f0610680db21b33a1c23709a41`  
 > **Mục tiêu:** đưa hệ thống từ trạng thái development/integration sang Release Candidate và Production bằng một quy trình có kiểm soát, trong đó **thiết kế → SQL → Entity/Configuration → Service → API → UI → User Guide → Test → Production** phải cùng một contract.
 
@@ -683,6 +683,35 @@ Hệ thống chỉ được đánh dấu **PRODUCT READY** khi:
 | 2026-09-20 | 0 | Fixed Leave type contract in create UI | `c00d6d8580f932b7d94a85ea471f58d85b9c8b7a` |
 | 2026-09-20 | 0 | Fixed Trip approval route loading and missing-route UX | `761e2ebf4ebc2a53a9e894dc7740158710b1d1b0`, `11367c22bc50117c7877d6bcfe7f3dc3b22a3548` |
 
+
+### Phase 1 Evidence Update — 2026-09-25
+
+#### Static review fixes applied on the current work-calendar branch
+
+1. Retired RequestModule.AccessChange references removed.
+   - RequestModule no longer contains AccessChange.
+   - Removed the stale enum reference from ApprovalPolicyService.
+   - Removed stale AccessChange mappings from RequestModuleExtensions.
+   - This was a concrete compile blocker introduced by the earlier enum cleanup.
+
+2. OT join endpoint scope hardened.
+   - OTService.JoinAsync now requires OTCreate data-scope authorization for the current employee before adding participation.
+   - Knowing an OT request id is no longer sufficient to mutate that request.
+
+3. OT employee-add deduplication fixed.
+   - AddEmployeesAsync now normalizes the submitted employee list case-insensitively and ignores employees already active in the request.
+   - TotalOTHours is calculated from the deduplicated candidate set, preventing duplicate submitted employee codes from inflating the total.
+
+4. Leave detail mutation hardened.
+   - LeaveService.CancelDetailAsync now blocks removal of a leave detail once the request has entered the approval route.
+   - This prevents changing the request detail while an existing approval snapshot/history can still represent the previous request content.
+
+#### Current evidence status
+
+- Verified by source inspection: the above static defects are corrected on the current branch.
+- NEED BUILD: full solution compile is still required after the retired enum cleanup.
+- NEED RUNTIME: approval snapshot immutability, cancellation/action reconciliation, notification idempotence, and IDOR/scope tests still require runtime evidence.
+- NEED SQL VERIFY: deploy/verify must be run against the target database; source inspection alone is not a deployment certificate.
 
 ### Phase 1 Evidence Update — 2026-09-20
 

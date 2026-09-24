@@ -12,4 +12,6 @@ public sealed class WorkCalendarDayDto
     public bool CanRegisterOT { get; set; }
     public bool CanRegisterTrip { get; set; }
     public string? AvailabilityNote { get; set; }
+    public bool IsFuture { get; set; }
+    public bool IsPast { get; set; }
 }

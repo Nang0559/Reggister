@@ -59,13 +59,39 @@ AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03ActionItems_ActionI
         ON dbo.F03ActionItems(ActionId);
 GO
 
-/* One Open/InProgress action per logical issue and assignee. */
+/* One reusable Action per logical issue and assignee.
+   Historical terminal rows are allowed to coexist, while Open/InProgress
+   rows remain unique so worker reruns/races cannot create duplicates.
+   Existing deployments may already have the older Status IN (0,10) filter; detect
+   and replace that index instead of silently keeping the old definition. */
+IF OBJECT_ID(N'dbo.F03ActionItems',N'U') IS NOT NULL
+BEGIN
+    DECLARE @ActionDedupFilter nvarchar(4000) =
+    (
+        SELECT TOP (1) filter_definition
+        FROM sys.indexes
+        WHERE name=N'UX_F03ActionItems_OpenLogicalKey'
+          AND object_id=OBJECT_ID(N'dbo.F03ActionItems')
+    );
+
+    IF @ActionDedupFilter IS NOT NULL
+       AND (
+            @ActionDedupFilter NOT LIKE N'%IsActive%'
+            OR @ActionDedupFilter NOT LIKE N'%Status%'
+            OR @ActionDedupFilter NOT LIKE N'%40%'
+       )
+    BEGIN
+        DROP INDEX UX_F03ActionItems_OpenLogicalKey ON dbo.F03ActionItems;
+    END;
+END;
+GO
+
 IF OBJECT_ID(N'dbo.F03ActionItems',N'U') IS NOT NULL
 AND NOT EXISTS (SELECT 1 FROM sys.indexes WHERE name=N'UX_F03ActionItems_OpenLogicalKey'
                AND object_id=OBJECT_ID(N'dbo.F03ActionItems'))
     CREATE UNIQUE INDEX UX_F03ActionItems_OpenLogicalKey
         ON dbo.F03ActionItems(ModuleCode,SourceType,SourceId,ParticipantId,ActionType,AssignedToEmployeeId)
-        WHERE Status IN (0,10);
+        WHERE IsActive = 1 AND Status IN (0,10);
 GO
 
 IF OBJECT_ID(N'dbo.F03ActionItems',N'U') IS NOT NULL

@@ -43,3 +43,19 @@ public sealed class PublicFormAudienceDto
     public string ScopeType { get; set; } = "AllCompany";
     public string? ScopeValue { get; set; }
 }
+
+public sealed class PublicFormAudienceLookupDto
+{
+    public string Code { get; set; } = string.Empty;
+    public string Name { get; set; } = string.Empty;
+    public string? Secondary { get; set; }
+}
+
+public sealed class PublicFormAudienceEmployeePageDto
+{
+    public List<PublicFormAudienceLookupDto> Items { get; set; } = new();
+    public int TotalCount { get; set; }
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public int TotalPages => PageSize <= 0 ? 0 : (int)Math.Ceiling(TotalCount / (double)PageSize);
+}

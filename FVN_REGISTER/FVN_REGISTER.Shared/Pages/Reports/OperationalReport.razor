@@ -7,9 +7,12 @@
 @using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Shared.Pages.Reports
 @using FVN_REGISTER.Shared.Services.Leaves
+@using FVN_REGISTER.Shared.Services.Equipment
+@using FVN_REGISTER.Contract.Dtos.Equipment
 @using Microsoft.AspNetCore.Authorization
 @using Microsoft.AspNetCore.Components
 @inject IReportClientService ReportService
+@inject IEquipmentClientService EquipmentClient
 @inject ISecurityClientService Security
 @inject ISnackbar Snackbar
 @inherits AppComponentBase
@@ -35,7 +38,7 @@ else
             else if (ModuleKey == "equipment")
             {
                 <MudTabPanel Text="Theo phòng ban" />
-                <MudTabPanel Text="Chi tiết tài sản" />
+                <MudTabPanel Text="Cây thiết bị & checklist" />
                 <MudTabPanel Text="Sửa chữa" />
             }
             else if (ModuleKey == "attendance")
@@ -44,6 +47,32 @@ else
                 <MudTabPanel Text="Chi tiết" />
             }
         </MudTabs>
+        @if (ModuleKey == "equipment" && _tab == 1)
+        {
+            <MudPaper Outlined="true" Class="pa-3 mb-3">
+                <MudGrid>
+                    <MudItem xs="12" sm="3">
+                        <MudDatePicker @bind-Date="_query.FromDate" Label="Từ ngày" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudDatePicker @bind-Date="_query.ToDate" Label="Đến ngày" Variant="Variant.Outlined" Margin="Margin.Dense" />
+                    </MudItem>
+                    <MudItem xs="12" sm="3">
+                        <MudSelect T="string" Label="Phòng ban" @bind-Value="_query.DeptCode" Clearable="true" Margin="Margin.Dense" Variant="Variant.Outlined">
+                            @foreach(var d in _departments ?? new()) { <MudSelectItem T="string" Value="@d.Key">@d.Value</MudSelectItem> }
+                        </MudSelect>
+                    </MudItem>
+                    <MudItem xs="12" sm="3" Class="d-flex align-end">
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadInspectionTreeAsync">
+                            Cập nhật cây
+                        </MudButton>
+                    </MudItem>
+                </MudGrid>
+            </MudPaper>
+            <EquipmentChecklistTree Assets="_inspectionAssets" Tasks="_inspectionTasks" />
+        }
+        else
+        {
         <ReportBase @ref="_base" ReportType="_type" Query="_query">
             <AdditionalFilters>
                 <MudItem xs="12" sm="3">
@@ -60,6 +89,7 @@ else
                 }
             </AdditionalFilters>
         </ReportBase>
+        }
     }
     else if (_permission != null)
     {
@@ -76,12 +106,15 @@ else
     private List<KeyValuePair<string,string>>? _departments;
     private KeyValuePair<string,string> _employee;
     private ReportQueryDto _query=new(){FromDate=new DateTime(DateTime.Now.Year,1,1),ToDate=DateTime.Today,IncludeChart=true};
+    private List<EquipmentAssetDto> _inspectionAssets = new();
+    private List<EquipmentInspectionReportRowDto> _inspectionTasks = new();
 
     private bool CanTrip => _permission?.Has(SecurityFunctionCodes.TripView)==true;
     private bool CanEquipment => _permission?.Has(SecurityFunctionCodes.EquipmentView)==true;
+    private bool CanEquipmentInspectionReport => _permission?.Has(SecurityFunctionCodes.EquipmentInspectionReport)==true;
     private bool CanAttendance => _permission?.Has(SecurityFunctionCodes.AttendanceView)==true;
     private string ModuleKey => (Module ?? "trip").ToLowerInvariant();
-    private bool IsModuleAllowed => ModuleKey switch { "trip" => CanTrip, "equipment" => CanEquipment, "attendance" => CanAttendance, _ => false };
+    private bool IsModuleAllowed => ModuleKey switch { "trip" => CanTrip, "equipment" => CanEquipment || CanEquipmentInspectionReport, "attendance" => CanAttendance, _ => false };
 
     private ReportType _type => Module?.ToLowerInvariant() switch
     {
@@ -97,10 +130,39 @@ else
         var d=await ReportService.GetLookupDepartmentsAsync();
         if(d.IsSuccess) _departments=d.Data;
         _permissionLoading=false;
+        if (ModuleKey == "equipment" && CanEquipmentInspectionReport)
+            await LoadInspectionTreeAsync();
     }
 
-    private async Task OnTabChanged(int i){_tab=i;_query.EmployeeCode=null;_query.DeptCode=null;await Task.Delay(20);if(_base!=null)await _base.LoadReport();}
+    private async Task OnTabChanged(int i)
+    {
+        _tab=i; _query.EmployeeCode=null; _query.DeptCode=null;
+        if (ModuleKey == "equipment" && _tab == 1)
+            await LoadInspectionTreeAsync();
+        else if (_base!=null)
+            await Task.Delay(20);
+        if (_base!=null && !(ModuleKey == "equipment" && _tab == 1))
+            await _base.LoadReport();
+    }
+
+    private async Task LoadInspectionTreeAsync()
+    {
+        if (!CanEquipmentInspectionReport) { _inspectionAssets = new(); _inspectionTasks = new(); return; }
+        var assets = await EquipmentClient.GetRegisteredInspectionAssetsAsync(_query.DeptCode);
+        if (assets.IsSuccess) _inspectionAssets = assets.Data ?? new();
+        var report = await EquipmentClient.GetInspectionDashboardAsync(
+            _query.FromDate ?? DateTime.Today.AddMonths(-1),
+            _query.ToDate ?? DateTime.Today,
+            _query.DeptCode);
+        if (report.IsSuccess) _inspectionTasks = report.Data?.Rows ?? new();
+        else Snackbar.Add(report.Message ?? "Không tải được checklist thiết bị.", Severity.Error);
+    }
     private void OnEmployeeChanged(KeyValuePair<string,string> x){_employee=x;_query.EmployeeCode=string.IsNullOrWhiteSpace(x.Key)?null:x.Key;}
     private async Task<IEnumerable<KeyValuePair<string,string>>> SearchEmployees(string value,CancellationToken ct)
     { var r=await ReportService.SearchLookupEmployeesAsync(value??string.Empty,ct); return r.IsSuccess&&r.Data!=null?r.Data:Array.Empty<KeyValuePair<string,string>>(); }
+}
+
+@code {
+    // Intentionally kept as a small presentational component so the report center
+    // does not depend on the equipment management page.
 }

@@ -13,6 +13,7 @@ namespace FVN_REGISTER.Contract.Dtos.OT
         public string DeptCode { get; set; } = string.Empty;
         public string DeptName { get; set; } = string.Empty;
         public string CvCode { get; set; } = string.Empty;
+        public string PositionName { get; set; } = string.Empty;
         public string Email { get; set; } = string.Empty;
 
         /// <summary>

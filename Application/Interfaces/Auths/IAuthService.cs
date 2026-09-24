@@ -27,5 +27,6 @@ namespace FVN_REGISTER.Application.Interfaces.Auths
             string employeeCode, string currentPassword, string newPassword, CancellationToken ct = default);
 
         Task<ServiceResult<string>> RefreshTokenAsync(string refreshToken, CancellationToken ct = default);
+        Task<ServiceResult<AuthResultDto>> CompleteTwoFactorLoginAsync(string challengeToken, string code, bool rememberMe, string? ipAddress, string? userAgent, CancellationToken ct = default);
     }
 }

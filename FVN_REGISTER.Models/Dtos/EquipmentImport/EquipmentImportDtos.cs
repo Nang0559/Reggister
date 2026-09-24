@@ -3,6 +3,7 @@ namespace FVN_REGISTER.Contract.Dtos.EquipmentImport;
 public sealed class EquipmentFieldDefinitionDto
 {
     public int Id { get; set; }
+    public int SchemaId { get; set; }
     public string DeptCode { get; set; } = string.Empty;
     public string FieldKey { get; set; } = string.Empty;
     public string FieldLabel { get; set; } = string.Empty;
@@ -12,12 +13,15 @@ public sealed class EquipmentFieldDefinitionDto
     public bool IsSearchable { get; set; }
     public bool IsActiveField { get; set; }
     public int DisplayOrder { get; set; }
+    public int? MaxLength { get; set; }
+    public string? DefaultValue { get; set; }
     public string? OptionsJson { get; set; }
 }
 
 public sealed class SaveEquipmentFieldDefinitionRequest
 {
     public string DeptCode { get; set; } = string.Empty;
+    public int? SchemaId { get; set; }
     public string FieldKey { get; set; } = string.Empty;
     public string FieldLabel { get; set; } = string.Empty;
     public string DataType { get; set; } = "Text";
@@ -26,6 +30,8 @@ public sealed class SaveEquipmentFieldDefinitionRequest
     public bool IsSearchable { get; set; }
     public bool IsActiveField { get; set; } = true;
     public int DisplayOrder { get; set; }
+    public int? MaxLength { get; set; }
+    public string? DefaultValue { get; set; }
     public string? OptionsJson { get; set; }
 }
 
@@ -39,6 +45,7 @@ public sealed class EquipmentImportBatchDto
     public int ValidRows { get; set; }
     public int InvalidRows { get; set; }
     public int ImportedRows { get; set; }
+    public bool AssignToEmployee { get; set; }
     public List<EquipmentImportRowDto> Rows { get; set; } = new();
 }
 

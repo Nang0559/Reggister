@@ -13,5 +13,6 @@ public sealed class F03EquipmentImportBatch : BaseAuditEntity
     public int ValidRows { get; set; }
     public int InvalidRows { get; set; }
     public int ImportedRows { get; set; }
+    public bool AssignToEmployee { get; set; }
     public DateTime? CompletedAt { get; set; }
 }

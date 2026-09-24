@@ -1,84 +1,40 @@
 # FVN REGISTER — QUICK GUIDE
 
-## 1. Approver — 60 giây
+## 1. 60 giây đầu tiên
 
-```mermaid
-flowchart LR
-    N[Notification] --> A[Action]
-    A --> D[Open detail]
-    D --> C[Check employee / date / content]
-    C -->|OK| AP[Approve]
-    C -->|Không phù hợp| RJ[Reject + Reason]
-    AP --> N2[Next approver notification]
-    RJ --> U[Requester notified]
-```
+**Login → Dashboard → xem Action/Notification → mở Calendar → chọn module.**
 
-### Trước khi Approve
-- Đúng người.
-- Đúng ngày/giờ.
-- Đúng nội dung.
-- Đúng scope.
-- Đúng policy.
+## 2. Tạo request
 
-### Nhớ
-**Approve = quyết định nghiệp vụ.**
+**Create → Validate/Preview → Submit → theo dõi status.**
 
-Không phải "đã xem".
+## 3. Phê duyệt
 
-## 2. Employee — 60 giây
+**Action/Approval → Detail → kiểm tra → Approve hoặc Reject + Reason.**
 
-```mermaid
-flowchart LR
-    CREATE[Create] --> CHECK[Check]
-    CHECK --> PRE[Preview]
-    PRE --> SUB[Submit]
-    SUB --> TRACK[Track]
-    TRACK --> RESULT[Approved / Rejected]
-```
+`Escalated` = chuyển cấp do timeout, **không phải Rejected**.
 
-Không Submit khi thông tin chưa chính xác.
+## 4. Calendar
 
-## 3. HR — 60 giây
+Một ngày có thể có: ca làm việc, attendance, Leave/OT/Trip, company holiday/workday, request status/approval status, Issue `?` và Action, Registration Opportunity.
 
-```mermaid
-flowchart LR
-    Q[HR Queue] --> R[Review]
-    R --> OK[OK]
-    R --> NG[NG + Reason]
-    OK --> CORR[Correction if required]
-    CORR --> CALC[Recalculate]
-    CALC --> PAY[Payroll Input]
-    NG --> USER[Notify User]
-```
+**Ngày tương lai chưa có attendance = bình thường.**
 
-HR không sửa trực tiếp attendance result.
-
-## 4. Equipment — 60 giây
-
-```mermaid
-flowchart TD
-    REGISTER[Register] --> QR[QR]
-    QR --> APPROVAL[Approval]
-    APPROVAL --> ACTIVE[QR Active]
-    ACTIVE --> SCAN[Scan]
-    SCAN --> REPAIR[Repair Request]
-    REPAIR --> RAP[Repair Approval]
-    RAP --> HISTORY[Repair History]
-```
+Click ngày để chọn `Detail / Confirmation / Registration / Info`.
 
 ## 5. Trạng thái cần nhớ
 
-| Khái niệm | Ý nghĩa |
+| Trạng thái | Ý nghĩa |
 |---|---|
 | Draft | Chưa gửi |
-| Pending | Đang chờ xử lý/duyệt |
-| Approved | Business đã được duyệt theo workflow |
+| Pending | Đang chờ workflow |
+| Approved | Business request đã được approval |
 | Rejected | Bị từ chối |
-| Escalated | Hệ thống chuyển cấp do timeout; không đồng nghĩa Rejected |
-| Action Open | Có việc cần xử lý |
-| Action Completed | Công việc đã đóng |
+| Escalated | Timeout → chuyển cấp; không phải Rejected |
 | Mismatch | Planned và Actual khác nhau |
 | Resolved | Reconciliation đã được giải quyết |
+| Action Open | Có việc cần xử lý |
+| Action Completed | Work item đã đóng; không tự đồng nghĩa Approved |
 
 ## 6. 8 nguyên tắc
 
@@ -87,21 +43,10 @@ flowchart TD
 3. Calendar ≠ Source of Truth.
 4. Approved ≠ Actual.
 5. Mismatch ≠ Rejected.
-6. HR OK ≠ sửa trực tiếp database.
+6. HR correction ≠ Direct DB Edit.
 7. View ≠ Export.
-8. Scope ≠ Role name.
+8. Capability ≠ Data Scope.
 
-## 7. Khi có lỗi
+## 7. Khi có dấu `?`
 
-```mermaid
-flowchart TD
-    ERR[Lỗi / Không thấy chức năng] --> AUTH{Đăng nhập?}
-    AUTH -->|No| LOGIN[Đăng nhập lại]
-    AUTH -->|Yes| FUNC{Có capability?}
-    FUNC -->|No| ADMIN[Liên hệ Admin]
-    FUNC -->|Yes| SCOPE{Đúng Data Scope?}
-    SCOPE -->|No| OWNER[Liên hệ quản lý / HR]
-    SCOPE -->|Yes| DATA{Dữ liệu hợp lệ?}
-    DATA -->|No| FIX[Sửa dữ liệu]
-    DATA -->|Yes| SUPPORT[Kiểm tra notification / workflow / hỗ trợ kỹ thuật]
-```
+Mở marker → đọc Issue → chọn ActionOption. Không tự đổi dữ liệu để làm mất mismatch.

@@ -159,12 +159,25 @@ public sealed class TripService : ITripService
         var query = _uow.Repository<F03TripRequest>().Query().AsNoTracking()
             .Where(x => x.IsActive == true);
 
-        if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
-            query = query.Where(x => x.EmployeeCode == user.EmployeeCode);
-        else if (scope == AuthorizationScopeCodes.Department)
-            query = query.Where(x => x.DeptCode == user.DeptCode);
-        else if (scope != AuthorizationScopeCodes.All)
-            query = query.Where(x => false);
+        if (scope != AuthorizationScopeCodes.All)
+        {
+            var managedEmployees = await _authorization.GetManagedEmployeesAsync(user.UserId, ct);
+            var managedEmployeeCodes = managedEmployees
+                .Select(x => x.EmployeeCode)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+            var managedDeptCodes = managedEmployees
+                .Select(x => x.DeptCode)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
+                query = query.Where(x => x.EmployeeCode == user.EmployeeCode || managedEmployeeCodes.Contains(x.EmployeeCode));
+            else if (scope == AuthorizationScopeCodes.Department)
+                query = query.Where(x => x.DeptCode == user.DeptCode || managedDeptCodes.Contains(x.DeptCode));
+            else
+                query = query.Where(x => false);
+        }
 
         var entities = await query
             .OrderByDescending(x => x.CreatedAt)

@@ -194,6 +194,28 @@ Mục tiêu:
 | Notification | Delivery/read state |
 | Dashboard | Aggregation |
 
+
+
+## 11A. Mapping với schema/runtime hiện hữu — không tạo entity song song
+
+Các thành phần Action/Notification/Execution dưới đây **đã có trong branch** và là phần mở rộng của kiến trúc hiện hữu, không phải các entity mới độc lập phục vụ riêng cho Calendar:
+
+| Concern | Runtime entity / table | Vai trò |
+|---|---|---|
+| Calendar module | `F03CalendarModuleDefinitions` | Definition/provider capability |
+| Calendar policy | `F03CalendarModulePolicies` | Cấu hình hiển thị/reconciliation |
+| Calendar projection | `F03CalendarProjection` | Read projection, rebuild được |
+| Shared Action | `F03ActionItems` / `F03ActionItem` | Một work item dùng chung Calendar/Task |
+| Action policy | `F03ActionPolicies` / `F03ActionPolicy` | Priority, deadline, notification policy |
+| Notification | `F03AppNotifications` | **Bảng notification hiện hữu**, được bổ sung `ActionId` + `NotificationType` |
+| Execution policy | `F03ExecutionPolicies` | Planned/Actual reconciliation policy |
+| Reconciliation | `F03ExecutionReconciliations` | Source-of-truth của mismatch lifecycle |
+| Confirmation | `F03ExecutionConfirmations` | Employee confirmation |
+| Evidence | `F03ExecutionConfirmationEvidence` | Evidence của confirmation |
+| HR Resolution | `F03ExecutionResolutions` | HR quyết định xử lý |
+
+Không tạo `F03Notifications` thứ hai và không tạo một Action entity khác cho Calendar. Calendar chỉ **discover/link/navigate** tới Action; Execution tạo/duy trì Action khi policy yêu cầu.
+
 ## 12. Action
 
 Action là việc cần một người xử lý, không phải business result.
@@ -202,13 +224,24 @@ Lifecycle chuẩn: Open → InProgress → Completed.
 
 Action.Completed không đồng nghĩa Business Approved/Matched. Employee không thể đóng Action execution chỉ để làm mất dấu ?.
 
-Action phải được deduplicate theo logical reconciliation identity/action type/assigned employee; worker rerun không tạo Action mới.
+Action phải được deduplicate ở **hai lớp**:
+1. Application `IActionItemWriter.EnsureOpenAsync` để reuse Action đang mở.
+2. Database unique index `UX_F03ActionItems_OpenLogicalKey` để chặn race condition giữa nhiều worker instance.
+
+Logical key:
+
+`ModuleCode + SourceType + SourceId + ParticipantId + ActionType + AssignedToEmployeeId`
+
+Database unique index chỉ khóa Action đang reusable trực tiếp (`Open`, `InProgress`, `IsActive=1`). `Expired` vẫn được application coi là reusable để có thể reopen và cấp lại `DueAt`; không đưa `Expired` vào unique index để tránh các bản ghi lịch sử Expired trên DB cũ chặn migration hoặc reopen. Action đã `Completed/Dismissed/Cancelled` không khóa việc tạo lại khi business issue phát sinh lại.
+
 
 ## 13. Notification
 
 Reconciliation → ActionId → Notification → User → Deep link → Execution detail.
 
-Notification không quyết định business state. Notification failure không rollback business transaction; lỗi phải được log và có thể retry.
+Notification không quyết định business state. `F03AppNotifications` là notification framework hiện hữu; branch chỉ bổ sung liên kết `ActionId` và `NotificationType`, không tạo bảng notification song song.
+
+Notification failure không rollback business transaction; lỗi phải được log và có thể retry.
 
 ## 14. Confirmation
 
@@ -219,6 +252,12 @@ Decision có thể gồm CONFIRMED, REJECTED, NEED_MORE_EVIDENCE. Confirmation l
 ## 15. Evidence
 
 Nếu policy yêu cầu: Confirmation → Evidence → HR Evidence Review.
+
+Liên kết runtime chuẩn:
+
+`CalendarProjection.ActionId → F03ActionItems.ActionId ← F03ExecutionReconciliations.ActionId → F03ExecutionConfirmations.ReconciliationId → F03ExecutionConfirmationEvidence.ConfirmationId`.
+
+Vì vậy UI có thể đi từ Action/Calendar tới reconciliation, rồi từ reconciliation tới confirmation/evidence; không cần nhét Evidence vào Payload của Action và cũng không tạo foreign key trực tiếp `Action → Evidence`.
 
 Evidence có thể tham chiếu FileId, ReferenceNo, ExternalUrl, Description.
 
@@ -326,6 +365,8 @@ API:
 5. Notification.
 6. Calendar projection.
 
+**Không trộn approval escalation với execution action lifecycle.** Approval timeout/escalation hiện hữu tiếp tục thuộc `ApprovalEscalationService` + `F03EscalationRules/F03EscalationLogs` và `EscalationBackgroundWorker`. `F03ExecutionPolicies.DueHours` và `F03ActionPolicies.DueHours` chỉ định deadline của execution confirmation/action; chúng không thay thế và không chạy song song một approval escalation engine.
+
 Execution worker phải idempotent.
 
 ReconciliationMode:
@@ -347,6 +388,8 @@ Mode 2 ngăn mismatch cũ bị bỏ quên chỉ vì ngày đó đã ra khỏi wo
 ## 21. Security
 
 Execution workflow phải kiểm tra cả capability/function và data scope.
+
+Việc `/me` lấy EmployeeId từ authenticated claims/identity là một **security/non-functional invariant dùng chung của API**, không phải business rule riêng của Work Calendar.
 
 Scope gồm Own, Employee, Department, All tùy policy.
 
@@ -820,3 +863,337 @@ Tài liệu này là **Single Source of Truth** cho kiến trúc FVN_REGISTER.
 `24_WORK_CALENDAR_AND_ACTION_IMPLEMENTATION.md` là file kiến trúc chính.
 
 Các file kiến trúc tổng hợp trùng lặp phải được loại bỏ để tránh hai luồng thiết kế song song.
+
+## 24A — CALENDAR DAY CONTRACT v1
+
+The central Work Calendar read model is one `CalendarDayDto` per employee/date. The UI must not treat each business record as an independent visual event.
+
+### 24A.1 Day composition
+
+A day is assembled from five fact groups:
+
+1. Company calendar:
+   - `F03WorkYears`
+   - `F03CompanyHolidays`
+   - A date is a company working day when it is inside an active WorkYear and is not present in F03CompanyHolidays.
+   - Saturday/Sunday is informational only. It does not block registration unless the company calendar marks the date as a holiday.
+
+2. Shift:
+   - `ShiftId`
+   - `ShiftAbbr` (HC/C1/C2/C3/Kip/...)
+   - `RequiredMinutes`
+
+3. Attendance:
+   - IN / OUT
+   - WorkMinutes
+   - RequiredMinutes
+   - ActualHours / RequiredHours
+   - Actual OT minutes / recognized OT minutes
+   - Numeric variance flag
+   - reconciliation ActionId / DetailRoute when available
+
+4. Registration:
+   - LEAVE
+   - OT
+   - TRIP
+   - leave `SubTypeCode` is preserved so rules can distinguish `P` and `NB`
+   - `IsHalfDay` and `DayValue` are preserved for leave details
+
+5. Issues:
+   - Generated only by CalendarDayRule implementations.
+   - Issue is not a UI event.
+   - Each Issue can expose multiple ActionOptions.
+
+### 24A.2 Registration opening policy
+
+Registration is available only when:
+
+`WorkDate > Today` and the date belongs to an active WorkYear.
+
+Rules:
+
+| Date | Leave | OT | Trip |
+|---|---:|---:|---:|
+| Today | No | No | No |
+| Past | No | No | No |
+| Future working day | Yes | Yes | Yes |
+| Future company holiday | No | Yes | No |
+| Outside WorkYear | No | No | No |
+
+The source of company holidays is F03CompanyHolidays. Never hard-code public/company holidays in the UI.
+
+The base availability is calculated server-side. Existing registration of the same module on the date suppresses a new registration opportunity for that module.
+
+### 24A.3 Issue contract
+
+Issue is the stable business signal used by Calendar UI.
+
+Current issue codes:
+
+| Code | Severity | Condition | Actions |
+|---|---:|---|---|
+| `ATTENDANCE_TIME_VARIANCE` | 2 / yellow | AttendanceDisplayValue is numeric because actual hours differ from required shift hours | OPEN_OT when actual > required; OPEN_HR_FEEDBACK |
+| `OT_NO_ACTUAL` | 3 / red | Past date + approved OT registration + no actual OT | OPEN_HR_FEEDBACK; CANCEL_OT |
+| `LEAVE_HAS_ATTENDANCE` | 3 / red | Full-day P/NB + actual attendance | OPEN_HR_FEEDBACK |
+| `TRIP_HAS_ATTENDANCE` | 3 / red | Full-day Trip + actual attendance | OPEN_HR_FEEDBACK |
+| `OT_ACTUAL_WITHOUT_REQUEST` | 3 / red | Actual OT exists + no OT registration | OPEN_HR_FEEDBACK; OPEN_OT |
+
+Severity is a UI-neutral numeric contract:
+- 0/1 = information/attention
+- 2 = warning (yellow)
+- 3 = critical (red)
+
+The backend never hard-codes CSS. The UI maps severity to presentation.
+
+### 24A.4 Attendance numeric variance
+
+`ATTENDANCE_TIME_VARIANCE` deliberately follows the calculated HRM display state.
+
+The source calculation in `dbo.usp_CalculateHrmAttendance` produces a numeric AttendanceDisplayValue when both IN/OUT exist, RequiredMinutes exists, and actual work time differs from the required shift time.
+
+This issue is yellow and means “needs user/HR attention”, not automatically “OT approved”.
+
+If actual hours exceed required hours, the day exposes:
+- OPEN_OT
+- OPEN_HR_FEEDBACK
+
+If actual hours do not exceed required hours, only OPEN_HR_FEEDBACK is exposed.
+
+### 24A.5 OT with no actual
+
+`OT_NO_ACTUAL` is not evaluated on future dates because no actual attendance is expected yet.
+
+For a past date, an approved OT request without actual OT shows a red `?`.
+
+Actions:
+- OPEN_HR_FEEDBACK: opens the reconciliation/confirmation path when available.
+- CANCEL_OT: calls the OT business service and records the cancellation reason. Calendar must never directly UPDATE F03OTRequests.
+
+### 24A.6 Leave / Trip conflicts
+
+Only a full-day leave is considered a full-day attendance conflict.
+
+For Leave:
+- `P` and `NB` are currently treated as attendance-conflict candidates.
+- `IsHalfDay = true` or `DayValue < 1` suppresses the full-day conflict.
+
+For Trip:
+- F03TripRequest currently represents a day-range request, therefore the calendar treats each covered date as a full-day registration.
+
+Future leave types and half-day semantics must be added as Rule implementations, not as UI conditionals.
+
+### 24A.7 Rule engine extension contract
+
+New calendar checks must implement:
+
+`ICalendarDayRule`
+
+Each rule receives:
+- `CalendarDayDto`
+- Source `CalendarItemDto` records for that date
+
+Rules return `CalendarIssueDto`.
+
+Add a new rule by:
+1. Creating a class under `FVN_REGISTER.Infrastructure/Services/Calendar/Rules`.
+2. Assigning a deterministic `Order`.
+3. Registering it as `ICalendarDayRule` in API DI.
+4. Adding a unit test.
+5. Updating this section with the new IssueCode and ActionOptions.
+
+Do not put new issue logic in:
+- `WorkCalendar.razor`
+- `workCalendar.js`
+- `SharedWorkCalendarService` beyond composition/orchestration.
+
+### 24A.8 UI contract
+
+The Work Calendar uses FullCalendar only for month navigation and date geometry.
+
+One cell represents one `CalendarDayDto` and visually contains:
+
+1. Date
+2. Company holiday (if any)
+3. Shift
+4. Attendance IN/OUT and actual/required hours
+5. P/NB/OT/Trip registrations
+6. Issue marker `?`
+7. “+ Đăng ký” when registration is available
+
+Clicking a day opens `CalendarDayDialog`.
+
+Clicking the `?` also opens the same dialog. The dialog lists every issue and its ActionOptions, so a day can safely contain multiple independent issues.
+
+### 24A.9 Action semantics
+
+`ActionOption` is a command/navigation option, not an ActionItem row.
+
+Current commands:
+- OPEN_OT → navigate to /ot/create
+- OPEN_HR_FEEDBACK → open the existing execution reconciliation/confirmation route when the issue has a DetailRoute
+- CANCEL_OT → invoke OTService.CancelAsync with user-entered reason
+
+F03ActionItems remain the shared work item generated by execution reconciliation. Calendar ActionOptions do not replace F03ActionItems.
+
+### 24A.10 HR feedback / evidence
+
+HR feedback is deliberately routed through the existing execution reconciliation workflow whenever the issue has a reconciliation DetailRoute.
+
+That workflow already supports:
+- employee confirmation
+- comment/reason
+- evidence
+- evidence file upload
+- HR resolution
+
+Therefore Calendar does not create a second attachment/evidence subsystem.
+
+If a new issue does not yet have a reconciliation, its Rule should first define how the issue receives a source/reconciliation before introducing a new feedback store.
+
+### 24A.11 Current source-of-truth boundary
+
+`WorkCalendarService`:
+- loads company calendar/registrations;
+- does not own reconciliation;
+- exposes registration availability.
+
+`CalendarModuleProvider`:
+- reads business/attendance projection facts.
+
+`SharedWorkCalendarService`:
+- composes facts into CalendarDay;
+- invokes RuleEngine;
+- exposes Alerts and RegistrationOpportunities.
+
+`CalendarDayRuleEngine`:
+- detects issues;
+- creates no business side effects.
+
+Business services:
+- execute registration/approval/cancellation commands.
+
+ExecutionReconciliation:
+- owns mismatch lifecycle, confirmation, evidence, HR resolution and ActionItem linkage.
+
+### 24A.12 Mandatory regression checks
+
+Before adding a new Calendar rule, verify at minimum:
+
+- future normal day → Leave + OT + Trip registration options
+- future company holiday → OT only
+- today/past → no registration option
+- half-day P → no full-day attendance conflict
+- full-day P/NB + attendance → red ?
+- full-day Trip + attendance → red ?
+- past approved OT + no actual OT → red ? + feedback + cancel
+- numeric attendance variance → yellow ? + HR feedback; OPEN_OT only when actual > required
+- actual OT without request → red ?
+- resolving/cancelling source business data removes the stale issue after reconciliation/projection refresh
+
+
+
+## 24A.13. Integration với kiến trúc Work Calendar hiện hữu
+
+Work Calendar đã có foundation trước khi thêm Action/Execution:
+
+- `SQL/19_WorkCalendar.sql` là foundation/indexes của Work Calendar trong lịch sử schema.
+- Branch hiện tại dùng `SQL/35_WorkCalendar.sql` để **chuẩn hóa/migrate** WorkYear + CompanyHoliday; file này không tạo một Calendar service thứ hai.
+- Shared Calendar runtime vẫn đi qua `CalendarModuleRegistry` → providers → `SharedWorkCalendarService`; không tạo một `LeaveCalendarService`, `OtCalendarService` hoặc `TripCalendarService` song song.
+- `F03CalendarProjection` là projection cho dữ liệu cần materialize/action-link; nó không thay thế các request tables. `WorkCalendarService` vẫn đọc business registration source để hiển thị đăng ký.
+- `24_WORK_CALENDAR_AND_ACTION_IMPLEMENTATION.md` là source of truth hiện tại của branch. Các blueprint cũ chỉ là historical input/reference; không tạo thêm một architecture document cùng cấp.
+
+
+### 24A.13B. Registration status trong Calendar Rules
+
+Execution/reconciliation và Calendar conflict rules chỉ dùng request **Approved** làm planned business state.
+
+- `OT_NO_ACTUAL`: chỉ Approved OT.
+- `OT_ACTUAL_WITHOUT_REQUEST`: chỉ được coi là “chưa có đơn OT” khi không có Approved OT.
+- `LEAVE_HAS_ATTENDANCE`: chỉ Approved Leave P/NB.
+- `TRIP_HAS_ATTENDANCE`: chỉ Approved Trip.
+
+Draft/Pending/InProgress/NeedsRevision không phải bằng chứng rằng business plan đã có hiệu lực; chúng vẫn có thể xuất hiện trong Calendar với status riêng nhưng không được làm tắt/bật issue reconciliation.
+
+### 24A.13A. Source identity khi ghép Projection với Registration
+
+Calendar không được lấy `ModuleCode` làm identity duy nhất khi gắn `ActionId`/`DetailRoute` vào một registration.
+
+Identity chuẩn hiện tại:
+- Leave: `LEAVE_DAY` + `{RequestId}:{yyyyMMdd}`
+- OT: `OT_EMPLOYEE` + `{OTCode}:{EmployeeCode}`
+- Trip: `TRIP_REQUEST` + `{TripCode}`
+
+`SharedWorkCalendarService` ưu tiên match `ModuleCode + SourceId`. Chỉ fallback theo `ModuleCode` khi đúng module đó có **duy nhất một** projection trong ngày. Nhờ vậy một ngày có nhiều đơn Leave/OT/Trip không thể lấy nhầm Action của đơn khác.
+
+### Approval escalation không bị thay thế
+
+Leave/OT approval timeout đang có pipeline riêng:
+
+`Approval request → Approval snapshot/history → ApprovalEscalationService → F03EscalationRules/F03EscalationLogs`.
+
+Execution deadline là pipeline khác:
+
+`ExecutionReconciliation → ActionItem → DueAt → Action lifecycle`.
+
+Chỉ khi có quyết định kiến trúc riêng sau này mới refactor hai pipeline này về một engine chung. Không chạy hai engine cho cùng **approval timeout**.
+
+### Action → Evidence
+
+Action không mang Evidence payload. Luồng đọc là:
+
+`ActionId → ReconciliationId → ConfirmationId → Evidence`.
+
+Điều này giữ Action nhỏ, Evidence/audit đầy đủ và cho phép cùng một execution workflow được mở từ Calendar, Task List hoặc Notification.
+
+### 24A.14 Example day display
+
+```
+┌─────────────────────────────┐
+│ 18                      ?  │
+│                             │
+│ Ca C1                       │
+│ 07:55 → 18:10               │
+│ 10.17h / 8h                 │
+│                             │
+│ OT · 18:00-20:00            │
+│                             │
+│ 🟡 Chênh lệch giờ công      │
+└─────────────────────────────┘
+```
+
+The visual marker `?` is the presentation of an Issue. It is not a calendar Event identity.
+
+
+
+## 24B — Documentation synchronization contract
+
+`24_WORK_CALENDAR_AND_ACTION_IMPLEMENTATION.md` là source of truth cho runtime architecture và Work Calendar/Action. Tài liệu người dùng không được tạo một architecture model khác.
+
+Documentation Hub: `MÔ HÌNH/DOCUMENTATION/00_INDEX.md`.
+Documentation standard: `MÔ HÌNH/DOCUMENTATION/08_DOCUMENTATION_STANDARD.md`.
+
+### Synchronization order
+
+```mermaid
+flowchart LR
+    RULE[Architecture / Business Rule] --> IMPL[Implementation]
+    IMPL --> USER[User Guide]
+    USER --> FAQ[Quick Guide / FAQ]
+    FAQ --> PR[Presentation / README]
+    PR --> CHECK[Cross-document check]
+```
+
+### Current wording contract
+
+- Calendar = projection/navigation.
+- Registration = tạo request nghiệp vụ.
+- Confirmation = xử lý mismatch đã tồn tại.
+- Action = work item; không phải business result.
+- Notification = delivery/read state; không phải approval.
+- Approved = Planned business state; không đồng nghĩa Actual.
+- Future date chưa có Actual attendance là trạng thái bình thường.
+- Request đã tồn tại có thể hiển thị request/approval status lấy từ source contract.
+- Issue marker `?` biểu diễn Calendar Issue; không phải Event identity.
+- Capability và Data Scope là hai lớp authorization độc lập.
+
+Any future change to these definitions must update this section first and then the user-facing documentation in the same change set where practical.

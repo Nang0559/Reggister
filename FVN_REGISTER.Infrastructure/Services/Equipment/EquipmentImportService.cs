@@ -10,6 +10,7 @@ using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.EquipmentImport;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.Equipment;
+using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
 
@@ -48,7 +49,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
         return new EquipmentFieldDefinitionDto{Id=e.Id,DeptCode=e.DeptCode,FieldKey=e.FieldKey,FieldLabel=e.FieldLabel,DataType=e.DataType,IsRequired=e.IsRequired,IsImportable=e.IsImportable,IsSearchable=e.IsSearchable,IsActiveField=e.IsActiveField,DisplayOrder=e.DisplayOrder,OptionsJson=e.OptionsJson};
     }
 
-    public async Task<EquipmentImportBatchDto> StageExcelAsync(string deptCode,string fileName,Stream content,CancellationToken ct=default)
+    public async Task<EquipmentImportBatchDto> StageExcelAsync(string deptCode,string fileName,Stream content,bool assignToEmployee=false,CancellationToken ct=default)
     {
         var user=RequireUser();await EnsureScopeAsync(user,deptCode,ct);
         if(content==null||!content.CanRead) throw new ArgumentException("File Excel không hợp lệ.");
@@ -89,7 +90,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
                 .ToList();
             if (headers.Any(string.IsNullOrWhiteSpace)) throw new InvalidOperationException("Không được để trống tên cột Excel.");
         var defs=await _uow.Repository<F03EquipmentFieldDefinition>().Query().AsNoTracking().Where(x=>x.DeptCode==deptCode&&x.IsActive==true&&x.IsActiveField&&x.IsImportable).ToListAsync(ct);
-        var batch=new F03EquipmentImportBatch{DeptCode=deptCode.Trim(),FileName=Path.GetFileName(fileName),Status="Staged",CreatedBy=user.UserId};
+        var batch=new F03EquipmentImportBatch{DeptCode=deptCode.Trim(),FileName=Path.GetFileName(fileName),Status="Staged",AssignToEmployee=assignToEmployee,CreatedBy=user.UserId};
         await _uow.Repository<F03EquipmentImportBatch>().AddAsync(batch,ct);await _uow.SaveChangesAsync(ct);
             var rows = new List<F03EquipmentImportRow>();
             var valid = 0;
@@ -105,6 +106,23 @@ public sealed class EquipmentImportService : IEquipmentImportService
 
                 if (data.Values.All(string.IsNullOrWhiteSpace)) continue;
                 var err = ValidateRow(data, defs);
+                if (err == null && assignToEmployee)
+                {
+                    var employeeCode = GetValue(data, "EmployeeCode", "Mã nhân viên", "Ma nhan vien", "NguoiPhuTrach");
+                    if (string.IsNullOrWhiteSpace(employeeCode))
+                        err = "Bật 'Giao cho nhân viên' nên cột Mã nhân viên là bắt buộc.";
+                    else
+                    {
+                        var employee = await _uow.Repository<F03Employee>().Query().AsNoTracking()
+                            .Where(e => e.EmployeeCode == employeeCode && e.IsActive == true && e.EndWorkingDate == null)
+                            .Select(e => new { e.EmployeeCode, e.DeptCode })
+                            .FirstOrDefaultAsync(ct);
+                        if (employee == null)
+                            err = $"Mã nhân viên '{employeeCode}' không tồn tại hoặc đã nghỉ việc.";
+                        else if (!string.Equals(employee.DeptCode, deptCode, StringComparison.OrdinalIgnoreCase))
+                            err = $"Nhân viên '{employeeCode}' không thuộc bộ phận '{deptCode}'.";
+                    }
+                }
                 var status = err == null ? "Valid" : "Invalid";
                 if (err == null) valid++; else invalid++;
                 rows.Add(new F03EquipmentImportRow
@@ -140,9 +158,74 @@ public sealed class EquipmentImportService : IEquipmentImportService
         var user=RequireUser();var b=await _uow.Repository<F03EquipmentImportBatch>().Query().FirstOrDefaultAsync(x=>x.Id==batchId&&x.IsActive==true,ct)??throw new KeyNotFoundException("Không tìm thấy lô import.");
         await EnsureScopeAsync(user,b.DeptCode,ct);if(b.Status=="Imported")return new(){BatchId=b.Id,ImportedRows=b.ImportedRows};if(b.Status!="Ready")throw new InvalidOperationException("Lô import chưa sẵn sàng. Hãy xử lý các dòng lỗi trước.");
         var rows=await _uow.Repository<F03EquipmentImportRow>().Query().Where(x=>x.BatchId==b.Id&&x.Status=="Valid").OrderBy(x=>x.RowNumber).ToListAsync(ct);
+        if (b.AssignToEmployee)
+        {
+            var invalidAssignments = new List<(F03EquipmentImportRow Row, string Message)>();
+            foreach (var row in rows)
+            {
+                var data = JsonSerializer.Deserialize<Dictionary<string, string?>>(row.RawJson) ?? new();
+                var employeeCode = GetValue(data, "EmployeeCode", "Mã nhân viên", "Ma nhan vien", "NguoiPhuTrach");
+                var employee = !string.IsNullOrWhiteSpace(employeeCode)
+                    ? await _uow.Repository<F03Employee>().Query().AsNoTracking()
+                        .Where(e => e.EmployeeCode == employeeCode && e.IsActive == true && e.EndWorkingDate == null)
+                        .Select(e => new { e.EmployeeCode, e.DeptCode })
+                        .FirstOrDefaultAsync(ct)
+                    : null;
+
+                if (employee == null)
+                    invalidAssignments.Add((row, "Mã nhân viên không còn hợp lệ tại thời điểm commit."));
+                else if (!string.Equals(employee.DeptCode, b.DeptCode, StringComparison.OrdinalIgnoreCase))
+                    invalidAssignments.Add((row, $"Nhân viên '{employee.EmployeeCode}' đã chuyển khỏi bộ phận '{b.DeptCode}' trước thời điểm commit."));
+            }
+
+            if (invalidAssignments.Count > 0)
+            {
+                foreach (var item in invalidAssignments)
+                {
+                    item.Row.Status = "Invalid";
+                    item.Row.ErrorMessage = item.Message;
+                }
+                b.Status = "NeedsReview";
+                b.InvalidRows += invalidAssignments.Count;
+                b.ValidRows = Math.Max(0, b.ValidRows - invalidAssignments.Count);
+                b.ModifiedBy = user.UserId;
+                b.ModifiedAt = DateTime.Now;
+                await _uow.SaveChangesAsync(ct);
+                await _audit.LogAction(
+                    "EQUIPMENT_IMPORT_COMMIT_BLOCKED",
+                    user.UserId,
+                    $"BatchId={b.Id}; DeptCode={b.DeptCode}; InvalidAssignments={invalidAssignments.Count}",
+                    ct: ct);
+
+                return new()
+                {
+                    BatchId = b.Id,
+                    ImportedRows = 0,
+                    SkippedRows = invalidAssignments.Count
+                };
+            }
+        }
+
         var defs=await _uow.Repository<F03EquipmentFieldDefinition>().Query().AsNoTracking().Where(x=>x.DeptCode==b.DeptCode&&x.IsActive==true&&x.IsActiveField&&x.IsImportable).ToListAsync(ct);var imported=0;
         foreach(var row in rows){var data=JsonSerializer.Deserialize<Dictionary<string,string?>>(row.RawJson)??new();var code=GetValue(data,"EquipmentCode","Mã thiết bị","Mã TB","Mã tài sản","AssetCode");var name=GetValue(data,"EquipmentName","Tên thiết bị","Tên TB","Tên tài sản");if(string.IsNullOrWhiteSpace(code)||string.IsNullOrWhiteSpace(name)){row.Status="Skipped";row.ErrorMessage="Thiếu mã hoặc tên thiết bị.";continue;}var exists=await _uow.Repository<F03EquipmentAsset>().Query().FirstOrDefaultAsync(x=>x.EquipmentCode==code&&x.DeptCode==b.DeptCode,ct);if(exists!=null){row.Status="Skipped";row.ErrorMessage="Mã thiết bị đã tồn tại trong bộ phận.";continue;}
-            var asset=new F03EquipmentAsset{EquipmentCode=code,EquipmentName=name,Specification=GetValue(data,"Specification","Thông số","Thông số kỹ thuật"),SerialNumber=GetValue(data,"SerialNumber","Serial","Số serial","S/N"),AssetCode=GetValue(data,"AssetCode","Mã tài sản"),PurchasePrice=ParseDecimal(GetValue(data,"PurchasePrice","Nguyên giá","Giá mua","Giá")),PurchaseDate=ParseDate(GetValue(data,"PurchaseDate","Ngày mua","Ngày nhập"))??DateTime.Today,ExpectedDepreciationDate=ParseDate(GetValue(data,"ExpectedDepreciationDate","Ngày khấu hao","Ngày hết khấu hao"))??DateTime.Today,DeptCode=b.DeptCode,Location=GetValue(data,"Location","Vị trí","Địa điểm"),QrToken=Convert.ToHexString(Guid.NewGuid().ToByteArray())+Guid.NewGuid().ToString("N"),IsQrActive=true,Note=GetValue(data,"Note","Ghi chú"),CustomDataJson=JsonSerializer.Serialize(BuildCustomData(data,defs)),CreatedBy=user.UserId};
+            var employeeCode = b.AssignToEmployee ? GetValue(data, "EmployeeCode", "Mã nhân viên", "Ma nhan vien", "NguoiPhuTrach") : null;
+            var employee = !string.IsNullOrWhiteSpace(employeeCode)
+                ? await _uow.Repository<F03Employee>().Query().AsNoTracking().Where(e => e.EmployeeCode == employeeCode && e.IsActive == true && e.EndWorkingDate == null).Select(e => new { e.EmployeeCode, e.DeptCode }).FirstOrDefaultAsync(ct)
+                : null;
+            if (b.AssignToEmployee && employee == null)
+            {
+                row.Status = "Skipped";
+                row.ErrorMessage = "Mã nhân viên không còn hợp lệ tại thời điểm commit.";
+                continue;
+            }
+            if (b.AssignToEmployee && employee != null &&
+                !string.Equals(employee.DeptCode, b.DeptCode, StringComparison.OrdinalIgnoreCase))
+            {
+                row.Status = "Skipped";
+                row.ErrorMessage = $"Nhân viên '{employee.EmployeeCode}' đã chuyển khỏi bộ phận '{b.DeptCode}' trước thời điểm commit.";
+                continue;
+            }
+            var asset=new F03EquipmentAsset{EquipmentCode=code,EquipmentName=name,Specification=GetValue(data,"Specification","Thông số","Thông số kỹ thuật"),SerialNumber=GetValue(data,"SerialNumber","Serial","Số serial","S/N"),AssetCode=GetValue(data,"AssetCode","Mã tài sản"),PurchasePrice=ParseDecimal(GetValue(data,"PurchasePrice","Nguyên giá","Giá mua","Giá")),PurchaseDate=ParseDate(GetValue(data,"PurchaseDate","Ngày mua","Ngày nhập"))??DateTime.Today,ExpectedDepreciationDate=ParseDate(GetValue(data,"ExpectedDepreciationDate","Ngày khấu hao","Ngày hết khấu hao"))??DateTime.Today,DeptCode=b.DeptCode,Location=GetValue(data,"Location","Vị trí","Địa điểm"),QrToken=Convert.ToHexString(Guid.NewGuid().ToByteArray())+Guid.NewGuid().ToString("N"),IsQrActive=true,Note=GetValue(data,"Note","Ghi chú"),CustomDataJson=JsonSerializer.Serialize(BuildCustomData(data,defs)),ResponsibleEmployeeCode=employee?.EmployeeCode, OperatingResponsibleEmployeeCode=employee?.EmployeeCode, OperatingResponsibleDeptCode=employee?.EmployeeCode == null ? null : employee.DeptCode, ResponsibleAssignedAt=employee == null ? null : DateTime.UtcNow, CreatedBy=user.UserId};
             await _uow.Repository<F03EquipmentAsset>().AddAsync(asset,ct);await _uow.SaveChangesAsync(ct);row.AssetId=asset.Id;row.Status="Imported";imported=imported+1;
         }
         b.ImportedRows=imported;b.Status="Imported";b.CompletedAt=DateTime.Now;b.ModifiedBy=user.UserId;b.ModifiedAt=DateTime.Now;await _uow.SaveChangesAsync(ct);var skipped=rows.Count(x=>x.Status=="Skipped");await _audit.LogAction("EQUIPMENT_IMPORT_COMMITTED",user.UserId,$"BatchId={b.Id}; DeptCode={b.DeptCode}; Imported={imported}; Skipped={skipped}",ct:ct);return new(){BatchId=b.Id,ImportedRows=imported,SkippedRows=skipped};
@@ -161,6 +244,7 @@ public sealed class EquipmentImportService : IEquipmentImportService
         ValidRows = x.ValidRows,
         InvalidRows = x.InvalidRows,
         ImportedRows = x.ImportedRows,
+        AssignToEmployee = x.AssignToEmployee,
         Rows = rows?.Select(r => new EquipmentImportRowDto
         {
             RowNumber = r.RowNumber,
