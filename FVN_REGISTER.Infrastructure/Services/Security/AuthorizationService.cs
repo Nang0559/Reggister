@@ -598,22 +598,45 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
 
     public async Task<List<TwoFactorAdminUserDto>> GetTwoFactorUsersAsync(CancellationToken ct = default)
     {
-        return await _uow.Repository<F03User>().Query()
+        var users = await _uow.Repository<F03User>().Query()
             .AsNoTracking()
             .OrderBy(x => x.EmployeeCode)
-            .Select(x => new TwoFactorAdminUserDto
-            {
-                UserId = x.Id,
-                EmployeeCode = x.EmployeeCode,
-                FullName = x.FullName,
-                DeptCode = x.DeptCode,
-                IsActive = x.IsActive == true,
-                Required = x.TwoFactorRequired,
-                Enabled = x.TwoFactorEnabled,
-                RequiredAt = x.TwoFactorRequiredAt,
-                EnabledAt = x.TwoFactorEnabledAt
-            })
             .ToListAsync(ct);
+
+        var deptCodes = users.Select(x => x.DeptCode)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct()
+            .ToList();
+        var positionCodes = users.Select(x => x.Cvcode)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct()
+            .ToList();
+
+        var deptNames = await _uow.Repository<F03Department>().Query()
+            .AsNoTracking()
+            .Where(x => deptCodes.Contains(x.DeptCode))
+            .ToDictionaryAsync(x => x.DeptCode, x => x.DeptName, ct);
+
+        var positionNames = await _uow.Repository<F03Position>().Query()
+            .AsNoTracking()
+            .Where(x => positionCodes.Contains(x.PositionCode))
+            .ToDictionaryAsync(x => x.PositionCode, x => x.PositionName, ct);
+
+        return users.Select(x => new TwoFactorAdminUserDto
+        {
+            UserId = x.Id,
+            EmployeeCode = x.EmployeeCode,
+            FullName = x.FullName,
+            DeptCode = x.DeptCode,
+            DeptName = x.DeptCode != null ? deptNames.GetValueOrDefault(x.DeptCode) : null,
+            PositionCode = x.Cvcode,
+            PositionName = x.Cvcode != null ? positionNames.GetValueOrDefault(x.Cvcode) : null,
+            IsActive = x.IsActive == true,
+            Required = x.TwoFactorRequired,
+            Enabled = x.TwoFactorEnabled,
+            RequiredAt = x.TwoFactorRequiredAt,
+            EnabledAt = x.TwoFactorEnabledAt
+        }).ToList();
     }
 
     public async Task<PermissionSnapshotDto> SetUserRolesAsync(
