@@ -78,7 +78,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("approvers")]
-    public async Task<ActionResult<ApiResponse<List<EquipmentApproverDto>>> Approvers([FromQuery] string deptCode, CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<EquipmentApproverDto>>>> Approvers([FromQuery] string deptCode, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
         var result = await _service.GetApproversAsync(deptCode, ct);
@@ -105,7 +105,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpGet("registrations/mine")]
-    public async Task<ActionResult<ApiResponse<List<EquipmentRequestDto>>> Mine(CancellationToken ct)
+    public async Task<ActionResult<ApiResponse<List<EquipmentRequestDto>>>> Mine(CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
         var result = await _service.GetMineAsync(ct);
