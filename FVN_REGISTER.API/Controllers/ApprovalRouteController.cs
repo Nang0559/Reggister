@@ -71,9 +71,11 @@ public sealed class ApprovalRouteController : ControllerBase
             user.EmployeeCode,
             ct);
 
-        if (!result.IsSuccess)
-            return UnprocessableEntity(result);
+        var response = ApiResponse<ApprovalRoutePreviewDto>.FromResult(result);
 
-        return Ok(result);
+        if (!result.IsSuccess)
+            return UnprocessableEntity(response);
+
+        return Ok(response);
     }
 }
