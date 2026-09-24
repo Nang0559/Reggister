@@ -14,7 +14,7 @@
                     <MudStack Row="true" AlignItems="AlignItems.Center">
                         <MudCheckBox T="bool" Value="@_selected.Contains(emp.EmployeeCode)" ValueChanged="@(v => Toggle(emp.EmployeeCode, v))" Disabled="@disabled" />
                         <MudAvatar Color="Color.Primary" Size="Size.Small">@(emp.EmployeeName.FirstOrDefault())</MudAvatar>
-                        <div><MudText Typo="Typo.body2"><b>@emp.EmployeeName</b></MudText><MudText Typo="Typo.caption">@emp.EmployeeCode — @emp.DeptName</MudText></div>
+                        <div><MudText Typo="Typo.body2"><b>@emp.EmployeeName</b></MudText><MudText Typo="Typo.caption">@emp.EmployeeCode — @emp.DeptCode — @emp.DeptName — @emp.PositionCode — @emp.PositionName</MudText></div>
                         @if (disabled && emp.EmployeeCode != CurrentUserCode) { <MudSpacer /><MudChip T="string" Size="Size.Small" Color="Color.Success">Đã thêm</MudChip> }
                     </MudStack>
                 </MudPaper>
