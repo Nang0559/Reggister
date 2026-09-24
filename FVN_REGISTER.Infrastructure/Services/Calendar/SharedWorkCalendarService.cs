@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.Calendar;
+using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Logging;
 using FVN_REGISTER.Application.Models.Calendar;
 using FVN_REGISTER.Contract.Dtos.Authentication;
