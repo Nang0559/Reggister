@@ -4,6 +4,7 @@ using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Equipment;
 using FVN_REGISTER.Contract.Dtos.EquipmentImport;
 using FVN_REGISTER.Contract.Responses;
+using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Constants;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -71,21 +72,27 @@ public sealed class EquipmentController : ControllerBase
     public async Task<ActionResult<bool>> Access(CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
-        return Ok(await _service.HasModuleAccessAsync(ct));
+        var result = await _service.HasModuleAccessAsync(ct);
+        var response = ApiResponse<bool>.FromResult(result);
+        return result.IsSuccess ? Ok(response) : BadRequest(response);
     }
 
     [HttpGet("approvers")]
     public async Task<ActionResult<List<EquipmentApproverDto>>> Approvers([FromQuery] string deptCode, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
-        return Ok(await _service.GetApproversAsync(deptCode, ct));
+        var result = await _service.GetApproversAsync(deptCode, ct);
+        var response = ApiResponse<List<EquipmentApproverDto>>.FromResult(result);
+        return result.IsSuccess ? Ok(response) : BadRequest(response);
     }
 
     [HttpPost("registrations")]
     public async Task<ActionResult<EquipmentRequestDto>> CreateRegistration([FromBody] CreateEquipmentRegistrationDto request, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentCreate, ct)) return Forbid();
-        return Ok(await _service.CreateRegistrationDraftAsync(request, ct));
+        var result = await _service.CreateRegistrationDraftAsync(request, ct);
+        var response = ApiResponse<EquipmentRequestDto>.FromResult(result);
+        return result.IsSuccess ? Ok(response) : BadRequest(response);
     }
 
     [HttpPost("registrations/{id:int}/submit")]
@@ -101,14 +108,18 @@ public sealed class EquipmentController : ControllerBase
     public async Task<ActionResult<List<EquipmentRequestDto>>> Mine(CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentView, ct)) return Forbid();
-        return Ok(await _service.GetMineAsync(ct));
+        var result = await _service.GetMineAsync(ct);
+        var response = ApiResponse<List<EquipmentRequestDto>>.FromResult(result);
+        return result.IsSuccess ? Ok(response) : BadRequest(response);
     }
 
     [HttpPost("repairs")]
     public async Task<ActionResult<EquipmentRequestDto>> CreateRepair([FromBody] CreateEquipmentRepairDto request, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentRepair, ct)) return Forbid();
-        return Ok(await _service.CreateRepairDraftAsync(request, ct));
+        var result = await _service.CreateRepairDraftAsync(request, ct);
+        var response = ApiResponse<EquipmentRequestDto>.FromResult(result);
+        return result.IsSuccess ? Ok(response) : BadRequest(response);
     }
 
     [HttpPost("repairs/{id:int}/submit")]
@@ -124,7 +135,9 @@ public sealed class EquipmentController : ControllerBase
     public async Task<ActionResult<EquipmentAssetDto>> Scan(string qrToken, CancellationToken ct)
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentQR, ct)) return Forbid();
-        return Ok(await _service.ScanAsync(qrToken, ct));
+        var result = await _service.ScanAsync(qrToken, ct);
+        if (!result.IsSuccess) return BadRequest(ApiResponse<EquipmentAssetDto>.FromResult(result));
+        return Ok(ApiResponse<EquipmentAssetDto>.FromResult(result));
     }
 
     [HttpGet("assets/{id:int}/history")]
@@ -132,7 +145,10 @@ public sealed class EquipmentController : ControllerBase
     {
         if (!await CanAsync(SecurityFunctionCodes.EquipmentHistory, ct)) return Forbid();
         var result = await _service.GetAssetAsync(id, ct);
-        return result == null ? NotFound() : Ok(result);
+        if (!result.IsSuccess) return BadRequest(ApiResponse<EquipmentAssetDto>.FromResult(result));
+        return result.Data == null
+            ? NotFound(ApiResponse<EquipmentAssetDto>.Fail("Không tìm thấy thiết bị.", 404))
+            : Ok(ApiResponse<EquipmentAssetDto>.FromResult(result));
     }
 
     [HttpGet("assets/{id:int}")]
