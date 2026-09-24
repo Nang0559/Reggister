@@ -347,7 +347,7 @@ public sealed class EquipmentService : IEquipmentService
         catch (UnauthorizedAccessException ex) { return ServiceResult<EquipmentAssetDto>.Fail(ex.Message); }
         catch (ArgumentException ex) { return ServiceResult<EquipmentAssetDto>.Fail(ex.Message); }
     }
-    public async Task<ServiceResult<EquipmentAssetDto?>> GetAssetAsync(
+    public async Task<ServiceResult<EquipmentAssetDto>> GetAssetAsync(
         int assetId,
         CancellationToken ct = default)
     {
@@ -365,16 +365,16 @@ public sealed class EquipmentService : IEquipmentService
                     ct);
 
             if (asset == null)
-                return ServiceResult<EquipmentAssetDto?>.Ok(null);
+                return ServiceResult<EquipmentAssetDto>.Ok(default!);
 
             await EnsureScopeAsync(
                 user, SecurityFunctionCodes.EquipmentView,
                 null, asset.DeptCode, ct);
 
-            return ServiceResult<EquipmentAssetDto?>.Ok(
+            return ServiceResult<EquipmentAssetDto>.Ok(
                 await MapAssetAsync(asset, ct));
         }
-        catch (UnauthorizedAccessException ex) { return ServiceResult<EquipmentAssetDto?>.Fail(ex.Message); }
+        catch (UnauthorizedAccessException ex) { return ServiceResult<EquipmentAssetDto>.Fail(ex.Message); }
     }
     private async Task<ServiceResult> InitApprovalAsync(F03EquipmentRequest entity, CancellationToken ct)
     {
