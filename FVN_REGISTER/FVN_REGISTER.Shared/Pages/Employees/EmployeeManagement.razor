@@ -31,7 +31,7 @@
             <MudSelect T="string" Label="Lọc theo bộ phận" Value="_filterDept" ValueChanged="OnDeptFilterChanged" Variant="Variant.Outlined" Margin="Margin.Dense" Clearable="true">
                 @foreach (var dept in _departments)
                 {
-                    <MudSelectItem Value="@dept.DeptCode">@dept.DeptName</MudSelectItem>
+                    <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem>
                 }
             </MudSelect>
         </MudItem>
@@ -76,8 +76,8 @@ else if (_isFiltered)
                     </MudStack>
                 </MudTd>
                 <MudTd>
-                    <MudText Typo="Typo.body2">@context.DeptName</MudText>
-                    @if (!string.IsNullOrWhiteSpace(context.PositionName)) { <MudText Typo="Typo.caption" Color="Color.Secondary">@context.PositionName</MudText> }
+                    <MudText Typo="Typo.body2">@context.DeptCode — @context.DeptName</MudText>
+                    @if (!string.IsNullOrWhiteSpace(context.PositionName)) { <MudText Typo="Typo.caption" Color="Color.Secondary">@context.PositionCode — @context.PositionName</MudText> }
                 </MudTd>
                 <MudTd>@context.EmailAddress</MudTd>
                 <MudTd Style="text-align:center"><MudText Style="font-weight:700">@context.RemainingLeave.ToString("N1")</MudText><MudText Typo="Typo.caption" Color="Color.Secondary">@context.LeaveDaysUsed.ToString("N1") / @context.TotalEntitledLeave.ToString("N1")</MudText></MudTd>
@@ -131,7 +131,7 @@ else
                                                     <MudMenuItem Icon="@Icons.Material.Filled.Delete" IconColor="Color.Error" OnClick="@(() => ConfirmDelete(emp))"><MudText Color="Color.Error">Xóa</MudText></MudMenuItem>
                                                 </MudMenu>
                                             </MudStack>
-                                            @if (!string.IsNullOrWhiteSpace(emp.PositionName)) { <MudText Typo="Typo.caption" Color="Color.Secondary">@emp.PositionName</MudText> }
+                                            @if (!string.IsNullOrWhiteSpace(emp.PositionName)) { <MudText Typo="Typo.caption" Color="Color.Secondary">@emp.PositionCode — @emp.PositionName</MudText> }
                                             <MudDivider />
                                             <MudGrid Spacing="1">
                                                 <MudItem xs="6"><MudText Typo="Typo.caption" Color="Color.Secondary">Phép tồn</MudText><MudText Style="font-weight:700">@emp.RemainingLeave.ToString("N1") ngày</MudText></MudItem>
