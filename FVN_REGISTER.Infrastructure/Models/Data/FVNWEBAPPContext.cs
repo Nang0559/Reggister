@@ -108,9 +108,6 @@ public class FVNWEBAPPContext : DbContext
                 .HasConversion<string>()
                 .HasMaxLength(40);
 
-            entity.Property(x => x.ScopeType)
-                .HasConversion<int>()
-                .HasDefaultValue(FVN_REGISTER.Core.Enums.OTLimitScopeType.Employee);
         });
 
         modelBuilder.Entity<F03PublicForm>(entity =>
