@@ -163,7 +163,7 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         var departments = await _uow.Repository<F03Department>().Query()
             .AsNoTracking()
             .Where(x => x.IsActive == true)
-            .Select(x => new { x.DeptCode, x.ParentDeptCode })
+            .Select(x => new { x.DeptCode, x.ParentDeptCode, x.BlockCode })
             .ToListAsync(ct);
 
         var departmentMap = departments
