@@ -893,3 +893,14 @@ Các mục cần tiếp tục trước Phase 1:
 - HistoryController chấp nhận leave, ot, trip, equipment.
 
 **Important:** chưa đánh dấu Phase 0 DONE. Cần Phase 1 build/runtime evidence để xác nhận các thay đổi compile và endpoint/UI contract hoạt động thực tế.
+
+
+### Master-data display/transport convention — 2026-09-25
+
+Đã chuẩn hóa nguyên tắc dùng chung cho Department/Position/Employee và các lookup tương tự:
+
+- **Value/request/DB key luôn là Code**: `DeptCode`, `PositionCode`, `EmployeeCode`.
+- **UI hiển thị phải có Mã + Tên**: `CODE — NAME`; không dùng Name làm value/key.
+- DTO lookup phải mang đủ cặp `Code + Name` khi UI cần hiển thị; không suy ra identity từ tên.
+- Approval route tiếp tục canonical theo `F03Employees.PositionCode → F03Positions`.
+- Đã rà và sửa Employee Management, Employee/Approver picker, Approver management và Security Center 2FA; bổ sung `PositionCode` vào `EmployeeSelectDto` và lookup tên phòng ban/chức vụ cho danh sách quản trị 2FA.
