@@ -38,6 +38,8 @@ public sealed class F03OTLimitRuleConfiguration
         entity.Property(e => e.ScopeType)
             .HasConversion<int>()
             .HasDefaultValue(OTLimitScopeType.Employee)
+            // CLR default 0 means "not specified"; Employee=1 is a valid explicit value.
+            .HasSentinel((OTLimitScopeType)0)
             .IsRequired();
 
         entity.Property(e => e.ScopeCode)
