@@ -345,7 +345,7 @@
                                 @foreach (var employee in _operatorEmployees)
                                 {
                                     <MudSelectItem T="string" Value="@employee.EmployeeCode">
-                                        @employee.EmployeeCode — @employee.EmployeeName — @employee.DeptCode — @employee.PositionCode
+                                        @employee.EmployeeCode — @employee.EmployeeName — @employee.DeptCode — @employee.DeptName — @employee.PositionCode — @employee.PositionName
                                     </MudSelectItem>
                                 }
                             </MudSelect>
