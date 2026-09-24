@@ -233,8 +233,8 @@ public sealed class WorkCalendarService : IWorkCalendarService
         {
             var startTime = x.StartTime;
             var endTime = x.EndTime;
-            var s = x.OTDate.Date.Add(startTime.TimeOfDay);
-            var e = x.OTDate.Date.Add(endTime.TimeOfDay);
+            var s = x.OTDate.Date.Add(startTime);
+            var e = x.OTDate.Date.Add(endTime);
             if (e <= s) e = e.AddDays(1);
 
             result.Events.Add(new WorkCalendarEventDto
