@@ -13,5 +13,5 @@ public interface IEquipmentService
     Task<ServiceResult<EquipmentRequestDto>> CreateRepairDraftAsync(CreateEquipmentRepairDto request, CancellationToken ct = default);
     Task<ServiceResult<EquipmentRequestDto>> SubmitRepairAsync(int requestId, CancellationToken ct = default);
     Task<ServiceResult<EquipmentAssetDto>> ScanAsync(string qrToken, CancellationToken ct = default);
-    Task<ServiceResult<EquipmentAssetDto?>> GetAssetAsync(int assetId, CancellationToken ct = default);
+    Task<ServiceResult<EquipmentAssetDto>> GetAssetAsync(int assetId, CancellationToken ct = default);
 }
