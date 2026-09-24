@@ -59,14 +59,114 @@ else
 @code {
     private bool _ready; private bool _access; private bool _importAccess; private bool _busy; private string _token = string.Empty;
     private DateTime? _purchase = DateTime.Today; private DateTime? _depreciation = DateTime.Today.AddYears(3);
-    private List<EquipmentApproverDto> _approvers = new(); private List<EquipmentRequestDto> _mine = new();
+    private List<EquipmentRequestDto> _mine = new();
     private ApprovalRoutePreviewDto? _approvalRoute; private ApprovalRouteSelector? _approvalSelector; private EquipmentRequestDto? _created;
     private CreateEquipmentRegistrationDto _form = new();
     protected override async Task OnInitializedAsync() { var a = await EquipmentClient.HasAccessAsync(); _access = a.IsSuccess && a.Data;
         var import = await EquipmentClient.HasImportAccessAsync(); _importAccess = import.IsSuccess && import.Data;
         if (_access) { _form.DeptCode = CurrentUser.User?.DeptCode ?? string.Empty; await LoadAsync(); } _ready = true; }
-    private async Task LoadAsync() { var route = await ApprovalRouteClient.GetPreviewAsync(FVN_REGISTER.Core.Enums.RequestModule.Equipment); if (route.IsSuccess) _approvalRoute = route.Data; var a = await EquipmentClient.GetApproversAsync(_form.DeptCode); if (a.IsSuccess) _approvers = a.Data ?? new(); var m = await EquipmentClient.GetMineAsync(); if (m.IsSuccess) _mine = m.Data ?? new(); }
-    private async Task CreateAsync() { _form.ApprovalSelections = _approvalSelector?.GetSelections() ?? new(); if (_form.ApprovalSelections.Any(x => string.IsNullOrWhiteSpace(x.ApproverCode))) { Snackbar.Add("Vui lòng chọn người phê duyệt cho từng cấp.", Severity.Warning); return; } _form.PurchaseDate = _purchase ?? DateTime.Today; _form.ExpectedDepreciationDate = _depreciation ?? _form.PurchaseDate.AddYears(3); _busy = true; var r = await EquipmentClient.CreateRegistrationAsync(_form); _busy = false; if (r.IsSuccess) { _created = r.Data; Snackbar.Add("Đã tạo Draft và sinh QR.", Severity.Success); await LoadAsync(); } else Snackbar.Add(r.Message ?? "Không thể tạo đăng ký.", Severity.Error); }
+    private async Task LoadAsync()
+    {
+        var route = await ApprovalRouteClient.GetPreviewAsync(
+            FVN_REGISTER.Core.Enums.RequestModule.Equipment);
+
+        if (route.IsSuccess && route.Data != null)
+        {
+            _approvalRoute = route.Data;
+        }
+        else
+        {
+            _approvalRoute = null;
+            Snackbar.Add(
+                route.Message ?? "Không tải được luồng người phê duyệt.",
+                Severity.Error);
+        }
+
+        var mine = await EquipmentClient.GetMineAsync();
+        if (mine.IsSuccess)
+        {
+            _mine = mine.Data ?? new();
+        }
+        else
+        {
+            Snackbar.Add(
+                mine.Message ?? "Không tải được danh sách yêu cầu thiết bị.",
+                Severity.Error);
+        }
+    }
+    private async Task CreateAsync()
+    {
+        if (_approvalRoute == null)
+        {
+            Snackbar.Add(
+                "Chưa tải được luồng phê duyệt. Không thể tạo đăng ký.",
+                Severity.Error);
+            return;
+        }
+
+        if (_approvalRoute.Levels.Count == 0)
+        {
+            Snackbar.Add(
+                "Chưa cấu hình cấp phê duyệt cho chức vụ hiện tại.",
+                Severity.Error);
+            return;
+        }
+
+        _form.ApprovalSelections =
+            _approvalSelector?.GetSelections() ?? new();
+
+        var requiredLevels = _approvalRoute.Levels
+            .Where(x => x.Required)
+            .Select(x => x.Level)
+            .ToHashSet();
+
+        var selectedLevels = _form.ApprovalSelections
+            .Where(x => !string.IsNullOrWhiteSpace(x.ApproverCode))
+            .Select(x => x.Level)
+            .ToHashSet();
+
+        var missingLevels = requiredLevels
+            .Where(level => !selectedLevels.Contains(level))
+            .OrderBy(level => level)
+            .ToList();
+
+        if (missingLevels.Count > 0)
+        {
+            Snackbar.Add(
+                $"Vui lòng chọn người phê duyệt cho cấp: {string.Join(", ", missingLevels)}.",
+                Severity.Warning);
+            return;
+        }
+
+        _form.PurchaseDate = _purchase ?? DateTime.Today;
+        _form.ExpectedDepreciationDate =
+            _depreciation ?? _form.PurchaseDate.AddYears(3);
+
+        _busy = true;
+        try
+        {
+            var r = await EquipmentClient.CreateRegistrationAsync(_form);
+
+            if (r.IsSuccess && r.Data != null)
+            {
+                _created = r.Data;
+                Snackbar.Add(
+                    "Đã tạo Draft và sinh QR.",
+                    Severity.Success);
+                await LoadAsync();
+            }
+            else
+            {
+                Snackbar.Add(
+                    r.Message ?? "Không thể tạo đăng ký.",
+                    Severity.Error);
+            }
+        }
+        finally
+        {
+            _busy = false;
+        }
+    }
     private async Task SubmitAsync() { if (_created == null) return; _busy = true; var r = await EquipmentClient.SubmitRegistrationAsync(_created.Id); _busy = false; if (r.IsSuccess) { _created = r.Data; Snackbar.Add("Đã gửi duyệt.", Severity.Success); await LoadAsync(); } else Snackbar.Add(r.Message ?? "Không thể gửi duyệt.", Severity.Error); }
     private Task OnDetected(string value) { _token = value; Navigation.NavigateTo($"/equipment/scan/{Uri.EscapeDataString(value)}"); return Task.CompletedTask; }
     private Task ManualScan() { if (!string.IsNullOrWhiteSpace(_token)) Navigation.NavigateTo($"/equipment/scan/{Uri.EscapeDataString(_token.Trim())}"); return Task.CompletedTask; }
