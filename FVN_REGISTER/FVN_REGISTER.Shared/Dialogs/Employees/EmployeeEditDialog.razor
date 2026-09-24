@@ -45,7 +45,7 @@
                                RequiredError="Chọn bộ phận">
                         @foreach (var dept in Departments)
                         {
-                            <MudSelectItem Value="@dept.DeptCode">@dept.DeptName</MudSelectItem>
+                            <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
