@@ -33,6 +33,7 @@ public static class SecurityFunctionCodes
     public const int EquipmentApprove = 2305;
     public const int EquipmentImport = 2306;
     public const int EquipmentExport = 2307;
+    public const int EquipmentCancel = 2308;
     public const int EquipmentAssign = 2309;
     public const int EquipmentTransfer = 2310;
     public const int EquipmentReturn = 2311;
@@ -43,6 +44,7 @@ public static class SecurityFunctionCodes
     public const int EquipmentInspectionExecute = 2316;
     public const int EquipmentInspectionApprove = 2317;
     public const int EquipmentInspectionReport = 2318;
+    public const int EquipmentManage = 2319;
 
     public const int UserManagementView = 2401;
     public const int UserManagementCreate = 2402;
@@ -77,8 +79,6 @@ public static class SecurityFunctionCodes
     public const int AttendanceExport = 2902;
     public const int AttendanceCalculate = 2911;
     public const int AttendanceFeedback = 2912;
-
-    public const int EquipmentCancel = 2308;
 
     public const int DepartmentView = 3001;
     public const int DepartmentManage = 3002;
