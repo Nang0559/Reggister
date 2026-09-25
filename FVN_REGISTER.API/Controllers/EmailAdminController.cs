@@ -10,6 +10,7 @@ using FVN_REGISTER.Core.Repositories;
 using FVN_REGISTER.Infrastructure.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.Net;
 using System.Net.Mail;
@@ -140,7 +141,7 @@ public sealed class EmailAdminController : BaseApiController
         }
         catch (Exception ex)
         {
-            Logger.LogError(ex, "[EMAIL] SMTP test failed for profile {Profile}", profile.Code);
+            _logger.LogError(ex, "[EMAIL] SMTP test failed for profile {Profile}", profile.Code);
             return BadRequest(ApiResponse<object>.Fail($"SMTP test thất bại: {ex.Message}"));
         }
     }
