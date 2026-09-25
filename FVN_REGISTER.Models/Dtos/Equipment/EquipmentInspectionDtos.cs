@@ -58,10 +58,6 @@ public sealed class EquipmentInspectionAssignmentRequest
     public DateTime EffectiveFrom { get; set; } = DateTime.Today;
     public DateTime? EffectiveTo { get; set; }
 }
-
-// Response DTO is intentionally independent from the request DTO.
-// A response contains persisted/display-only fields and must not inherit
-// from a sealed request contract.
 public sealed class EquipmentInspectionAssignmentDto
 {
     public int Id { get; set; }
@@ -144,3 +140,30 @@ public sealed class EquipmentInspectionDashboardDto
     public int Pending { get; set; }
     public int Overdue { get; set; }
     public int Failed { get; set; }
+    public decimal CompletionRate { get; set; }
+    public decimal PassRate { get; set; }
+    public List<EquipmentInspectionReportRowDto> Rows { get; set; } = new();
+}
+public sealed class EquipmentInspectionReportRowDto
+{
+    public int TaskId { get; set; }
+    public string DeptCode { get; set; } = "";
+    public string EquipmentCode { get; set; } = "";
+    public string EquipmentName { get; set; } = "";
+    public string TemplateName { get; set; } = "";
+    public string InspectorEmployeeCode { get; set; } = "";
+    public string Status { get; set; } = "";
+    public string? Result { get; set; }
+    public DateTime ScheduledDate { get; set; }
+    public DateTime DueAt { get; set; }
+    public DateTime? SubmittedAt { get; set; }
+    public DateTime? ApprovedAt { get; set; }
+}
+public sealed class EquipmentInspectionTemplateImportResultDto
+{
+    public int TemplateId { get; set; }
+    public string TemplateCode { get; set; } = "";
+    public string TemplateName { get; set; } = "";
+    public int ItemCount { get; set; }
+    public List<string> Errors { get; set; } = new();
+}
