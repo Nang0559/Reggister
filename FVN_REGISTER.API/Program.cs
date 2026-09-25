@@ -197,6 +197,7 @@ builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
 builder.Services.AddScoped<IAccessChangeService, AccessChangeService>();
 builder.Services.AddScoped<IFeatureOperatorAssignmentService, FeatureOperatorAssignmentService>();
 builder.Services.AddScoped<SecurityFunctionRegistryService>();
+builder.Services.AddHostedService<SecurityFunctionDiscoveryHostedService>();
 builder.Services.AddScoped<IPublicInformationService, PublicInformationService>();
 builder.Services.AddScoped<IPublicFormService, PublicFormService>();
 builder.Services.AddScoped<IApproverManagementService, ApproverManagementService>();
