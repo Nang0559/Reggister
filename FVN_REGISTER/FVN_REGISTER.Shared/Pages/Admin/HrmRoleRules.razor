@@ -29,8 +29,8 @@
     <MudText Typo="Typo.h6" Class="mb-3">@(_editingId.HasValue ? "Sửa rule" : "Thêm rule")</MudText>
     <MudGrid>
         <MudItem xs="12" sm="6" md="3">
-            <MudSelect T="string?" @bind-Value="_form.DeptCode" Label="Phòng ban" Variant="Variant.Outlined" Clearable="true">
-                <MudSelectItem T="string?" Value="@((string?)null)">Tất cả phòng ban</MudSelectItem>
+            <MudSelect T="string" @bind-Value="_form.DeptCode" Label="Phòng ban" Variant="Variant.Outlined" Clearable="true">
+                <MudSelectItem T="string" Value="@default(string)">Tất cả phòng ban</MudSelectItem>
                 @foreach (var dept in _departments)
                 {
                     <MudSelectItem T="string?" Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem>
@@ -38,8 +38,8 @@
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="6" md="3">
-            <MudSelect T="string?" @bind-Value="_form.PositionCode" Label="Chức vụ" Variant="Variant.Outlined" Clearable="true">
-                <MudSelectItem T="string?" Value="@((string?)null)">Tất cả chức vụ</MudSelectItem>
+            <MudSelect T="string" @bind-Value="_form.PositionCode" Label="Chức vụ" Variant="Variant.Outlined" Clearable="true">
+                <MudSelectItem T="string" Value="@default(string)">Tất cả chức vụ</MudSelectItem>
                 @foreach (var position in _positions)
                 {
                     <MudSelectItem T="string?" Value="@position.PositionCode">@position.PositionCode — @position.PositionName</MudSelectItem>
