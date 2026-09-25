@@ -9,10 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Security;
 
-/// <summary>
-/// Discovers security capabilities declared by the application and reconciles them
-/// with the persistent permission catalog. Discovery never grants, revokes or deletes access.
-/// </summary>
+/// <summary>Discovers application security capabilities and reconciles them with the persistent catalog without changing access grants.</summary>
 public sealed class SecurityFunctionRegistryService
 {
     private readonly FVNWEBAPPContext _db;
@@ -25,16 +22,13 @@ public sealed class SecurityFunctionRegistryService
         var functions = await _db.Functions.ToListAsync(ct);
         var registry = await _db.SecurityFunctionRegistry.ToListAsync(ct);
         var registryByKey = registry.ToDictionary(x => x.FunctionKey, StringComparer.OrdinalIgnoreCase);
-        var functionByKey = functions.Where(x => !string.IsNullOrWhiteSpace(x.FunctionKey))
-            .ToDictionary(x => x.FunctionKey, StringComparer.OrdinalIgnoreCase);
+        var functionByKey = functions.Where(x => !string.IsNullOrWhiteSpace(x.FunctionKey)).ToDictionary(x => x.FunctionKey, StringComparer.OrdinalIgnoreCase);
         var functionByCode = functions.GroupBy(x => x.FunctionCode).ToDictionary(x => x.Key, x => x.ToList());
         var matched = 0; var pending = 0; var retirement = 0; var conflicts = 0;
 
         foreach (var d in discovered.Values)
         {
-            var codeConflict = d.FunctionCode > 0 && functionByCode.TryGetValue(d.FunctionCode, out var sameCode)
-                && sameCode.Any(x => !string.Equals(x.FunctionKey, d.FunctionKey, StringComparison.OrdinalIgnoreCase));
-
+            var codeConflict = d.FunctionCode > 0 && functionByCode.TryGetValue(d.FunctionCode, out var sameCode) && sameCode.Any(x => !string.Equals(x.FunctionKey, d.FunctionKey, StringComparison.OrdinalIgnoreCase));
             if (!registryByKey.TryGetValue(d.FunctionKey, out var item))
             {
                 item = new F03SecurityFunctionRegistryItem
@@ -45,63 +39,37 @@ public sealed class SecurityFunctionRegistryService
                     SourceType = d.SourceType, SourceAssembly = d.SourceAssembly, SourceTypeName = d.SourceTypeName,
                     DefinitionHash = d.DefinitionHash, FirstDiscoveredAt = now, LastSeenAt = now
                 };
-                _db.SecurityFunctionRegistry.Add(item);
-                registryByKey[d.FunctionKey] = item;
+                _db.SecurityFunctionRegistry.Add(item); registryByKey[d.FunctionKey] = item;
             }
             else
             {
-                item.LastSeenAt = now;
-                item.DefinitionHash = d.DefinitionHash;
-                item.DefinitionName = d.DefinitionName;
-                item.FunctionCode = d.FunctionCode;
-                item.ModuleCode = d.ModuleCode;
-                item.ActionCode = d.ActionCode;
-                item.ScopeCode = d.ScopeCode;
-                item.SourceType = d.SourceType;
-                item.SourceAssembly = d.SourceAssembly;
-                item.SourceTypeName = d.SourceTypeName;
+                item.LastSeenAt = now; item.DefinitionHash = d.DefinitionHash; item.DefinitionName = d.DefinitionName; item.FunctionCode = d.FunctionCode;
+                item.ModuleCode = d.ModuleCode; item.ActionCode = d.ActionCode; item.ScopeCode = d.ScopeCode; item.SourceType = d.SourceType;
+                item.SourceAssembly = d.SourceAssembly; item.SourceTypeName = d.SourceTypeName;
                 if (codeConflict) { item.LifecycleStatus = "Conflict"; item.ResolvedAt = null; }
                 else if (functionByKey.TryGetValue(d.FunctionKey, out var f))
                 {
                     if (f.LifecycleStatus == "PendingRetirement") { f.LifecycleStatus = "Active"; f.IsActive = true; }
-                    item.LifecycleStatus = f.LifecycleStatus;
-                    item.ResolvedAt ??= now;
-                    matched++;
+                    item.LifecycleStatus = f.LifecycleStatus; item.ResolvedAt ??= now; matched++;
                 }
-                else if (!item.IsIgnored && item.LifecycleStatus is not ("Retired" or "Replaced"))
-                {
-                    item.LifecycleStatus = "PendingRegistration"; item.ResolvedAt = null;
-                }
+                else if (!item.IsIgnored && item.LifecycleStatus is not ("Retired" or "Replaced")) { item.LifecycleStatus = "PendingRegistration"; item.ResolvedAt = null; }
             }
-
-            switch (item.LifecycleStatus)
-            {
-                case "PendingRegistration": pending++; break;
-                case "Conflict": conflicts++; break;
-            }
+            switch (item.LifecycleStatus) { case "PendingRegistration": pending++; break; case "Conflict": conflicts++; break; }
         }
 
         var discoveredKeys = discovered.Keys.ToHashSet(StringComparer.OrdinalIgnoreCase);
         foreach (var f in functions)
         {
             if (string.IsNullOrWhiteSpace(f.FunctionKey) || discoveredKeys.Contains(f.FunctionKey) || f.LifecycleStatus is "Retired" or "Replaced") continue;
-            f.LifecycleStatus = "PendingRetirement";
-            f.IsActive = false;
-            retirement++;
+            f.LifecycleStatus = "PendingRetirement"; f.IsActive = false; retirement++;
             if (registryByKey.TryGetValue(f.FunctionKey, out var item)) { item.LifecycleStatus = "PendingRetirement"; item.ResolvedAt = null; }
-            else
+            else _db.SecurityFunctionRegistry.Add(new F03SecurityFunctionRegistryItem
             {
-                _db.SecurityFunctionRegistry.Add(new F03SecurityFunctionRegistryItem
-                {
-                    FunctionKey = f.FunctionKey, FunctionCode = f.FunctionCode, DefinitionName = f.FunctionName,
-                    ModuleCode = f.ModuleCode, ActionCode = f.ActionCode, ScopeCode = f.ScopeCode,
-                    LifecycleStatus = "PendingRetirement", SourceType = f.SourceType,
-                    DefinitionHash = Hash(f.FunctionKey + "|missing"), FirstDiscoveredAt = f.CreatedAt,
-                    LastSeenAt = f.LastSeenAt ?? f.CreatedAt
-                });
-            }
+                FunctionKey = f.FunctionKey, FunctionCode = f.FunctionCode, DefinitionName = f.FunctionName, ModuleCode = f.ModuleCode,
+                ActionCode = f.ActionCode, ScopeCode = f.ScopeCode, LifecycleStatus = "PendingRetirement", SourceType = f.SourceType,
+                DefinitionHash = Hash(f.FunctionKey + "|missing"), FirstDiscoveredAt = f.CreatedAt, LastSeenAt = f.LastSeenAt ?? f.CreatedAt
+            });
         }
-
         await _db.SaveChangesAsync(ct);
         return new SecurityFunctionDiscoverySummaryDto(now, discovered.Count, matched, pending, retirement, conflicts);
     }
@@ -111,41 +79,33 @@ public sealed class SecurityFunctionRegistryService
         var query = _db.SecurityFunctionRegistry.AsNoTracking();
         if (!string.IsNullOrWhiteSpace(status)) query = query.Where(x => x.LifecycleStatus == status);
         var items = await query.OrderBy(x => x.LifecycleStatus).ThenBy(x => x.FunctionKey).ToListAsync(ct);
-        var registered = (await _db.Functions.AsNoTracking().Select(x => x.FunctionKey).ToListAsync(ct))
-            .Where(x => !string.IsNullOrWhiteSpace(x)).ToHashSet(StringComparer.OrdinalIgnoreCase);
-        return items.Select(x => new SecurityFunctionRegistryItemDto(x.Id, x.FunctionKey, x.FunctionCode, x.DefinitionName,
-            x.ModuleCode, x.ActionCode, x.ScopeCode, x.LifecycleStatus, x.SourceType, x.SourceAssembly, x.SourceTypeName,
-            x.ReplacementFunctionKey, x.FirstDiscoveredAt, x.LastSeenAt, x.ResolvedAt, x.IsIgnored, registered.Contains(x.FunctionKey))).ToList();
+        var registered = (await _db.Functions.AsNoTracking().Select(x => x.FunctionKey).ToListAsync(ct)).Where(x => !string.IsNullOrWhiteSpace(x)).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        return items.Select(x => new SecurityFunctionRegistryItemDto(x.Id, x.FunctionKey, x.FunctionCode, x.DefinitionName, x.ModuleCode, x.ActionCode, x.ScopeCode, x.LifecycleStatus, x.SourceType, x.SourceAssembly, x.SourceTypeName, x.ReplacementFunctionKey, x.FirstDiscoveredAt, x.LastSeenAt, x.ResolvedAt, x.IsIgnored, registered.Contains(x.FunctionKey))).ToList();
     }
 
-    public async Task<SecurityFunctionRegistryItemDto?> GetAsync(string functionKey, CancellationToken ct = default)
-        => (await GetRegistryAsync(null, ct)).FirstOrDefault(x => string.Equals(x.FunctionKey, functionKey, StringComparison.OrdinalIgnoreCase));
+    public async Task<SecurityFunctionRegistryItemDto?> GetAsync(string functionKey, CancellationToken ct = default) => (await GetRegistryAsync(null, ct)).FirstOrDefault(x => string.Equals(x.FunctionKey, functionKey, StringComparison.OrdinalIgnoreCase));
 
     public async Task RegisterAsync(string functionKey, RegisterDiscoveredFunctionRequest request, int actorUserId, CancellationToken ct = default)
     {
-        var item = await _db.SecurityFunctionRegistry.SingleOrDefaultAsync(x => x.FunctionKey == functionKey, ct)
-            ?? throw new InvalidOperationException($"Không tìm thấy chức năng '{functionKey}' trong Function Registry.");
+        var item = await _db.SecurityFunctionRegistry.SingleOrDefaultAsync(x => x.FunctionKey == functionKey, ct) ?? throw new InvalidOperationException($"Không tìm thấy chức năng '{functionKey}' trong Function Registry.");
         if (item.LifecycleStatus == "Conflict") throw new InvalidOperationException($"Chức năng '{functionKey}' đang ở trạng thái Conflict và phải xử lý mã FunctionCode trước.");
         if (await _db.Functions.AnyAsync(x => x.FunctionKey == functionKey, ct)) throw new InvalidOperationException($"FunctionKey '{functionKey}' đã được đăng ký.");
         if (item.FunctionCode <= 0) throw new InvalidOperationException($"Chức năng '{functionKey}' chưa có FunctionCode hợp lệ.");
         if (await _db.Functions.AnyAsync(x => x.FunctionCode == item.FunctionCode, ct)) throw new InvalidOperationException($"FunctionCode {item.FunctionCode} đã tồn tại trong F03Functions.");
         var f = new F03Function
         {
-            FunctionCode = item.FunctionCode, FunctionKey = item.FunctionKey, FunctionName = request.FunctionName.Trim(),
-            Detail = request.Detail?.Trim() ?? string.Empty, ModuleCode = request.ModuleCode?.Trim(), ActionCode = request.ActionCode?.Trim(),
-            ScopeCode = NormalizeScope(request.ScopeCode), LifecycleStatus = "Active", SourceType = item.SourceType,
-            LastSeenAt = item.LastSeenAt, DisplayOrder = item.FunctionCode, CreatedBy = actorUserId, IsActive = true
+            FunctionCode = item.FunctionCode, FunctionKey = item.FunctionKey, FunctionName = request.FunctionName.Trim(), Detail = request.Detail?.Trim() ?? string.Empty,
+            ModuleCode = request.ModuleCode?.Trim(), ActionCode = request.ActionCode?.Trim(), ScopeCode = NormalizeScope(request.ScopeCode), LifecycleStatus = "Active",
+            SourceType = item.SourceType, LastSeenAt = item.LastSeenAt, DisplayOrder = item.FunctionCode, CreatedBy = actorUserId, IsActive = true
         };
-        _db.Functions.Add(f); item.LifecycleStatus = "Active"; item.IsIgnored = false; item.ResolvedAt = DateTime.Now;
-        await _db.SaveChangesAsync(ct);
+        _db.Functions.Add(f); item.LifecycleStatus = "Active"; item.IsIgnored = false; item.ResolvedAt = DateTime.Now; await _db.SaveChangesAsync(ct);
     }
 
     public async Task RetireAsync(string functionKey, int actorUserId, CancellationToken ct = default)
     {
         var f = await _db.Functions.SingleOrDefaultAsync(x => x.FunctionKey == functionKey, ct) ?? throw new InvalidOperationException($"Không tìm thấy chức năng '{functionKey}'.");
         f.LifecycleStatus = "Retired"; f.IsActive = false; f.ModifiedBy = actorUserId; f.ModifiedAt = DateTime.Now;
-        var item = await _db.SecurityFunctionRegistry.SingleOrDefaultAsync(x => x.FunctionKey == functionKey, ct);
-        if (item != null) { item.LifecycleStatus = "Retired"; item.ResolvedAt = DateTime.Now; }
+        var item = await _db.SecurityFunctionRegistry.SingleOrDefaultAsync(x => x.FunctionKey == functionKey, ct); if (item != null) { item.LifecycleStatus = "Retired"; item.ResolvedAt = DateTime.Now; }
         await _db.SaveChangesAsync(ct);
     }
 
@@ -156,22 +116,19 @@ public sealed class SecurityFunctionRegistryService
         var replacement = await _db.Functions.SingleOrDefaultAsync(x => x.FunctionKey == request.ReplacementFunctionKey, ct) ?? throw new InvalidOperationException($"Không tìm thấy chức năng thay thế '{request.ReplacementFunctionKey}'.");
         if (!replacement.IsActive || replacement.LifecycleStatus != "Active") throw new InvalidOperationException("Chức năng thay thế phải đang Active.");
         old.LifecycleStatus = "Replaced"; old.ReplacementFunctionKey = replacement.FunctionKey; old.IsActive = false; old.ModifiedBy = actorUserId; old.ModifiedAt = DateTime.Now;
-        var item = await _db.SecurityFunctionRegistry.SingleOrDefaultAsync(x => x.FunctionKey == functionKey, ct);
-        if (item != null) { item.LifecycleStatus = "Replaced"; item.ReplacementFunctionKey = replacement.FunctionKey; item.ResolvedAt = DateTime.Now; }
+        var item = await _db.SecurityFunctionRegistry.SingleOrDefaultAsync(x => x.FunctionKey == functionKey, ct); if (item != null) { item.LifecycleStatus = "Replaced"; item.ReplacementFunctionKey = replacement.FunctionKey; item.ResolvedAt = DateTime.Now; }
         await _db.SaveChangesAsync(ct);
     }
 
     public async Task IgnoreAsync(string functionKey, int actorUserId, CancellationToken ct = default)
     {
         var item = await _db.SecurityFunctionRegistry.SingleOrDefaultAsync(x => x.FunctionKey == functionKey, ct) ?? throw new InvalidOperationException($"Không tìm thấy chức năng '{functionKey}'.");
-        item.IsIgnored = true; item.LifecycleStatus = "Ignored"; item.ResolvedAt = DateTime.Now; item.ModifiedBy = actorUserId; item.ModifiedAt = DateTime.Now;
-        await _db.SaveChangesAsync(ct);
+        item.IsIgnored = true; item.LifecycleStatus = "Ignored"; item.ResolvedAt = DateTime.Now; item.ModifiedBy = actorUserId; item.ModifiedAt = DateTime.Now; await _db.SaveChangesAsync(ct);
     }
 
     public async Task UpsertFunctionAsync(SecurityFunctionUpsertRequest request, int actorUserId, CancellationToken ct = default)
     {
-        var key = request.FunctionKey?.Trim();
-        if (string.IsNullOrWhiteSpace(key)) throw new InvalidOperationException("FunctionKey không được để trống.");
+        var key = request.FunctionKey?.Trim(); if (string.IsNullOrWhiteSpace(key)) throw new InvalidOperationException("FunctionKey không được để trống.");
         if (request.FunctionCode <= 0) throw new InvalidOperationException("FunctionCode phải lớn hơn 0.");
         var byKey = await _db.Functions.SingleOrDefaultAsync(x => x.FunctionKey == key, ct);
         var byCode = await _db.Functions.SingleOrDefaultAsync(x => x.FunctionCode == request.FunctionCode, ct);
@@ -179,19 +136,14 @@ public sealed class SecurityFunctionRegistryService
         var entity = byKey ?? byCode;
         if (entity == null) { entity = new F03Function { FunctionCode = request.FunctionCode, CreatedBy = actorUserId }; _db.Functions.Add(entity); }
         entity.FunctionCode = request.FunctionCode; entity.FunctionKey = key; entity.FunctionName = request.FunctionName.Trim(); entity.Detail = request.Detail?.Trim() ?? string.Empty;
-        entity.ModuleCode = request.ModuleCode?.Trim(); entity.ActionCode = request.ActionCode?.Trim(); entity.ScopeCode = NormalizeScope(request.ScopeCode);
-        entity.DisplayOrder = request.DisplayOrder == 0 ? request.FunctionCode : request.DisplayOrder; entity.LifecycleStatus = "Active"; entity.SourceType = "Manual"; entity.IsActive = true;
-        entity.ModifiedBy = actorUserId; entity.ModifiedAt = DateTime.Now;
-        await _db.SaveChangesAsync(ct);
+        entity.ModuleCode = request.ModuleCode?.Trim(); entity.ActionCode = request.ActionCode?.Trim(); entity.ScopeCode = NormalizeScope(request.ScopeCode); entity.DisplayOrder = request.DisplayOrder == 0 ? request.FunctionCode : request.DisplayOrder;
+        entity.LifecycleStatus = "Active"; entity.SourceType = "Manual"; entity.IsActive = true; entity.ModifiedBy = actorUserId; entity.ModifiedAt = DateTime.Now; await _db.SaveChangesAsync(ct);
     }
 
     public async Task DeleteFunctionAsync(int id, int actorUserId, CancellationToken ct = default)
     {
         var f = await _db.Functions.Include(x => x.RoleFunctions).Include(x => x.UserFunctions).SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new InvalidOperationException("Không tìm thấy chức năng.");
-        if (f.IsSystem) throw new InvalidOperationException("Không thể xóa System Function.");
-        if (f.RoleFunctions.Count > 0 || f.UserFunctions.Count > 0 || f.SourceType != "Manual")
-        { f.LifecycleStatus = "Retired"; f.IsActive = false; f.ModifiedBy = actorUserId; f.ModifiedAt = DateTime.Now; }
-        else _db.Functions.Remove(f);
+        if (f.RoleFunctions.Count > 0 || f.UserFunctions.Count > 0 || f.SourceType != "Manual") { f.LifecycleStatus = "Retired"; f.IsActive = false; f.ModifiedBy = actorUserId; f.ModifiedAt = DateTime.Now; } else _db.Functions.Remove(f);
         await _db.SaveChangesAsync(ct);
     }
 
@@ -202,17 +154,13 @@ public sealed class SecurityFunctionRegistryService
         var role = await _db.Roles.SingleOrDefaultAsync(x => x.RoleCode == request.RoleCode, ct);
         if (role == null) { role = new F03Role { RoleCode = request.RoleCode, CreatedBy = actorUserId }; _db.Roles.Add(role); }
         if (role.IsSystem && !request.IsSystem) throw new InvalidOperationException("Không được hạ System Role thành Role thường.");
-        role.RoleName = request.RoleName.Trim(); role.Detail = request.Detail?.Trim(); role.IsSystem = role.IsSystem || request.IsSystem; role.IsActive = true;
-        role.ModifiedBy = actorUserId; role.ModifiedAt = DateTime.Now;
-        await _db.SaveChangesAsync(ct);
+        role.RoleName = request.RoleName.Trim(); role.Detail = request.Detail?.Trim(); role.IsSystem = role.IsSystem || request.IsSystem; role.IsActive = true; role.ModifiedBy = actorUserId; role.ModifiedAt = DateTime.Now; await _db.SaveChangesAsync(ct);
     }
 
     public async Task DeleteRoleAsync(int id, int actorUserId, CancellationToken ct = default)
     {
         var role = await _db.Roles.Include(x => x.RoleFunctions).Include(x => x.UserRoles).SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new InvalidOperationException("Không tìm thấy Role.");
-        if (role.IsSystem || role.RoleFunctions.Count > 0 || role.UserRoles.Count > 0)
-        { role.IsActive = false; role.ModifiedBy = actorUserId; role.ModifiedAt = DateTime.Now; }
-        else _db.Roles.Remove(role);
+        if (role.IsSystem || role.RoleFunctions.Count > 0 || role.UserRoles.Count > 0) { role.IsActive = false; role.ModifiedBy = actorUserId; role.ModifiedAt = DateTime.Now; } else _db.Roles.Remove(role);
         await _db.SaveChangesAsync(ct);
     }
 
@@ -222,18 +170,15 @@ public sealed class SecurityFunctionRegistryService
         var constants = typeof(SecurityFunctionCodes);
         foreach (var field in constants.GetFields(BindingFlags.Public | BindingFlags.Static))
         {
-            if (field.FieldType != typeof(int)) continue;
-            var code = (int)(field.GetValue(null) ?? 0); if (code <= 0) continue;
-            var attr = field.GetCustomAttribute<SecurityFunctionDefinitionAttribute>();
-            var key = attr?.FunctionKey ?? ToFunctionKey(field.Name); var name = attr?.DisplayName ?? field.Name;
+            if (field.FieldType != typeof(int)) continue; var code = (int)(field.GetValue(null) ?? 0); if (code <= 0) continue;
+            var attr = field.GetCustomAttribute<SecurityFunctionDefinitionAttribute>(); var key = attr?.FunctionKey ?? ToFunctionKey(field.Name); var name = attr?.DisplayName ?? field.Name;
             var module = attr?.ModuleCode ?? GetModule(key); var action = attr?.ActionCode ?? GetAction(key); var scope = attr?.ScopeCode;
             result[key] = new DiscoveredDefinition(key, code, name, module, action, scope, "SecurityFunctionCodes", constants.Assembly.GetName().Name, constants.FullName, Hash($"{key}|{code}|{name}|{module}|{action}|{scope}"));
         }
         foreach (var assembly in AppDomain.CurrentDomain.GetAssemblies().Where(x => !x.IsDynamic))
         {
             Type[] types; try { types = assembly.GetTypes(); } catch (ReflectionTypeLoadException ex) { types = ex.Types.Where(x => x != null).Cast<Type>().ToArray(); }
-            foreach (var type in types)
-            foreach (var member in type.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
+            foreach (var type in types) foreach (var member in type.GetMembers(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance))
             {
                 var attr = member.GetCustomAttribute<SecurityFunctionDefinitionAttribute>(); if (attr == null || string.IsNullOrWhiteSpace(attr.FunctionKey)) continue;
                 var code = member is FieldInfo fi && fi.FieldType == typeof(int) ? (int)(fi.GetValue(null) ?? 0) : result.GetValueOrDefault(attr.FunctionKey)?.FunctionCode ?? 0;
@@ -247,8 +192,7 @@ public sealed class SecurityFunctionRegistryService
     private static string ToFunctionKey(string name)
     {
         var modules = new[] { "SecurityAccessChange", "UserManagement", "PublicInformation", "PublicForm", "WorkCalendar", "DepartmentStatus", "ApprovalPolicy", "HrmUserRoleRule", "EmailQueue", "EmailTemplate", "Equipment", "HrmSync", "Attendance", "Dashboard", "LeaveType", "Department", "Employee", "Approver", "OTLimit", "Execution", "Payroll", "Security", "Leave", "Trip", "OT" };
-        var module = modules.OrderByDescending(x => x.Length).FirstOrDefault(name.StartsWith);
-        if (module == null) return name;
+        var module = modules.OrderByDescending(x => x.Length).FirstOrDefault(name.StartsWith); if (module == null) return name;
         var suffix = name[module.Length..]; return string.IsNullOrWhiteSpace(suffix) ? module : $"{module}.{suffix}";
     }
     private static string GetModule(string key) => key.Split('.', 2)[0];
