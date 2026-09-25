@@ -113,7 +113,7 @@
 
                         <MudSpacer />
 
-                        <MudChip Color="Color.Primary" Size="Size.Small">
+                        <MudChip T="string" Color="Color.Primary" Size="Size.Small">
                             Đã chọn: @_selectedAudienceValues.Count
                         </MudChip>
                     </MudStack>
@@ -340,7 +340,7 @@
         <MudTd>
             @if (context.Audiences.Any(x => x.ScopeType == "AllCompany"))
             {
-                <MudChip Size="Size.Small">Toàn công ty</MudChip>
+                <MudChip T="string" Size="Size.Small">Toàn công ty</MudChip>
             }
             else
             {
