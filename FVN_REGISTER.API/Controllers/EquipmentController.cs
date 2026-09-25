@@ -6,6 +6,7 @@ using FVN_REGISTER.Contract.Dtos.Equipment;
 using FVN_REGISTER.Contract.Dtos.EquipmentImport;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Constants;
+using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Infrastructure;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -185,7 +186,7 @@ public sealed class EquipmentController : ControllerBase
     }
 
     [HttpPost("handover")]
-    public async Task<ActionResult<ApiResponse<EquipmentHandoverResultDto>>> Handover([FromBody] EquipmentHandoverRequest request, CancellationToken ct)
+    public ActionResult<ApiResponse<EquipmentHandoverResultDto>> Handover([FromBody] EquipmentHandoverRequest request, CancellationToken ct)
     {
         // Equipment responsibility/approver changes must come from the cross-module
         // access-change approval workflow. The service method remains reusable by
