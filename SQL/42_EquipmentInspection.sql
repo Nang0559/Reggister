@@ -275,9 +275,17 @@ GO
    item results, or evidence. New inspection periods must create
    a new task; corrections require a controlled rejection before
    approval, never editing an approved record.
+
+   NOTE:
+   Do not use CREATE OR ALTER TRIGGER here. The deployment target
+   must also support older SQL Server versions. DROP + CREATE is
+   used explicitly and each DDL statement is separated by GO.
    ============================================================ */
+IF OBJECT_ID(N'dbo.TR_F03EquipmentInspectionTasks_ApprovedImmutable', N'TR') IS NOT NULL
+    DROP TRIGGER dbo.TR_F03EquipmentInspectionTasks_ApprovedImmutable;
 GO
-CREATE OR ALTER TRIGGER dbo.TR_F03EquipmentInspectionTasks_ApprovedImmutable
+
+CREATE TRIGGER dbo.TR_F03EquipmentInspectionTasks_ApprovedImmutable
 ON dbo.F03EquipmentInspectionTasks
 AFTER UPDATE, DELETE
 AS
@@ -291,8 +299,13 @@ BEGIN
         THROW 51031, N'Inspection task đã Approved là immutable; không được sửa hoặc xóa.', 1;
     END
 END;
+GO
 
-CREATE OR ALTER TRIGGER dbo.TR_F03EquipmentInspectionItemResults_ApprovedImmutable
+IF OBJECT_ID(N'dbo.TR_F03EquipmentInspectionItemResults_ApprovedImmutable', N'TR') IS NOT NULL
+    DROP TRIGGER dbo.TR_F03EquipmentInspectionItemResults_ApprovedImmutable;
+GO
+
+CREATE TRIGGER dbo.TR_F03EquipmentInspectionItemResults_ApprovedImmutable
 ON dbo.F03EquipmentInspectionItemResults
 AFTER INSERT, UPDATE, DELETE
 AS
@@ -317,7 +330,11 @@ BEGIN
 END;
 GO
 
-CREATE OR ALTER TRIGGER dbo.TR_F03EquipmentInspectionEvidence_ApprovedImmutable
+IF OBJECT_ID(N'dbo.TR_F03EquipmentInspectionEvidence_ApprovedImmutable', N'TR') IS NOT NULL
+    DROP TRIGGER dbo.TR_F03EquipmentInspectionEvidence_ApprovedImmutable;
+GO
+
+CREATE TRIGGER dbo.TR_F03EquipmentInspectionEvidence_ApprovedImmutable
 ON dbo.F03EquipmentInspectionEvidence
 AFTER INSERT, UPDATE, DELETE
 AS
