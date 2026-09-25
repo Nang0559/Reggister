@@ -53,7 +53,9 @@ BEGIN
         Timestamp rowversion NOT NULL
     );
 END;
+GO
 
+/* Schema changes above must be committed as a separate batch before later references. */
 IF OBJECT_ID(N'dbo.F03EmailQueues', N'U') IS NOT NULL
 BEGIN
     IF COL_LENGTH(N'dbo.F03EmailQueues', N'EmailProfileCode') IS NULL ALTER TABLE dbo.F03EmailQueues ADD EmailProfileCode nvarchar(20) NULL;
@@ -93,7 +95,9 @@ BEGIN
         SentAt datetime2(0) NULL
     );
 END;
+GO
 
+/* Queue schema changes must compile before any later SQL references those columns. */
 IF OBJECT_ID(N'dbo.F03EmailDispatchPolicies', N'U') IS NULL
 BEGIN
     CREATE TABLE dbo.F03EmailDispatchPolicies(
