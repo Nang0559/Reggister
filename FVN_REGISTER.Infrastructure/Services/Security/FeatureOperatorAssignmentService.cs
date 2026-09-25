@@ -1,12 +1,9 @@
-
 using FVN_REGISTER.Application.Interfaces.Auths;
-u
 using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Contract.Dtos.Security;
 using FVN_REGISTER.Core.Entities.PublicForms;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
-
 
 namespace FVN_REGISTER.Infrastructure.Services.Security;
 
@@ -102,9 +99,7 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
 
         var type = NormalizeResourceType(resourceType);
         var baseQuery = _uow.Repository<F03FeatureOperatorAssignment>().Query().AsNoTracking()
-            .Where(x => x.IsActive == true
-                && x.FunctionCode == functionCode
-                && x.ResourceType == type);
+            .Where(x => x.IsActive == true && x.FunctionCode == functionCode && x.ResourceType == type);
 
         if (resourceId.HasValue)
         {
@@ -116,7 +111,7 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
             if (await global.AnyAsync(ct))
                 return await global.AnyAsync(x => x.EmployeeCode == employeeCode.Trim(), ct);
 
-            return true; // No assignment configured: RBAC/scope remains authoritative.
+            return true;
         }
 
         if (await baseQuery.AnyAsync(ct))
@@ -177,10 +172,8 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
         {
             var resourceExists = type switch
             {
-                "PUBLIC_INFORMATION" => await _uow.Repository<F03PublicInformation>().Query()
-                    .AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.IsActive == true, ct),
-                "PUBLIC_FORM" => await _uow.Repository<F03PublicForm>().Query()
-                    .AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.IsActive == true, ct),
+                "PUBLIC_INFORMATION" => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.IsActive == true, ct),
+                "PUBLIC_FORM" => await _uow.Repository<F03PublicForm>().Query().AsNoTracking().AnyAsync(x => x.Id == request.ResourceId.Value && x.IsActive == true, ct),
                 "EXECUTION_REVIEW" => false,
                 _ => false
             };
@@ -265,13 +258,9 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
                 EmployeeCode = x.EmployeeCode,
                 EmployeeName = x.EmployeeName ?? x.EmployeeCode,
                 DeptCode = x.DeptCode,
-                DeptName = _uow.Repository<F03Department>().Query()
-                    .Where(d => d.DeptCode == x.DeptCode && d.IsActive == true)
-                    .Select(d => d.DeptName).FirstOrDefault(),
+                DeptName = _uow.Repository<F03Department>().Query().Where(d => d.DeptCode == x.DeptCode && d.IsActive == true).Select(d => d.DeptName).FirstOrDefault(),
                 PositionCode = x.PositionCode,
-                PositionName = _uow.Repository<F03Position>().Query()
-                    .Where(p => p.PositionCode == x.PositionCode && p.IsActive == true)
-                    .Select(p => p.PositionName).FirstOrDefault()
+                PositionName = _uow.Repository<F03Position>().Query().Where(p => p.PositionCode == x.PositionCode && p.IsActive == true).Select(p => p.PositionName).FirstOrDefault()
             })
             .ToListAsync(ct);
     }
@@ -281,16 +270,8 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
         var type = NormalizeResourceType(resourceType);
         return type switch
         {
-            "PUBLIC_INFORMATION" => await _uow.Repository<F03PublicInformation>().Query()
-                .AsNoTracking().Where(x => x.IsActive == true)
-                .OrderByDescending(x => x.CreatedAt)
-                .Select(x => new FeatureOperatorResourceDto { Id = x.Id, Code = x.Id.ToString(), Name = x.Title, Status = x.Status })
-                .ToListAsync(ct),
-            "PUBLIC_FORM" => await _uow.Repository<F03PublicForm>().Query()
-                .AsNoTracking().Where(x => x.IsActive == true)
-                .OrderByDescending(x => x.CreatedAt)
-                .Select(x => new FeatureOperatorResourceDto { Id = x.Id, Code = x.FormCode, Name = x.Title, Status = x.Status })
-                .ToListAsync(ct),
+            "PUBLIC_INFORMATION" => await _uow.Repository<F03PublicInformation>().Query().AsNoTracking().Where(x => x.IsActive == true).OrderByDescending(x => x.CreatedAt).Select(x => new FeatureOperatorResourceDto { Id = x.Id, Code = x.Id.ToString(), Name = x.Title, Status = x.Status }).ToListAsync(ct),
+            "PUBLIC_FORM" => await _uow.Repository<F03PublicForm>().Query().AsNoTracking().Where(x => x.IsActive == true).OrderByDescending(x => x.CreatedAt).Select(x => new FeatureOperatorResourceDto { Id = x.Id, Code = x.FormCode, Name = x.Title, Status = x.Status }).ToListAsync(ct),
             "EXECUTION_REVIEW" => new List<FeatureOperatorResourceDto>(),
             _ => throw new ArgumentException($"ResourceType không được hỗ trợ: {resourceType}")
         };
@@ -298,8 +279,7 @@ public sealed class FeatureOperatorAssignmentService : IFeatureOperatorAssignmen
 
     private IQueryable<F03FeatureOperatorAssignment> Query(int functionCode, string type, int? resourceId)
     {
-        var q = _uow.Repository<F03FeatureOperatorAssignment>().Query().AsNoTracking()
-            .Where(x => x.IsActive == true && x.FunctionCode == functionCode && x.ResourceType == type);
+        var q = _uow.Repository<F03FeatureOperatorAssignment>().Query().AsNoTracking().Where(x => x.IsActive == true && x.FunctionCode == functionCode && x.ResourceType == type);
         return resourceId.HasValue ? q.Where(x => x.ResourceId == resourceId) : q.Where(x => x.ResourceId == null);
     }
 
