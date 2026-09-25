@@ -92,7 +92,7 @@
 </MudPaper>
 
 @code {
-    [Parameter] public IReadOnlyList<EquipmentAssetDto> Assets { get; set; } = Array.Empty<EquipmentAssetDto>();
+    [Parameter] public new IReadOnlyList<EquipmentAssetDto> Assets { get; set; } = Array.Empty<EquipmentAssetDto>();
     [Parameter] public IReadOnlyList<EquipmentInspectionReportRowDto> Tasks { get; set; } = Array.Empty<EquipmentInspectionReportRowDto>();
 
     private static Color StatusColor(string status) => status switch
