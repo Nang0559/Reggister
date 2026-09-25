@@ -125,6 +125,11 @@ public sealed class ActionItemService : IActionItemService
     public async Task<bool> CompleteAsync(string employeeCode, int userId, Guid actionId, CancellationToken cancellationToken = default)
     {
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
+        var equipmentRepair = await _db.ActionItems.AsNoTracking()
+            .Where(x => x.ActionId == actionId && x.ModuleCode == "EQUIPMENT" && x.SourceType == "EQUIPMENT_REPAIR" && x.ActionType == "REPAIR_EXECUTION")
+            .Select(x => (Guid?)x.ActionId).FirstOrDefaultAsync(cancellationToken);
+        if (equipmentRepair.HasValue)
+            throw new InvalidOperationException("Nhiệm vụ sửa chữa thiết bị phải mở chi tiết yêu cầu để nhập kết quả sửa chữa. Không thể đóng trực tiếp từ Action Center.");
         return await SetTerminalStatusAsync(employeeId, userId, actionId, ActionItemStatus.Completed, cancellationToken);
     }
 
@@ -175,6 +180,31 @@ public sealed class ActionItemService : IActionItemService
                 "Cần hoàn tất bước xác nhận hoặc HR giải quyết trước khi đóng action.");
 
         entity.Status = target;
+
+        // Department-assigned equipment repairs are a shared queue. The first
+        // member who completes the repair closes the same request's remaining
+        // open execution actions so nobody keeps a stale task.
+        if (target == ActionItemStatus.Completed
+            && entity.ModuleCode == "EQUIPMENT"
+            && entity.ActionType == "REPAIR_EXECUTION"
+            && entity.SourceType == "EQUIPMENT_REPAIR")
+        {
+            var siblings = await _db.ActionItems
+                .Where(x => x.ActionId != entity.ActionId
+                    && x.IsActive != false
+                    && x.ModuleCode == entity.ModuleCode
+                    && x.SourceType == entity.SourceType
+                    && x.SourceId == entity.SourceId
+                    && x.ActionType == entity.ActionType
+                    && (x.Status == ActionItemStatus.Open || x.Status == ActionItemStatus.InProgress))
+                .ToListAsync(cancellationToken);
+
+            foreach (var sibling in siblings)
+            {
+                sibling.Status = ActionItemStatus.Cancelled;
+                sibling.DismissedAt = DateTime.Now;
+            }
+        }
 
         if (target == ActionItemStatus.Completed)
             entity.CompletedAt = DateTime.Now;

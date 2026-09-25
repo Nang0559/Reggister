@@ -15,4 +15,8 @@ public sealed class EquipmentActionAccessDto
     public bool Export { get; set; }
     public bool QR { get; set; }
     public bool History { get; set; }
+    public bool InspectionManage { get; set; }
+    public bool InspectionExecute { get; set; }
+    public bool InspectionApprove { get; set; }
+    public bool InspectionReport { get; set; }
 }

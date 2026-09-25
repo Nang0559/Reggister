@@ -405,3 +405,99 @@ JOIN dbo.F03Roles r ON r.Id=rf.IdRole
 JOIN dbo.F03Functions f ON f.Id=rf.IdFunction
 WHERE r.RoleCode=5 AND f.FunctionCode=2901;
 GO
+
+
+/*
+  Cross-module access change / IT handover.
+  The replacement employee creates the request. Approval route is resolved
+  from the selected business module's existing ApprovalPolicy. IT execution
+  applies the frozen function snapshot only after final approval.
+*/
+INSERT dbo.F03Roles(RoleCode,RoleName,Detail,IsSystem,IsActive,CreatedBy)
+SELECT 7,N'IT Security Operator',N'IT xử lý phiếu thay đổi quyền sau khi được phê duyệt.',1,1,0
+WHERE NOT EXISTS (SELECT 1 FROM dbo.F03Roles WHERE RoleCode=7);
+GO
+
+INSERT dbo.F03Functions(IsActive,CreatedBy,FunctionCode,FunctionName,Detail,ModuleCode,ActionCode,ScopeCode,DisplayOrder)
+SELECT 1,0,v.FunctionCode,v.Name,v.Detail,v.ModuleCode,v.ActionCode,v.ScopeCode,v.SortNo
+FROM (VALUES
+(3091,N'SecurityAccessChange.View',N'Xem phiếu thay đổi quyền của bản thân và các phiếu thuộc phạm vi xử lý.',N'SecurityAccessChange',N'View',N'Own',1100),
+(3092,N'SecurityAccessChange.Create',N'Người tiếp nhận lập phiếu thay đổi quyền cho chính mình.',N'SecurityAccessChange',N'Create',N'Own',1110),
+(3093,N'SecurityAccessChange.Approve',N'Phê duyệt phiếu thay đổi quyền theo luồng của nghiệp vụ được chọn.',N'SecurityAccessChange',N'Approve',N'Department',1120),
+(3094,N'SecurityAccessChange.Execute',N'IT thiết lập quyền/bàn giao sau khi phiếu được phê duyệt đầy đủ.',N'SecurityAccessChange',N'Execute',N'All',1130),
+(2309,N'Equipment.Assign',N'Gán người phụ trách thiết bị.',N'Equipment',N'Assign',N'Department',365),
+(2310,N'Equipment.Transfer',N'Bàn giao người phụ trách/approver thiết bị; chỉ thực hiện sau phiếu thay đổi quyền.',N'Equipment',N'Transfer',N'All',366),
+(2311,N'Equipment.Return',N'Thu hồi thiết bị.',N'Equipment',N'Return',N'Department',367),
+(2312,N'Equipment.Liquidate',N'Thanh lý thiết bị.',N'Equipment',N'Liquidate',N'Department',368),
+(2313,N'Equipment.QR',N'Quản lý/tra cứu QR thiết bị.',N'Equipment',N'QR',N'Department',369),
+(2314,N'Equipment.History',N'Xem lịch sử thiết bị.',N'Equipment',N'History',N'Department',370),
+(2315,N'Equipment.InspectionManage',N'Quản lý checklist thiết bị.',N'Equipment',N'InspectionManage',N'Department',371),
+(2316,N'Equipment.InspectionExecute',N'Thực hiện checklist thiết bị.',N'Equipment',N'InspectionExecute',N'Own',372),
+(2317,N'Equipment.InspectionApprove',N'Phê duyệt checklist thiết bị.',N'Equipment',N'InspectionApprove',N'Department',373),
+(2318,N'Equipment.InspectionReport',N'Báo cáo checklist thiết bị.',N'Equipment',N'InspectionReport',N'Department',374)
+) v(FunctionCode,Name,Detail,ModuleCode,ActionCode,ScopeCode,SortNo)
+WHERE NOT EXISTS(SELECT 1 FROM dbo.F03Functions f WHERE f.FunctionCode=v.FunctionCode);
+GO
+
+DECLARE @SuperAdmin int=(SELECT Id FROM dbo.F03Roles WHERE RoleCode=1);
+DECLARE @Admin int=(SELECT Id FROM dbo.F03Roles WHERE RoleCode=2);
+DECLARE @Approver int=(SELECT Id FROM dbo.F03Roles WHERE RoleCode=4);
+DECLARE @User int=(SELECT Id FROM dbo.F03Roles WHERE RoleCode=5);
+DECLARE @IT int=(SELECT Id FROM dbo.F03Roles WHERE RoleCode=7);
+
+-- Every normal authenticated business user may create a request for themselves.
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
+SELECT r.Id,f.Id
+FROM dbo.F03Roles r
+CROSS JOIN dbo.F03Functions f
+WHERE r.RoleCode IN (1,2,3,4,5,7)
+  AND f.FunctionCode IN (3091,3092)
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+GO
+
+-- Approvers and administrators may approve; IT does not approve the business request.
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
+SELECT r.Id,f.Id
+FROM dbo.F03Roles r
+CROSS JOIN dbo.F03Functions f
+WHERE r.RoleCode IN (1,2,4)
+  AND f.FunctionCode=3093
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+GO
+
+-- IT Security Operator performs the post-approval configuration.
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
+SELECT r.Id,f.Id
+FROM dbo.F03Roles r
+CROSS JOIN dbo.F03Functions f
+WHERE r.RoleCode IN (1,2,7)
+  AND f.FunctionCode=3094
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+GO
+
+-- Equipment Transfer is an IT/administrative capability, never a normal user capability.
+INSERT dbo.F03RoleFunctions(IdRole,IdFunction)
+SELECT r.Id,f.Id
+FROM dbo.F03Roles r
+CROSS JOIN dbo.F03Functions f
+WHERE r.RoleCode IN (1,2,7)
+  AND f.FunctionCode=2310
+  AND NOT EXISTS(SELECT 1 FROM dbo.F03RoleFunctions rf WHERE rf.IdRole=r.Id AND rf.IdFunction=f.Id);
+GO
+
+UPDATE dbo.F03Functions
+SET ModuleCode=N'SecurityAccessChange',
+    ActionCode=CASE FunctionCode
+        WHEN 3091 THEN N'View'
+        WHEN 3092 THEN N'Create'
+        WHEN 3093 THEN N'Approve'
+        WHEN 3094 THEN N'Execute'
+        ELSE ActionCode END,
+    ScopeCode=CASE FunctionCode
+        WHEN 3091 THEN N'Own'
+        WHEN 3092 THEN N'Own'
+        WHEN 3093 THEN N'Department'
+        WHEN 3094 THEN N'All'
+        ELSE ScopeCode END
+WHERE FunctionCode IN (3091,3092,3093,3094);
+GO

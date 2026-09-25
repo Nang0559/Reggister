@@ -1,310 +1,136 @@
 # FVN REGISTER — HƯỚNG DẪN SỬ DỤNG
 
-## 1. Luồng sử dụng tổng quát
+## 1. Luồng sử dụng chung
 
 ```mermaid
-flowchart TD
-    LOGIN[Đăng nhập] --> DASH[Dashboard]
-    DASH --> ACT[Action Center]
-    DASH --> CAL[Work Calendar]
-    DASH --> MOD[Module]
-    MOD --> CREATE[Tạo / chỉnh sửa request]
-    CREATE --> PREVIEW[Preview / Validate]
-    PREVIEW --> SUBMIT[Submit]
-    SUBMIT --> SNAP[Approval Snapshot]
-    SNAP --> AP[Approval]
+flowchart LR
+    LOGIN[Đăng nhập] --> HOME[Dashboard]
+    HOME --> CAL[Work Calendar]
+    HOME --> ACT[Action / Approval]
+    HOME --> MOD[Leave / OT / Trip / Equipment]
+    MOD --> PRE[Nhập + Validate / Preview]
+    PRE --> SUB[Submit]
+    SUB --> AP[Approval Snapshot / Approval]
     AP -->|Approved| EXEC[Execution]
-    AP -->|Rejected| END[End]
+    AP -->|Rejected| END[Rejected]
     EXEC --> REC[Reconciliation]
-    REC -->|Matched| END
+    REC -->|Matched| END2[Resolved]
     REC -->|Mismatch| CONF[Confirmation]
-    CONF --> EVID[Evidence / Review]
-    EVID --> HR[HR Resolution]
-    HR --> END
+    CONF --> EVI[Evidence / Review]
+    EVI --> HR[HR Resolution]
+    HR --> END2
 ```
 
-## 2. Đăng nhập
+## 2. Đăng nhập và Dashboard
 
 1. Đăng nhập bằng tài khoản được cấp.
-2. Kiểm tra Dashboard sau khi đăng nhập.
-3. Nếu không thấy module, kiểm tra quyền với Admin/HR.
-4. Không chia sẻ tài khoản.
+2. Kiểm tra Dashboard, Notification và Action.
+3. Nếu không thấy module/chức năng, liên hệ Admin/HR để kiểm tra capability và data scope.
+4. Không chia sẻ mật khẩu hoặc token.
 
-## 3. Dashboard
+Dashboard chỉ tổng hợp dữ liệu theo quyền; thao tác nghiệp vụ phải thực hiện ở module nguồn.
 
-Dashboard tập trung:
-- Pending approvals.
-- Module widgets.
-- Action.
-- Notification.
-- Calendar.
-- Thống kê được cấp quyền.
+## 3. Tạo request
 
-Dashboard là màn hình tổng hợp, không phải nơi thay thế business workflow.
+1. Mở Leave, OT, Trip hoặc Equipment.
+2. Nhập dữ liệu.
+3. Kiểm tra validation/hạn mức/file nếu có.
+4. Preview.
+5. Submit.
+6. Theo dõi trạng thái trong module, Dashboard, Notification hoặc Calendar.
 
-## 4. Employee — tạo request
+Sau Submit, Approval Snapshot giữ hierarchy tại thời điểm gửi. Thay đổi approver về sau không tự sửa lịch sử của request đã Submit.
 
-### Quy trình chung
-
-```mermaid
-sequenceDiagram
-    participant E as Employee
-    participant UI as Module UI
-    participant V as Server Validation
-    participant W as Approval Workflow
-    participant N as Notification
-
-    E->>UI: Nhập thông tin
-    UI->>V: Preview / Validate
-    V-->>UI: Valid / Error
-    E->>UI: Submit
-    UI->>W: Submit request
-    W->>W: Create immutable snapshot
-    W->>N: Notify approver
-    N-->>E: Status / notification
-```
-
-### Trước khi Submit
-
-Kiểm tra:
-- Ngày giờ.
-- Nội dung.
-- Bộ phận.
-- Người tham gia nếu có.
-- File/evidence nếu yêu cầu.
-- Hạn mức/policy.
-
-Không Submit khi dữ liệu chưa chính xác.
-
-## 5. Approver — quy trình phê duyệt
-
-### Luồng chuẩn
+## 4. Phê duyệt
 
 ```mermaid
 flowchart TD
-    N[Notification] --> I[Approval Inbox / Action]
-    I --> D[Open Detail]
+    I[Approval Inbox / Action] --> D[Open Detail]
     D --> C{Kiểm tra}
-    C -->|Đủ / đúng| A[Approve]
+    C -->|Đúng| A[Approve]
     C -->|Không phù hợp| R[Reject + Reason]
-    A --> NEXT{Còn cấp?}
-    NEXT -->|Yes| I
-    NEXT -->|No| OK[Business Approved]
-    R --> USER[Notify Requester]
+    A --> N{Còn level?}
+    N -->|Yes| I
+    N -->|No| OK[Business Approved]
+    R --> U[Requester notified]
 ```
 
-### Checklist trước khi Approve
+**Escalated** do timeout không đồng nghĩa Rejected. Approver chỉ thao tác trên request thuộc required step và data scope của mình.
 
-- Đúng nhân viên?
-- Đúng bộ phận?
-- Đúng ngày/giờ?
-- Nội dung hợp lý?
-- Có đủ thông tin?
-- Có vi phạm policy/hạn mức?
-- Request có đúng phạm vi mình được duyệt?
+## 5. Leave
 
-### Khi Reject
+**Create → chọn loại phép → chọn ngày → kiểm tra balance → Preview → Submit → theo dõi Approval.**
 
-Luôn nhập lý do rõ ràng để người tạo biết cần sửa gì.
+Leave Approved mới là planned business state dùng cho reconciliation. Half-day được xử lý theo day value/loại buổi; không coi half-day là full-day conflict.
 
-### Approval Snapshot
+## 6. OT
 
-Sau Submit, workflow đã snapshot hierarchy. Thay đổi cấu hình approver sau đó không tự thay đổi lịch sử của request đã Submit.
+**Create → chọn ngày/giờ → kiểm tra limit → Preview → Submit → Approval → Actual → Reconciliation.**
 
-## 6. Leave
+Hạn mức được kiểm tra server-side theo policy hiện hành. Approved OT là Planned; Actual lấy từ attendance/calculation chính thức.
 
-### Employee
-1. Mở Leave.
-2. Chọn loại phép.
-3. Chọn ngày.
-4. Kiểm tra balance.
-5. Preview.
-6. Submit.
-7. Theo dõi Approval.
+## 7. Trip
 
-### Approver
-1. Mở Action/Approval.
-2. Kiểm tra ngày và người đăng ký.
-3. Approve hoặc Reject + Reason.
+**Create → nhập khoảng ngày/nội dung → Preview → Submit → Approval → Execution/Actual → Reconciliation.**
 
-Chỉ Leave Approved được coi là lịch nghỉ chắc chắn.
+Trip dùng approval workflow chung và dữ liệu source riêng; Calendar chỉ hiển thị projection.
 
-## 7. Overtime
+## 8. Equipment
 
-### Employee
+**Create → tạo QR → Submit → Approval → Asset/QR Active → Scan → Repair Request → Repair Approval → Repair History.**
 
-```mermaid
-flowchart LR
-    INPUT[Nhập ngày + giờ OT] --> LIMIT[Kiểm tra limit]
-    LIMIT -->|Valid| PREVIEW[Preview]
-    LIMIT -->|Invalid| FIX[Sửa request]
-    PREVIEW --> SUBMIT[Submit]
-```
+Được cấp quyền dùng Equipment không tự động có quyền approve. QR có thể được tạo trước nhưng chỉ có hiệu lực nghiệp vụ sau khi request được duyệt.
 
-Hạn mức hiện hành: ngày, tuần nếu được cấu hình, tháng 40h, năm 200h và ngưỡng tối đa 300h theo policy. Hệ thống phải kiểm tra server-side.
+## 9. Work Calendar
 
-### Approver
+Calendar là màn hình theo ngày, gồm Company Calendar, Shift, Attendance, Registration, Issues/Actions và Registration Opportunity.
 
-Không coi "đã đăng ký" là "đã thực hiện". Approval xác nhận kế hoạch; actual được đối soát sau đó.
+### Click một ngày
 
-## 8. Trip
+- **Detail:** mở request/business detail.
+- **Confirmation:** mở case mismatch/action để xử lý.
+- **Registration:** mở form Leave/OT/Trip với ngày đã chọn.
+- **Info:** chỉ xem thông tin.
 
-1. Tạo Draft.
-2. Nhập thời gian, địa điểm, mục đích, chi phí và người đi cùng.
-3. Preview.
-4. Submit.
-5. Theo dõi Approval.
-6. Sau khi Approved, execution/actual được dùng cho reconciliation.
+### Ngày tương lai
 
-Trip dùng approval engine chung; không tự chọn cấp approval.
+Không có attendance thực tế ở ngày tương lai là bình thường. Calendar có thể hiển thị request đã đăng ký cùng trạng thái như Pending/Approved/Rejected theo dữ liệu source.
 
-## 9. Equipment
+### Dấu `?`
 
-### Đăng ký thiết bị
+`?` là marker của **Issue**, không phải request và không phải ActionId. Click marker để xem issue và các ActionOption.
+
+## 10. Action / Confirmation / Notification
+
+- **Action:** việc cần người dùng xử lý.
+- **Confirmation:** bước xác nhận mismatch.
+- **Notification:** thông báo/delivery.
+
+Hoàn thành Action không tự thay đổi business result. Xử lý mismatch phải đi qua reconciliation workflow.
+
+## 11. HR Review và Evidence
+
+Khi mismatch yêu cầu review, người dùng có thể được yêu cầu xác nhận, nhập lý do hoặc gửi evidence. Evidence có lifecycle riêng. Reject/NeedMoreEvidence không làm reconciliation tự động Resolved.
+
+HR correction không sửa trực tiếp attendance snapshot; correction phải đi qua calculation pipeline theo thiết kế.
+
+## 12. Reports và Export
+
+Reports hỗ trợ Leave, OT, Trip, Equipment và Attendance theo data scope. **View và Export là hai capability độc lập.** Bộ lọc trên UI không mở rộng quyền truy cập server.
+
+## 13. Khi gặp lỗi
 
 ```mermaid
 flowchart TD
-    U[User có EquipmentModule] --> F[Nhập thông tin thiết bị]
-    F --> QR[Server sinh QR token]
-    QR --> DRAFT[Draft / QR chưa active]
-    DRAFT --> SUB[Submit]
-    SUB --> AP[Approval]
-    AP -->|Approved| ASSET[Asset active]
-    ASSET --> QRACTIVE[QR active]
+    ERR[Lỗi] --> AUTH{Đăng nhập?}
+    AUTH -->|No| LOGIN[Đăng nhập lại]
+    AUTH -->|Yes| CAP{Có capability?}
+    CAP -->|No| ADM[Liên hệ Admin]
+    CAP -->|Yes| SCOPE{Đúng data scope?}
+    SCOPE -->|No| OWNER[Liên hệ HR/Quản lý]
+    SCOPE -->|Yes| DATA{Dữ liệu hợp lệ?}
+    DATA -->|No| FIX[Sửa dữ liệu]
+    DATA -->|Yes| SUPPORT[IT / Support]
 ```
 
-### Sửa chữa
-
-```mermaid
-flowchart LR
-    SCAN[Scan QR] --> DETAIL[Xem thiết bị]
-    DETAIL --> REPAIR[Tạo Repair Request]
-    REPAIR --> AP[Approval]
-    AP -->|Approved| HISTORY[Official Repair History]
-```
-
-Repair chưa Approved không được coi là lịch sử sửa chữa chính thức.
-
-## 10. Action Center
-
-Action là việc cần xử lý, không phải kết quả nghiệp vụ.
-
-Trạng thái thường gặp:
-- Open.
-- InProgress.
-- Completed.
-- Dismissed.
-
-**Action.Completed không đồng nghĩa Business Approved/Matched.**
-
-Nếu reconciliation còn Evidence bị Reject/NeedMoreEvidence, Action phải tiếp tục mở/in progress theo policy.
-
-## 11. Notification
-
-Notification có thể đến từ:
-- Submit.
-- Approval.
-- Reject.
-- Next approver.
-- Escalation.
-- Confirmation.
-- HR Review.
-
-Notification chỉ là kênh delivery/read state. Không dùng việc "đã đọc notification" để suy ra request đã được duyệt.
-
-## 12. Work Calendar
-
-Calendar là projection/navigation.
-
-```mermaid
-flowchart LR
-    LEAVE[Leave] --> CAL[Calendar Projection]
-    OT[OT] --> CAL
-    TRIP[Trip] --> CAL
-    CAL --> VIEW[Calendar UI]
-    CAL --> DETAIL[Open source detail]
-```
-
-Calendar không phải source-of-truth cho approval.
-
-## 13. Execution Reconciliation
-
-```mermaid
-flowchart TD
-    PLAN[Approved Planned] --> R[Reconciliation]
-    ACT[Official Actual] --> R
-    R --> M{Match?}
-    M -->|Yes| RES[Resolved]
-    M -->|No| C[Employee Confirmation]
-    C --> E[Evidence if required]
-    E --> RV[Review]
-    RV --> HR[HR Resolution]
-    HR --> RES
-```
-
-Các module áp dụng: OT, Leave, Trip và module tương lai.
-
-## 14. HR Review
-
-### OK
-- Xác nhận phản hồi hợp lệ.
-- Tạo resolution.
-- Với Attendance, tạo correction và chạy lại HRM-compatible calculation.
-- Cập nhật CalendarAction.
-- Đóng Action.
-- Thông báo User.
-
-### NG
-- Bắt buộc Reason.
-- Không tự sửa nguồn nghiệp vụ.
-- Ghi audit.
-- Thông báo User.
-
-## 15. Attendance Calculation
-
-```mermaid
-flowchart LR
-    HRM[HRM source] --> CALC[HRM-compatible calculation]
-    CALC --> ATT[F03HrmAttendanceCalculated]
-    CALC --> OTA[F03HrmOTActual]
-    ATT --> PAY[F03PayrollInputs]
-    OTA --> PAY
-```
-
-FVN đọc HRM; không ghi ngược HRM. Mỗi lần tính có CalculationBatchId để truy vết.
-
-## 16. Payroll
-
-Kỳ hiện hành: ngày 21 tháng hiện tại → ngày 20 tháng kế tiếp.
-
-```mermaid
-stateDiagram-v2
-    [*] --> Open
-    Open --> Calculated
-    Calculated --> Locked
-    Locked --> Exported
-    Open --> Open: correction / recalculation
-```
-
-Không prepare/lock/export chính thức khi kỳ còn execution mismatch hoặc correction chưa xử lý theo policy.
-
-## 17. Reports
-
-1. Mở Reports.
-2. Chọn nhóm.
-3. Chọn bộ lọc trong phạm vi được phép.
-4. Xem kết quả.
-5. Export nếu có capability Export.
-
-Có View không đồng nghĩa có Export.
-
-## 18. Những điều không được làm
-
-- Không dùng UI hide để coi là security.
-- Không tự thay đổi approver bằng client.
-- Không coi notification là approval.
-- Không coi Action.Completed là business result.
-- Không sửa trực tiếp attendance snapshot.
-- Không bypass Data Scope bằng cách gửi DeptCode/EmployeeCode khác.
-- Không coi Calendar là nguồn dữ liệu nghiệp vụ.
-- Không đóng Action để bypass reconciliation.
+Khi báo lỗi: ghi module, request code nếu có, thời điểm, thao tác ngay trước lỗi và ảnh màn hình. Không gửi password/token.

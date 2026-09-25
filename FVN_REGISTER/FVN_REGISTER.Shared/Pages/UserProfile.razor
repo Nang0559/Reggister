@@ -41,7 +41,7 @@ else
                     <MudTextField Label="Tên đăng nhập" Value="@_model.UserName" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
                     <MudTextField Label="Phòng ban" Value="@_model.DeptCode" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
                     <MudTextField Label="Vị trí" Value="@_model.PositionCode" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
-                    <MudTextField Label="Email liên lạc" @bind-Value="_model.Email" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="Dùng để nhận thông báo phê duyệt" Class="mb-4" />
+                    <MudTextField Label="Email liên lạc (HRM)" Value="@_model.Email" ReadOnly="true" Variant="Variant.Outlined" Margin="Margin.Dense" HelperText="Email được đồng bộ từ HRM; không chỉnh sửa tại FVN_REGISTER." Class="mb-4" />
                     <MudTextField Label="Đường dẫn ảnh đại diện (URL)" @bind-Value="_avatarUrl" Variant="Variant.Outlined" Margin="Margin.Dense" Class="mb-4" />
                 </MudCardContent>
                 <MudCardActions>
@@ -86,12 +86,6 @@ else
 
     private async Task OnSave()
     {
-        if (string.IsNullOrWhiteSpace(_model.Email))
-        {
-            Snackbar.Add("Vui lòng nhập email.", Severity.Warning);
-            return;
-        }
-
         _isSaving = true;
         try
         {

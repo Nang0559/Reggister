@@ -1,0 +1,63 @@
+@page "/equipment/reports"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Equipment
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.JSInterop
+@inherits AppComponentBase
+@inject IEquipmentClientService Equipment
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <div><MudText Typo="Typo.h5">Báo cáo quản lý thiết bị</MudText><MudText Typo="Typo.body2">Tài sản • người phụ trách • sửa chữa • lịch sử bàn giao</MudText></div>
+        <MudButton Variant="Variant.Filled" Color="Color.Success" StartIcon="@Icons.Material.Filled.FileDownload" OnClick="ExportAsync" Disabled="_busy">Xuất Excel</MudButton>
+    </MudStack>
+    <MudPaper Outlined="true" Class="pa-4 mb-4">
+        <MudGrid>
+            <MudItem xs="12" md="4"><MudTextField @bind-Value="_filter.DeptCode" Label="Bộ phận" /></MudItem>
+            <MudItem xs="12" md="4"><MudTextField @bind-Value="_filter.ResponsibleEmployeeCode" Label="Người phụ trách" /></MudItem>
+            <MudItem xs="12" md="4"><MudTextField @bind-Value="_filter.RepairResponsibleDeptCode" Label="Bộ phận sửa chữa" /></MudItem>
+            <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_from" Label="Từ ngày" /></MudItem>
+            <MudItem xs="12" md="4"><MudDatePicker @bind-Date="_to" Label="Đến ngày" /></MudItem>
+            <MudItem xs="12" md="4"><MudButton Variant="Variant.Outlined" OnClick="LoadAsync">Tra cứu</MudButton></MudItem>
+        </MudGrid>
+    </MudPaper>
+    <MudTable Items="_rows" Dense="true" Hover="true">
+        <HeaderContent><MudTh>Thiết bị</MudTh><MudTh>Bộ phận</MudTh><MudTh>Người phụ trách</MudTh><MudTh>Vận hành</MudTh><MudTh>Sửa chữa</MudTh><MudTh>Bàn giao</MudTh></HeaderContent>
+        <RowTemplate>
+            <MudTd><b>@context.EquipmentCode</b><br/>@context.EquipmentName</MudTd>
+            <MudTd>@context.DeptCode</MudTd>
+            <MudTd>@context.ResponsibleEmployeeCode - @context.ResponsibleEmployeeName</MudTd>
+            <MudTd>@(context.OperatingResponsibleDeptCode ?? context.OperatingResponsibleEmployeeCode)</MudTd>
+            <MudTd>@context.RepairCount<br/><small>@context.LastRepairAt?.ToString("dd/MM/yyyy")</small></MudTd>
+            <MudTd>@context.HandoverCount<br/><small>@context.LastHandoverAt?.ToString("dd/MM/yyyy")</small></MudTd>
+        </RowTemplate>
+    </MudTable>
+</MudContainer>
+
+@code {
+    private EquipmentReportFilterDto _filter = new();
+    private DateTime? _from;
+    private DateTime? _to;
+    private List<EquipmentReportRowDto> _rows = new();
+    private bool _busy;
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+    private async Task LoadAsync()
+    {
+        _filter.From = _from; _filter.To = _to;
+        var r = await Equipment.GetReportAsync(_filter);
+        if (r.IsSuccess) _rows = r.Data ?? new(); else Snackbar.Add(r.Message ?? "Không tải được báo cáo.", Severity.Error);
+    }
+    private async Task ExportAsync()
+    {
+        _filter.From = _from; _filter.To = _to; _busy = true;
+        try
+        {
+            var r = await Equipment.ExportReportAsync(_filter);
+            if (!r.IsSuccess || r.Data == null || r.Data.Length == 0) { Snackbar.Add(r.Message ?? "Không thể xuất Excel.", Severity.Error); return; }
+            await JS.InvokeVoidAsync("fvnFileDownload.downloadBase64", $"EquipmentReport_{DateTime.Now:yyyyMMdd_HHmmss}.xlsx", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", Convert.ToBase64String(r.Data));
+        }
+        finally { _busy = false; }
+    }
+}

@@ -78,6 +78,7 @@ namespace FVN_REGISTER.API.Controllers
         {
             var user = UserInfo;
             if (user == null) return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+            if (!await _authorization.HasAsync(user, SecurityFunctionCodes.EmailTemplateManage, ct)) return Forbid();
 
             return HandleResult(
                 await _templateService.ToggleActiveAsync(

@@ -1,4 +1,3 @@
-
 @page "/admin/public-forms"
 @attribute [Authorize]
 
@@ -6,6 +5,7 @@
 @using FVN_REGISTER.Contract.Requests.PublicForms
 @using FVN_REGISTER.Shared.Handlers
 @using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Web
 
 @inherits AppComponentBase
 
@@ -21,7 +21,7 @@
 <MudText Typo="Typo.body2"
          Color="Color.Secondary"
          Class="mb-4">
-    HR tự tạo biểu mẫu, câu hỏi và đối tượng được phép đăng ký.
+    HR tự tạo biểu mẫu, câu hỏi và chọn đúng đối tượng từ dữ liệu HRM. Không nhập mã phòng, vị trí hoặc nhân viên bằng tay.
 </MudText>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
@@ -45,17 +45,25 @@
         </MudItem>
 
         <MudItem xs="12" sm="6">
-            <MudDatePicker Date="@_startDate"
-                           DateChanged="@(x => _form.StartAt = x)"
-                           Label="Bắt đầu"
-                           Variant="Variant.Outlined" />
+            <MudDatePicker Date="@_form.StartAt"
+                           DateChanged="SetStartDate"
+                           Label="Ngày bắt đầu"
+                           Variant="Variant.Outlined"
+                           Clearable="true"
+                           DateFormat="dd/MM/yyyy" />
         </MudItem>
 
         <MudItem xs="12" sm="6">
-            <MudDatePicker Date="@_endDate"
-                           DateChanged="@(x => _form.EndAt = x)"
-                           Label="Kết thúc"
-                           Variant="Variant.Outlined" />
+            <MudDatePicker Date="@_form.EndAt"
+                           DateChanged="SetEndDate"
+                           Label="Ngày kết thúc"
+                           Variant="Variant.Outlined"
+                           Clearable="true"
+                           MinDate="@(_form.StartAt?.Date)"
+                           DateFormat="dd/MM/yyyy" />
+            <MudText Typo="Typo.caption" Color="Color.Secondary">
+                Ngày kết thúc được tính đến hết ngày đã chọn.
+            </MudText>
         </MudItem>
 
         <MudItem xs="12" sm="6">
@@ -75,81 +83,178 @@
 </MudPaper>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
-    <MudStack Row="true"
-              AlignItems="AlignItems.Center">
-        <MudText Typo="Typo.h6">
-            Đối tượng đăng ký
-        </MudText>
+    <MudText Typo="Typo.h6">Đối tượng đăng ký</MudText>
+    <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">
+        Chọn từ dữ liệu gốc HRM. Nhân viên được tìm kiếm và phân trang phía server, không tải hàng nghìn bản ghi xuống trình duyệt.
+    </MudText>
 
-        <MudSpacer />
+    <MudGrid>
+        <MudItem xs="12" sm="4">
+            <MudSelect T="string"
+                       Value="@_audienceType"
+                       ValueChanged="OnAudienceTypeChanged"
+                       Label="Đối tượng đăng ký"
+                       Variant="Variant.Outlined">
+                <MudSelectItem Value="@("AllCompany")">Toàn công ty</MudSelectItem>
+                <MudSelectItem Value="@("Department")">Phòng ban</MudSelectItem>
+                <MudSelectItem Value="@("Position")">Vị trí</MudSelectItem>
+                <MudSelectItem Value="@("Employee")">Nhân viên</MudSelectItem>
+            </MudSelect>
+        </MudItem>
 
-        <MudButton OnClick="AddAudience"
-                   Variant="Variant.Outlined">
-            + Thêm
-        </MudButton>
-    </MudStack>
+        @if (_audienceType != "AllCompany")
+        {
+            <MudItem xs="12">
+                <MudPaper Class="pa-3" Outlined="true">
+                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                        <MudText Typo="Typo.subtitle1">
+                            @AudienceLabel
+                        </MudText>
 
-    @foreach (var a in _form.Audiences)
-    {
-        <MudGrid Class="mt-1">
-            <MudItem xs="5">
-                <MudSelect T="string"
-                           @bind-Value="a.ScopeType"
-                           Label="Phạm vi"
-                           Variant="Variant.Outlined">
-                    <MudSelectItem Value="@("AllCompany")">
-                        Toàn công ty
-                    </MudSelectItem>
+                        <MudSpacer />
 
-                    <MudSelectItem Value="@("Department")">
-                        Phòng ban
-                    </MudSelectItem>
+                        <MudChip Color="Color.Primary" Size="Size.Small">
+                            Đã chọn: @_selectedAudienceValues.Count
+                        </MudChip>
+                    </MudStack>
 
-                    <MudSelectItem Value="@("Position")">
-                        Position
-                    </MudSelectItem>
+                    @if (_audienceType == "Employee")
+                    {
+                        <MudGrid Class="mt-2">
+                            <MudItem xs="12" sm="9">
+                                <MudTextField @bind-Value="_employeeSearch"
+                                              Label="Tìm mã NV / tên / phòng / vị trí"
+                                              Variant="Variant.Outlined"
+                                              Immediate="false"
+                                              Adornment="Adornment.Start"
+                                              AdornmentIcon="@Icons.Material.Filled.Search"
+                                              OnKeyDown="OnEmployeeSearchKeyDown" />
+                            </MudItem>
+                            <MudItem xs="12" sm="3">
+                                <MudButton FullWidth="true"
+                                           Class="mt-1"
+                                           Variant="Variant.Filled"
+                                           Color="Color.Primary"
+                                           OnClick="SearchEmployeesAsync">
+                                    Tìm kiếm
+                                </MudButton>
+                            </MudItem>
+                        </MudGrid>
 
-                    <MudSelectItem Value="@("Employee")">
-                        Nhân viên
-                    </MudSelectItem>
-                </MudSelect>
+                        @if (_employeeLoading)
+                        {
+                            <MudProgressLinear Class="mt-3" Indeterminate="true" />
+                        }
+                        else
+                        {
+                            <MudTable Items="_employeeItems"
+                                      Dense="true"
+                                      Hover="true"
+                                      Class="mt-3">
+                                <HeaderContent>
+                                    <MudTh Style="width:56px"></MudTh>
+                                    <MudTh>Mã NV</MudTh>
+                                    <MudTh>Họ tên</MudTh>
+                                    <MudTh>Phòng · Vị trí</MudTh>
+                                </HeaderContent>
+                                <RowTemplate>
+                                    <MudTd>
+                                        <MudCheckBox T="bool"
+                                                     Value="@_selectedAudienceValues.Contains(context.Code)"
+                                                     ValueChanged="@(value => SetAudienceSelection(context, value))"
+                                                     Color="Color.Primary" />
+                                    </MudTd>
+                                    <MudTd>@context.Code</MudTd>
+                                    <MudTd>@context.Name</MudTd>
+                                    <MudTd>@context.Secondary</MudTd>
+                                </RowTemplate>
+                            </MudTable>
+
+                            <MudStack Row="true"
+                                      Justify="Justify.SpaceBetween"
+                                      AlignItems="AlignItems.Center"
+                                      Class="mt-2">
+                                <MudText Typo="Typo.caption">
+                                    Trang @_employeePage / @Math.Max(1, _employeeTotalPages)
+                                    · Tổng @_employeeTotalCount nhân viên
+                                </MudText>
+
+                                <MudStack Row="true" Spacing="1">
+                                    <MudButton Size="Size.Small"
+                                               Variant="Variant.Outlined"
+                                               Disabled="@(_employeePage <= 1)"
+                                               OnClick="PreviousEmployeePageAsync">
+                                        Trước
+                                    </MudButton>
+                                    <MudButton Size="Size.Small"
+                                               Variant="Variant.Outlined"
+                                               Disabled="@(_employeePage >= _employeeTotalPages)"
+                                               OnClick="NextEmployeePageAsync">
+                                        Sau
+                                    </MudButton>
+                                </MudStack>
+                            </MudStack>
+                        }
+                    }
+                    else
+                    {
+                        <MudPaper Class="mt-3 pa-2" Style="max-height:360px; overflow-y:auto;" Outlined="true">
+                            @if (_masterLoading)
+                            {
+                                <MudProgressLinear Indeterminate="true" />
+                            }
+                            else if (!_masterItems.Any())
+                            {
+                                <MudAlert Severity="Severity.Info">
+                                    Không có dữ liệu master đang hoạt động.
+                                </MudAlert>
+                            }
+                            else
+                            {
+                                @foreach (var item in _masterItems)
+                                {
+                                    <MudCheckBox T="bool"
+                                                 Value="@_selectedAudienceValues.Contains(item.Code)"
+                                                 ValueChanged="@(value => SetAudienceSelection(item, value))"
+                                                 Label="@($"{item.Code} - {item.Name}")"
+                                                 Color="Color.Primary" />
+                                }
+                            }
+                        </MudPaper>
+                    }
+
+                    @if (_selectedAudienceValues.Count > 0)
+                    {
+                        <MudText Typo="Typo.caption" Class="mt-2">
+                            Đã chọn: @string.Join(", ", _selectedAudienceLabels.Values.OrderBy(x => x))
+                        </MudText>
+                    }
+                </MudPaper>
             </MudItem>
-
-            <MudItem xs="6">
-                <MudTextField @bind-Value="a.ScopeValue"
-                              Label="Giá trị (để trống nếu toàn công ty)"
-                              Variant="Variant.Outlined" />
+        }
+        else
+        {
+            <MudItem xs="12" sm="8">
+                <MudAlert Severity="Severity.Info">
+                    <b>Toàn công ty</b>: áp dụng cho tất cả nhân viên. Không có ô nhập mã đối tượng.
+                </MudAlert>
             </MudItem>
-
-            <MudItem xs="1">
-                <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                               Color="Color.Error"
-                               OnClick="@(() => _form.Audiences.Remove(a))" />
-            </MudItem>
-        </MudGrid>
-    }
+        }
+    </MudGrid>
 </MudPaper>
 
 <MudPaper Class="pa-4 mb-4" Elevation="1">
-    <MudStack Row="true"
-              AlignItems="AlignItems.Center">
-        <MudText Typo="Typo.h6">
-            Câu hỏi
-        </MudText>
-
+    <MudStack Row="true" AlignItems="AlignItems.Center">
+        <MudText Typo="Typo.h6">Câu hỏi</MudText>
         <MudSpacer />
-
-        <MudButton OnClick="AddQuestion"
-                   Variant="Variant.Outlined">
+        <MudButton OnClick="AddQuestion" Variant="Variant.Outlined">
             + Thêm câu hỏi
         </MudButton>
     </MudStack>
 
     @foreach (var q in _form.Questions.OrderBy(x => x.Sequence))
     {
-        <MudPaper Class="pa-3 mt-3"
-                  Outlined="true">
-
+        <MudPaper Class="pa-3 mt-3" Outlined="true">
             <MudGrid>
                 <MudItem xs="12" sm="3">
                     <MudTextField @bind-Value="q.QuestionCode"
@@ -168,27 +273,21 @@
                                @bind-Value="q.QuestionType"
                                Label="Loại"
                                Variant="Variant.Outlined">
-
                         @foreach (var t in Types)
                         {
-                            <MudSelectItem Value="@t">
-                                @t
-                            </MudSelectItem>
+                            <MudSelectItem Value="@t">@t</MudSelectItem>
                         }
-
                     </MudSelect>
                 </MudItem>
 
                 <MudItem xs="12" sm="1">
-                    <MudSwitch T="bool"
-                               @bind-Value="q.IsRequired">
+                    <MudSwitch T="bool" @bind-Value="q.IsRequired">
                         Bắt buộc
                     </MudSwitch>
                 </MudItem>
             </MudGrid>
 
-            @if (q.QuestionType == "SingleChoice" ||
-                    q.QuestionType == "MultiChoice")
+            @if (q.QuestionType == "SingleChoice" || q.QuestionType == "MultiChoice")
             {
                 @foreach (var o in q.Options)
                 {
@@ -199,63 +298,55 @@
                 }
 
                 <MudButton Size="Size.Small"
-                           OnClick="@(() => q.Options.Add(
-                                                          new SavePublicFormOptionRequest
-                                                          {
-                                                              OptionCode = $"OPT{q.Options.Count + 1}",
-                                                              Sequence = q.Options.Count + 1
-                                                          }))">
-            + Option
-        </MudButton>
-                }
-
+                           OnClick="@(() => q.Options.Add(new SavePublicFormOptionRequest
+                           {
+                               OptionCode = $"OPT{q.Options.Count + 1}",
+                               Sequence = q.Options.Count + 1
+                           }))">
+                    + Option
+                </MudButton>
+            }
         </MudPaper>
     }
 
-    <MudStack Row="true"
-              Justify="Justify.FlexEnd"
-              Class="mt-4">
-
+    <MudStack Row="true" Justify="Justify.FlexEnd" Class="mt-4">
         <MudButton Variant="Variant.Filled"
                    Color="Color.Primary"
                    OnClick="SaveAsync">
             Lưu nháp
         </MudButton>
-
     </MudStack>
 </MudPaper>
 
-<MudTable Items="_items"
-          Dense="true"
-          Hover="true">
-
+<MudTable Items="_items" Dense="true" Hover="true">
     <HeaderContent>
         <MudTh>Mã</MudTh>
         <MudTh>Tiêu đề</MudTh>
+        <MudTh>Thời gian</MudTh>
         <MudTh>Trạng thái</MudTh>
         <MudTh>Đối tượng</MudTh>
         <MudTh />
     </HeaderContent>
 
     <RowTemplate>
+        <MudTd>@context.FormCode</MudTd>
+        <MudTd><b>@context.Title</b></MudTd>
         <MudTd>
-            @context.FormCode
+            @(context.StartAt?.ToString("dd/MM/yyyy") ?? "Chưa đặt")
+            -
+            @(context.EndAt?.ToString("dd/MM/yyyy") ?? "Không giới hạn")
         </MudTd>
-
+        <MudTd>@context.Status</MudTd>
         <MudTd>
-            <b>@context.Title</b>
+            @if (context.Audiences.Any(x => x.ScopeType == "AllCompany"))
+            {
+                <MudChip Size="Size.Small">Toàn công ty</MudChip>
+            }
+            else
+            {
+                @string.Join(", ", context.Audiences.Select(x => $"{x.ScopeType}:{x.ScopeValue}"))
+            }
         </MudTd>
-
-        <MudTd>
-            @context.Status
-        </MudTd>
-
-        <MudTd>
-            @string.Join(
-            ", ",
-                        context.Audiences.Select(x => $"{x.ScopeType}:{x.ScopeValue}"))
-        </MudTd>
-
         <MudTd>
             <MudButton Size="Size.Small"
                        OnClick="@(() => PublishAsync(context.Id))"
@@ -266,58 +357,44 @@
             <MudButton Size="Size.Small"
                        Color="Color.Error"
                        OnClick="@(() => CloseAsync(context.Id))"
-                       Disabled="@(context.Status == "Closed" ||
-                                                          context.Status == "Archived")">
+                       Disabled="@(context.Status == "Closed" || context.Status == "Archived")">
                 Close
             </MudButton>
         </MudTd>
     </RowTemplate>
-
 </MudTable>
 
 @code {
     private static readonly string[] Types =
     {
-        "Text",
-        "Textarea",
-        "Number",
-        "Date",
-        "Time",
-        "DateTime",
-        "SingleChoice",
-        "MultiChoice",
-        "YesNo",
-        "Department",
-        "Employee",
-        "File"
+        "Text", "Textarea", "Number", "Date", "Time", "DateTime",
+        "SingleChoice", "MultiChoice", "YesNo", "Department", "Employee", "File"
     };
 
     private List<PublicFormDto> _items = new();
-
     private SavePublicFormRequest _form = NewForm();
 
-    private DateTime? _start = DateTime.Today;
-    private DateTime? _end;
+    private string _audienceType = "AllCompany";
+    private HashSet<string> _selectedAudienceValues = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<string, string> _selectedAudienceLabels = new(StringComparer.OrdinalIgnoreCase);
 
-    private DateTime? _startDate
-    {
-        get => _start;
-        set
-        {
-            _start = value;
-            _form.StartAt = value;
-        }
-    }
+    private List<PublicFormAudienceLookupDto> _masterItems = new();
+    private bool _masterLoading;
+    private string _employeeSearch = string.Empty;
+    private List<PublicFormAudienceLookupDto> _employeeItems = new();
+    private bool _employeeLoading;
+    private int _employeePage = 1;
+    private const int EmployeePageSize = 25;
+    private int _employeeTotalCount;
+    private int _employeeTotalPages = 1;
 
-    private DateTime? _endDate
+    private string AudienceLabel => _audienceType switch
     {
-        get => _end;
-        set
-        {
-            _end = value;
-            _form.EndAt = value;
-        }
-    }
+        "Department" => "Chọn phòng ban",
+        "Position" => "Chọn vị trí",
+        "Employee" => "Chọn nhân viên",
+        _ => "Đối tượng"
+    };
 
     protected override async Task OnInitializedAsync()
     {
@@ -326,8 +403,7 @@
 
     private async Task LoadAsync()
     {
-        var r = await Http.GetAsync<List<PublicFormDto>>(
-            "api/public-forms/manage");
+        var r = await Http.GetAsync<List<PublicFormDto>>("api/public-forms/manage");
 
         if (r.IsSuccess)
         {
@@ -335,97 +411,219 @@
         }
         else
         {
-            Snackbar.Add(
-                r.Message ?? "Không tải được form.",
-                Severity.Error);
+            Snackbar.Add(r.Message ?? "Không tải được form.", Severity.Error);
         }
     }
 
-    private void AddAudience()
+    private void SetStartDate(DateTime? value)
     {
-        _form.Audiences.Add(
-            new SavePublicFormAudienceRequest
-            {
-                ScopeType = "AllCompany"
-            });
+        _form.StartAt = value?.Date;
+
+        if (_form.EndAt.HasValue && _form.StartAt.HasValue && _form.EndAt.Value.Date < _form.StartAt.Value.Date)
+            _form.EndAt = null;
     }
 
-    private void AddQuestion()
+    private void SetEndDate(DateTime? value)
     {
-        _form.Questions.Add(
-            new SavePublicFormQuestionRequest
+        _form.EndAt = value.HasValue
+            ? value.Value.Date.AddDays(1).AddTicks(-1)
+            : null;
+    }
+
+    private async Task OnAudienceTypeChanged(string value)
+    {
+        _audienceType = value;
+        _selectedAudienceValues.Clear();
+        _selectedAudienceLabels.Clear();
+        _masterItems.Clear();
+        _employeeItems.Clear();
+        _employeePage = 1;
+        _employeeTotalCount = 0;
+        _employeeTotalPages = 1;
+
+        if (value == "Department" || value == "Position")
+            await LoadMasterAudienceAsync(value);
+        else if (value == "Employee")
+            await LoadEmployeesAsync(1);
+    }
+
+    private async Task LoadMasterAudienceAsync(string type)
+    {
+        _masterLoading = true;
+        try
+        {
+            var endpoint = type == "Department"
+                ? "api/public-forms/audience/departments"
+                : "api/public-forms/audience/positions";
+
+            var r = await Http.GetAsync<List<PublicFormAudienceLookupDto>>(endpoint);
+            if (r.IsSuccess)
+                _masterItems = r.Data ?? new();
+            else
+                Snackbar.Add(r.Message ?? "Không tải được dữ liệu master.", Severity.Error);
+        }
+        finally
+        {
+            _masterLoading = false;
+        }
+    }
+
+    private async Task LoadEmployeesAsync(int page)
+    {
+        _employeeLoading = true;
+        try
+        {
+            var search = Uri.EscapeDataString(_employeeSearch.Trim());
+            var r = await Http.GetAsync<PublicFormAudienceEmployeePageDto>(
+                $"api/public-forms/audience/employees?search={search}&page={page}&pageSize={EmployeePageSize}");
+
+            if (r.IsSuccess && r.Data != null)
             {
-                QuestionCode = $"Q{_form.Questions.Count + 1}",
-                QuestionText = "",
-                Sequence = _form.Questions.Count + 1
-            });
+                _employeeItems = r.Data.Items ?? new();
+                _employeePage = r.Data.Page;
+                _employeeTotalCount = r.Data.TotalCount;
+                _employeeTotalPages = Math.Max(1, r.Data.TotalPages);
+            }
+            else
+            {
+                Snackbar.Add(r.Message ?? "Không tải được danh sách nhân viên.", Severity.Error);
+            }
+        }
+        finally
+        {
+            _employeeLoading = false;
+        }
+    }
+
+    private Task SearchEmployeesAsync()
+        => LoadEmployeesAsync(1);
+
+    private async Task OnEmployeeSearchKeyDown(KeyboardEventArgs args)
+    {
+        if (args.Key == "Enter")
+            await SearchEmployeesAsync();
+    }
+
+    private async Task PreviousEmployeePageAsync()
+    {
+        if (_employeePage > 1)
+            await LoadEmployeesAsync(_employeePage - 1);
+    }
+
+    private async Task NextEmployeePageAsync()
+    {
+        if (_employeePage < _employeeTotalPages)
+            await LoadEmployeesAsync(_employeePage + 1);
+    }
+
+    private void SetAudienceSelection(PublicFormAudienceLookupDto item, bool selected)
+    {
+        if (selected)
+        {
+            _selectedAudienceValues.Add(item.Code);
+            _selectedAudienceLabels[item.Code] = $"{item.Code} - {item.Name}";
+        }
+        else
+        {
+            _selectedAudienceValues.Remove(item.Code);
+            _selectedAudienceLabels.Remove(item.Code);
+        }
+    }
+
+    private List<SavePublicFormAudienceRequest> BuildAudienceRequests()
+    {
+        if (_audienceType == "AllCompany")
+        {
+            return new List<SavePublicFormAudienceRequest>
+            {
+                new() { ScopeType = "AllCompany", ScopeValue = null }
+            };
+        }
+
+        return _selectedAudienceValues
+            .OrderBy(x => x, StringComparer.OrdinalIgnoreCase)
+            .Select(x => new SavePublicFormAudienceRequest
+            {
+                ScopeType = _audienceType,
+                ScopeValue = x
+            })
+            .ToList();
     }
 
     private async Task SaveAsync()
     {
-        var r = await Http.PostAsync<PublicFormDto>(
-            "api/public-forms",
-            _form);
+        var audiences = BuildAudienceRequests();
+
+        if (audiences.Count == 0)
+        {
+            Snackbar.Add("Bạn chưa chọn đối tượng đăng ký.", Severity.Warning);
+            return;
+        }
+
+        if (_form.EndAt.HasValue && _form.StartAt.HasValue && _form.EndAt.Value < _form.StartAt.Value)
+        {
+            Snackbar.Add("Ngày kết thúc phải lớn hơn hoặc bằng ngày bắt đầu.", Severity.Warning);
+            return;
+        }
+
+        _form.Audiences = audiences;
+
+        var r = await Http.PostAsync<PublicFormDto>("api/public-forms", _form);
 
         if (r.IsSuccess)
         {
-            Snackbar.Add(
-                "Đã lưu biểu mẫu nháp.",
-                Severity.Success);
-
+            Snackbar.Add("Đã lưu biểu mẫu nháp.", Severity.Success);
             _form = NewForm();
-
+            _audienceType = "AllCompany";
+            _selectedAudienceValues.Clear();
+            _selectedAudienceLabels.Clear();
+            _masterItems.Clear();
+            _employeeItems.Clear();
             await LoadAsync();
         }
         else
         {
-            Snackbar.Add(
-                r.Message ?? "Lưu thất bại.",
-                Severity.Error);
+            Snackbar.Add(r.Message ?? "Lưu thất bại.", Severity.Error);
         }
+    }
+
+    private void AddQuestion()
+    {
+        _form.Questions.Add(new SavePublicFormQuestionRequest
+        {
+            QuestionCode = $"Q{_form.Questions.Count + 1}",
+            QuestionText = "",
+            Sequence = _form.Questions.Count + 1
+        });
     }
 
     private async Task PublishAsync(int id)
     {
-        var r = await Http.PostAsync<object>(
-            $"api/public-forms/{id}/publish",
-            new { });
+        var r = await Http.PostAsync<object>($"api/public-forms/{id}/publish", new { });
 
         if (r.IsSuccess)
         {
-            Snackbar.Add(
-                "Đã Publish.",
-                Severity.Success);
-
+            Snackbar.Add("Đã Publish.", Severity.Success);
             await LoadAsync();
         }
         else
         {
-            Snackbar.Add(
-                r.Message ?? "Publish thất bại.",
-                Severity.Error);
+            Snackbar.Add(r.Message ?? "Publish thất bại.", Severity.Error);
         }
     }
 
     private async Task CloseAsync(int id)
     {
-        var r = await Http.PostAsync<object>(
-            $"api/public-forms/{id}/close",
-            new { });
+        var r = await Http.PostAsync<object>($"api/public-forms/{id}/close", new { });
 
         if (r.IsSuccess)
         {
-            Snackbar.Add(
-                "Đã đóng.",
-                Severity.Success);
-
+            Snackbar.Add("Đã đóng.", Severity.Success);
             await LoadAsync();
         }
         else
         {
-            Snackbar.Add(
-                r.Message ?? "Close thất bại.",
-                Severity.Error);
+            Snackbar.Add(r.Message ?? "Close thất bại.", Severity.Error);
         }
     }
 
@@ -434,15 +632,16 @@
         return new SavePublicFormRequest
         {
             AllowMultipleSubmit = false,
-
+            StartAt = null,
+            EndAt = null,
             Audiences = new()
             {
                 new SavePublicFormAudienceRequest
                 {
-                    ScopeType = "AllCompany"
+                    ScopeType = "AllCompany",
+                    ScopeValue = null
                 }
             },
-
             Questions = new()
             {
                 new SavePublicFormQuestionRequest
@@ -457,4 +656,3 @@
         };
     }
 }
-

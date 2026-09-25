@@ -1,0 +1,119 @@
+@using FVN_REGISTER.Contract.Dtos.Equipment
+@inject NavigationManager Navigation
+
+<MudPaper Outlined="true" Class="pa-3">
+    <MudText Typo="Typo.h6" Class="mb-3">
+        <MudIcon Icon="@Icons.Material.Filled.AccountTree" Class="mr-2" />
+        Cây thiết bị
+    </MudText>
+
+    @if (Assets.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info">Không có thiết bị trong phạm vi báo cáo.</MudAlert>
+    }
+    else
+    {
+        <div class="equipment-tree">
+            @foreach (var asset in Assets.OrderBy(x => x.DeptCode).ThenBy(x => x.EquipmentCode))
+            {
+                var checks = Tasks.Where(x => string.Equals(x.EquipmentCode, asset.EquipmentCode, StringComparison.OrdinalIgnoreCase))
+                    .OrderByDescending(x => x.ScheduledDate).ThenBy(x => x.DueAt).ToList();
+
+                <div class="equipment-node">
+                    <MudExpansionPanels Elevation="0">
+                        <MudExpansionPanel>
+                            <TitleContent>
+                                <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+                                    <MudIcon Icon="@Icons.Material.Filled.Devices" />
+                                    <MudText><b>@asset.EquipmentCode</b> — @asset.EquipmentName</MudText>
+                                    <MudChip Size="Size.Small" Variant="Variant.Outlined">@asset.DeptCode</MudChip>
+                                    <MudChip Size="Size.Small" Color="@(asset.IsQrActive ? Color.Success : Color.Default)">
+                                        @(asset.IsQrActive ? "QR hoạt động" : "QR chưa hoạt động")
+                                    </MudChip>
+                                </MudStack>
+                            </TitleContent>
+                            <ChildContent>
+                                <MudStack Spacing="1" Class="ml-8">
+                                    <MudText Typo="Typo.body2">Tài sản: @asset.AssetCode • Serial: @asset.SerialNumber • Vị trí: @asset.Location</MudText>
+
+                                    @if (checks.Count == 0)
+                                    {
+                                        <MudText Typo="Typo.caption" Class="mud-text-secondary">
+                                            └── Không có checklist được phân công
+                                        </MudText>
+                                    }
+                                    else
+                                    {
+                                        @foreach (var check in checks)
+                                        {
+                                            <MudPaper Outlined="true" Class="pa-3">
+                                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween">
+                                                    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
+                                                        <MudIcon Icon="@Icons.Material.Filled.SubdirectoryArrowRight" />
+                                                        <div>
+                                                            <MudText Typo="Typo.subtitle2">@check.TemplateName</MudText>
+                                                            <MudText Typo="Typo.caption">
+                                                                └── @check.ScheduledDate.ToString("dd/MM/yyyy") • Người check: @check.InspectorEmployeeCode
+                                                            </MudText>
+                                                        </div>
+                                                    </MudStack>
+                                                    <MudStack Row="true" Spacing="1">
+                                                        <MudChip Size="Size.Small" Color="@StatusColor(check.Status)">@StatusText(check.Status)</MudChip>
+                                                        @if (!string.IsNullOrWhiteSpace(check.Result))
+                                                        {
+                                                            <MudChip Size="Size.Small" Variant="Variant.Outlined">@check.Result</MudChip>
+                                                        }
+                                                    </MudStack>
+                                                </MudStack>
+                                                <MudStack Row="true" AlignItems="AlignItems.Center" Justify="Justify.SpaceBetween" Class="ml-7">
+                                                    <MudText Typo="Typo.caption">
+                                                        Hạn: @check.DueAt.ToString("dd/MM/yyyy HH:mm")
+                                                        @if (check.ApprovedAt.HasValue)
+                                                        {
+                                                            <span> • Duyệt: @check.ApprovedAt.Value.ToString("dd/MM/yyyy HH:mm")</span>
+                                                        }
+                                                    </MudText>
+                                                    <MudButton Size="Size.Small" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.OpenInNew"
+                                                               OnClick="@(() => Navigation.NavigateTo($"/equipment/inspection/{check.TaskId}"))">
+                                                        Mở checklist
+                                                    </MudButton>
+                                                </MudStack>
+                                            </MudPaper>
+                                        }
+                                    }
+                                </MudStack>
+                            </ChildContent>
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                </div>
+            }
+        </div>
+    }
+</MudPaper>
+
+@code {
+    [Parameter] public IReadOnlyList<EquipmentAssetDto> Assets { get; set; } = Array.Empty<EquipmentAssetDto>();
+    [Parameter] public IReadOnlyList<EquipmentInspectionReportRowDto> Tasks { get; set; } = Array.Empty<EquipmentInspectionReportRowDto>();
+
+    private static Color StatusColor(string status) => status switch
+    {
+        "Approved" => Color.Success,
+        "Rejected" => Color.Error,
+        "Overdue" => Color.Error,
+        "WaitingApproval" => Color.Warning,
+        "InProgress" => Color.Info,
+        _ => Color.Default
+    };
+
+    private static string StatusText(string status) => status switch
+    {
+        "Scheduled" => "Đã lập lịch",
+        "InProgress" => "Đang kiểm tra",
+        "WaitingApproval" => "Chờ duyệt",
+        "Approved" => "Đã duyệt",
+        "Rejected" => "Cần kiểm tra lại",
+        "Overdue" => "Quá hạn",
+        "Cancelled" => "Đã hủy",
+        _ => status
+    };
+}

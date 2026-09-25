@@ -5,6 +5,7 @@
 @using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Shared.Services.Users
 @using FVN_REGISTER.Shared.Services.OTs
+@using FVN_REGISTER.Shared.Services.Execution
 @using FVN_REGISTER.Shared.Components.Calendar
 @using FVN_REGISTER.Shared.Services.Calendar
 @using Microsoft.AspNetCore.Authorization
@@ -15,6 +16,7 @@
 @inject ISecurityClientService SecurityService
 @inject ICurrentUserClientService CurrentUser
 @inject IOTClientService OTClient
+@inject IExecutionReconciliationClientService ExecutionService
 @inject ISnackbar Snackbar
 
 <PageTitle>Lịch làm việc của tôi</PageTitle>
@@ -237,10 +239,7 @@
                 return;
 
             case "OPEN_HR_FEEDBACK":
-                NavigationManager.NavigateTo(
-                    string.IsNullOrWhiteSpace(request.DetailRoute)
-                        ? "/execution"
-                        : request.DetailRoute);
+                await OpenHrFeedbackAsync(request);
                 return;
 
             case "CANCEL_OT":
@@ -273,6 +272,93 @@
 
                 return;
         }
+    }
+
+    private async Task OpenHrFeedbackAsync(CalendarActionRequestDto request)
+    {
+        if (string.IsNullOrWhiteSpace(_currentEmployeeCode)
+            || !string.Equals(_selectedEmployeeCode, _currentEmployeeCode, StringComparison.OrdinalIgnoreCase))
+        {
+            Snackbar.Add(
+                "Chức năng phản hồi ngày công chỉ gửi cho chính nhân viên đang đăng nhập.",
+                Severity.Warning);
+            return;
+        }
+
+        long reconciliationId;
+
+        if (request.ReconciliationId is long existingReconciliationId)
+        {
+            reconciliationId = existingReconciliationId;
+        }
+        else
+        {
+            var ensure = await ExecutionService.EnsureAttendanceFeedbackAsync(request.Date);
+            if (!ensure.IsSuccess || ensure.Data is null)
+            {
+                Snackbar.Add(
+                    ensure.Message ?? "Không tạo được hồ sơ phản hồi ngày công.",
+                    Severity.Error);
+                return;
+            }
+
+            reconciliationId = ensure.Data.Id;
+        }
+
+        if (string.IsNullOrWhiteSpace(_selectedEmployeeCode))
+        {
+            Snackbar.Add("Không xác định được nhân viên của lịch đang mở.", Severity.Error);
+            return;
+        }
+
+        var result = await CalendarService.GetForEmployeeAsync(
+            _selectedEmployeeCode,
+            request.Date.ToDateTime(TimeOnly.MinValue),
+            request.Date.ToDateTime(TimeOnly.MinValue));
+
+        if (!result.IsSuccess || result.Data is null)
+        {
+            Snackbar.Add(
+                result.Message ?? "Không tải được dữ liệu chấm công của ngày cần phản hồi.",
+                Severity.Error);
+            return;
+        }
+
+        var selectedDay = result.Data.Days.FirstOrDefault(x => x.Date == request.Date);
+        var issue = selectedDay?.Issues.FirstOrDefault(x => x.Code == request.IssueCode);
+        var action = issue?.Actions.FirstOrDefault(x => x.Code == request.ActionCode);
+
+        if (selectedDay is null || issue is null || action is null)
+        {
+            Snackbar.Add(
+                "Không tìm thấy nội dung chênh lệch cần phản hồi. Vui lòng tải lại lịch.",
+                Severity.Error);
+            return;
+        }
+
+        var parameters = new DialogParameters
+        {
+            [nameof(CalendarAttendanceFeedbackDialog.Day)] = selectedDay,
+            [nameof(CalendarAttendanceFeedbackDialog.Issue)] = issue,
+            [nameof(CalendarAttendanceFeedbackDialog.Action)] = action,
+            [nameof(CalendarAttendanceFeedbackDialog.ReconciliationId)] = reconciliationId
+        };
+
+        await DialogService.ShowAsync<CalendarAttendanceFeedbackDialog>(
+            "Phản hồi ngày công",
+            parameters,
+            new DialogOptions
+            {
+                MaxWidth = MaxWidth.Medium,
+                FullWidth = true,
+                CloseOnEscapeKey = true
+            });
+
+        if (_calendar is not null)
+            await _calendar.RefreshAsync();
+
+        await LoadAlertsAsync();
+        await InvokeAsync(StateHasChanged);
     }
 
     private void OpenRoute(string? route)

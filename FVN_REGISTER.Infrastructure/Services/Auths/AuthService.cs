@@ -30,6 +30,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
         private readonly JwtOptions _jwtOptions;
         private readonly ISessionService _sessionService;
         private readonly IHubContext<NotificationHub> _hubContext;
+        private readonly ITwoFactorService _twoFactor;
 
 
         public AuthService(
@@ -38,6 +39,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             IOptions<JwtOptions> jwtOptions,
             ISessionService sessionService,
             IHubContext<NotificationHub> hubContext,
+            ITwoFactorService twoFactor,
             ILogger<AuthService> logger,
             IOptionsMonitor<AuthDebugOptions> options)
             : base(logger, options)
@@ -47,6 +49,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             _jwtOptions = jwtOptions.Value;
             _sessionService = sessionService;
             _hubContext = hubContext;
+            _twoFactor = twoFactor;
         }
 
         public async Task<ServiceResult<AuthResultDto>> Login(
@@ -90,39 +93,28 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 }
 
                 user.NumLoginFailed = 0;
-                user.LastLogin = DateTime.Now;
                 user.LockoutEndDate = null;
                 await _uow.SaveChangesAsync(ct);
 
-                var accessToken = await GenerateJwtTokenAsync(user, rememberMe, ct);
-                var refreshTokenRaw = GenerateRefreshTokenRaw();
-
-                var kickedConnections = await _sessionService.RegisterSessionAsync(
-                    user.Id, deviceType, deviceId, deviceName, refreshTokenRaw, rememberMe, ct);
-
-                if (kickedConnections.Count > 0)
+                if (await _twoFactor.IsTwoFactorRequiredAsync(user.Id, ct))
                 {
-                    foreach (var connId in kickedConnections)
+                    var challenge = await _twoFactor.CreateLoginChallengeAsync(user.Id, ct);
+                    await _audit.LogAction("2FA_REQUIRED", user.Id, "Mật khẩu đúng; yêu cầu xác thực 2 lớp");
+                    return ServiceResult<AuthResultDto>.Ok(new AuthResultDto
                     {
-                        await _hubContext.Clients.Client(connId)
-                            .SendAsync("ForceLogout", "Tài khoản vừa đăng nhập từ thiết bị khác", ct);
-                    }
+                        IsSuccess = true,
+                        RequiresTwoFactor = true,
+                        TwoFactorSetupRequired = !user.TwoFactorEnabled,
+                        TwoFactorChallengeToken = challenge,
+                        UserId = user.Id,
+                        FullName = user.FullName,
+                        Avatar = user.Avatar,
+                        IsAdmin = user.PermissionCode == UserPermissionCodes.SuperAdmin ||
+                                  user.PermissionCode == UserPermissionCodes.Admin
+                    });
                 }
 
-                await _audit.LogLoginSuccess(user.Id, ipAddress, userAgent);
-                Logger.LogInfoIf(Debug, "[LOGIN] Success: {Emp}", employeeCode);
-
-                return ServiceResult<AuthResultDto>.Ok(new AuthResultDto
-                {
-                    IsSuccess = true,
-                    Token = accessToken,
-                    RefreshToken = refreshTokenRaw,
-                    UserId = user.Id,
-                    FullName = user.FullName,
-                    Avatar = user.Avatar,
-                    IsAdmin = user.PermissionCode == UserPermissionCodes.SuperAdmin ||
-                              user.PermissionCode == UserPermissionCodes.Admin
-                });
+                return await IssueLoginResultAsync(user, rememberMe, deviceType, deviceId, deviceName, ipAddress, userAgent, ct);
             }
             catch (Exception ex)
             {
@@ -186,11 +178,8 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
 
                 user.Avatar = avatarUrl;
 
-                var emp = await _uow.Repository<F03Employee>().Query()
-                    .FirstOrDefaultAsync(x => x.EmployeeCode == user.EmployeeCode, ct);
-                if (emp != null)
-                    emp.EmailAddress = email;
-
+                // Employee master data, including EmailAddress, is HRM-owned/read-only in FVN_REGISTER.
+                // Profile editing may update the user-owned avatar only; email is displayed from HRM.
                 await _uow.SaveChangesAsync(ct);
 
                 Logger.LogInfoIf(Debug, "[PROFILE] Updated success: {UserId}", userId);
@@ -255,6 +244,23 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
             }
         }
 
+        public async Task<ServiceResult<AuthResultDto>> CompleteTwoFactorLoginAsync(
+            string challengeToken, string code, bool rememberMe, string? ipAddress, string? userAgent,
+            CancellationToken ct = default)
+        {
+            var check = await _twoFactor.ValidateLoginChallengeAsync(challengeToken, code, ct);
+            if (!check.IsSuccess || check.Data == null)
+                return ServiceResult<AuthResultDto>.Fail(check.Message ?? "Mã xác thực 2 lớp không hợp lệ.");
+
+            var user = await _uow.Repository<F03User>().Query()
+                .FirstOrDefaultAsync(x => x.Id == check.Data.Value, ct);
+            if (user == null || user.IsActive == false)
+                return ServiceResult<AuthResultDto>.Fail("Tài khoản không tồn tại hoặc đã bị khóa.");
+
+            await _audit.LogAction("2FA_SUCCESS", user.Id, "Xác thực 2 lớp thành công");
+            return await IssueLoginResultAsync(user, rememberMe, "Web", Guid.NewGuid().ToString(), "2FA", ipAddress, userAgent, ct);
+        }
+
         public async Task<ServiceResult<string>> RefreshTokenAsync(string refreshToken, CancellationToken ct = default)
         {
             try
@@ -273,6 +279,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 if (user == null || user.IsActive == false)
                     return ServiceResult<string>.Fail("Tài khoản không tồn tại hoặc đã bị khóa.");
 
+                if (await _twoFactor.IsTwoFactorRequiredAsync(user.Id, ct) && !user.TwoFactorEnabled)
+                    return ServiceResult<string>.Fail("Tài khoản có quyền dữ liệu nhạy cảm và chưa hoàn tất xác thực 2 lớp.");
+
                 var newAccessToken = await GenerateJwtTokenAsync(user, session.RememberMe, ct);
                 Logger.LogInfoIf(Debug, "[REFRESH_TOKEN] Success for UserId: {UserId}", session.UserId);
                 return ServiceResult<string>.Ok(newAccessToken);
@@ -282,6 +291,34 @@ namespace FVN_REGISTER.Infrastructure.Services.Auths
                 Logger.LogError(ex, "[REFRESH_TOKEN] Error checking token");
                 return ServiceResult<string>.Fail("Lỗi hệ thống khi làm mới token.");
             }
+        }
+
+        private async Task<ServiceResult<AuthResultDto>> IssueLoginResultAsync(
+            F03User user, bool rememberMe, string deviceType, string deviceId, string? deviceName,
+            string? ipAddress, string? userAgent, CancellationToken ct)
+        {
+            user.LastLogin = DateTime.Now;
+            await _uow.SaveChangesAsync(ct);
+            var accessToken = await GenerateJwtTokenAsync(user, rememberMe, ct);
+            var refreshTokenRaw = GenerateRefreshTokenRaw();
+            var kickedConnections = await _sessionService.RegisterSessionAsync(
+                user.Id, deviceType, deviceId, deviceName, refreshTokenRaw, rememberMe, ct);
+
+            foreach (var connId in kickedConnections)
+                await _hubContext.Clients.Client(connId).SendAsync("ForceLogout", "Tài khoản vừa đăng nhập từ thiết bị khác", ct);
+
+            await _audit.LogLoginSuccess(user.Id, ipAddress, userAgent);
+            return ServiceResult<AuthResultDto>.Ok(new AuthResultDto
+            {
+                IsSuccess = true,
+                Token = accessToken,
+                RefreshToken = refreshTokenRaw,
+                UserId = user.Id,
+                FullName = user.FullName,
+                Avatar = user.Avatar,
+                IsAdmin = user.PermissionCode == UserPermissionCodes.SuperAdmin ||
+                          user.PermissionCode == UserPermissionCodes.Admin
+            });
         }
 
         private async Task HandleLoginFailedAsync(F03User user, CancellationToken ct)

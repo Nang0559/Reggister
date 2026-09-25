@@ -39,6 +39,10 @@ public static class SecurityFunctionCodes
     public const int EquipmentLiquidate = 2312;
     public const int EquipmentQR = 2313;
     public const int EquipmentHistory = 2314;
+    public const int EquipmentInspectionManage = 2315;
+    public const int EquipmentInspectionExecute = 2316;
+    public const int EquipmentInspectionApprove = 2317;
+    public const int EquipmentInspectionReport = 2318;
 
     public const int UserManagementView = 2401;
     public const int UserManagementCreate = 2402;
@@ -46,6 +50,7 @@ public static class SecurityFunctionCodes
     public const int UserManagementLock = 2404;
     public const int UserManagementResetPassword = 2405;
     public const int UserManagementAssignPermission = 2406;
+    public const int UserManagementManageTwoFactor = 2407;
 
     public const int HrmSyncViewStatus = 2501;
     public const int HrmSyncSync = 2502;
@@ -71,6 +76,7 @@ public static class SecurityFunctionCodes
     public const int AttendanceView = 2901;
     public const int AttendanceExport = 2902;
     public const int AttendanceCalculate = 2911;
+    public const int AttendanceFeedback = 2912;
 
     public const int EquipmentCancel = 2308;
 
@@ -91,4 +97,8 @@ public static class SecurityFunctionCodes
     public const int HrmUserRoleRuleManage = 3072;
     public const int EmailQueueManage = 3081;
     public const int EmailTemplateManage = 3082;
+    public const int SecurityAccessChangeView = 3091;
+    public const int SecurityAccessChangeCreate = 3092;
+    public const int SecurityAccessChangeApprove = 3093;
+    public const int SecurityAccessChangeExecute = 3094;
 }

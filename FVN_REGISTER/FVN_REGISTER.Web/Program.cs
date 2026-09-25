@@ -54,6 +54,7 @@ builder.Services.AddScoped<IHrmAttendanceCalculationClientService, HrmAttendance
 builder.Services.AddScoped<IHrmUserRoleRuleClientService, HrmUserRoleRuleClientService>();
 builder.Services.AddScoped<IUserManagementClientService, UserManagementClientService>(); builder.Services.AddScoped<IPasswordResetRequestClientService, PasswordResetRequestClientService>();
 builder.Services.AddScoped<ISecurityClientService, SecurityClientService>();
+builder.Services.AddScoped<IAccessChangeClientService, AccessChangeClientService>();
 builder.Services.AddScoped<IApprovalListClientService, ApprovalListClientService>();
 builder.Services.AddScoped<IApproverClientService, ApproverClientService>();
 builder.Services.AddScoped<IApprovalRouteClientService, ApprovalRouteClientService>();

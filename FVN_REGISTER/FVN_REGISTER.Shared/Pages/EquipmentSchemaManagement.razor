@@ -1,0 +1,261 @@
+@page "/equipment/schema-management"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Depts
+@using FVN_REGISTER.Contract.Dtos.EquipmentImport
+@using FVN_REGISTER.Shared.Services.Departments
+@using FVN_REGISTER.Shared.Services.Equipment
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IEquipmentClientService EquipmentClient
+@inject IDepartmentManagementClientService DepartmentClient
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<PageTitle>Department Schema - Equipment</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="py-5">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
+        <div>
+            <MudText Typo="Typo.h5">Quản trị → Equipment → Department Schema</MudText>
+            <MudText Typo="Typo.body2" Class="mud-text-secondary">Schema được quản lý theo DepartmentCode, có version và trạng thái Draft / Active / Inactive.</MudText>
+        </div>
+        <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/equipment"))">Quay lại Equipment</MudButton>
+    </MudStack>
+
+    @if (!_ready)
+    {
+        <MudProgressCircular Indeterminate="true" />
+    }
+    else if (!_access)
+    {
+        <MudAlert Severity="Severity.Warning">Bạn chưa có quyền quản lý schema/import Equipment.</MudAlert>
+    }
+    else
+    {
+        <MudGrid Spacing="3">
+            <MudItem xs="12" md="4">
+                <MudPaper Outlined="true" Class="pa-4 h-100">
+                    <MudText Typo="Typo.h6" Class="mb-3">Department</MudText>
+                    <MudSelect T="string" Label="Department" @bind-Value="_deptCode" Variant="Variant.Outlined" Dense="true">
+                        @foreach (var dept in _departments)
+                        {
+                            <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode – @dept.DeptName</MudSelectItem>
+                        }
+                    </MudSelect>
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="mt-3" OnClick="LoadSchemas" Disabled="@string.IsNullOrWhiteSpace(_deptCode)">
+                        Tải schema
+                    </MudButton>
+                    <MudDivider Class="my-4" />
+                    <MudText Typo="Typo.subtitle2">Tạo schema mới</MudText>
+                    <MudTextField @bind-Value="_newSchemaName" Label="Tên schema" Variant="Variant.Outlined" Class="mt-2" />
+                    <MudSelect T="string" @bind-Value="_newSchemaStatus" Label="Trạng thái" Variant="Variant.Outlined" Class="mt-2">
+                        <MudSelectItem Value="@("Draft")">Draft</MudSelectItem>
+                        <MudSelectItem Value="@("Active")">Active</MudSelectItem>
+                    </MudSelect>
+                    <MudButton Variant="Variant.Filled" Class="mt-2" OnClick="CreateSchemaAsync">Tạo schema</MudButton>
+                </MudPaper>
+            </MudItem>
+
+            <MudItem xs="12" md="8">
+                <MudPaper Outlined="true" Class="pa-4 mb-3">
+                    <MudText Typo="Typo.h6" Class="mb-3">Version</MudText>
+                    @if (_schemas.Count == 0)
+                    {
+                        <MudAlert Severity="Severity.Info">Department chưa có schema.</MudAlert>
+                    }
+                    else
+                    {
+                        <MudTable Items="_schemas" Dense="true" Hover="true">
+                            <HeaderContent><MudTh>Department</MudTh><MudTh>Schema</MudTh><MudTh>Version</MudTh><MudTh>Status</MudTh><MudTh>Fields</MudTh><MudTh></MudTh></HeaderContent>
+                            <RowTemplate>
+                                <MudTd>@context.DeptCode</MudTd>
+                                <MudTd>@context.SchemaName</MudTd>
+                                <MudTd>v@context.Version</MudTd>
+                                <MudTd><MudChip T="string" Size="Size.Small">@context.Status</MudChip></MudTd>
+                                <MudTd>@context.FieldCount</MudTd>
+                                <MudTd>
+                                    <MudStack Row="true" Spacing="1">
+                                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => SelectSchema(context.Id))">Mở</MudButton>
+                                        <MudButton Size="Size.Small" Variant="Variant.Outlined" OnClick="@(() => CloneAsync(context.Id))">Nhân bản</MudButton>
+                                        @if (!string.Equals(context.Status, "Active", StringComparison.OrdinalIgnoreCase))
+                                        {
+                                            <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Success" OnClick="@(() => ActivateAsync(context))">Active</MudButton>
+                                        }
+                                    </MudStack>
+                                </MudTd>
+                            </RowTemplate>
+                        </MudTable>
+                    }
+                </MudPaper>
+
+                @if (_schema != null)
+                {
+                    <MudPaper Outlined="true" Class="pa-4">
+                        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+                            <div>
+                                <MudText Typo="Typo.h6">@_schema.SchemaName — v@_schema.Version</MudText>
+                                <MudText Typo="Typo.caption">DepartmentCode: @_schema.DeptCode • Status: @_schema.Status</MudText>
+                            </div>
+                            <MudStack Row="true">
+                                <MudButton Variant="Variant.Outlined" OnClick="@(() => CloneAsync(_schema.Id))">Nhân bản</MudButton>
+                                <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="@(_schema.Status == "Active")" OnClick="ActivateCurrentAsync">Kích hoạt</MudButton>
+                            </MudStack>
+                        </MudStack>
+
+                        <MudDivider Class="my-4" />
+                        <MudText Typo="Typo.subtitle1">Schema fields</MudText>
+                        @foreach (var field in _schema.Fields.OrderBy(x => x.DisplayOrder))
+                        {
+                            <MudGrid Class="py-2" Spacing="1">
+                                <MudItem xs="12" sm="2"><MudTextField @bind-Value="field.FieldKey" Label="Key" Dense="true" /></MudItem>
+                                <MudItem xs="12" sm="2"><MudTextField @bind-Value="field.FieldLabel" Label="Tên" Dense="true" /></MudItem>
+                                <MudItem xs="6" sm="1"><MudSelect T="string" @bind-Value="field.DataType" Label="Type" Dense="true"><MudSelectItem Value="@("Text")">Text</MudSelectItem><MudSelectItem Value="@("Number")">Number</MudSelectItem><MudSelectItem Value="@("Date")">Date</MudSelectItem><MudSelectItem Value="@("Boolean")">Boolean</MudSelectItem><MudSelectItem Value="@("Choice")">Choice</MudSelectItem></MudSelect></MudItem>
+                                <MudItem xs="6" sm="1"><MudNumericField @bind-Value="field.MaxLength" Label="Max" Dense="true" /></MudItem>
+                                <MudItem xs="12" sm="2"><MudTextField @bind-Value="field.DefaultValue" Label="Default" Dense="true" /></MudItem>
+                                <MudItem xs="6" sm="1"><MudCheckBox @bind-Value="field.IsRequired">Req</MudCheckBox></MudItem>
+                                <MudItem xs="6" sm="1"><MudCheckBox @bind-Value="field.IsImportable">Import</MudCheckBox></MudItem>
+                                <MudItem xs="6" sm="1"><MudNumericField @bind-Value="field.DisplayOrder" Label="Order" Dense="true" /></MudItem>
+                                <MudItem xs="6" sm="1"><MudButton Size="Size.Small" Color="Color.Primary" OnClick="@(() => SaveFieldAsync(field))">Lưu</MudButton></MudItem>
+                                <MudItem xs="6" sm="1"><MudButton Size="Size.Small" Color="Color.Error" OnClick="@(() => DeactivateFieldAsync(field))">Xóa</MudButton></MudItem>
+                            </MudGrid>
+                        }
+
+                        <MudDivider Class="my-4" />
+                        <MudText Typo="Typo.subtitle1">Thêm field</MudText>
+                        <MudGrid Spacing="2" Class="mt-1">
+                            <MudItem xs="12" sm="3"><MudTextField @bind-Value="_field.FieldKey" Label="FieldKey" /></MudItem>
+                            <MudItem xs="12" sm="3"><MudTextField @bind-Value="_field.FieldLabel" Label="Tên hiển thị" /></MudItem>
+                            <MudItem xs="12" sm="2"><MudSelect T="string" @bind-Value="_field.DataType" Label="Data type"><MudSelectItem Value="@("Text")">Text</MudSelectItem><MudSelectItem Value="@("Number")">Number</MudSelectItem><MudSelectItem Value="@("Date")">Date</MudSelectItem><MudSelectItem Value="@("Boolean")">Boolean</MudSelectItem><MudSelectItem Value="@("Choice")">Lookup/List</MudSelectItem></MudSelect></MudItem>
+                            <MudItem xs="6" sm="2"><MudNumericField @bind-Value="_field.MaxLength" Label="Max length" /></MudItem>
+                            <MudItem xs="6" sm="2"><MudNumericField @bind-Value="_field.DisplayOrder" Label="Thứ tự" /></MudItem>
+                            <MudItem xs="12"><MudTextField @bind-Value="_field.DefaultValue" Label="Default value" /></MudItem>
+                            <MudItem xs="12"><MudTextField @bind-Value="_field.OptionsJson" Label="Lookup/List JSON" Lines="2" /></MudItem>
+                            <MudItem xs="12"><MudCheckBox @bind-Value="_field.IsRequired">Required</MudCheckBox><MudCheckBox @bind-Value="_field.IsImportable">Dùng khi import Excel</MudCheckBox></MudItem>
+                            <MudItem xs="12"><MudButton Variant="Variant.Filled" OnClick="AddFieldAsync">Thêm field</MudButton></MudItem>
+                        </MudGrid>
+                    </MudPaper>
+                }
+            </MudItem>
+        </MudGrid>
+    }
+</MudContainer>
+
+@code {
+    private bool _ready;
+    private bool _access;
+    private string _deptCode = string.Empty;
+    private string _newSchemaName = "Equipment Schema";
+    private string _newSchemaStatus = "Draft";
+    private List<DepartmentDto> _departments = new();
+    private List<EquipmentSchemaSummaryDto> _schemas = new();
+    private EquipmentSchemaDto? _schema;
+    private SaveEquipmentFieldDefinitionRequest _field = new() { DataType = "Text", IsImportable = true, IsActiveField = true, DisplayOrder = 1 };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var access = await EquipmentClient.HasImportAccessAsync();
+        _access = access.IsSuccess && access.Data;
+        if (_access)
+        {
+            var departments = await DepartmentClient.GetListAsync(true);
+            if (departments.IsSuccess) _departments = departments.Data ?? new();
+            if (_departments.Count > 0) _deptCode = _departments[0].DeptCode;
+            await LoadSchemas();
+        }
+        _ready = true;
+    }
+
+    private async Task LoadSchemas()
+    {
+        if (string.IsNullOrWhiteSpace(_deptCode)) return;
+        var result = await EquipmentClient.GetSchemasAsync(_deptCode);
+        if (result.IsSuccess) _schemas = result.Data ?? new();
+        else Snackbar.Add(result.Message ?? "Không tải được schema.", Severity.Error);
+        _schema = null;
+    }
+
+    private async Task SelectSchema(int id)
+    {
+        var result = await EquipmentClient.GetSchemaAsync(id);
+        if (result.IsSuccess) _schema = result.Data;
+        else Snackbar.Add(result.Message ?? "Không tải được schema.", Severity.Error);
+    }
+
+    private async Task CreateSchemaAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_deptCode) || string.IsNullOrWhiteSpace(_newSchemaName)) return;
+        var result = await EquipmentClient.SaveSchemaAsync(new EquipmentSchemaUpsertRequest { DeptCode = _deptCode, SchemaName = _newSchemaName.Trim(), Status = _newSchemaStatus });
+        if (result.IsSuccess)
+        {
+            _schema = result.Data;
+            Snackbar.Add("Đã tạo schema.", Severity.Success);
+            await LoadSchemas();
+        }
+        else Snackbar.Add(result.Message ?? "Không tạo được schema.", Severity.Error);
+    }
+
+    private async Task CloneAsync(int schemaId)
+    {
+        var result = await EquipmentClient.CloneSchemaAsync(schemaId, new EquipmentSchemaCloneRequest { Status = "Draft" });
+        if (result.IsSuccess)
+        {
+            _schema = result.Data;
+            Snackbar.Add($"Đã nhân bản thành v{result.Data?.Version} ở trạng thái Draft.", Severity.Success);
+            await LoadSchemas();
+        }
+        else Snackbar.Add(result.Message ?? "Không nhân bản được schema.", Severity.Error);
+    }
+
+    private async Task ActivateAsync(EquipmentSchemaSummaryDto summary)
+    {
+        var result = await EquipmentClient.SaveSchemaAsync(new EquipmentSchemaUpsertRequest { Id = summary.Id, DeptCode = summary.DeptCode, SchemaName = summary.SchemaName, Status = "Active" });
+        if (result.IsSuccess) { _schema = result.Data; await LoadSchemas(); Snackbar.Add("Đã kích hoạt schema.", Severity.Success); }
+        else Snackbar.Add(result.Message ?? "Không thể kích hoạt schema.", Severity.Error);
+    }
+
+    private Task ActivateCurrentAsync() => _schema == null ? Task.CompletedTask : ActivateAsync(new EquipmentSchemaSummaryDto { Id = _schema.Id, DeptCode = _schema.DeptCode, SchemaName = _schema.SchemaName, Version = _schema.Version, Status = _schema.Status });
+
+    private async Task AddFieldAsync()
+    {
+        if (_schema == null || string.IsNullOrWhiteSpace(_field.FieldKey) || string.IsNullOrWhiteSpace(_field.FieldLabel)) return;
+        _field.DeptCode = _schema.DeptCode;
+        _field.SchemaId = _schema.Id;
+        var result = await EquipmentClient.SaveSchemaFieldAsync(_field);
+        if (result.IsSuccess)
+        {
+            _schema.Fields.Add(result.Data!);
+            _field = new SaveEquipmentFieldDefinitionRequest { DeptCode = _schema.DeptCode, SchemaId = _schema.Id, DataType = "Text", IsImportable = true, IsActiveField = _schema.Status == "Active", DisplayOrder = _schema.Fields.Count + 1 };
+            Snackbar.Add("Đã thêm field.", Severity.Success);
+        }
+        else Snackbar.Add(result.Message ?? "Không thêm được field.", Severity.Error);
+    }
+
+    private async Task SaveFieldAsync(EquipmentFieldDefinitionDto field)
+    {
+        if (_schema == null) return;
+        var result = await EquipmentClient.SaveSchemaFieldAsync(new SaveEquipmentFieldDefinitionRequest
+        {
+            DeptCode = _schema.DeptCode,
+            SchemaId = _schema.Id,
+            FieldKey = field.FieldKey,
+            FieldLabel = field.FieldLabel,
+            DataType = field.DataType,
+            IsRequired = field.IsRequired,
+            IsImportable = field.IsImportable,
+            IsSearchable = field.IsSearchable,
+            IsActiveField = field.IsActiveField,
+            DisplayOrder = field.DisplayOrder,
+            MaxLength = field.MaxLength,
+            DefaultValue = field.DefaultValue,
+            OptionsJson = field.OptionsJson
+        });
+        if (!result.IsSuccess) Snackbar.Add(result.Message ?? "Không lưu được field.", Severity.Error);
+        else Snackbar.Add("Đã lưu field.", Severity.Success);
+    }
+
+    private Task DeactivateFieldAsync(EquipmentFieldDefinitionDto field)
+    {
+        field.IsActiveField = false;
+        return SaveFieldAsync(field);
+    }
+}

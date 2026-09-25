@@ -44,6 +44,31 @@ namespace FVN_REGISTER.Shared.Services.Users
             catch (Exception ex) { _logger.LogError(ex, "Login exception: {User}", username); return ApiResponse<AuthResultDto>.Fail("Không thể kết nối server."); }
         }
 
+        public async Task<ApiResponse<AuthResultDto>> VerifyTwoFactorAsync(TwoFactorVerifyRequest request, CancellationToken ct = default)
+        {
+            try { return await PostPublicAsync<AuthResultDto>("api/auth/2fa/verify", request, ct); }
+            catch (Exception ex) { _logger.LogError(ex, "2FA verify failed"); return ApiResponse<AuthResultDto>.Fail("Không thể xác thực 2 lớp."); }
+        }
+
+        public async Task<ApiResponse<TwoFactorSetupDto>> SetupTwoFactorAsync(string challengeToken, CancellationToken ct = default)
+        {
+            try { return await PostPublicAsync<TwoFactorSetupDto>("api/auth/2fa/setup", new TwoFactorSetupRequest { ChallengeToken = challengeToken }, ct); }
+            catch (Exception ex) { _logger.LogError(ex, "2FA setup failed"); return ApiResponse<TwoFactorSetupDto>.Fail("Không thể tạo cấu hình 2 lớp."); }
+        }
+
+        public async Task<ApiResponse<AuthResultDto>> ConfirmTwoFactorSetupAsync(TwoFactorVerifyRequest request, CancellationToken ct = default)
+        {
+            try { return await PostPublicAsync<AuthResultDto>("api/auth/2fa/setup-confirm", request, ct); }
+            catch (Exception ex) { _logger.LogError(ex, "2FA setup confirmation failed"); return ApiResponse<AuthResultDto>.Fail("Không thể xác nhận 2 lớp."); }
+        }
+
+        private async Task<ApiResponse<T>> PostPublicAsync<T>(string url, object body, CancellationToken ct)
+        {
+            var response = await _publicHttp.PostAsJsonAsync(url, body, ct);
+            var result = await response.Content.ReadFromJsonAsync<ApiResponse<T>>(cancellationToken: ct);
+            return result ?? ApiResponse<T>.Fail("Phản hồi từ máy chủ không hợp lệ.");
+        }
+
         public async Task<ApiResponse<UserIdentityDto>> GetProfileAsync(CancellationToken ct = default)
         {
             try { return await _authHttp.GetAsync<UserIdentityDto>("api/auth/profile", ct); }

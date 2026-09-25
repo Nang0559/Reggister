@@ -5,608 +5,589 @@ paginate: true
 size: 16:9
 ---
 
+<style>
+section {
+  font-family: "Aptos", "Segoe UI", Arial, sans-serif;
+  color: #172033;
+  background: linear-gradient(135deg, #f7f9fc 0%, #ffffff 100%);
+  padding: 42px 58px;
+}
+section h1 {
+  font-size: 42px;
+  color: #123b6d;
+  margin-bottom: 16px;
+}
+section h2 {
+  font-size: 30px;
+  color: #1769aa;
+}
+section h3 {
+  color: #315b7d;
+}
+section strong {
+  color: #0f5b8d;
+}
+section table {
+  font-size: 20px;
+}
+section blockquote {
+  border-left: 7px solid #0f7a8a;
+  background: #eef8f9;
+  padding: 14px 22px;
+  color: #164653;
+}
+.hero {
+  background: linear-gradient(135deg, #0d2f57 0%, #145a83 55%, #0b7a78 100%);
+  color: white;
+}
+.hero h1, .hero h2, .hero h3, .hero strong {
+  color: white;
+}
+.hero p, .hero li {
+  color: #eef7ff;
+}
+.dark {
+  background: linear-gradient(135deg, #172033 0%, #253a54 100%);
+  color: white;
+}
+.dark h1, .dark h2, .dark h3, .dark strong {
+  color: #ffffff;
+}
+.big {
+  font-size: 30px;
+  line-height: 1.45;
+}
+.kpi {
+  display: flex;
+  gap: 18px;
+  margin-top: 24px;
+}
+.card {
+  flex: 1;
+  background: white;
+  border-radius: 18px;
+  padding: 18px 20px;
+  box-shadow: 0 8px 24px rgba(20,40,70,.10);
+}
+.metric {
+  font-size: 34px;
+  font-weight: 700;
+  color: #0c7b6f;
+}
+.small {
+  font-size: 18px;
+}
+.center {
+  text-align: center;
+}
+</style>
+
+<!-- _class: hero -->
+
 # FVN REGISTER
-## Báo cáo tổng quan nền tảng
+## Số hóa công việc — giảm chi phí vận hành
 
-**Smart Employee Request & e-Approval Platform**
+### Từ **giấy • bảng tính • ký • tìm • đối chiếu • nhắc việc**
+### thành **một quy trình số hóa thống nhất**
 
-> Từ yêu cầu đến phê duyệt — từ thực tế đến đối soát
+<div class="big">
 
----
+**Đăng ký → Phê duyệt → Thực tế → Đối soát → Xử lý → Báo cáo**
 
-# 01 — Executive Summary
+</div>
 
-FVN REGISTER là nền tảng tập trung cho vòng đời nghiệp vụ nhân sự:
-
-**Request → Approval → Execution → Reconciliation → HR Review → Reporting / Payroll**
-
-### Mục tiêu
-- Chuẩn hóa quy trình.
-- Minh bạch trạng thái.
-- Tập trung approval.
-- Quản lý Planned vs Actual.
-- Tăng khả năng truy vết.
-- Kiểm soát quyền bằng **Capability + Data Scope**.
+> **Không chỉ bỏ giấy. Quan trọng hơn là giảm công việc lặp lại phía sau tờ giấy.**
 
 ---
 
-# 02 — Vì sao cần FVN REGISTER?
+# 01 — Vấn đề thật sự không phải là tờ giấy
 
-### Quy trình phân tán
-```mermaid
-flowchart LR
-    OLD[Email / Excel / Chat / Giấy tờ] --> P1[Thông tin phân tán]
-    OLD --> P2[Khó biết ai xử lý]
-    OLD --> P3[Khó truy vết]
-    OLD --> P4[Khó đối soát]
-    P1 --> FVN[FVN REGISTER]
-    P2 --> FVN
-    P3 --> FVN
-    P4 --> FVN
-```
+<div class="kpi">
+<div class="card"><div class="metric">⌨</div><b>Nhập lại</b><br><span class="small">Một thông tin phải đi qua nhiều tệp, phiếu và bảng tổng hợp.</span></div>
+<div class="card"><div class="metric">🔎</div><b>Tìm kiếm</b><br><span class="small">Mất thời gian tìm hồ sơ, trạng thái và lịch sử.</span></div>
+<div class="card"><div class="metric">✓</div><b>Đối chiếu</b><br><span class="small">Nhân sự phải kiểm tra kế hoạch và thực tế thủ công.</span></div>
+<div class="card"><div class="metric">⏰</div><b>Nhắc việc</b><br><span class="small">Phụ thuộc vào việc con người nhớ đúng lúc.</span></div>
+</div>
 
-### Chuyển đổi
-**Phân tán → Tập trung → Có workflow → Có audit → Có reconciliation**
+### Chi phí ẩn
+
+**Giờ công + giấy tờ + tìm kiếm + sửa sai + xử lý chậm + nguy cơ bỏ sót**
 
 ---
 
-# 03 — Giá trị cho doanh nghiệp
-
-| Đối tượng | Giá trị |
-|---|---|
-| Employee | Đăng ký và theo dõi minh bạch |
-| Approver | Tập trung việc cần duyệt |
-| HR | Review, reconciliation, attendance |
-| Manager | Dashboard, Calendar, Reports |
-| Admin | Capability, Scope, Configuration |
-| Leadership | Chuẩn hóa, kiểm soát, truy vết |
-
----
-
-# 04 — Vòng đời nghiệp vụ chuẩn
+# 02 — QUY TRÌNH HIỆN TẠI
 
 ```mermaid
 flowchart LR
-    R[Request] --> P[Preview / Validate]
-    P --> S[Submit]
-    S --> A[Approval Snapshot]
-    A --> AP[Approve / Reject / Escalate]
-    AP --> X[Execution]
-    X --> RA[Planned vs Actual]
-    RA -->|Matched| RES[Resolved]
-    RA -->|Mismatch| CO[Confirmation]
-    CO --> EV[Evidence / Review]
-    EV --> HR[HR Resolution]
-    HR --> RES
-    RES --> REP[Reports / Payroll Input]
+    A[Nhân viên] --> B[Phiếu / bảng tính / thư điện tử]
+    B --> C[Quản lý ký]
+    C --> D[Nhân sự tiếp nhận]
+    D --> E[Nhập lại / tổng hợp]
+    E --> F[Kiểm tra chấm công]
+    F --> G[Hỏi lại / sửa]
+    G --> F
+    F --> H[Chốt]
 ```
 
-**Thông điệp:** Approved chưa đồng nghĩa Actual đã hoàn thành.
+### Mỗi vòng lặp đều tiêu tốn thời gian
+
+**Ghi → gửi → ký → nhập → kiểm tra → hỏi → sửa → kiểm tra lại**
+
+> Khi số lượng nhân viên tăng, khối lượng kiểm tra tăng gần như theo số giao dịch.
 
 ---
 
-# 05 — Bản đồ nền tảng
-
-```mermaid
-mindmap
-  root((FVN REGISTER))
-    Employee
-      Leave
-      Overtime
-      Trip
-      Equipment
-    Approval
-      Multi-level
-      Snapshot
-      Escalation
-    Execution
-      Planned
-      Actual
-      Reconciliation
-      Evidence
-      HR Review
-    Workspace
-      Dashboard
-      Action
-      Calendar
-      Notification
-    HR
-      Attendance
-      Resolution
-      Payroll
-    Management
-      Reports
-      Export
-    Security
-      Capability
-      Data Scope
-      Audit
-```
-
----
-
-# 06 — Approval: trung tâm của quy trình
-
-```mermaid
-sequenceDiagram
-    participant U as Employee
-    participant M as Business Module
-    participant W as Workflow
-    participant S as Snapshot
-    participant A as Approver
-    U->>M: Create / Edit
-    M->>M: Validate
-    U->>M: Submit
-    M->>W: Initialize
-    W->>S: Capture hierarchy
-    W->>A: Notify actor
-    A->>W: Approve / Reject
-    W->>W: Next step
-```
-
-### Nguyên tắc
-- Approval Snapshot bảo toàn hierarchy tại thời điểm Submit.
-- Escalated do timeout **không đồng nghĩa Rejected**.
-- Approval là quyết định nghiệp vụ; Notification chỉ là delivery.
-
----
-
-# 07 — Leave
-
-### Employee
-**Create → Check Balance → Preview → Submit → Track**
-
-### Approver
-**Open → Check → Approve / Reject + Reason**
-
-### Kết quả
-- Request được quản lý theo workflow.
-- Lịch nghỉ được phản ánh sau khi đủ điều kiện.
-- Calendar chỉ là projection; module Leave là nguồn nghiệp vụ.
-
----
-
-# 08 — Overtime
+# 03 — FVN REGISTER THAY ĐỔI ĐIỀU GÌ?
 
 ```mermaid
 flowchart LR
-    INPUT[OT Request] --> V[Server Validation]
-    V --> PRE[Preview]
-    PRE --> SUB[Submit]
-    SUB --> AP[Approval]
-    AP --> ACT[Official Actual]
-    ACT --> REC[Reconciliation]
+    A[Đăng ký điện tử] --> B[Kiểm tra dữ liệu]
+    B --> C[Phê duyệt]
+    C --> D[Lưu vết]
+    D --> E[Kế hoạch đã duyệt]
+    H[Chấm công HRM] --> F[Thực tế]
+    E --> G[Đối soát]
+    F --> G
+    G --> I{Có sai lệch?}
+    I -->|Không| J[Hoàn tất]
+    I -->|Có| K[Việc cần xử lý]
+    K --> L[Thông báo]
+    K --> M[Bằng chứng / xác nhận]
+    M --> N[Nhân sự xử lý]
+    N --> J
 ```
 
-### Điểm kiểm soát
-- Hạn mức được kiểm tra **server-side**.
-- Policy có thể cấu hình theo ngày/tuần/tháng/năm.
-- Approved OT là **Planned**, không phải Actual.
-- Actual được đối soát trước khi đi vào các bước HR/Payroll.
+### Ý nghĩa kinh tế
+
+**Hệ thống làm phần việc lặp lại → con người tập trung vào trường hợp ngoại lệ.**
 
 ---
 
-# 09 — Trip
+# 04 — CHẤM CÔNG • PHÉP • OT • CÔNG TÁC
 
-```mermaid
-flowchart LR
-    D[Draft] --> P[Pending Approval]
-    P --> A[Approved]
-    A --> X[Execution / Actual]
-    X --> R[Reconciliation]
-    R --> RES[Resolved]
-```
-
-- Một approval engine dùng chung.
-- Không tự chọn cấp approval từ client.
-- Actual được xử lý riêng với Planned.
-
----
-
-# 10 — Equipment & QR
+## Trước
 
 ```mermaid
 flowchart TD
-    U[Authorized User] --> R[Equipment Request]
-    R --> QR[Generate QR]
-    QR --> IN[QR chưa active]
-    R --> AP[Approval]
-    AP -->|Approved| ASSET[Asset]
-    ASSET --> ACTIVE[QR Active]
-    ACTIVE --> SCAN[Scan QR]
-    SCAN --> REP[Repair Request]
-    REP --> RAP[Repair Approval]
-    RAP --> HIST[Official Repair History]
+    A[Phiếu phép / OT / công tác] --> B[Ký]
+    B --> C[Nhân sự lưu]
+    C --> D[Nhập bảng tính]
+    D --> E[Nhận bảng công]
+    E --> F[Đối chiếu từng người / từng ngày]
+    F --> G{Sai?}
+    G -->|Có| H[Điện thoại / thư điện tử]
+    H --> I[Sửa hồ sơ]
+    I --> F
+    G -->|Không| J[Chốt bảng công]
 ```
 
-### Điểm kiểm soát
-- **EquipmentModule ≠ Approval authority**.
-- QR có thể tồn tại trước approval nhưng chưa có hiệu lực nghiệp vụ.
-- Repair chỉ trở thành lịch sử chính thức sau approval.
-
----
-
-# 11 — Planned vs Actual
-
-```mermaid
-flowchart LR
-    PLAN[Approved Planned] --> R[Reconciliation]
-    ACT[Official Actual] --> R
-    R -->|Matched| OK[Resolved]
-    R -->|Mismatch| C[Confirmation]
-    C --> E[Evidence]
-    E --> HR[HR Review]
-    HR --> OK
-```
-
-### Ý nghĩa
-**Approved = kế hoạch được duyệt**
-
-**Actual = thực tế**
-
-**Reconciliation = kiểm tra sự phù hợp giữa hai nguồn**
-
----
-
-# 12 — HR Review & Resolution
+## Sau
 
 ```mermaid
 flowchart TD
-    M[Mismatch] --> Q[HR Review Queue]
-    Q --> D{Decision}
-    D -->|OK| CORR[Correction if required]
-    D -->|NG| NG[Reason + Audit]
-    CORR --> CALC[Calculation Pipeline]
-    CALC --> PAY[Payroll Input]
+    A[Đăng ký điện tử] --> B[Kiểm tra tự động]
+    B --> C[Phê duyệt]
+    C --> D[Kế hoạch đã duyệt]
+    H[Chấm công HRM] --> E[Thực tế]
+    D --> F[Đối soát]
+    E --> F
+    F --> G{Sai lệch?}
+    G -->|Không| H1[Hoàn tất]
+    G -->|Có| I[Hiển thị dấu ?]
+    I --> J[Việc cần xử lý]
+    J --> K[Nhân sự xác nhận]
+    K --> L[Hoàn tất]
 ```
 
-- Evidence có lifecycle riêng.
-- HR OK không có nghĩa sửa trực tiếp database.
-- NG phải có Reason.
-- Correction cần audit và đi qua calculation pipeline.
+### Một số lỗi hệ thống có thể phát hiện
+
+- **OT thực tế nhưng chưa có đăng ký.**
+- **OT đã duyệt nhưng không có OT thực tế.**
+- **Nghỉ phép/công tác đã duyệt nhưng vẫn có chấm công.**
+- **Chênh lệch giờ thực tế và giờ yêu cầu.**
+
+> Không cần chờ đến cuối kỳ mới bắt đầu tìm lỗi.
 
 ---
 
-# 13 — Attendance
+# 05 — LỊCH LÀM VIỆC CỦA TÔI
 
-### Nguồn và kết quả
-
-```mermaid
-flowchart LR
-    HRM[HRM Source] --> CALC[HRM-compatible Calculation]
-    CALC --> ATT[Attendance Snapshot]
-    CALC --> OT[OT Actual]
-    ATT --> PAY[Payroll Input]
-    OT --> PAY
-```
-
-### Nguyên tắc
-- HRM là nguồn dữ liệu / luật tính.
-- FVN cung cấp UI và snapshot kết quả theo thiết kế.
-- Correction không bypass calculation pipeline.
-- Calculation batch cần truy vết.
-
----
-
-# 14 — Payroll
-
-```mermaid
-stateDiagram-v2
-    [*] --> Open
-    Open --> Calculated
-    Calculated --> Locked
-    Locked --> Exported
-    Open --> Open: Correction / Recalculation
-```
-
-### Readiness
-Payroll chỉ đi tiếp khi các điều kiện của kỳ được đáp ứng.
-
-**Kỳ hiện hành: ngày 21 → ngày 20**
-
-Không dùng Payroll để che giấu execution mismatch hoặc correction chưa xử lý.
-
----
-
-# 15 — Action Center
-
-### Action = công việc cần xử lý
-
-```mermaid
-flowchart LR
-    EVENT[Business Event] --> ACTION[Action]
-    ACTION --> OPEN[Open]
-    OPEN --> PROG[InProgress]
-    PROG --> DONE[Completed]
-```
-
-> **Action.Completed ≠ Business Approved**
-
-Action là work item; business module mới là nguồn trạng thái nghiệp vụ.
-
----
-
-# 16 — Work Calendar
-
-```mermaid
-flowchart LR
-    LEAVE[Leave] --> CAL[Calendar Projection]
-    OT[OT] --> CAL
-    TRIP[Trip] --> CAL
-    CAL --> UI[Calendar UI]
-    UI --> DETAIL[Open Source Detail]
-```
-
-### Nguyên tắc
-- Calendar giúp nhìn kế hoạch.
-- Calendar không thay thế approval state.
-- Khi cần quyết định nghiệp vụ → mở source module.
-
----
-
-# 17 — Notification
-
-### Notification phục vụ
-- Submit.
-- Approval.
-- Reject.
-- Next approver.
-- Escalation.
-- Confirmation.
-- HR Review.
-
-### Cần nhớ
-
-**Notification ≠ Approval**
-
-Đã đọc notification không có nghĩa request đã được duyệt.
-
----
-
-# 18 — Dashboard & Reports
-
-### Dashboard
-- Pending approvals.
-- Action.
-- Notification.
-- Calendar.
-- Module widgets.
-- Statistics theo scope.
-
-### Reports
-- Leave.
-- OT.
-- Trip.
-- Equipment.
-- Attendance.
-
-**View và Export là hai capability riêng.**
-
----
-
-# 19 — Security: Capability + Data Scope
-
-```mermaid
-flowchart LR
-    USER[Authenticated User] --> CAP[Capability]
-    CAP --> SCOPE[Effective Data Scope]
-    SCOPE --> QUERY[Server Query]
-    QUERY --> RESULT[DTO / Export]
-    CLIENT[UI Filter] -. không cấp quyền .-> QUERY
-```
-
-### 2 lớp kiểm soát
-
-**Capability:** được làm gì?
-
-**Data Scope:** được xem / xử lý dữ liệu nào?
-
-> Có quyền Approve không đồng nghĩa có Scope All.
-
----
-
-# 20 — Vai trò trong hệ thống
-
-| Vai trò | Trách nhiệm chính |
-|---|---|
-| Employee | Create / Track Request |
-| Approver | Review / Approve / Reject |
-| HR | Reconciliation / Resolution / Attendance |
-| Manager | Dashboard / Calendar / Reports |
-| Admin | Security / Configuration |
-| Payroll | Payroll Input theo kỳ |
-
----
-
-# 21 — Những nguyên tắc cần nhớ
-
-### 8 nguyên tắc vận hành
-
-1. **Notification ≠ Approval**
-2. **Action ≠ Business Result**
-3. **Calendar ≠ Source of Truth**
-4. **Approved ≠ Actual**
-5. **Mismatch ≠ Rejected**
-6. **HR OK ≠ Direct DB Edit**
-7. **View ≠ Export**
-8. **Scope ≠ Role Name**
-
----
-
-# 22 — Employee Journey
-
-```mermaid
-flowchart LR
-    LOGIN[Login] --> MODULE[Module]
-    MODULE --> CREATE[Create]
-    CREATE --> PRE[Preview]
-    PRE --> SUB[Submit]
-    SUB --> TRACK[Track]
-    TRACK --> RESULT[Approved / Rejected]
-    RESULT --> EXEC[Execution]
-```
-
-### Người dùng cần tập trung vào
-**Dữ liệu đúng → Submit đúng → Theo dõi đúng trạng thái**
-
----
-
-# 23 — Approver Journey
-
-```mermaid
-flowchart LR
-    NOTI[Notification] --> ACTION[Action]
-    ACTION --> DETAIL[Detail]
-    DETAIL --> CHECK[Check]
-    CHECK --> AP[Approve]
-    CHECK --> RJ[Reject + Reason]
-    AP --> NEXT[Next Level]
-```
-
-### Checklist
-- Đúng người.
-- Đúng ngày/giờ.
-- Đúng nội dung.
-- Đúng scope.
-- Đúng policy.
-
----
-
-# 24 — HR Journey
-
-```mermaid
-flowchart LR
-    QUEUE[Review Queue] --> REVIEW[Review]
-    REVIEW --> OK[OK]
-    REVIEW --> NG[NG + Reason]
-    OK --> CORR[Correction]
-    CORR --> CALC[Recalculate]
-    CALC --> PAY[Payroll Input]
-```
-
-### Mục tiêu
-**Không chỉ xử lý lỗi — phải tạo được resolution có thể truy vết.**
-
----
-
-# 25 — FAQ: các tình huống quan trọng
-
-### Tôi có notification nhưng không thấy Approve?
-Request có thể đã được xử lý, chuyển cấp hoặc bạn không còn là actor hiện tại.
-
-### Tôi có quyền Approve nhưng không thấy request?
-Kiểm tra required step, Pending status, Data Scope và actor hiện tại.
-
-### Escalated có phải Rejected?
-**Không.** Escalated là system decision do timeout để chuyển cấp.
-
-### Action Completed có phải Approved?
-**Không nhất thiết.** Kiểm tra business state ở module nguồn.
-
----
-
-# 26 — FAQ: Planned / Actual / Reconciliation
-
-```mermaid
-flowchart TD
-    P[Planned] --> R[Reconciliation]
-    A[Actual] --> R
-    R -->|Matched| OK[Resolved]
-    R -->|Mismatch| C[Confirmation]
-    C --> E[Evidence]
-    E --> H[HR Review]
-    H --> OK
-```
-
-### Quy tắc
-- Không tự sửa Actual để làm cho dữ liệu khớp.
-- Không đóng Action để bypass mismatch.
-- Evidence chưa đạt → case chưa Resolved.
-
----
-
-# 27 — Triển khai & Adoption
-
-```mermaid
-flowchart LR
-    A[Awareness] --> T[Training]
-    T --> P[Pilot]
-    P --> F[Feedback]
-    F --> G[Go-live]
-    G --> M[Monitor]
-    M --> I[Improve]
-    I --> M
-```
-
-### Đo lường
-- Tỷ lệ request trên hệ thống.
-- Tỷ lệ approval xử lý trên hệ thống.
-- Request tồn.
-- Thời gian xử lý.
-- Reconciliation chưa giải quyết.
-- Mức sử dụng Dashboard / Reports.
-
----
-
-# 28 — Thông điệp truyền thông
-
-## FVN REGISTER
-
-### **Một nền tảng. Một quy trình. Một nơi để theo dõi.**
-
-Nghỉ phép • OT • Công tác • Thiết bị  
-Approval • Calendar • Action • HR Review • Reports
-
-**Request → Approval → Execution → Reconciliation → Resolution**
-
----
-
-# 29 — Góc nhìn quản trị
+## Từ nhiều nơi → một màn hình theo ngày
 
 ```mermaid
 flowchart TB
-    REQUEST[Request Data] --> APPROVAL[Approval Control]
-    APPROVAL --> EXEC[Execution Data]
-    EXEC --> RECON[Reconciliation]
-    RECON --> HR[HR Resolution]
-    HR --> REPORT[Management Reporting]
-    REPORT --> DECISION[Management Visibility]
+    A[Ca làm việc] --> G[Lịch của tôi]
+    B[Chấm công] --> G
+    C[Phép] --> G
+    D[OT] --> G
+    E[Công tác] --> G
+    F[Việc cần xử lý] --> G
 ```
 
-### Kết quả mong muốn
-- Một nguồn dữ liệu nghiệp vụ rõ ràng.
-- Một workflow approval có kiểm soát.
-- Một cơ chế reconciliation thống nhất.
-- Một lớp báo cáo phục vụ quản trị.
+### Người dùng nhìn thấy ngay
+
+**Ca • Vào/Ra • Giờ thực tế • Giờ yêu cầu • Phép • OT • Công tác • Dấu ?**
+
+### Giá trị
+
+**Ít tìm kiếm hơn • ít đối chiếu hơn • phát hiện vấn đề sớm hơn**
 
 ---
 
-# 30 — Kết luận
+# 06 — DẤU “?” KHÔNG PHẢI TRANG TRÍ
 
-## FVN REGISTER
+### Mỗi dấu “?” là một vấn đề có ngữ cảnh
 
-**Từ Request đến Approval**
+```mermaid
+flowchart LR
+    A[?] --> B[Biết nguyên nhân]
+    B --> C[Biết hồ sơ nguồn]
+    C --> D[Biết người xử lý]
+    D --> E[Biết việc cần làm]
+```
 
-**Từ Approval đến Execution**
+### Ví dụ
 
-**Từ Execution đến Reconciliation**
+🟡 **Chênh lệch giờ:** kiểm tra lại hoặc đăng ký OT.
 
-**Từ Reconciliation đến HR Resolution**
+🔴 **OT đã duyệt nhưng không có thực tế:** xác nhận / xử lý hủy theo quy trình.
 
-**Từ dữ liệu đến Management Insight**
+🔴 **Đã duyệt nghỉ nhưng có chấm công:** gửi xử lý cho nhân sự.
 
-### FVN REGISTER
-**Từ yêu cầu đến phê duyệt — từ thực tế đến đối soát.**
+> **Từ “có lỗi” → “biết phải làm gì”.**
+
+---
+
+# 07 — QUẢN LÝ THIẾT BỊ: TỪ SỔ GIẤY ĐẾN QR
+
+## Trước
+
+**Phiếu → Sổ → Tìm → Phiếu kiểm tra giấy → Ký → Lưu**
+
+## Sau
+
+```mermaid
+flowchart LR
+    A[Thiết bị] --> B[Mã QR]
+    B --> C[Thông tin tài sản]
+    C --> D[Lịch sử]
+    C --> E[Phiếu kiểm tra]
+    E --> F[Người phụ trách]
+    E --> G[Hạn kiểm tra]
+    E --> H[Bằng chứng]
+    H --> I[Phê duyệt]
+```
+
+### Một lần quét QR
+
+**→ đúng thiết bị  
+→ đúng bộ phận  
+→ đúng phiếu kiểm tra  
+→ đúng lịch sử**
+
+---
+
+# 08 — PHIẾU KIỂM TRA KHÔNG CÒN LÀ “NHỚ THÌ LÀM”
+
+```mermaid
+flowchart LR
+    A[Lịch định kỳ] --> B[Tự sinh nhiệm vụ]
+    B --> C[Người phụ trách]
+    C --> D[Hạn xử lý]
+    D --> E[Nhắc việc]
+    E --> F[Kiểm tra]
+    F --> G[Ảnh / bằng chứng]
+    G --> H[Phê duyệt]
+    H --> I[Lịch sử]
+```
+
+### Hiện hệ thống đã có
+
+- Phiếu kiểm tra theo ngày / tuần / tháng / quý / năm.
+- Tự sinh nhiệm vụ kiểm tra theo lịch.
+- Nhắc trước hạn.
+- Việc cần xử lý trên hệ thống.
+- Bằng chứng hình ảnh.
+- Phiên bản phiếu kiểm tra.
+- Lịch sử kiểm tra/sửa chữa.
+
+---
+
+# 09 — PHẦN MỀM CHỦ ĐỘNG LÀM VIỆC
+
+<div class="kpi">
+<div class="card"><div class="metric">5'</div><b>Đồng bộ HRM</b><br><span class="small">Theo chu kỳ hiện tại</span></div>
+<div class="card"><div class="metric">5'</div><b>Hàng đợi thư điện tử</b><br><span class="small">Tách gửi thông báo khỏi nghiệp vụ</span></div>
+<div class="card"><div class="metric">10'</div><b>Kiểm tra thiết bị</b><br><span class="small">Sinh nhiệm vụ và nhắc việc</span></div>
+<div class="card"><div class="metric">30'</div><b>Đối soát</b><br><span class="small">Quét sai lệch gần nhất</span></div>
+</div>
+
+### Ngoài ra
+
+**Tính công tự động hằng ngày • Nhắc phê duyệt • Chuyển cấp khi quá hạn**
+
+> Mục tiêu là **không bắt nhân sự phải nhớ mọi việc**.
+
+---
+
+# 10 — TỪ “AI NHỚ THÌ LÀM” → “HỆ THỐNG NHẮC VIỆC”
+
+## Cách cũ
+
+```mermaid
+flowchart LR
+    A[Việc cần làm] --> B[Con người phải nhớ]
+    B -->|Quên| C[Quá hạn]
+    C --> D[Phát hiện muộn]
+    D --> E[Khắc phục]
+```
+
+## Cách mới
+
+```mermaid
+flowchart LR
+    A[Lịch / sự kiện] --> B[Việc cần xử lý]
+    B --> C[Hạn xử lý]
+    C --> D[Thông báo]
+    D --> E[Người phụ trách]
+    E --> F[Lưu lịch sử]
+```
+
+### Lợi ích
+
+**Đúng người • đúng việc • đúng hạn • có truy vết**
+
+---
+
+# 11 — KIỂM SOÁT TRƯỚC KHI CHỐT BẢNG LƯƠNG
+
+```mermaid
+flowchart LR
+    A[Chấm công] --> D[Đối soát]
+    B[Phép / OT / công tác] --> D
+    C[Điều chỉnh] --> D
+    D --> E{Còn sai lệch?}
+    E -->|Có| F[Xử lý tiếp]
+    E -->|Không| G[Chụp dữ liệu kỳ]
+    G --> H[Khóa / xuất]
+```
+
+### Điểm quan trọng
+
+**Phát hiện trước khi chốt tốt hơn phát hiện sau khi đã chốt.**
+
+Hệ thống có cơ chế kiểm tra sai lệch và điều chỉnh còn tồn trước khi khóa/xuất kỳ lương.
+
+---
+
+# 12 — BÁO CÁO KHÔNG CÒN PHỤ THUỘC VÀO NHIỀU tệp
+
+## Trước
+
+```mermaid
+flowchart LR
+    A[tệp phép] --> H[Nhân sự tổng hợp]
+    B[tệp OT] --> H
+    C[tệp công tác] --> H
+    D[tệp thiết bị] --> H
+    E[tệp chấm công] --> H
+    H --> F[Báo cáo]
+```
+
+## Sau
+
+```mermaid
+flowchart LR
+    A[Dữ liệu nghiệp vụ] --> B[Bảng điều hành]
+    A --> C[Báo cáo]
+    C --> D[Xuất dữ liệu theo quyền]
+```
+
+### Giá trị
+
+**Một nguồn dữ liệu → nhiều góc nhìn quản trị**
+
+---
+
+# 13 — 4 NGUỒN TẠO RA HIỆU QUẢ NGÂN SÁCH
+
+<div class="kpi">
+<div class="card"><div class="metric">①</div><b>Giờ công</b><br><span class="small">Giảm nhập lại, tìm kiếm, tổng hợp, đối chiếu</span></div>
+<div class="card"><div class="metric">②</div><b>Giấy tờ</b><br><span class="small">Giảm in, quét, lưu trữ, luân chuyển</span></div>
+<div class="card"><div class="metric">③</div><b>Sai sót</b><br><span class="small">Giảm sửa lại và kiểm tra lặp</span></div>
+<div class="card"><div class="metric">④</div><b>Rủi ro</b><br><span class="small">Giảm bỏ sót, quá hạn, thiếu lịch sử</span></div>
+</div>
+
+> Đây là **cơ chế tạo lợi ích**. Mức tiết kiệm thực tế phải đo bằng số liệu trước/sau triển khai.
+
+---
+
+# 14 — CÁCH TÍNH TIỀN
+
+### 1. Giờ công giải phóng
+
+**Giờ tiết kiệm = số giao dịch × phút tiết kiệm / 60**
+
+### 2. Giá trị nhân công
+
+**Giá trị = giờ tiết kiệm × chi phí nhân công quy đổi/giờ**
+
+### 3. Lợi ích năm
+
+**Lợi ích năm = nhân công + giấy tờ + giảm sửa sai + tránh tổn thất**
+
+### 4. Hiệu quả đầu tư
+
+**Hiệu quả đầu tư = lợi ích ròng / tổng mức đầu tư**
+
+### 5. Thời gian hoàn vốn
+
+**Thời gian hoàn vốn = vốn đầu tư ban đầu / lợi ích ròng mỗi tháng**
+
+---
+
+# 15 — VÍ DỤ MINH HỌA
+
+> ⚠️ **Đây là số liệu minh họa, không phải số liệu thực tế của FCC Việt Nam.**
+
+<div class="kpi">
+<div class="card"><div class="metric">1.500</div><b>giao dịch/tháng</b></div>
+<div class="card"><div class="metric">16'</div><b>tiết kiệm/giao dịch</b></div>
+<div class="card"><div class="metric">120h</div><b>giảm tổng hợp báo cáo/tháng</b></div>
+<div class="card"><div class="metric">75.000đ</div><b>chi phí/giờ</b></div>
+</div>
+
+### Mô hình tính
+
+**≈ 520 giờ được giải phóng/tháng**
+
+**≈ 39 triệu đồng/tháng**
+
+**≈ 468 triệu đồng/năm**
+
+> Con số chính thức phải được thay bằng **số liệu hiện trạng thực tế + kết quả thử nghiệm**.
+
+---
+
+# 16 — KHÔNG ĐỒNG NGHĨA “GIẢM NGƯỜI”
+
+## 1 giờ công được giải phóng có thể dùng để:
+
+- giảm làm thêm;
+- giảm thuê ngoài;
+- xử lý được nhiều hồ sơ hơn với cùng đội ngũ;
+- chuyển nhân sự sang kiểm soát và phân tích;
+- đáp ứng tăng trưởng mà chưa phải bổ sung nhân sự tương ứng.
+
+### Vì vậy nên trình 3 lớp
+
+**Tiết kiệm tiền mặt**
+
+**Giải phóng năng lực**
+
+**Giảm rủi ro**
+
+---
+
+# 17 — ĐO HIỆU QUẢ THỰC TẾ
+
+```mermaid
+flowchart LR
+    A[Đo hiện trạng 2–4 tuần] --> B[Thử nghiệm 1–2 phòng ban]
+    B --> C[Đo lại]
+    C --> D[So sánh trước / sau]
+    D --> E[Tính lợi ích]
+    E --> F[Quyết định mở rộng]
+```
+
+### 8 chỉ số nên đo
+
+| Chỉ số | Mục tiêu |
+|---|---|
+| Phút xử lý / hồ sơ | Giảm |
+| Số lần nhập lại / hồ sơ | Giảm |
+| Thời gian đối chiếu | Giảm |
+| Thời gian lập báo cáo | Giảm |
+| Tỷ lệ phiếu kiểm tra đúng hạn | Tăng |
+| Tỷ lệ sửa lại | Giảm |
+| Tỷ lệ thiếu lịch sử | Giảm |
+| Số sai lệch phát hiện trước chốt lương | Tăng khả năng phát hiện sớm |
+
+---
+
+# 18 — TỪ PHẦN MỀM ĐĂNG KÝ → NỀN TẢNG VẬN HÀNH
+
+```mermaid
+flowchart LR
+    A[Đăng ký] --> B[Phê duyệt]
+    B --> C[Thực tế]
+    C --> D[Đối soát]
+    D --> E[Việc cần xử lý]
+    E --> F[Nhân sự giải quyết]
+    F --> G[Báo cáo]
+    G --> H[Quản trị]
+```
+
+### Đây là giá trị khác biệt
+
+**Không chỉ lưu thông tin.**
+
+**Hệ thống theo dõi toàn bộ vòng đời công việc.**
+
+---
+
+<!-- _class: dark -->
+
+# 19 — MỘT HỆ THỐNG, NHIỀU BÀI TOÁN
+
+<div class="center big">
+
+### 👤 Nhân viên
+Đăng ký • Theo dõi • Nhận thông báo
+
+### 👔 Người phê duyệt
+Duyệt • Từ chối • Theo dõi quá hạn
+
+### 🧑‍💼 Nhân sự
+Đối soát • Xử lý sai lệch • Kiểm soát chốt lương
+
+### 🖥 Quản trị
+Phân quyền • Cấu hình • Theo dõi
+
+### 🏢 Ban lãnh đạo
+Số liệu • Chi phí • Rủi ro • Hiệu quả
+
+</div>
+
+---
+
+<!-- _class: hero -->
+
+# 20 — THÔNG ĐIỆP CUỐI CÙNG
+
+<div class="big">
+
+## Trước đây
+
+**Con người nhớ việc → tìm hồ sơ → nhập lại → đối chiếu → nhắc → sửa**
+
+## Với FVN REGISTER
+
+**Hệ thống lưu → tự kiểm tra → tự phát hiện → tự nhắc → con người xử lý ngoại lệ**
+
+</div>
+
+### **FVN REGISTER**
+## Số hóa công việc để giảm chi phí vận hành và tăng khả năng kiểm soát.
 
 ---
 
 <!--
-## Speaker Notes — định hướng trình bày
-
-Mục tiêu của deck:
-1. Nêu vấn đề quản trị trước khi đi vào chức năng.
-2. Cho lãnh đạo thấy toàn bộ lifecycle, không chỉ từng màn hình.
-3. Nhấn mạnh 4 giá trị: chuẩn hóa, minh bạch, truy vết, đối soát.
-4. Khi demo, đi theo một request xuyên suốt: Employee → Approver → Execution → HR → Report.
-5. Không đi sâu code/kiến trúc kỹ thuật trong phần trình bày quản trị.
+Gợi ý trình bày:
+1. Nói về chi phí ẩn trước, không nói về công nghệ trước.
+2. Cho xem một tình huống chấm công + OT + phép.
+3. Chuyển sang lịch làm việc và dấu ?.
+4. Cho xem thiết bị + QR + phiếu kiểm tra.
+5. Kết thúc bằng công thức tiền và phương án thử nghiệm 1–2 phòng ban.
+6. Không dùng số minh họa như kết quả đã đạt được.
 -->

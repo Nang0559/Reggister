@@ -44,7 +44,7 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
 
-            var scopeOk = await CanAccessRequestedScopeAsync(query, ct);
+            var scopeOk = await CanAccessRequestedScopeAsync(query, false, ct);
             if (!scopeOk)
                 return Forbid();
 
@@ -59,7 +59,7 @@ namespace FVN_REGISTER.API.Controllers
             if (UserInfo == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên hết hạn"));
 
-            if (!await CanAccessRequestedScopeAsync(query, ct))
+            if (!await CanAccessRequestedScopeAsync(query, true, ct))
                 return Forbid();
 
             var result = await _reportDispatcher.ExportExcelAsync(query, UserInfo, ct);
@@ -74,6 +74,7 @@ namespace FVN_REGISTER.API.Controllers
 
         private async Task<bool> CanAccessRequestedScopeAsync(
             ReportQueryDto query,
+            bool isExport,
             CancellationToken ct)
         {
             if (UserInfo == null)
@@ -83,20 +84,20 @@ namespace FVN_REGISTER.API.Controllers
             {
                 ReportType.OTSummaryByDept or ReportType.OTSummaryByEmployee or
                 ReportType.OTDetail or ReportType.OTApprovalStatus or ReportType.OTLimitUsage
-                    => SecurityFunctionCodes.OTView,
+                    => isExport ? SecurityFunctionCodes.OTExport : SecurityFunctionCodes.OTView,
 
                 ReportType.TripSummaryByDept or ReportType.TripSummaryByEmployee or
                 ReportType.TripDetail or ReportType.TripApprovalStatus
-                    => SecurityFunctionCodes.TripView,
+                    => isExport ? SecurityFunctionCodes.TripExport : SecurityFunctionCodes.TripView,
 
                 ReportType.EquipmentSummaryByDept or ReportType.EquipmentAssetDetail or
                 ReportType.EquipmentRepairSummary
-                    => SecurityFunctionCodes.EquipmentView,
+                    => isExport ? SecurityFunctionCodes.EquipmentExport : SecurityFunctionCodes.EquipmentView,
 
                 ReportType.AttendanceSummary or ReportType.AttendanceDetail
-                    => SecurityFunctionCodes.AttendanceView,
+                    => isExport ? SecurityFunctionCodes.AttendanceExport : SecurityFunctionCodes.AttendanceView,
 
-                _ => SecurityFunctionCodes.LeaveView
+                _ => isExport ? SecurityFunctionCodes.LeaveExport : SecurityFunctionCodes.LeaveView
             };
 
             if (!string.IsNullOrWhiteSpace(query.EmployeeCode))

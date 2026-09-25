@@ -14,5 +14,8 @@
         public string? FullName { get; set; }
         public string? Avatar { get; set; }
         public bool IsAdmin { get; set; }
+        public bool RequiresTwoFactor { get; set; }
+        public string? TwoFactorChallengeToken { get; set; }
+        public bool TwoFactorSetupRequired { get; set; }
     }
 }

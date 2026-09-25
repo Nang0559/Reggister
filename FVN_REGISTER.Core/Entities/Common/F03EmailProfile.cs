@@ -1,4 +1,3 @@
-﻿
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -8,7 +7,6 @@ namespace FVN_REGISTER.Core.Entities.Common;
 public partial class F03EmailProfile : BaseAuditEntity
 {
     public int ParentId { get; set; }
-
     public bool IsGroup { get; set; }
 
     [Required, StringLength(20)]
@@ -18,17 +16,22 @@ public partial class F03EmailProfile : BaseAuditEntity
     public string Name { get; set; } = string.Empty;
 
     [StringLength(100)]
-    public string? NameEn { get; set; } // Thay cho Name2
+    public string? NameEn { get; set; }
 
     [Required, StringLength(100)]
     public string EmailServerName { get; set; } = string.Empty;
 
     [Required, StringLength(20)]
-    public string EmailServerType { get; set; } = string.Empty; // Smtp, Imap...
+    public string EmailServerType { get; set; } = "SMTP";
 
-    public int EmailServerPort { get; set; }
+    public int EmailServerPort { get; set; } = 587;
+    public bool EmailServerEnableSsl { get; set; } = true;
 
-    public bool EmailServerEnableSsl { get; set; }
+    [StringLength(20)]
+    public string SecurityMode { get; set; } = "STARTTLS";
+
+    [StringLength(20)]
+    public string AuthenticationType { get; set; } = "Basic";
 
     [Required, StringLength(100)]
     public string EmailAccountName { get; set; } = string.Empty;
@@ -36,11 +39,20 @@ public partial class F03EmailProfile : BaseAuditEntity
     [Required, StringLength(100)]
     public string EmailAddress { get; set; } = string.Empty;
 
+    [StringLength(100)]
+    public string? FromName { get; set; }
+
+    [StringLength(100)]
+    public string? ReplyTo { get; set; }
+
     [StringLength(255)]
-    public string? EmailPassword { get; set; } // Nên mã hóa trước khi lưu
+    public string? EmailPassword { get; set; }
 
     [StringLength(255)]
     public string? SiteUrl { get; set; }
+
+    public bool IsDefault { get; set; }
+    public int TimeoutSeconds { get; set; } = 30;
 
     [Timestamp]
     public byte[] Timestamp { get; set; } = null!;

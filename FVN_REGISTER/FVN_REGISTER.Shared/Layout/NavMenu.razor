@@ -23,6 +23,16 @@
         }
     </MudNavGroup>
 
+    @if (CanAny(SecurityFunctionCodes.SecurityAccessChangeView, SecurityFunctionCodes.SecurityAccessChangeCreate, SecurityFunctionCodes.SecurityAccessChangeApprove, SecurityFunctionCodes.SecurityAccessChangeExecute))
+    {
+        <MudNavGroup Title="Thay đổi quyền" Icon="@Icons.Material.Filled.ManageAccounts" Expanded="false">
+            @if (CanAny(SecurityFunctionCodes.SecurityAccessChangeView, SecurityFunctionCodes.SecurityAccessChangeCreate))
+            {
+                <MudNavLink href="/security/access-change" Icon="@Icons.Material.Filled.SwapHoriz">Phiếu thay đổi quyền / bàn giao</MudNavLink>
+            }
+        </MudNavGroup>
+    }
+
     @if (CanAny(SecurityFunctionCodes.LeaveApprove, SecurityFunctionCodes.OTApprove, SecurityFunctionCodes.TripApprove, SecurityFunctionCodes.EquipmentApprove))
     {
         <MudNavGroup Title="Phê duyệt" Icon="@Icons.Material.Filled.CheckCircle" Expanded="false">

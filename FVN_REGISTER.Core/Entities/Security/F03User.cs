@@ -29,6 +29,15 @@ public partial class F03User : BaseAuditEntity
     public DateTime? LockoutEndDate { get; set; }
     public int NumLoginFailed { get; set; }
 
+    // 2FA policy is explicitly assigned by SuperAdmin; enrollment is completed by the user.
+    public bool TwoFactorRequired { get; set; }
+    public DateTime? TwoFactorRequiredAt { get; set; }
+    public int? TwoFactorRequiredBy { get; set; }
+    public bool TwoFactorEnabled { get; set; }
+    public DateTime? TwoFactorEnabledAt { get; set; }
+    [StringLength(512)]
+    public string? TwoFactorSecretEncrypted { get; set; }
+
     public int LevelApprove { get; set; }
 
     [StringLength(20)]

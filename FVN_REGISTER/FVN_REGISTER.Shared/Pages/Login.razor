@@ -1,5 +1,6 @@
 @page "/login"
 @using FVN_REGISTER.Contract.Requests.Auths
+@using FVN_REGISTER.Contract.Dtos.Authentication
 @using FVN_REGISTER.Contract.Requests.Users
 @using FVN_REGISTER.Shared.Layout
 @using FVN_REGISTER.Shared.Services.Users
@@ -55,6 +56,46 @@
                 }
             </MudButton>
         </EditForm>
+
+
+        @if (_twoFactorPending)
+        {
+            <MudPaper Class="pa-4 mt-4" Outlined="true" Style="border-radius:12px">
+                <MudText Typo="Typo.h6">Xác thực 2 lớp</MudText>
+                @if (_twoFactorSetup != null)
+                {
+                    <MudAlert Severity="Severity.Info" Class="my-3">
+                        Tài khoản này được SuperAdmin yêu cầu xác thực 2 lớp. Hãy mở Microsoft Authenticator hoặc Google Authenticator và quét mã QR bên dưới.
+                    </MudAlert>
+                    @if (!string.IsNullOrWhiteSpace(_twoFactorSetup.QrCodeDataUri))
+                    {
+                        <div class="d-flex justify-center my-3">
+                            <MudImage Src="@_twoFactorSetup.QrCodeDataUri"
+                                      Alt="QR đăng ký xác thực 2 lớp"
+                                      Width="220"
+                                      Height="220"
+                                      ObjectFit="ObjectFit.Contain" />
+                        </div>
+                    }
+                    <MudText Typo="Typo.caption">Tài khoản</MudText>
+                    <MudText Typo="Typo.body2" Class="mb-2"><b>@_twoFactorSetup.Account</b></MudText>
+                    <MudText Typo="Typo.caption">Khóa bí mật dự phòng (nhập thủ công nếu không quét được QR)</MudText>
+                    <MudText Typo="Typo.body1" Class="mb-2"><b>@_twoFactorSetup.Secret</b></MudText>
+                    <MudExpansionPanels Class="mt-2">
+                        <MudExpansionPanel Text="Xem URI cấu hình thủ công">
+                            <MudText Typo="Typo.caption" Style="word-break:break-all">@_twoFactorSetup.OtpAuthUri</MudText>
+                        </MudExpansionPanel>
+                    </MudExpansionPanels>
+                }
+                <MudTextField T="string" Label="Mã 6 số" @bind-Value="_twoFactorCode"
+                              Variant="Variant.Outlined" Margin="Margin.Dense" InputMode="InputMode.numeric"
+                              MaxLength="6" Class="mt-3" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true"
+                           OnClick="VerifyTwoFactorAsync" Disabled="_isProcessing || _twoFactorCode.Length != 6">
+                    XÁC THỰC &amp; ĐĂNG NHẬP
+                </MudButton>
+            </MudPaper>
+        }
 
         <div class="mt-6 d-flex flex-column align-center gap-2">
             <MudButton Variant="Variant.Text"
@@ -134,6 +175,10 @@
     private bool _sendingResetRequest;
     private InputType _passwordInput = InputType.Password;
     private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+    private bool _twoFactorPending;
+    private string _twoFactorChallenge = string.Empty;
+    private string _twoFactorCode = string.Empty;
+    private TwoFactorSetupDto? _twoFactorSetup;
 
     private void ToggleForgotPassword()
     {
@@ -192,21 +237,70 @@
             : Icons.Material.Filled.VisibilityOff;
     }
 
+
+    private async Task VerifyTwoFactorAsync()
+    {
+        if (string.IsNullOrWhiteSpace(_twoFactorChallenge) || _twoFactorCode.Length != 6) return;
+        _isProcessing = true;
+        try
+        {
+            var request = new TwoFactorVerifyRequest
+            {
+                ChallengeToken = _twoFactorChallenge,
+                Code = _twoFactorCode,
+                RememberMe = _model.RememberMe
+            };
+            var result = _twoFactorSetup != null
+                ? await AuthService.ConfirmTwoFactorSetupAsync(request)
+                : await AuthService.VerifyTwoFactorAsync(request);
+
+            if (result.IsSuccess && result.Data != null && !string.IsNullOrWhiteSpace(result.Data.Token))
+            {
+                await CompleteLoginAsync(result.Data);
+                return;
+            }
+
+            Snackbar.Add(result.Message ?? "Mã 2 lớp không đúng.", Severity.Error);
+        }
+        finally { _isProcessing = false; }
+    }
+
+    private async Task CompleteLoginAsync(AuthResultDto data)
+    {
+        await CurrentUserService.InitializeAsync(data.Token!);
+        if (AuthStateProvider is CustomAuthStateProvider provider)
+            provider.NotifyUserLogin(data.Token!);
+        Snackbar.Add("Xác thực thành công!", Severity.Success);
+        Navigation.NavigateTo("/", forceLoad: false);
+    }
+
     private async Task HandleLogin()
     {
         _isProcessing = true;
         try
         {
             var result = await AuthService.Login(_model.UserName, _model.Password);
-            if (result.IsSuccess && result.Data != null && !string.IsNullOrWhiteSpace(result.Data.Token))
+            if (result.IsSuccess && result.Data != null && result.Data.RequiresTwoFactor)
             {
-                await CurrentUserService.InitializeAsync(result.Data.Token);
+                _twoFactorPending = true;
+                _twoFactorChallenge = result.Data.TwoFactorChallengeToken ?? string.Empty;
+                _twoFactorCode = string.Empty;
 
-                if (AuthStateProvider is CustomAuthStateProvider provider)
-                    provider.NotifyUserLogin(result.Data.Token);
-
-                Snackbar.Add("Xác thực thành công!", Severity.Success);
-                Navigation.NavigateTo("/", forceLoad: false);
+                if (result.Data.TwoFactorSetupRequired)
+                {
+                    var setup = await AuthService.SetupTwoFactorAsync(_twoFactorChallenge);
+                    if (setup.IsSuccess) _twoFactorSetup = setup.Data;
+                    else Snackbar.Add(setup.Message ?? "Không thể khởi tạo 2 lớp.", Severity.Error);
+                }
+                else
+                {
+                    _twoFactorSetup = null;
+                    Snackbar.Add("Mật khẩu đúng. Vui lòng nhập mã 2 lớp.", Severity.Info);
+                }
+            }
+            else if (result.IsSuccess && result.Data != null && !string.IsNullOrWhiteSpace(result.Data.Token))
+            {
+                await CompleteLoginAsync(result.Data);
             }
             else
             {

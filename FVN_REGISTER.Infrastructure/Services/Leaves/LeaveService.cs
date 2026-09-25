@@ -265,6 +265,9 @@ namespace FVN_REGISTER.Infrastructure.Services.Leaves
                 if (IsFinalized(parent))
                     return ServiceResult.Fail("Đơn đã xử lý xong, không thể hủy chi tiết.");
 
+                if (await HasAnyApprovalDecisionAsync(parent.Id, ct))
+                    return ServiceResult.Fail("Đơn đã vào quy trình phê duyệt, không thể hủy riêng ngày nghỉ. Vui lòng hủy đơn và tạo lại nếu cần thay đổi.");
+
                 var removedValue = detail.DayValue;
                 var wasCounted = detail.IsCountedAsLeave;
                 detailRepo.Remove(detail);

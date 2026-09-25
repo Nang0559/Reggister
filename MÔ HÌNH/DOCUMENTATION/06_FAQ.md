@@ -1,136 +1,75 @@
 # FVN REGISTER — FAQ & TÌNH HUỐNG THƯỜNG GẶP
 
-## 1. Tôi nhận notification nhưng không thấy nút Approve?
+## 1. Tôi nhận notification nhưng không thấy Approve?
+Notification chỉ là delivery/read state. Request có thể đã được xử lý, chuyển cấp, bị từ chối hoặc bạn không còn là actor hiện tại.
 
-Có thể request đã được xử lý, đã chuyển cấp, đã bị Reject hoặc bạn không còn là actor hiện tại. Notification là delivery state, không đảm bảo request vẫn actionable.
+## 2. Tôi có quyền Approve nhưng không thấy request?
+Kiểm tra required step, trạng thái request, actor hiện tại và data scope. Có capability không đồng nghĩa có quyền xem mọi dữ liệu.
 
-## 2. Tôi không thấy một nhân viên khác?
+## 3. Approver thay đổi sau khi tôi Submit?
+Request đã Submit dùng Approval Snapshot tại thời điểm Submit. Cấu hình mới áp dụng cho request phù hợp sau đó; không sửa lịch sử snapshot cũ.
 
-Kiểm tra Data Scope. Quyền View/Approve không mặc định cho phép xem toàn hệ thống.
+## 4. Escalated có phải Rejected?
+**Không.** Escalated là system decision do timeout để chuyển sang cấp/actor tiếp theo theo workflow.
 
-```mermaid
-flowchart LR
-    USER[User] --> CAP[Capability]
-    CAP --> SCOPE[Data Scope]
-    SCOPE --> Q[Query]
-    Q --> RESULT[Visible records]
-```
+## 5. Approved OT có nghĩa đã làm đủ giờ OT?
+**Không.** Approved là Planned. Actual được lấy từ attendance/calculation chính thức và được reconciliation.
 
-## 3. Tôi có quyền Approve nhưng không thấy request?
+## 6. Ngày tương lai không có chấm công có phải lỗi?
+**Không.** Ngày tương lai chưa có Actual attendance là bình thường. Không tạo attendance mismatch chỉ vì ngày chưa tới.
 
-Kiểm tra:
-- Request đang ở đúng required step?
-- Request còn Pending?
-- Approver có đúng scope?
-- Request có bị xử lý bởi người khác?
-- Workflow có vừa chuyển cấp không?
+## 7. Calendar hiển thị Pending/Approved có phải Calendar là nguồn dữ liệu chính?
+Không. Calendar là projection/navigation. Trạng thái Pending/Approved/Rejected lấy từ business module source.
 
-## 4. Cấu hình approver thay đổi sau khi tôi gửi đơn?
+## 8. Tôi đã đăng ký OT nhưng Calendar vẫn cho đăng ký?
+Registration Opportunity phải bị suppress khi đã có registration tương ứng. Nếu UI không đồng nhất, kiểm tra refresh/projection và báo lỗi kèm ngày + mã request.
 
-Request đã Submit sử dụng Approval Snapshot tại thời điểm Submit. Cấu hình mới áp dụng cho request mới theo workflow.
+## 9. Dấu `?` màu đỏ là gì?
+Đó là **Issue marker** của Calendar. Nó biểu diễn case cần chú ý/xử lý; không phải một request mới. Click để xem Issue và ActionOption.
 
-## 5. Escalated có nghĩa là Rejected không?
-
-Không.
+## 10. Planned và Actual khác nhau thì sao?
+Reconciliation tạo/duy trì case mismatch theo policy. Có thể cần Confirmation, Evidence và HR Resolution.
 
 ```mermaid
 flowchart LR
-    P[Pending] -->|Timeout| E[Escalated]
-    E --> NEXT[Next required step]
-    P -->|Reject| R[Rejected / End]
-```
-
-Escalated là system decision để chuyển cấp.
-
-## 6. Action đã Completed thì request đã Approved?
-
-Không nhất thiết. Action là work item. Business status phải được kiểm tra ở module nguồn.
-
-## 7. Calendar hiển thị một sự kiện, tôi có thể coi đó là dữ liệu chính thức không?
-
-Không. Calendar là projection/navigation. Muốn biết trạng thái chính thức, mở request/business module.
-
-## 8. Approved OT có nghĩa là đã làm đủ số giờ đó?
-
-Không. Approved là Planned/được duyệt. Actual lấy từ attendance/official execution data và được reconciliation.
-
-## 9. Planned và Actual khác nhau thì sao?
-
-Hệ thống tạo/duy trì reconciliation theo policy.
-
-```mermaid
-flowchart TD
-    P[Planned] --> R[Reconciliation]
+    P[Approved Planned] --> R[Reconciliation]
     A[Actual] --> R
     R -->|Matched| OK[Resolved]
     R -->|Mismatch| C[Confirmation]
-    C --> E[Evidence if required]
-    E --> H[HR Review]
+    C --> E[Evidence / Review]
+    E --> H[HR Resolution]
     H --> OK
 ```
 
-## 10. Evidence bị Reject thì sao?
+## 11. Action Completed có giải quyết mismatch không?
+Không. Action là work item. Business result/reconciliation phải được xử lý theo workflow.
 
-Reconciliation chưa được coi là Resolved và Action không được tự động hoàn tất.
+## 12. Evidence bị Reject/NeedMoreEvidence?
+Reconciliation chưa được coi là Resolved và Action không tự động hoàn tất.
 
-## 11. HR chọn NG thì sao?
+## 13. HR có sửa trực tiếp attendance result không?
+Theo luồng chuẩn, không. Correction phải đi qua calculation pipeline và để lại audit.
 
-HR phải nhập Reason. Hệ thống lưu quyết định và thông báo người dùng.
+## 14. Tôi có View nhưng không Export được?
+Đúng theo thiết kế. View và Export là capability riêng.
 
-## 12. HR có sửa trực tiếp attendance result không?
+## 15. Tôi chọn DeptCode khác trên UI nhưng dữ liệu không hiện?
+UI filter không cấp quyền. Server vẫn áp dụng Data Scope.
 
-Không theo luồng chuẩn. Attendance correction phải đi qua correction/calculation pipeline.
+## 16. Không thấy Equipment?
+Kiểm tra capability/module assignment và data scope với Admin. Quyền dùng module và quyền approve là hai lớp khác nhau.
 
-## 13. Tôi có View nhưng không Export được báo cáo?
+## 17. QR đã in nhưng chưa scan/use được?
+QR có thể tồn tại trước approval nhưng chỉ active khi Equipment request được approval hoàn tất.
 
-Đúng theo thiết kế: View và Export là capability riêng.
+## 18. Repair đã nhập nhưng chưa thấy lịch sử chính thức?
+Repair History chính thức chỉ phản ánh repair đã qua workflow approval theo policy.
 
-## 14. Tôi chọn DeptCode khác trên màn hình nhưng dữ liệu vẫn không hiện?
+## 19. Payroll dùng kỳ nào?
+Kỳ hiện hành theo thiết kế là **ngày 21 → ngày 20**. Payroll input phải dựa trên dữ liệu đã tính và các readiness gate của kỳ.
 
-Client filter không thể mở rộng quyền. Server áp dụng Data Scope.
+## 20. Tôi gặp 401/403?
+401 thường liên quan authentication/session. 403 cho biết request đã xác thực nhưng capability/scope không cho phép thao tác. Liên hệ Admin/HR/IT theo loại vấn đề.
 
-## 15. Tôi không thấy module Equipment?
-
-Có thể user chưa được cấp function EquipmentModule hoặc dữ liệu nằm ngoài scope.
-
-## 16. QR thiết bị đã in nhưng chưa dùng được?
-
-QR token có thể được tạo ở Draft, nhưng QR chỉ active sau khi Equipment Registration được approval hoàn tất.
-
-## 17. Repair đã nhập nhưng không thấy trong lịch sử chính thức?
-
-Repair History chính thức chỉ phản ánh repair đã được duyệt theo workflow.
-
-## 18. Khi nào Payroll được prepare?
-
-Sau khi dữ liệu attendance/OT đã được tính và các điều kiện execution/reconciliation của kỳ được đáp ứng. Kỳ hiện hành là 21 → 20.
-
-## 19. Có thể đóng Action để bỏ qua reconciliation không?
-
-Không nên. Action chỉ là work item; đóng Action không giải quyết business mismatch. Reconciliation phải được xử lý theo workflow.
-
-## 20. Tôi gặp lỗi 403?
-
-403 thường có nghĩa authentication đã được nhận nhưng authorization/scope không cho phép thao tác. Kiểm tra capability và data scope với Admin/HR.
-
-## 21. Tôi nên liên hệ ai?
-
-```mermaid
-flowchart TD
-    Q[Need help] --> A{Loại vấn đề?}
-    A -->|Tài khoản / quyền| ADM[Admin]
-    A -->|Nghỉ / OT / Trip| HR[HR / Process owner]
-    A -->|Thiết bị| EQ[Equipment owner / Admin]
-    A -->|Approval| AP[Approver / Process owner]
-    A -->|Lỗi hệ thống| IT[IT / Support]
-```
-
-## 22. Checklist trước khi báo lỗi
-
-- Chụp màn hình lỗi.
-- Ghi module.
-- Ghi mã request nếu có.
-- Ghi thời điểm xảy ra.
-- Ghi thao tác ngay trước khi lỗi.
-- Không gửi mật khẩu/token.
-- Không tự thay đổi dữ liệu để thử bypass.
+## 21. Khi báo lỗi cần gửi gì?
+Module, thời điểm, thao tác, mã request nếu có và ảnh màn hình. Không gửi password, access token hoặc secret.

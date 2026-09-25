@@ -1,6 +1,8 @@
 using FVN_REGISTER.Application.Interfaces.Security;
+using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Security;
+using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Requests.Security;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Constants;
@@ -18,16 +20,19 @@ namespace FVN_REGISTER.API.Controllers;
 public sealed class SecurityController : BaseApiController
 {
     private readonly AppAuthorizationService _authorization;
+    private readonly ITwoFactorService _twoFactor;
 
     public SecurityController(
         IAuthorizationService authorization,
         ICurrentUserService currentUser,
         IUserLogService userLog,
         ILogger<SecurityController> logger,
-        IOptionsMonitor<FVN_REGISTER.Application.Configuration.AuthDebugOptions> options)
+        IOptionsMonitor<FVN_REGISTER.Application.Configuration.AuthDebugOptions> options,
+        ITwoFactorService twoFactor)
         : base(currentUser, userLog, logger, options)
     {
         _authorization = authorization;
+        _twoFactor = twoFactor;
     }
 
     [HttpGet("me")]
@@ -133,6 +138,48 @@ public sealed class SecurityController : BaseApiController
         }
     }
 
+
+    [HttpGet("users/2fa")]
+    public async Task<IActionResult> GetTwoFactorUsers(CancellationToken ct)
+    {
+        if (!await CanManageTwoFactorAsync(ct))
+            return Forbid();
+
+        var users = await _authorization.GetTwoFactorUsersAsync(ct);
+        return Ok(ApiResponse<List<TwoFactorAdminUserDto>>.Ok(users));
+    }
+
+    [HttpPut("users/{userId:int}/2fa-required")]
+    public async Task<IActionResult> SetTwoFactorRequired(
+        int userId,
+        [FromBody] TwoFactorRequirementRequest request,
+        CancellationToken ct)
+    {
+        if (UserInfo == null) return Unauthorized();
+        if (!await CanManageAsync(SecurityFunctionCodes.UserManagementManageTwoFactor, ct))
+            return Forbid();
+        if (userId == UserInfo.UserId)
+            return BadRequest(ApiResponse<object>.Fail("Không cho phép tự thay đổi chính sách 2 lớp của SuperAdmin."));
+
+        var result = await _twoFactor.SetRequiredAsync(userId, request.Required, UserInfo.UserId, ct);
+        if (result.IsSuccess)
+            await LogActionAsync($"{(request.Required ? "Bật" : "Tắt")} bắt buộc 2FA cho UserId={userId}");
+        return HandleResult(result);
+    }
+
+    [HttpPost("users/{userId:int}/2fa/reset")]
+    public async Task<IActionResult> ResetUserTwoFactor(int userId, CancellationToken ct)
+    {
+        if (UserInfo == null) return Unauthorized();
+        if (!await CanManageTwoFactorAsync(ct))
+            return Forbid();
+
+        var result = await _twoFactor.ResetAsync(userId, UserInfo.UserId, ct);
+        if (result.IsSuccess)
+            await LogActionAsync($"Reset 2FA cho UserId={userId}");
+        return HandleResult(result);
+    }
+
     [HttpGet("me/managed-employees")]
     public async Task<IActionResult> GetMyManagedEmployees(CancellationToken ct)
     {
@@ -195,6 +242,13 @@ public sealed class SecurityController : BaseApiController
         {
             return BadRequest(ApiResponse<object>.Fail(ex.Message));
         }
+    }
+
+    private async Task<bool> CanManageTwoFactorAsync(CancellationToken ct)
+    {
+        return UserInfo != null
+            && UserInfo.Permission == UserPermissionCodes.SuperAdmin
+            && await _authorization.HasAsync(UserInfo, SecurityFunctionCodes.UserManagementManageTwoFactor, ct);
     }
 
     private async Task<bool> CanManageAsync(int functionCode, CancellationToken ct)

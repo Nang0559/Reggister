@@ -4,6 +4,11 @@ namespace FVN_REGISTER.Application.Interfaces.Execution;
 
 public interface IExecutionReconciliationService
 {
+    Task<ExecutionReconciliationDto> EnsureAttendanceFeedbackAsync(
+        string employeeCode,
+        DateOnly workDate,
+        CancellationToken cancellationToken = default);
+
     Task<ExecutionReconciliationDto?> GetAsync(
         string employeeCode,
         long reconciliationId,

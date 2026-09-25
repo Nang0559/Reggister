@@ -1,0 +1,153 @@
+@page "/equipment/inspection"
+@page "/equipment/inspection/{TaskId:int}"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Equipment
+@using Microsoft.AspNetCore.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@inherits AppComponentBase
+@inject FVN_REGISTER.Shared.Services.Equipment.IEquipmentClientService EquipmentClient
+@inject ISnackbar Snackbar
+@using Microsoft.AspNetCore.Components
+
+<PageTitle>Kiểm tra thiết bị</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="py-5">
+    <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
+        <div><MudText Typo="Typo.h4">Kiểm tra thiết bị</MudText><MudText Typo="Typo.body2" Class="mud-text-secondary">Checklist được tạo tự động theo thiết bị đã được phân công.</MudText></div>
+        <MudButton Variant="Variant.Outlined" OnClick="LoadAsync">Làm mới</MudButton>
+    </MudStack>
+
+    @if (_tasks.Count == 0)
+    {
+        <MudAlert Severity="Severity.Info" Class="mt-4">Hiện không có checklist cần xử lý.</MudAlert>
+    }
+    else
+    {
+        <MudTable Items="_tasks" Hover="true" Dense="true" Class="mt-4">
+            <HeaderContent><MudTh>Hạn</MudTh><MudTh>Thiết bị</MudTh><MudTh>Checklist</MudTh><MudTh>Trạng thái</MudTh><MudTh>Kết quả</MudTh><MudTh></MudTh></HeaderContent>
+            <RowTemplate><MudTd>@context.DueAt.ToString("dd/MM/yyyy HH:mm")</MudTd><MudTd>@context.EquipmentCode</MudTd><MudTd>@context.TemplateName v@context.TemplateVersion</MudTd><MudTd>@context.Status</MudTd><MudTd>@context.Result</MudTd><MudTd><MudButton Size="Size.Small" OnClick="@(() => OpenTaskAsync(context.Id))">Mở</MudButton></MudTd></RowTemplate>
+        </MudTable>
+    }
+
+    @if (_task != null)
+    {
+        <MudPaper Class="pa-5 mt-5" Outlined="true">
+            <MudText Typo="Typo.h5">@_task.EquipmentCode – @_task.EquipmentName</MudText>
+            <MudText Typo="Typo.body2">Checklist: @_task.TemplateName v@_task.TemplateVersion • Hạn: @_task.DueAt.ToString("dd/MM/yyyy HH:mm")</MudText>
+            <MudDivider Class="my-4" />
+            @foreach (var item in _task.Items)
+            {
+                <MudPaper Class="pa-3 my-3" Outlined="true">
+                    <MudText Typo="Typo.subtitle1">@item.ItemLabel @if (item.IsRequired) { <span>*</span> }</MudText>
+                    @if (item.InputType == "Number")
+                    {
+                        <MudNumericField T="decimal?" @bind-Value="item.ValueNumber" Label="@item.Unit" Variant="Variant.Outlined" />
+                    }
+                    else if (item.InputType == "Text")
+                    {
+                        <MudTextField @bind-Value="item.ValueText" Label="Ghi chú" Variant="Variant.Outlined" />
+                    }
+                    else
+                    {
+                        <MudRadioGroup T="bool?" @bind-Value="item.Passed">
+                            <MudRadio Value="@((bool?)true)">Đạt</MudRadio>
+                            <MudRadio Value="@((bool?)false)">Không đạt</MudRadio>
+                            <MudRadio Value="@((bool?)null)">N/A</MudRadio>
+                        </MudRadioGroup>
+                    }
+                    <MudTextField @bind-Value="item.Note" Label="Ghi chú" Variant="Variant.Outlined" Class="mt-2" />
+                    @if (item.RequireImage)
+                    {
+                        <MudAlert Severity="Severity.Info" Class="mt-2">Hạng mục yêu cầu tối thiểu @item.MinImages ảnh.</MudAlert>
+                        <InputFile OnChange="@(e => UploadEvidenceAsync(item, e))" accept="image/*" capture="environment" />
+                        @foreach (var image in item.Evidence)
+                        {
+                            <MudChip T="string" Class="ma-1">@image.FileName</MudChip>
+                        }
+                    }
+                </MudPaper>
+            }
+            <MudSelect T="string" @bind-Value="_task.Result" Label="Kết quả tổng" Variant="Variant.Outlined">
+                <MudSelectItem Value="@("Passed")">Đạt</MudSelectItem>
+                <MudSelectItem Value="@("Failed")">Không đạt</MudSelectItem>
+                <MudSelectItem Value="@("Conditional")">Đạt có điều kiện</MudSelectItem>
+            </MudSelect>
+            <MudStack Row="true" Class="mt-4">
+                @if (_task.Status != "Approved" && _task.Status != "WaitingApproval")
+                {
+                    <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="SubmitAsync">Gửi phê duyệt</MudButton>
+                }
+                @if (_task.Status == "WaitingApproval")
+                {
+                    <MudButton Color="Color.Success" Variant="Variant.Filled" OnClick="ApproveAsync">Phê duyệt</MudButton>
+                    <MudButton Color="Color.Error" Variant="Variant.Outlined" OnClick="RejectAsync">Từ chối</MudButton>
+                }
+            </MudStack>
+        </MudPaper>
+    }
+</MudContainer>
+
+@code {
+    [SupplyParameterFromQuery(Name = "equipmentId")]
+    public int? EquipmentId { get; set; }
+    [Parameter] public int? TaskId { get; set; }
+    private List<EquipmentInspectionTaskDto> _tasks = new();
+    private EquipmentInspectionTaskDto? _task;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAsync();
+        if (TaskId.HasValue)
+            await OpenTaskAsync(TaskId.Value);
+    }
+
+    private async Task LoadAsync()
+    {
+        var r = await EquipmentClient.GetInspectionTasksAsync();
+        if (r.IsSuccess) _tasks = (r.Data ?? new()).Where(x => !EquipmentId.HasValue || x.EquipmentId == EquipmentId.Value).ToList(); else Snackbar.Add(r.Message ?? "Không tải được checklist.", Severity.Error);
+        if (_task != null)
+        {
+            var current = await EquipmentClient.GetInspectionTaskAsync(_task.Id);
+            if (current.IsSuccess) _task = current.Data;
+        }
+    }
+    private async Task OpenTaskAsync(int id)
+    {
+        var r = await EquipmentClient.GetInspectionTaskAsync(id);
+        if (r.IsSuccess) _task = r.Data; else Snackbar.Add(r.Message ?? "Không tải được checklist.", Severity.Error);
+    }
+    private async Task UploadEvidenceAsync(EquipmentInspectionItemResultDto item, InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file == null || _task == null) return;
+        var r = await EquipmentClient.UploadInspectionEvidenceAsync(_task.Id, item.ItemId, file);
+        if (r.IsSuccess)
+        {
+            item.Evidence.Add(r.Data!);
+            Snackbar.Add("Đã lưu hình ảnh kiểm tra.", Severity.Success);
+        }
+        else Snackbar.Add(r.Message ?? "Không tải được hình ảnh.", Severity.Error);
+    }
+    private async Task SubmitAsync()
+    {
+        if (_task == null) return;
+        var r = await EquipmentClient.SubmitInspectionAsync(new EquipmentInspectionSubmitRequest { TaskId=_task.Id, Result=_task.Result, Items=_task.Items });
+        Snackbar.Add(r.IsSuccess ? "Đã gửi checklist chờ approve." : (r.Message ?? "Không thể gửi checklist."), r.IsSuccess ? Severity.Success : Severity.Error);
+        if (r.IsSuccess) { _task = r.Data; await LoadAsync(); }
+    }
+    private async Task ApproveAsync()
+    {
+        if (_task == null) return;
+        var r = await EquipmentClient.ApproveInspectionAsync(_task.Id);
+        Snackbar.Add(r.IsSuccess ? "Đã approve checklist." : (r.Message ?? "Không thể approve."), r.IsSuccess ? Severity.Success : Severity.Error);
+        if (r.IsSuccess) { _task = r.Data; await LoadAsync(); }
+    }
+    private async Task RejectAsync()
+    {
+        if (_task == null) return;
+        var reason = "Yêu cầu kiểm tra lại.";
+        var r = await EquipmentClient.RejectInspectionAsync(_task.Id, reason);
+        Snackbar.Add(r.IsSuccess ? "Đã từ chối checklist." : (r.Message ?? "Không thể từ chối."), r.IsSuccess ? Severity.Success : Severity.Error);
+        if (r.IsSuccess) { _task = r.Data; await LoadAsync(); }
+    }
+}

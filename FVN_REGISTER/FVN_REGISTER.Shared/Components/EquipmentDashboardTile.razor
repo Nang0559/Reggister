@@ -1,37 +1,58 @@
+@using FVN_REGISTER.Contract.Dtos.Equipment
 @using FVN_REGISTER.Core.Constants
+@using FVN_REGISTER.Shared.Services.Equipment
 @using FVN_REGISTER.Shared.Services.Users
+@inject IEquipmentClientService Equipment
 @inject ICurrentUserClientService CurrentUser
 @inject NavigationManager Navigation
 
-@if (CurrentUser.User?.IsAdmin == true ||
-     CurrentUser.User?.Functions.Contains(SecurityFunctionCodes.EquipmentView) == true)
+@if (_loaded && (_assets.Count > 0 || CurrentUser.User?.IsAdmin == true || CurrentUser.User?.Functions.Contains(SecurityFunctionCodes.EquipmentView) == true))
 {
-    <MudCard Elevation="3"
-             Class="mb-4"
-             Style="cursor:pointer"
-             @onclick='() => Navigation.NavigateTo("/equipment")'>
-
-        <MudCardContent>
-            <MudStack Row="true"
-                      AlignItems="AlignItems.Center"
-                      Spacing="3">
-
-                <MudIcon Icon="@Icons.Material.Filled.Devices"
-                         Size="Size.Large" />
-
-                <MudStack Spacing="0">
-                    <MudText Typo="Typo.h6">
-                        Sổ quản lý thiết bị
-                    </MudText>
-
-                    <MudText Typo="Typo.body2"
-                             Color="Color.Secondary">
-                        Đăng ký thiết bị • QR • lịch sử sửa chữa
-                    </MudText>
-                </MudStack>
-
-            </MudStack>
-        </MudCardContent>
-    </MudCard>
+    <MudPaper Outlined="true" Class="mb-4 pa-4" Style="border-radius:18px">
+        <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-3">
+            <div>
+                <MudText Typo="Typo.h6">Thiết bị tôi đang phụ trách</MudText>
+                <MudText Typo="Typo.body2" Class="mud-text-secondary">Thiết bị được giao trực tiếp hoặc phân công vận hành.</MudText>
+            </div>
+            <MudButton Variant="Variant.Outlined" OnClick="@(() => Navigation.NavigateTo("/equipment"))">Sổ thiết bị</MudButton>
+        </MudStack>
+        @if (_assets.Count == 0)
+        {
+            <MudText Typo="Typo.body2">Chưa có thiết bị được giao.</MudText>
+        }
+        else
+        {
+            <MudGrid>
+                @foreach (var asset in _assets)
+                {
+                    <MudItem xs="12" sm="6" md="4">
+                        <MudCard Outlined="true" Style="height:100%">
+                            <MudCardContent>
+                                <MudText Typo="Typo.subtitle1">@asset.EquipmentName</MudText>
+                                <MudText Typo="Typo.caption">@asset.EquipmentCode • @asset.AssetCode</MudText>
+                                <MudText Typo="Typo.body2" Class="mt-2">Bộ phận: @asset.DeptCode</MudText>
+                                <MudText Typo="Typo.body2">Vị trí: @asset.Location</MudText>
+                                <MudText Typo="Typo.body2">Vai trò: @(string.Equals(asset.ResponsibleEmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase) ? "Người phụ trách" : "Người vận hành")</MudText>
+                                @if (CurrentUser.User?.Functions.Contains(SecurityFunctionCodes.EquipmentRepair) == true)
+                                {
+                                    <MudButton Size="Size.Small" Variant="Variant.Filled" Class="mt-3" OnClick="@(() => Navigation.NavigateTo("/equipment"))">Yêu cầu sửa chữa</MudButton>
+                                }
+                            </MudCardContent>
+                        </MudCard>
+                    </MudItem>
+                }
+            </MudGrid>
+        }
+    </MudPaper>
 }
 
+@code {
+    private List<EquipmentAssetDto> _assets = new();
+    private bool _loaded;
+    protected override async Task OnInitializedAsync()
+    {
+        var r = await Equipment.GetMyAssignedAssetsAsync();
+        if (r.IsSuccess) _assets = r.Data ?? new();
+        _loaded = true;
+    }
+}

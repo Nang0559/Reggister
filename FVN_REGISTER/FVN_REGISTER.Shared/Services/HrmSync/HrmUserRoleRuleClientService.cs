@@ -1,4 +1,6 @@
 using FVN_REGISTER.Contract.Dtos.HrmSync;
+using FVN_REGISTER.Contract.Dtos.Positions;
+using FVN_REGISTER.Contract.Dtos.Depts;
 using FVN_REGISTER.Contract.Requests.HrmSync;
 using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Shared.Handlers;
@@ -14,6 +16,12 @@ public sealed class HrmUserRoleRuleClientService : IHrmUserRoleRuleClientService
 
     public Task<ApiResponse<List<HrmUserRoleRuleDto>>> GetAllAsync(CancellationToken ct = default)
         => _http.GetAsync<List<HrmUserRoleRuleDto>>(Base, ct);
+
+    public Task<ApiResponse<List<DepartmentDto>>> GetDepartmentsAsync(CancellationToken ct = default)
+        => _http.GetAsync<List<DepartmentDto>>($"{Base}/departments", ct);
+
+    public Task<ApiResponse<List<PositionDto>>> GetPositionsAsync(CancellationToken ct = default)
+        => _http.GetAsync<List<PositionDto>>($"{Base}/positions", ct);
 
     public Task<ApiResponse<HrmUserRoleRuleDto>> CreateAsync(HrmUserRoleRuleRequest request, CancellationToken ct = default)
         => _http.PostAsync<HrmUserRoleRuleDto>(Base, request, ct);

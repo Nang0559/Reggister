@@ -1164,3 +1164,36 @@ Action không mang Evidence payload. Luồng đọc là:
 The visual marker `?` is the presentation of an Issue. It is not a calendar Event identity.
 
 
+
+## 24B — Documentation synchronization contract
+
+`24_WORK_CALENDAR_AND_ACTION_IMPLEMENTATION.md` là source of truth cho runtime architecture và Work Calendar/Action. Tài liệu người dùng không được tạo một architecture model khác.
+
+Documentation Hub: `MÔ HÌNH/DOCUMENTATION/00_INDEX.md`.
+Documentation standard: `MÔ HÌNH/DOCUMENTATION/08_DOCUMENTATION_STANDARD.md`.
+
+### Synchronization order
+
+```mermaid
+flowchart LR
+    RULE[Architecture / Business Rule] --> IMPL[Implementation]
+    IMPL --> USER[User Guide]
+    USER --> FAQ[Quick Guide / FAQ]
+    FAQ --> PR[Presentation / README]
+    PR --> CHECK[Cross-document check]
+```
+
+### Current wording contract
+
+- Calendar = projection/navigation.
+- Registration = tạo request nghiệp vụ.
+- Confirmation = xử lý mismatch đã tồn tại.
+- Action = work item; không phải business result.
+- Notification = delivery/read state; không phải approval.
+- Approved = Planned business state; không đồng nghĩa Actual.
+- Future date chưa có Actual attendance là trạng thái bình thường.
+- Request đã tồn tại có thể hiển thị request/approval status lấy từ source contract.
+- Issue marker `?` biểu diễn Calendar Issue; không phải Event identity.
+- Capability và Data Scope là hai lớp authorization độc lập.
+
+Any future change to these definitions must update this section first and then the user-facing documentation in the same change set where practical.

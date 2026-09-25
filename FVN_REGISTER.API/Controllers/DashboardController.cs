@@ -14,16 +14,19 @@ namespace FVN_REGISTER.API.Controllers
     public class DashboardController : BaseApiController
     {
         private readonly IDashboardOrchestrator _dashboardOrchestrator;
+        private readonly FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService _authorization;
 
         public DashboardController(
             ICurrentUserService currentUser,
             IUserLogService userLog,
             ILogger<DashboardController> logger,
             IOptionsMonitor<AuthDebugOptions> options,
-            IDashboardOrchestrator dashboardOrchestrator)
+            IDashboardOrchestrator dashboardOrchestrator,
+            FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService authorization)
             : base(currentUser, userLog, logger, options)
         {
             _dashboardOrchestrator = dashboardOrchestrator;
+            _authorization = authorization;
         }
 
         [HttpGet]
@@ -31,6 +34,8 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (UserInfo == null)
                 return Unauthorized(ApiResponse<object>.Fail("Phiên đăng nhập không hợp lệ hoặc đã hết hạn."));
+            if (!await _authorization.HasAsync(UserInfo, FVN_REGISTER.Core.Constants.SecurityFunctionCodes.DashboardView, ct))
+                return Forbid();
 
             var result = await _dashboardOrchestrator.BuildAsync(UserInfo, ct);
             await LogActionAsync("Xem dữ liệu Dashboard");

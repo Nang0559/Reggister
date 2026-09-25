@@ -1,4 +1,5 @@
 using FVN_REGISTER.Contract.Dtos.Security;
+using FVN_REGISTER.Contract.Dtos.Authentication;
 using FVN_REGISTER.Contract.Requests.Security;
 using FVN_REGISTER.Contract.Responses;
 
@@ -17,4 +18,13 @@ public interface ISecurityClientService
     Task<ApiResponse<List<ManagedEmployeeDto>>> GetManagedEmployeesAsync(int userId, CancellationToken ct = default);
     Task<ApiResponse<List<ManagedEmployeeDto>>> GetMyManagedEmployeesAsync(CancellationToken ct = default);
     Task<ApiResponse<EffectivePermissionPreviewDto>> GetEffectivePermissionPreviewAsync(int userId, CancellationToken ct = default);
+    Task<ApiResponse<List<FeatureOperatorAssignmentDto>>> GetFeatureOperatorsAsync(int functionCode, string resourceType, int? resourceId = null, CancellationToken ct = default);
+    Task<ApiResponse<List<FeatureOperatorEmployeeDto>>> GetFeatureOperatorEmployeesAsync(string? search = null, CancellationToken ct = default);
+    Task<ApiResponse<List<FeatureOperatorResourceDto>>> GetFeatureOperatorResourcesAsync(string resourceType, CancellationToken ct = default);
+    Task<ApiResponse<FeatureOperatorAssignmentDto>> AddFeatureOperatorAsync(SaveFeatureOperatorAssignmentRequest request, CancellationToken ct = default);
+    Task<ApiResponse<object>> RemoveFeatureOperatorAsync(int id, CancellationToken ct = default);
+    Task<ApiResponse<List<TwoFactorAdminUserDto>>> GetTwoFactorUsersAsync(CancellationToken ct = default);
+    Task<ApiResponse<object>> SetTwoFactorRequiredAsync(int userId, bool required, CancellationToken ct = default);
+    Task<ApiResponse<object>> ResetTwoFactorAsync(int userId, CancellationToken ct = default);
+    Task<ApiResponse<List<SecurityAuditEntryDto>>> GetSecurityAuditAsync(DateTime? from = null, DateTime? to = null, string? search = null, CancellationToken ct = default);
 }

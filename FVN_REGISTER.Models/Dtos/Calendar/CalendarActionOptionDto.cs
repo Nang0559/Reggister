@@ -1,3 +1,4 @@
+
 namespace FVN_REGISTER.Contract.Dtos.Calendar;
 
 public sealed class CalendarActionOptionDto
@@ -8,6 +9,7 @@ public sealed class CalendarActionOptionDto
     public string Kind { get; init; } = "NAVIGATION";
     public string? DetailRoute { get; init; }
     public int? RequestId { get; init; }
+    public long? ReconciliationId { get; init; }
     public bool RequiresReason { get; init; }
     public bool RequiresAttachment { get; init; }
 }

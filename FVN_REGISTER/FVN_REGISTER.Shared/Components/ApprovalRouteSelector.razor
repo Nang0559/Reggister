@@ -33,11 +33,10 @@
                 else if (level.Candidates.Count == 1)
                 {
                     <MudText Typo="Typo.body2">
-                        @level.Candidates[0].ApproverName
-                        (@level.Candidates[0].ApproverCode)
+                        @level.Candidates[0].ApproverCode — @level.Candidates[0].ApproverName
                     </MudText>
                     <MudText Typo="Typo.caption" Color="Color.Secondary">
-                        @level.Candidates[0].PositionName
+                        @level.Candidates[0].PositionCode — @level.Candidates[0].PositionName
                     </MudText>
                 }
                 else
@@ -51,10 +50,10 @@
                         @foreach (var candidate in level.Candidates)
                         {
                             <MudSelectItem Value="@candidate.ApproverCode">
-                                @candidate.ApproverName (@candidate.ApproverCode)
+                                @candidate.ApproverCode — @candidate.ApproverName
                                 @if (!string.IsNullOrWhiteSpace(candidate.PositionName))
                                 {
-                                    <text> — @candidate.PositionName</text>
+                                    <text> — @candidate.PositionCode — @candidate.PositionName</text>
                                 }
                             </MudSelectItem>
                         }

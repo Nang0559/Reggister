@@ -1,5 +1,7 @@
 @using FVN_REGISTER.Contract.Dtos.Depts
 @using FVN_REGISTER.Contract.Dtos.Employees
+@using FVN_REGISTER.Contract.Dtos.Approvals
+@using FVN_REGISTER.Shared.Services.Approvals
 @using FVN_REGISTER.Shared.Services.Employees
 
 <MudDialog>
@@ -43,7 +45,23 @@
                                RequiredError="Chọn bộ phận">
                         @foreach (var dept in Departments)
                         {
-                            <MudSelectItem Value="@dept.DeptCode">@dept.DeptName</MudSelectItem>
+                            <MudSelectItem Value="@dept.DeptCode">@dept.DeptCode — @dept.DeptName</MudSelectItem>
+                        }
+                    </MudSelect>
+                </MudItem>
+
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="string"
+                               Label="Chức vụ (*)"
+                               @bind-Value="Model.PositionCode"
+                               Variant="Variant.Outlined"
+                               Required="true"
+                               RequiredError="Chọn chức vụ">
+                        @foreach (var position in _positions)
+                        {
+                            <MudSelectItem Value="@position.PositionCode">
+                                @position.PositionCode — @position.PositionName
+                            </MudSelectItem>
                         }
                     </MudSelect>
                 </MudItem>
@@ -142,6 +160,7 @@
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
 
     [Inject] private IEmployeeManagementClientService EmployeeService { get; set; } = default!;
+    [Inject] private IApprovalPolicyClientService ApprovalPolicyService { get; set; } = default!;
     [Inject] private ISnackbar Snackbar { get; set; } = default!;
 
     [Parameter] public EmployeeUpsertDto Model { get; set; } = new() { IsActive = true };
@@ -150,6 +169,16 @@
 
     private MudForm _form = default!;
     private bool _isSaving;
+    private List<ApprovalPolicyPositionDto> _positions = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var result = await ApprovalPolicyService.GetPositionsAsync();
+        if (result.IsSuccess)
+            _positions = result.Data?.Where(x => x.IsActive).OrderBy(x => x.PositionCode).ToList() ?? new();
+        else
+            Snackbar.Add(result.Message ?? "Không tải được danh sách chức vụ.", Severity.Error);
+    }
 
     private async Task Submit()
     {

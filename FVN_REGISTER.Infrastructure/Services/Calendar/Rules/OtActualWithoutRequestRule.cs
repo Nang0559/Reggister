@@ -18,6 +18,9 @@ public sealed class OtActualWithoutRequestRule : ICalendarDayRule
             return Array.Empty<CalendarIssueDto>();
 
         var source = context.SourceItems.FirstOrDefault(x => x.ModuleCode == "OT" && x.RequiresAction);
+        long? reconciliationId = long.TryParse(source?.SourceId, out var parsedReconciliationId)
+            ? parsedReconciliationId
+            : null;
 
         return new[]
         {
@@ -41,6 +44,7 @@ public sealed class OtActualWithoutRequestRule : ICalendarDayRule
                         Description = "Báo cho nhân sự về OT thực tế chưa có đăng ký.",
                         Kind = "FORM",
                         DetailRoute = source?.DetailRoute,
+                        ReconciliationId = reconciliationId,
                         RequiresReason = true,
                         RequiresAttachment = true
                     },

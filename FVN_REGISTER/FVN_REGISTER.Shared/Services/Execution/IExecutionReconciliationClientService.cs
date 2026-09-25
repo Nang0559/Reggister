@@ -6,6 +6,10 @@ namespace FVN_REGISTER.Shared.Services.Execution;
 
 public interface IExecutionReconciliationClientService
 {
+    Task<ApiResponse<ExecutionReconciliationDto>> EnsureAttendanceFeedbackAsync(
+        DateOnly workDate,
+        CancellationToken ct = default);
+
     Task<ApiResponse<IReadOnlyList<ExecutionReconciliationDto>>> GetMineAsync(
         DateOnly from,
         DateOnly to,

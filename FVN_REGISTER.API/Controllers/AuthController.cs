@@ -19,12 +19,14 @@ namespace FVN_REGISTER.API.Controllers
     {
         private readonly IAuthService _authService;
         private readonly ISessionService _sessionService;
+        private readonly ITwoFactorService _twoFactorService;
 
-        public AuthController(IAuthService authService, ISessionService sessionService, ICurrentUserService currentUser, IUserLogService userLog, ILogger<AuthController> logger, IOptionsMonitor<AuthDebugOptions> options)
+        public AuthController(IAuthService authService, ISessionService sessionService, ITwoFactorService twoFactorService, ICurrentUserService currentUser, IUserLogService userLog, ILogger<AuthController> logger, IOptionsMonitor<AuthDebugOptions> options)
             : base(currentUser, userLog, logger, options)
         {
             _authService = authService;
             _sessionService = sessionService;
+            _twoFactorService = twoFactorService;
         }
 
         [HttpPost("login")]
@@ -33,8 +35,49 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Dữ liệu không hợp lệ"));
             var result = await _authService.Login(model.UserName, model.Password, model.DeviceId, model.DeviceType, model.DeviceName, model.RememberMe, HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString(), ct);
-            if (result.IsSuccess && result.Data != null) await _userLog.UpdateLastSeenAsync(result.Data.UserId, "Đăng nhập hệ thống", Path);
+            if (result.IsSuccess && result.Data != null && !string.IsNullOrWhiteSpace(result.Data.Token)) await _userLog.UpdateLastSeenAsync(result.Data.UserId, "Đăng nhập hệ thống", Path);
             return HandleResult(result);
+        }
+
+
+        [HttpPost("2fa/verify")]
+        [AllowAnonymous]
+        public async Task<IActionResult> VerifyTwoFactor([FromBody] TwoFactorVerifyRequest request, CancellationToken ct)
+        {
+            if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Mã xác thực không hợp lệ."));
+            var result = await _authService.CompleteTwoFactorLoginAsync(
+                request.ChallengeToken, request.Code, request.RememberMe,
+                HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString(), ct);
+            return HandleResult(result);
+        }
+
+        [HttpPost("2fa/setup")]
+        [AllowAnonymous]
+        public async Task<IActionResult> SetupTwoFactor([FromBody] TwoFactorSetupRequest request, CancellationToken ct)
+        {
+            if (string.IsNullOrWhiteSpace(request.ChallengeToken)) return BadRequest(ApiResponse<object>.Fail("Thiếu phiên xác thực."));
+            return HandleResult(await _twoFactorService.BeginSetupFromChallengeAsync(request.ChallengeToken, ct));
+        }
+
+        [HttpPost("2fa/setup-confirm")]
+        [AllowAnonymous]
+        public async Task<IActionResult> ConfirmTwoFactorSetup([FromBody] TwoFactorVerifyRequest request, CancellationToken ct)
+        {
+            if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Mã xác thực không hợp lệ."));
+            var enabled = await _twoFactorService.ConfirmSetupFromChallengeAsync(request.ChallengeToken, request.Code, ct);
+            if (!enabled.IsSuccess || enabled.Data == null) return HandleResult(enabled);
+            var login = await _authService.CompleteTwoFactorLoginAsync(
+                request.ChallengeToken, request.Code, request.RememberMe,
+                HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString(), ct);
+            return HandleResult(login);
+        }
+
+        [HttpGet("2fa/status")]
+        [Authorize]
+        public async Task<IActionResult> TwoFactorStatus(CancellationToken ct)
+        {
+            if (UserInfo == null) return Unauthorized();
+            return HandleResult(await _twoFactorService.GetStatusAsync(UserInfo.UserId, ct));
         }
 
         [HttpPost("refresh")]

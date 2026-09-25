@@ -461,6 +461,23 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
         int userId,
         CancellationToken ct = default)
     {
+        var active = await _uow.Repository<F03User>().Query()
+            .AsNoTracking()
+            .Where(x => x.Id == userId)
+            .Select(x => (bool?)x.IsActive)
+            .FirstOrDefaultAsync(ct);
+
+        if (active != true)
+        {
+            return new PermissionSnapshotDto
+            {
+                UserId = userId,
+                RoleCodes = new List<int>(),
+                Functions = new List<SecurityFunctionDto>(),
+                FunctionCodes = new HashSet<int>()
+            };
+        }
+
         var roleCodes = await (
             from ur in _uow.Repository<F03UserRole>().Query().AsNoTracking()
             join r in _uow.Repository<F03Role>().Query().AsNoTracking()
@@ -577,6 +594,49 @@ public sealed class AuthorizationService : BaseService<AuthorizationService>, IA
                 DisplayOrder = x.DisplayOrder
             })
             .ToListAsync(ct);
+    }
+
+    public async Task<List<TwoFactorAdminUserDto>> GetTwoFactorUsersAsync(CancellationToken ct = default)
+    {
+        var users = await _uow.Repository<F03User>().Query()
+            .AsNoTracking()
+            .OrderBy(x => x.EmployeeCode)
+            .ToListAsync(ct);
+
+        var deptCodes = users.Select(x => x.DeptCode)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct()
+            .ToList();
+        var positionCodes = users.Select(x => x.Cvcode)
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .Distinct()
+            .ToList();
+
+        var deptNames = await _uow.Repository<F03Department>().Query()
+            .AsNoTracking()
+            .Where(x => deptCodes.Contains(x.DeptCode))
+            .ToDictionaryAsync(x => x.DeptCode, x => x.DeptName, ct);
+
+        var positionNames = await _uow.Repository<F03Position>().Query()
+            .AsNoTracking()
+            .Where(x => positionCodes.Contains(x.PositionCode))
+            .ToDictionaryAsync(x => x.PositionCode, x => x.PositionName, ct);
+
+        return users.Select(x => new TwoFactorAdminUserDto
+        {
+            UserId = x.Id,
+            EmployeeCode = x.EmployeeCode,
+            FullName = x.FullName,
+            DeptCode = x.DeptCode,
+            DeptName = x.DeptCode != null ? deptNames.GetValueOrDefault(x.DeptCode) : null,
+            PositionCode = x.Cvcode,
+            PositionName = x.Cvcode != null ? positionNames.GetValueOrDefault(x.Cvcode) : null,
+            IsActive = x.IsActive == true,
+            Required = x.TwoFactorRequired,
+            Enabled = x.TwoFactorEnabled,
+            RequiredAt = x.TwoFactorRequiredAt,
+            EnabledAt = x.TwoFactorEnabledAt
+        }).ToList();
     }
 
     public async Task<PermissionSnapshotDto> SetUserRolesAsync(

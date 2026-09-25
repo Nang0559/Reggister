@@ -1,16 +1,144 @@
 @implements IAsyncDisposable
 @inject IJSRuntime JS
+@inject ISnackbar Snackbar
 
 <MudPaper Class="pa-3">
-    <video @ref="_video" autoplay playsinline muted style="width:100%;max-width:520px;border-radius:12px"></video>
-    <MudStack Row="true" Class="mt-2"><MudButton Variant="Variant.Filled" OnClick="StartAsync" Disabled="_running">Bật camera quét QR</MudButton><MudButton Variant="Variant.Outlined" OnClick="StopAsync" Disabled="!_running">Dừng</MudButton></MudStack>
+    <MudStack Spacing="2">
+        <MudText Typo="Typo.subtitle2">Quét QR thiết bị</MudText>
+
+        <video @ref="_video"
+               autoplay
+               playsinline
+               muted
+               style="width:100%;max-width:520px;min-height:240px;object-fit:cover;border-radius:12px;background:#111"></video>
+
+        @if (!string.IsNullOrWhiteSpace(_message))
+        {
+            <MudAlert Severity="@_severity" Variant="Variant.Outlined">@_message</MudAlert>
+        }
+
+        <MudStack Row="true" Spacing="2">
+            <MudButton Variant="Variant.Filled"
+                       Color="Color.Primary"
+                       OnClick="StartAsync"
+                       Disabled="_running || _starting">
+                @(_starting ? "Đang mở camera..." : "Bật camera quét QR")
+            </MudButton>
+            <MudButton Variant="Variant.Outlined"
+                       OnClick="StopAsync"
+                       Disabled="!_running && !_starting">
+                Dừng
+            </MudButton>
+        </MudStack>
+    </MudStack>
 </MudPaper>
 
 @code {
     [Parameter] public EventCallback<string> OnDetected { get; set; }
-    private ElementReference _video; private IJSObjectReference? _module; private bool _running;
-    protected override async Task OnAfterRenderAsync(bool firstRender) { if (firstRender) _module = await JS.InvokeAsync<IJSObjectReference>("import", "./_content/FVN_REGISTER.Shared/js/equipment-qr.js"); }
-    private async Task StartAsync() { if (_module == null) return; _running = true; StateHasChanged(); var value = await _module.InvokeAsync<string?>("startQrScanner", _video); if (!string.IsNullOrWhiteSpace(value)) await OnDetected.InvokeAsync(value); _running = false; StateHasChanged(); }
-    private async Task StopAsync() { if (_module != null) await _module.InvokeVoidAsync("stopQrScanner", _video); _running = false; }
-    public async ValueTask DisposeAsync() { if (_module != null) { try { await _module.InvokeVoidAsync("stopQrScanner", _video); await _module.DisposeAsync(); } catch { } } }
+
+    private ElementReference _video;
+    private IJSObjectReference? _module;
+    private bool _running;
+    private bool _starting;
+    private string? _message;
+    private Severity _severity = Severity.Info;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender) return;
+
+        try
+        {
+            _module = await JS.InvokeAsync<IJSObjectReference>(
+                "import",
+                "./_content/FVN_REGISTER.Shared/js/equipment-qr.js");
+        }
+        catch (Exception ex)
+        {
+            _message = $"Không tải được bộ quét QR: {ex.Message}";
+            _severity = Severity.Error;
+        }
+    }
+
+    private async Task StartAsync()
+    {
+        if (_module == null || _running || _starting) return;
+
+        _message = null;
+        _starting = true;
+        StateHasChanged();
+
+        try
+        {
+            var result = await _module.InvokeAsync<QrScanResult?>("startQrScanner", _video);
+
+            if (result?.Ok == true && !string.IsNullOrWhiteSpace(result.Value))
+            {
+                _running = false;
+                _message = "Đã đọc QR. Đang tải thông tin thiết bị...";
+                _severity = Severity.Success;
+                await OnDetected.InvokeAsync(result.Value);
+                return;
+            }
+
+            if (result?.Code == "stopped")
+                return;
+
+            _message = result?.Message ?? "Không thể khởi động bộ quét QR.";
+            _severity = Severity.Warning;
+        }
+        catch (JSException ex)
+        {
+            _message = $"Không thể truy cập camera: {ex.Message}";
+            _severity = Severity.Error;
+        }
+        catch (ObjectDisposedException)
+        {
+            // Component was closed while the camera operation was in progress.
+        }
+        finally
+        {
+            _starting = false;
+            _running = false;
+            await InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private async Task StopAsync()
+    {
+        _running = false;
+        _starting = false;
+
+        if (_module == null) return;
+
+        try
+        {
+            await _module.InvokeVoidAsync("stopQrScanner", _video);
+        }
+        catch (JSDisconnectedException) { }
+        catch (ObjectDisposedException) { }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (_module != null)
+            {
+                await _module.InvokeVoidAsync("stopQrScanner", _video);
+                await _module.DisposeAsync();
+            }
+        }
+        catch (JSDisconnectedException) { }
+        catch (ObjectDisposedException) { }
+        catch (InvalidOperationException) { }
+    }
+
+    private sealed class QrScanResult
+    {
+        public bool Ok { get; set; }
+        public string? Value { get; set; }
+        public string? Code { get; set; }
+        public string? Message { get; set; }
+    }
 }

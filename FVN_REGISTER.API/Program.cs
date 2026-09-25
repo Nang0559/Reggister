@@ -10,6 +10,7 @@ using FVN_REGISTER.Application.Interfaces.EmailTemplates;
 using FVN_REGISTER.Application.Interfaces.Emails;
 using FVN_REGISTER.Application.Interfaces.Employees;
 using FVN_REGISTER.Application.Interfaces.Equipment;
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Interfaces.Histories;
 using FVN_REGISTER.Application.Interfaces.HrmSync;
 using FVN_REGISTER.Application.Interfaces.Leaves;
@@ -139,6 +140,7 @@ builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<FVNWEBAPPConte
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
 builder.Services.AddHttpContextAccessor();
+builder.Services.AddDataProtection();
 builder.Services.AddSignalR();
 
 // Common / master data
@@ -209,6 +211,7 @@ builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Trips.ITripActual
 builder.Services.AddScoped<IEquipmentService, EquipmentService>();
 builder.Services.AddScoped<IEquipmentImportService, EquipmentImportService>();
 builder.Services.AddScoped<IEquipmentQrCodeService, QrCodeService>();
+builder.Services.AddScoped<IEquipmentInspectionService, EquipmentInspectionService>();
 
 // Auth / users
 builder.Services.AddScoped<IAuditService, AuditService>();
@@ -217,9 +220,12 @@ builder.Services.AddScoped<ICurrentUserService, CurrentUserService>();
 builder.Services.AddScoped<IUserLogService, UserLogService>();
 builder.Services.AddScoped<IEmployeeUserResolver, EmployeeUserResolver>();
 builder.Services.AddScoped<ISessionService, SessionService>();
+builder.Services.AddScoped<ITwoFactorService, TwoFactorService>();
 builder.Services.AddScoped<ISessionTerminationNotifier, SignalRSessionTerminationNotifier>();
 builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
+builder.Services.AddScoped<IAccessChangeService, AccessChangeService>();
+builder.Services.AddScoped<IFeatureOperatorAssignmentService, FeatureOperatorAssignmentService>();
 builder.Services.AddScoped<IPublicInformationService, PublicInformationService>();
 builder.Services.AddScoped<IPublicFormService, PublicFormService>();
 builder.Services.AddScoped<IApproverManagementService, ApproverManagementService>();
@@ -328,6 +334,7 @@ builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Execution.IExecut
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddHostedService<EmailBackgroundWorker>();
+builder.Services.AddHostedService<EquipmentInspectionBackgroundWorker>();
 builder.Services.AddHostedService<EscalationBackgroundWorker>();
 builder.Services.AddHostedService<HrmSyncBackgroundWorker>();
 builder.Services.AddHostedService<HrmAttendanceCalculationWorker>();

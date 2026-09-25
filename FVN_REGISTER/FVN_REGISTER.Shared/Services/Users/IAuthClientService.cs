@@ -10,6 +10,10 @@ namespace FVN_REGISTER.Shared.Services.Users
             string password,
             CancellationToken ct = default);
 
+        Task<ApiResponse<AuthResultDto>> VerifyTwoFactorAsync(TwoFactorVerifyRequest request, CancellationToken ct = default);
+        Task<ApiResponse<TwoFactorSetupDto>> SetupTwoFactorAsync(string challengeToken, CancellationToken ct = default);
+        Task<ApiResponse<AuthResultDto>> ConfirmTwoFactorSetupAsync(TwoFactorVerifyRequest request, CancellationToken ct = default);
+
         Task Logout(CancellationToken ct = default);
 
         Task<ApiResponse<List<SessionDto>>> GetSessionsAsync(CancellationToken ct = default);

@@ -47,6 +47,104 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         _hostEnvironment = hostEnvironment;
     }
 
+    public async Task<ExecutionReconciliationDto> EnsureAttendanceFeedbackAsync(
+        string employeeCode,
+        DateOnly workDate,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedEmployeeCode = employeeCode.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedEmployeeCode))
+            throw new ArgumentException("EmployeeCode không được để trống.");
+
+        var employeeId = await ResolveEmployeeIdAsync(normalizedEmployeeCode, cancellationToken);
+
+        var row = await _db.Database.SqlQuery<AttendanceFeedbackSourceRow>($"""
+            SELECT TOP (1)
+                a.WorkDate,
+                a.EmployeeCode,
+                a.CheckInTime,
+                a.CheckOutTime,
+                a.WorkMinutesDay,
+                a.WorkMinutesNight,
+                a.OTMinutesDay,
+                a.OTMinutesNight,
+                a.OTMinutesDayTC,
+                a.OTMinutesNightTC,
+                a.OTRecognizedMinutesDay,
+                a.OTRecognizedMinutesNight
+            FROM dbo.F03HrmAttendanceCalculated AS a
+            WHERE a.EmployeeCode = {normalizedEmployeeCode}
+              AND a.WorkDate = {workDate}
+            ORDER BY a.Id DESC
+            """).SingleOrDefaultAsync(cancellationToken);
+
+        if (row is null)
+            throw new KeyNotFoundException(
+                $"Không có dữ liệu chấm công HRM cho ngày {workDate:dd/MM/yyyy}.");
+
+        var actualOtMinutes = Math.Max(0, row.OTMinutesDay)
+            + Math.Max(0, row.OTMinutesNight)
+            + Math.Max(0, row.OTMinutesDayTC)
+            + Math.Max(0, row.OTMinutesNightTC);
+
+        var recognizedOtMinutes = Math.Max(0, row.OTRecognizedMinutesDay)
+            + Math.Max(0, row.OTRecognizedMinutesNight);
+
+        if (actualOtMinutes <= 0 && recognizedOtMinutes <= 0)
+            throw new InvalidOperationException(
+                $"Ngày {workDate:dd/MM/yyyy} không còn OT thực tế để phản hồi.");
+
+        var hasApprovedOt = await _db.OvertimeEmployees.AsNoTracking()
+            .AnyAsync(x =>
+                x.EmployeeCode == normalizedEmployeeCode
+                && x.OTRequest.RequestStatus == ApprovalStatus.Approved
+                && x.OTRequest.IsActive != false
+                && x.OTRequest.OTDate >= workDate.ToDateTime(TimeOnly.MinValue)
+                && x.OTRequest.OTDate <= workDate.ToDateTime(TimeOnly.MaxValue),
+                cancellationToken);
+
+        if (hasApprovedOt)
+            throw new InvalidOperationException(
+                $"Ngày {workDate:dd/MM/yyyy} đã có đơn OT được duyệt; không cần tạo phản hồi OT thực tế chưa có đơn.");
+
+        var sourceId = $"{normalizedEmployeeCode}:{workDate:yyyyMMdd}";
+
+        return await UpsertAsync(
+            normalizedEmployeeCode,
+            new ExecutionReconciliationUpsertRequest(
+                "OT",
+                "OT_ACTUAL_ONLY",
+                sourceId,
+                normalizedEmployeeCode,
+                employeeId,
+                workDate,
+                "NONE",
+                $"ActualOTMinutes={actualOtMinutes};RecognizedOTMinutes={recognizedOtMinutes}",
+                "Mismatch",
+                true,
+                true,
+                JsonSerializer.Serialize(new
+                {
+                    EmployeeCode = normalizedEmployeeCode,
+                    WorkDate = workDate,
+                    row.CheckInTime,
+                    row.CheckOutTime,
+                    row.WorkMinutesDay,
+                    row.WorkMinutesNight,
+                    ActualOTMinutes = actualOtMinutes,
+                    RecognizedOTMinutes = recognizedOtMinutes,
+                    row.OTMinutesDay,
+                    row.OTMinutesNight,
+                    row.OTMinutesDayTC,
+                    row.OTMinutesNightTC,
+                    row.OTRecognizedMinutesDay,
+                    row.OTRecognizedMinutesNight,
+                    HasApprovedOt = false,
+                    CreatedFrom = "CALENDAR_HR_FEEDBACK"
+                })),
+            cancellationToken);
+    }
+
     public async Task<ExecutionReconciliationDto?> GetAsync(string employeeCode, long reconciliationId, CancellationToken cancellationToken = default)
     {
         var employeeId = await ResolveEmployeeIdAsync(employeeCode, cancellationToken);
@@ -958,6 +1056,22 @@ public sealed class ExecutionReconciliationService : IExecutionReconciliationSer
         projection.ModifiedAt = DateTime.Now;
         projection.LastModifiedSource = "EXECUTION_RECONCILIATION";
         projection.CalculatedAt = DateTime.Now;
+    }
+
+    private sealed class AttendanceFeedbackSourceRow
+    {
+        public DateOnly WorkDate { get; set; }
+        public string? EmployeeCode { get; set; }
+        public DateTime? CheckInTime { get; set; }
+        public DateTime? CheckOutTime { get; set; }
+        public int WorkMinutesDay { get; set; }
+        public int WorkMinutesNight { get; set; }
+        public int OTMinutesDay { get; set; }
+        public int OTMinutesNight { get; set; }
+        public int OTMinutesDayTC { get; set; }
+        public int OTMinutesNightTC { get; set; }
+        public int OTRecognizedMinutesDay { get; set; }
+        public int OTRecognizedMinutesNight { get; set; }
     }
 
     private Task AddHistoryAsync(

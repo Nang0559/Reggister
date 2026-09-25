@@ -1,4 +1,8 @@
 using FVN_REGISTER.Application.Interfaces.Approvals;
+using FVN_REGISTER.Application.Interfaces.Actions;
+using FVN_REGISTER.Application.Interfaces.Notifications;
+using FVN_REGISTER.Application.Interfaces.Emails;
+using FVN_REGISTER.Models.Dtos.Notifications;
 using FVN_REGISTER.Application.Interfaces.Equipment;
 using FVN_REGISTER.Application.Interfaces.Orchestrators;
 using FVN_REGISTER.Application.Interfaces.Users;
@@ -11,17 +15,22 @@ using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.Approvers;
 using FVN_REGISTER.Core.Entities.Equipment;
+using FVN_REGISTER.Core.Entities.Common;
 using FVN_REGISTER.Core.Entities.HR;
+using FVN_REGISTER.Core.Entities.Security;
+using FVN_REGISTER.Core.Entities.WorkCalendar;
 using FVN_REGISTER.Core.Enums;
 using FVN_REGISTER.Core.Repositories;
 using Microsoft.EntityFrameworkCore;
+using NPOI.SS.UserModel;
+using NPOI.XSSF.UserModel;
 
 namespace FVN_REGISTER.Infrastructure.Services.Equipment;
 
 public sealed class EquipmentService : IEquipmentService
 {
     private readonly IUnitOfWork _uow; private readonly ICurrentUserService _currentUser; private readonly IApprovalWorkflowOrchestrator<EquipmentRequestSubject> _workflow; private readonly IAuthorizationService _authorization; private readonly IApprovalSelectionService _approvalSelections;
-    public EquipmentService(IUnitOfWork uow, ICurrentUserService currentUser, IApprovalWorkflowOrchestrator<EquipmentRequestSubject> workflow, IAuthorizationService authorization, IApprovalSelectionService approvalSelections) { _uow = uow; _currentUser = currentUser; _workflow = workflow; _authorization = authorization; _approvalSelections = approvalSelections; }
+    public EquipmentService(IUnitOfWork uow, ICurrentUserService currentUser, IApprovalWorkflowOrchestrator<EquipmentRequestSubject> workflow, IAuthorizationService authorization, IApprovalSelectionService approvalSelections, IActionItemService actions, INotificationService notifications, IEmailService email) { _uow = uow; _currentUser = currentUser; _workflow = workflow; _authorization = authorization; _approvalSelections = approvalSelections; _actions = actions; _notifications = notifications; _email = email; }
     public async Task<ServiceResult<bool>> HasModuleAccessAsync(CancellationToken ct = default)
     {
         try
@@ -32,6 +41,21 @@ public sealed class EquipmentService : IEquipmentService
         }
         catch (UnauthorizedAccessException ex) { return ServiceResult<bool>.Fail(ex.Message); }
     }
+    public async Task<ServiceResult<List<EquipmentHandoverEmployeeOptionDto>>> GetAssignmentEmployeesAsync(string? deptCode = null, CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireModuleUser();
+            await EnsureScopeAsync(user, SecurityFunctionCodes.EquipmentCreate, user.EmployeeCode, deptCode, ct);
+            var q = _uow.Repository<F03Employee>().Query().AsNoTracking().Where(e => e.IsActive == true && e.EndWorkingDate == null);
+            if (!string.IsNullOrWhiteSpace(deptCode)) q = q.Where(e => e.DeptCode == deptCode.Trim());
+            var rows = await q.OrderBy(e => e.EmployeeName).Select(e => new EquipmentHandoverEmployeeOptionDto
+            { EmployeeCode=e.EmployeeCode, EmployeeName=e.EmployeeName, DeptCode=e.DeptCode, PositionCode=e.PositionCode }).ToListAsync(ct);
+            return ServiceResult<List<EquipmentHandoverEmployeeOptionDto>>.Ok(rows);
+        }
+        catch (UnauthorizedAccessException ex) { return ServiceResult<List<EquipmentHandoverEmployeeOptionDto>>.Fail(ex.Message); }
+    }
+
     public async Task<ServiceResult<List<EquipmentApproverDto>>> GetApproversAsync(
         string deptCode,
         CancellationToken ct = default)
@@ -71,6 +95,25 @@ public sealed class EquipmentService : IEquipmentService
         catch (UnauthorizedAccessException ex) { return ServiceResult<List<EquipmentApproverDto>>.Fail(ex.Message); }
         catch (ArgumentException ex) { return ServiceResult<List<EquipmentApproverDto>>.Fail(ex.Message); }
     }
+    public async Task<ServiceResult<List<EquipmentAssetDto>>> GetMyAssignedAssetsAsync(CancellationToken ct = default)
+    {
+        var user = RequireModuleUser();
+        if (string.IsNullOrWhiteSpace(user.EmployeeCode)) return ServiceResult<List<EquipmentAssetDto>>.Ok(new());
+        var assets = await _uow.Repository<F03EquipmentAsset>().Query().AsNoTracking()
+            .Where(x => x.IsActive == true && (x.ResponsibleEmployeeCode == user.EmployeeCode || x.OperatingResponsibleEmployeeCode == user.EmployeeCode))
+            .OrderBy(x => x.EquipmentName).Take(500).ToListAsync(ct);
+        return ServiceResult<List<EquipmentAssetDto>>.Ok(assets.Select(x => new EquipmentAssetDto
+        {
+            Id=x.Id, EquipmentCode=x.EquipmentCode, EquipmentName=x.EquipmentName, Specification=x.Specification,
+            SerialNumber=x.SerialNumber, AssetCode=x.AssetCode, PurchasePrice=x.PurchasePrice, PurchaseDate=x.PurchaseDate,
+            ExpectedDepreciationDate=x.ExpectedDepreciationDate, DeptCode=x.DeptCode, Location=x.Location,
+            QrToken=x.QrToken, IsQrActive=x.IsQrActive, Note=x.Note,
+            ResponsibleEmployeeCode=x.ResponsibleEmployeeCode, ResponsibleApproverEmployeeCode=x.ResponsibleApproverEmployeeCode,
+            ResponsibleAssignedAt=x.ResponsibleAssignedAt, OperatingResponsibleDeptCode=x.OperatingResponsibleDeptCode,
+            OperatingResponsibleEmployeeCode=x.OperatingResponsibleEmployeeCode, OperatingResponsibleAssignedAt=x.OperatingResponsibleAssignedAt
+        }).ToList());
+    }
+
     public async Task<ServiceResult<EquipmentRequestDto>> CreateRegistrationDraftAsync(
         CreateEquipmentRegistrationDto request,
         CancellationToken ct = default)
@@ -86,6 +129,19 @@ public sealed class EquipmentService : IEquipmentService
 
             await EnsureDepartmentScopeForOwnedDataAsync(user, request.DeptCode, ct);
 
+            string? responsibleEmployeeCode = request.ResponsibleEmployeeCode?.Trim();
+            if (!string.IsNullOrWhiteSpace(responsibleEmployeeCode))
+            {
+                var employee = await _uow.Repository<F03Employee>().Query().AsNoTracking()
+                    .Where(e => e.EmployeeCode == responsibleEmployeeCode && e.IsActive == true && e.EndWorkingDate == null)
+                    .Select(e => new { e.EmployeeCode, e.DeptCode })
+                    .FirstOrDefaultAsync(ct);
+                if (employee == null)
+                    return ServiceResult<EquipmentRequestDto>.Fail("Nhân viên phụ trách không tồn tại hoặc đã nghỉ việc.");
+                if (!string.Equals(employee.DeptCode, request.DeptCode.Trim(), StringComparison.OrdinalIgnoreCase))
+                    return ServiceResult<EquipmentRequestDto>.Fail($"Nhân viên {responsibleEmployeeCode} không thuộc bộ phận {request.DeptCode}.");
+            }
+
             if (request.ApprovalSelections == null ||
                 request.ApprovalSelections.Count == 0)
                 return ServiceResult<EquipmentRequestDto>.Fail(
@@ -99,6 +155,7 @@ public sealed class EquipmentService : IEquipmentService
                 RequestStatus = ApprovalStatus.Draft,
                 CreatedBy = user.UserId,
                 OperatorUserId = user.UserId,
+                ResponsibleEmployeeCode = responsibleEmployeeCode,
                 SelectedApproverCode = request.ApprovalSelections
                     .OrderBy(x => x.Level)
                     .Select(x => x.ApproverCode)
@@ -221,6 +278,26 @@ public sealed class EquipmentService : IEquipmentService
         }
         catch (UnauthorizedAccessException ex) { return ServiceResult<List<EquipmentRequestDto>>.Fail(ex.Message); }
     }
+    public async Task<ServiceResult<List<EquipmentHandoverEmployeeOptionDto>>> GetRepairAssigneesAsync(string? deptCode = null, CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireModuleUser();
+            var hasRepairPermission = await _authorization.CanAccessAsync(user, SecurityFunctionCodes.EquipmentRepair, user.EmployeeCode, deptCode, ct);
+            var assigned = !string.IsNullOrWhiteSpace(user.EmployeeCode) && await _uow.Repository<F03EquipmentAsset>().Query().AsNoTracking().AnyAsync(x => x.IsActive == true && (x.ResponsibleEmployeeCode == user.EmployeeCode || x.OperatingResponsibleEmployeeCode == user.EmployeeCode), ct);
+            if (!hasRepairPermission && !assigned) throw new UnauthorizedAccessException("Bạn không có quyền chọn người/bộ phận sửa chữa.");
+            var q = _uow.Repository<F03Employee>().Query().AsNoTracking()
+                .Where(e => e.IsActive == true && e.EndWorkingDate == null);
+            if (!string.IsNullOrWhiteSpace(deptCode)) q = q.Where(e => e.DeptCode == deptCode.Trim());
+            var rows = await q.OrderBy(e => e.DeptCode).ThenBy(e => e.EmployeeName)
+                .Select(e => new EquipmentHandoverEmployeeOptionDto
+                { EmployeeCode = e.EmployeeCode, EmployeeName = e.EmployeeName, DeptCode = e.DeptCode, PositionCode = e.PositionCode })
+                .ToListAsync(ct);
+            return ServiceResult<List<EquipmentHandoverEmployeeOptionDto>>.Ok(rows);
+        }
+        catch (UnauthorizedAccessException ex) { return ServiceResult<List<EquipmentHandoverEmployeeOptionDto>>.Fail(ex.Message); }
+    }
+
     public async Task<ServiceResult<EquipmentRequestDto>> CreateRepairDraftAsync(
         CreateEquipmentRepairDto request,
         CancellationToken ct = default)
@@ -233,6 +310,36 @@ public sealed class EquipmentService : IEquipmentService
             if (string.IsNullOrWhiteSpace(request.RepairContent))
                 return ServiceResult<EquipmentRequestDto>.Fail(
                     "Nội dung sửa chữa là bắt buộc.");
+
+            var assignmentType = request.RepairAssignmentType?.Trim();
+            if (!string.Equals(assignmentType, "Department", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(assignmentType, "Employee", StringComparison.OrdinalIgnoreCase))
+                return ServiceResult<EquipmentRequestDto>.Fail("Phải chọn bộ phận hoặc một nhân viên chịu trách nhiệm sửa chữa.");
+
+            string? repairDept = request.RepairResponsibleDeptCode?.Trim();
+            string? repairEmployee = request.RepairAssigneeEmployeeCode?.Trim();
+            if (string.Equals(assignmentType, "Department", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.IsNullOrWhiteSpace(repairDept))
+                    return ServiceResult<EquipmentRequestDto>.Fail("Bộ phận chịu trách nhiệm sửa chữa là bắt buộc.");
+                var deptExists = await _uow.Repository<F03Department>().Query().AsNoTracking()
+                    .AnyAsync(d => d.DeptCode == repairDept && d.IsActive == true, ct);
+                if (!deptExists)
+                    return ServiceResult<EquipmentRequestDto>.Fail($"Bộ phận sửa chữa {repairDept} không tồn tại hoặc không còn hoạt động.");
+                repairEmployee = null;
+            }
+            else
+            {
+                if (string.IsNullOrWhiteSpace(repairEmployee))
+                    return ServiceResult<EquipmentRequestDto>.Fail("Nhân viên sửa chữa là bắt buộc.");
+                var repairer = await _uow.Repository<F03Employee>().Query().AsNoTracking()
+                    .Where(e => e.EmployeeCode == repairEmployee && e.IsActive == true && e.EndWorkingDate == null)
+                    .Select(e => new { e.EmployeeCode, e.DeptCode })
+                    .FirstOrDefaultAsync(ct);
+                if (repairer == null)
+                    return ServiceResult<EquipmentRequestDto>.Fail($"Nhân viên sửa chữa {repairEmployee} không tồn tại hoặc đã nghỉ việc.");
+                repairDept = repairer.DeptCode;
+            }
 
             if (request.ApprovalSelections == null ||
                 request.ApprovalSelections.Count == 0)
@@ -265,7 +372,9 @@ public sealed class EquipmentService : IEquipmentService
                 RepairVendor = request.RepairVendor?.Trim(),
                 RepairCost = request.RepairCost,
                 RepairResult = request.RepairResult?.Trim(),
-                Note = request.Note?.Trim()
+                Note = request.Note?.Trim(),
+                RepairResponsibleDeptCode = repairDept,
+                RepairAssigneeEmployeeCode = repairEmployee
             };
 
             await _uow.Repository<F03EquipmentRequest>().AddAsync(entity, ct);
@@ -316,6 +425,192 @@ public sealed class EquipmentService : IEquipmentService
         catch (KeyNotFoundException ex) { return ServiceResult<EquipmentRequestDto>.Fail(ex.Message); }
         catch (ArgumentException ex) { return ServiceResult<EquipmentRequestDto>.Fail(ex.Message); }
     }
+    public async Task<ServiceResult<EquipmentRequestDto>> CompleteRepairAsync(int requestId, string feedback, CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireModuleUser();
+            if (string.IsNullOrWhiteSpace(feedback))
+                return ServiceResult<EquipmentRequestDto>.Fail("Kết quả phản hồi sửa chữa là bắt buộc.");
+
+            var request = await _uow.Repository<F03EquipmentRequest>().Query()
+                .FirstOrDefaultAsync(x => x.Id == requestId && x.RequestKind == EquipmentRequestKind.Repair && x.IsActive == true, ct);
+            if (request == null) return ServiceResult<EquipmentRequestDto>.Fail("Không tìm thấy yêu cầu sửa chữa.");
+            if (request.RequestStatus != ApprovalStatus.Approved)
+                return ServiceResult<EquipmentRequestDto>.Fail("Yêu cầu chưa được duyệt đủ cấp.");
+            if (request.RepairCompletedAt.HasValue)
+                return ServiceResult<EquipmentRequestDto>.Fail("Yêu cầu sửa chữa này đã được hoàn thành.");
+            if (!string.Equals(request.RepairAssigneeEmployeeCode, user.EmployeeCode, StringComparison.OrdinalIgnoreCase))
+            {
+                var allowedDept = !string.IsNullOrWhiteSpace(request.RepairResponsibleDeptCode) &&
+                    string.Equals(request.RepairResponsibleDeptCode, user.DeptCode, StringComparison.OrdinalIgnoreCase);
+                if (!allowedDept) return ServiceResult<EquipmentRequestDto>.Fail("Bạn không thuộc người/bộ phận được giao sửa chữa.");
+            }
+
+            request.RepairFeedback = feedback.Trim();
+            request.RepairResult = request.RepairFeedback;
+            request.RepairCompletedAt = DateTime.Now;
+            var historyExists = await _uow.Repository<F03EquipmentRepairHistory>().Query()
+                .AnyAsync(h => h.RequestId == request.Id, ct);
+            if (!historyExists && request.AssetId.HasValue)
+                await _uow.Repository<F03EquipmentRepairHistory>().AddAsync(new F03EquipmentRepairHistory
+                {
+                    AssetId = request.AssetId.Value, RequestId = request.Id,
+                    RepairDate = request.RepairDate ?? DateTime.Now, OperatorUserId = user.UserId,
+                    RepairCost = request.RepairCost, RepairContent = request.RepairContent ?? string.Empty,
+                    RepairVendor = request.RepairVendor, RepairResult = request.RepairResult,
+                    Note = request.Note, IsApproved = true,
+                    ResponsibleDeptCode = request.RepairResponsibleDeptCode,
+                    RepairerEmployeeCode = user.EmployeeCode,
+                    RepairFeedback = request.RepairFeedback, CompletedAt = request.RepairCompletedAt,
+                    CreatedBy = user.UserId
+                }, ct);
+
+            await _uow.SaveChangesAsync(ct);
+
+            var requesterAndApprovers = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            if (!string.IsNullOrWhiteSpace(request.EmployeeCode)) requesterAndApprovers.Add(request.EmployeeCode);
+            var snapshot = await _uow.Repository<F03ApprovalSnapshot>().Query().AsNoTracking()
+                .Where(x => x.RequestId == request.Id && x.RequestType == RequestModule.Equipment)
+                .OrderByDescending(x => x.Id).FirstOrDefaultAsync(ct);
+            if (snapshot != null)
+            {
+                var approvers = await _uow.Repository<F03ApprovalStepSnapshot>().Query().AsNoTracking()
+                    .Where(x => x.SnapshotId == snapshot.Id && x.IsRequired)
+                    .Select(x => x.ApproverCode).ToListAsync(ct);
+                foreach (var code in approvers.Where(x => !string.IsNullOrWhiteSpace(x))) requesterAndApprovers.Add(code);
+            }
+
+            var recipients = await _uow.Repository<F03Employee>().Query().AsNoTracking()
+                .Where(e => requesterAndApprovers.Contains(e.EmployeeCode))
+                .Select(e => new { e.Id, e.EmployeeCode, e.EmailAddress })
+                .ToListAsync(ct);
+            var userRows = await _uow.Repository<F03User>().Query().AsNoTracking()
+                .Where(u => requesterAndApprovers.Contains(u.EmployeeCode) && u.LockoutEndDate == null)
+                .Select(u => new { u.EmployeeCode, u.Id }).ToListAsync(ct);
+
+            foreach (var recipient in recipients)
+            {
+                var uid = userRows.FirstOrDefault(x => x.EmployeeCode == recipient.EmployeeCode)?.Id;
+                if (uid.HasValue)
+                    await _notifications.CreateAsync(new CreateNotificationDto
+                    {
+                        UserId = uid.Value, EmployeeCode = recipient.EmployeeCode,
+                        Title = $"Đã hoàn thành sửa chữa: {request.EquipmentName}",
+                        Body = $"Yêu cầu #{request.Id}: {request.RepairFeedback}",
+                        ActionUrl = $"/equipment/repair/{request.Id}",
+                        Module = RequestModule.Equipment, RelatedRequestId = request.Id,
+                        Action = NotificationAction.Approved, IsHighPriority = true,
+                        NotificationType = "EQUIPMENT_REPAIR_COMPLETED"
+                    }, ct);
+                if (!string.IsNullOrWhiteSpace(recipient.EmailAddress))
+                    await _email.QueueEmail(recipient.EmailAddress, "EQUIPMENT_REPAIR_COMPLETED", new
+                    {
+                        request.EmployeeCode, request.Id, request.EquipmentName,
+                        request.RepairFeedback, CompletedAt = request.RepairCompletedAt
+                    }, ct);
+            }
+
+            var currentEmployeeId = !string.IsNullOrWhiteSpace(user.EmployeeCode)
+                ? await _uow.Repository<F03Employee>().Query().AsNoTracking()
+                    .Where(e => e.EmployeeCode == user.EmployeeCode).Select(e => (int?)e.Id).FirstOrDefaultAsync(ct)
+                : null;
+            var action = currentEmployeeId.HasValue
+                ? await _uow.Repository<F03ActionItem>().Query()
+                    .Where(x => x.ModuleCode == "EQUIPMENT" && x.SourceType == "EQUIPMENT_REPAIR" &&
+                                x.SourceId == request.Id.ToString() && x.ActionType == "REPAIR_EXECUTION" &&
+                                x.AssignedToEmployeeId == currentEmployeeId.Value &&
+                                (x.Status == ActionItemStatus.Open || x.Status == ActionItemStatus.InProgress))
+                    .FirstOrDefaultAsync(ct)
+                : null;
+            if (action != null) action.Status = ActionItemStatus.Completed;
+            var siblings = await _uow.Repository<F03ActionItem>().Query()
+                .Where(x => x.ModuleCode == "EQUIPMENT" && x.SourceType == "EQUIPMENT_REPAIR" &&
+                            x.SourceId == request.Id.ToString() && x.ActionType == "REPAIR_EXECUTION" &&
+                            x.Status != ActionItemStatus.Completed && x.Status != ActionItemStatus.Cancelled)
+                .ToListAsync(ct);
+            foreach (var sibling in siblings) { sibling.Status = ActionItemStatus.Cancelled; sibling.DismissedAt = DateTime.Now; }
+            await _uow.SaveChangesAsync(ct);
+
+            return ServiceResult<EquipmentRequestDto>.Ok(await MapRequestAsync(request, ct), "Đã ghi nhận kết quả sửa chữa và thông báo cho người yêu cầu cùng các cấp phê duyệt.");
+        }
+        catch (UnauthorizedAccessException ex) { return ServiceResult<EquipmentRequestDto>.Fail(ex.Message); }
+    }
+
+    public async Task<ServiceResult<List<EquipmentReportRowDto>>> GetReportAsync(EquipmentReportFilterDto filter, CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireModuleUser();
+            await EnsureScopeAsync(user, SecurityFunctionCodes.EquipmentExport, null, filter.DeptCode, ct);
+            var q = _uow.Repository<F03EquipmentAsset>().Query().AsNoTracking().Where(x => x.IsActive == true);
+            if (!string.IsNullOrWhiteSpace(filter.DeptCode)) q = q.Where(x => x.DeptCode == filter.DeptCode.Trim());
+            if (!string.IsNullOrWhiteSpace(filter.ResponsibleEmployeeCode)) q = q.Where(x => x.ResponsibleEmployeeCode == filter.ResponsibleEmployeeCode.Trim());
+            if (!string.IsNullOrWhiteSpace(filter.RepairResponsibleDeptCode))
+                q = q.Where(x => x.RepairHistory.Any(h => h.ResponsibleDeptCode == filter.RepairResponsibleDeptCode.Trim()));
+            var assets = await q.OrderBy(x => x.DeptCode).ThenBy(x => x.EquipmentCode).ToListAsync(ct);
+            var ids = assets.Select(x => x.Id).ToList();
+            var repairs = await _uow.Repository<F03EquipmentRepairHistory>().Query().AsNoTracking()
+                .Where(x => ids.Contains(x.AssetId) && (!filter.From.HasValue || x.RepairDate >= filter.From.Value) && (!filter.To.HasValue || x.RepairDate <= filter.To.Value))
+                .GroupBy(x => x.AssetId)
+                .Select(g => new { AssetId = g.Key, Count = g.Count(), Last = g.Max(x => (DateTime?)x.RepairDate) }).ToListAsync(ct);
+            var handovers = await _uow.Repository<F03EquipmentAssignmentHistory>().Query().AsNoTracking()
+                .Where(x => ids.Contains(x.AssetId) && (!filter.From.HasValue || x.HandoverAt >= filter.From.Value) && (!filter.To.HasValue || x.HandoverAt <= filter.To.Value))
+                .GroupBy(x => x.AssetId)
+                .Select(g => new { AssetId = g.Key, Count = g.Count(), Last = g.Max(x => (DateTime?)x.HandoverAt) }).ToListAsync(ct);
+            var checklists = await _uow.Repository<F03EquipmentInspectionTask>().Query().AsNoTracking()
+                .Where(x => ids.Contains(x.EquipmentId) && (!filter.From.HasValue || x.ScheduledDate >= filter.From.Value) && (!filter.To.HasValue || x.ScheduledDate <= filter.To.Value))
+                .GroupBy(x => x.EquipmentId)
+                .Select(g => new { AssetId = g.Key, Count = g.Count(), Last = g.Max(x => (DateTime?)x.ScheduledDate) }).ToListAsync(ct);
+            var codes = assets.SelectMany(x => new[] { x.ResponsibleEmployeeCode, x.OperatingResponsibleEmployeeCode }).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct().ToList();
+            var names = await _uow.Repository<F03Employee>().Query().AsNoTracking().Where(e => codes.Contains(e.EmployeeCode))
+                .ToDictionaryAsync(e => e.EmployeeCode, e => e.EmployeeName, StringComparer.OrdinalIgnoreCase, ct);
+            var result = assets.Select(a => {
+                var r = repairs.FirstOrDefault(x => x.AssetId == a.Id);
+                var h = handovers.FirstOrDefault(x => x.AssetId == a.Id);
+                var c = checklists.FirstOrDefault(x => x.AssetId == a.Id);
+                return new EquipmentReportRowDto {
+                    AssetId=a.Id, EquipmentCode=a.EquipmentCode, AssetCode=a.AssetCode, EquipmentName=a.EquipmentName,
+                    DeptCode=a.DeptCode, Location=a.Location, PurchasePrice=a.PurchasePrice,
+                    ResponsibleEmployeeCode=a.ResponsibleEmployeeCode,
+                    ResponsibleEmployeeName=a.ResponsibleEmployeeCode != null && names.TryGetValue(a.ResponsibleEmployeeCode, out var rn) ? rn : null,
+                    OperatingResponsibleDeptCode=a.OperatingResponsibleDeptCode,
+                    OperatingResponsibleEmployeeCode=a.OperatingResponsibleEmployeeCode,
+                    OperatingResponsibleEmployeeName=a.OperatingResponsibleEmployeeCode != null && names.TryGetValue(a.OperatingResponsibleEmployeeCode, out var on) ? on : null,
+                    ResponsibleAssignedAt=a.ResponsibleAssignedAt, RepairCount=r?.Count ?? 0, HandoverCount=h?.Count ?? 0,
+                    LastRepairAt=r?.Last, LastHandoverAt=h?.Last, ChecklistCount=c?.Count ?? 0, LastChecklistAt=c?.Last
+                };
+            }).ToList();
+            return ServiceResult<List<EquipmentReportRowDto>>.Ok(result);
+        }
+        catch (UnauthorizedAccessException ex) { return ServiceResult<List<EquipmentReportRowDto>>.Fail(ex.Message); }
+    }
+
+    public async Task<ServiceResult<byte[]>> ExportReportAsync(EquipmentReportFilterDto filter, CancellationToken ct = default)
+    {
+        var report = await GetReportAsync(filter, ct);
+        if (!report.IsSuccess) return ServiceResult<byte[]>.Fail(report.Message ?? "Không thể tạo báo cáo thiết bị.");
+        using var wb = new XSSFWorkbook();
+        var assets = wb.CreateSheet("TaiSan");
+        var headers = new[] { "AssetId","Mã thiết bị","Mã tài sản","Tên thiết bị","Bộ phận","Vị trí","Nguyên giá","Người phụ trách","Tên người phụ trách","Bộ phận vận hành","Nhân viên vận hành","Tên nhân viên vận hành","Ngày giao","Số lần sửa","Số lần bàn giao","Số checklist","Sửa gần nhất","Bàn giao gần nhất","Checklist gần nhất" };
+        for (var i=0;i<headers.Length;i++) assets.CreateRow(0).CreateCell(i).SetCellValue(headers[i]);
+        var rows = report.Data ?? new();
+        for(var r=0;r<rows.Count;r++) {
+            var x=assets.CreateRow(r+1); var vals=new object?[]{rows[r].AssetId,rows[r].EquipmentCode,rows[r].AssetCode,rows[r].EquipmentName,rows[r].DeptCode,rows[r].Location,rows[r].PurchasePrice,rows[r].ResponsibleEmployeeCode,rows[r].ResponsibleEmployeeName,rows[r].OperatingResponsibleDeptCode,rows[r].OperatingResponsibleEmployeeCode,rows[r].OperatingResponsibleEmployeeName,rows[r].ResponsibleAssignedAt,rows[r].RepairCount,rows[r].HandoverCount,rows[r].ChecklistCount,rows[r].LastRepairAt,rows[r].LastHandoverAt,rows[r].LastChecklistAt};
+            for(var i=0;i<vals.Length;i++) if(vals[i] is DateTime dt) x.CreateCell(i).SetCellValue(dt); else if(vals[i] is decimal dec) x.CreateCell(i).SetCellValue((double)dec); else if(vals[i] is int n) x.CreateCell(i).SetCellValue(n); else x.CreateCell(i).SetCellValue(vals[i]?.ToString() ?? "");
+        }
+        var repairSheet=wb.CreateSheet("LichSuSuaChua"); var rh=new[]{"AssetId","RequestId","Ngày sửa","Bộ phận chịu trách nhiệm","Nhân viên sửa","Nội dung","Chi phí","Kết quả","Phản hồi","Hoàn thành"}; for(var i=0;i<rh.Length;i++) repairSheet.CreateRow(0).CreateCell(i).SetCellValue(rh[i]);
+        var assetIds=rows.Select(x=>x.AssetId).ToList(); var repairRows=await _uow.Repository<F03EquipmentRepairHistory>().Query().AsNoTracking().Where(x=>assetIds.Contains(x.AssetId)).OrderByDescending(x=>x.RepairDate).ToListAsync(ct);
+        for(var r=0;r<repairRows.Count;r++){var h=repairSheet.CreateRow(r+1);object?[] v={repairRows[r].AssetId,repairRows[r].RequestId,repairRows[r].RepairDate,repairRows[r].ResponsibleDeptCode,repairRows[r].RepairerEmployeeCode,repairRows[r].RepairContent,repairRows[r].RepairCost,repairRows[r].RepairResult,repairRows[r].RepairFeedback,repairRows[r].CompletedAt};for(var i=0;i<v.Length;i++)if(v[i] is DateTime dt)h.CreateCell(i).SetCellValue(dt);else if(v[i] is decimal d)h.CreateCell(i).SetCellValue((double)d);else if(v[i] is int n)h.CreateCell(i).SetCellValue(n);else h.CreateCell(i).SetCellValue(v[i]?.ToString()??"");}
+        var checklistSheet=wb.CreateSheet("Checklist"); var ch=new[]{"TaskId","AssetId","TemplateId","Ngày dự kiến","Hạn","Trạng thái","Kết quả","Inspector","Approver"}; for(var i=0;i<ch.Length;i++) checklistSheet.CreateRow(0).CreateCell(i).SetCellValue(ch[i]);
+        var checklistRows=await _uow.Repository<F03EquipmentInspectionTask>().Query().AsNoTracking().Where(x=>assetIds.Contains(x.EquipmentId)).OrderByDescending(x=>x.ScheduledDate).ToListAsync(ct);
+        for(var r=0;r<checklistRows.Count;r++){var q=checklistSheet.CreateRow(r+1);object?[] v={checklistRows[r].Id,checklistRows[r].EquipmentId,checklistRows[r].TemplateId,checklistRows[r].ScheduledDate,checklistRows[r].DueAt,checklistRows[r].Status,checklistRows[r].Result,checklistRows[r].InspectorEmployeeCode,checklistRows[r].ApproverEmployeeCode};for(var i=0;i<v.Length;i++)if(v[i] is DateTime dt)q.CreateCell(i).SetCellValue(dt);else if(v[i] is int n)q.CreateCell(i).SetCellValue(n);else q.CreateCell(i).SetCellValue(v[i]?.ToString()??"");}
+        var handSheet=wb.CreateSheet("LichSuBanGiao"); var hh=new[]{"AssetId","Ngày bàn giao","Người cũ","Người mới","Approver cũ","Approver mới","Lý do","User thực hiện"}; for(var i=0;i<hh.Length;i++)handSheet.CreateRow(0).CreateCell(i).SetCellValue(hh[i]);
+        var handRows=await _uow.Repository<F03EquipmentAssignmentHistory>().Query().AsNoTracking().Where(x=>assetIds.Contains(x.AssetId)).OrderByDescending(x=>x.HandoverAt).ToListAsync(ct);
+        for(var r=0;r<handRows.Count;r++){var h=handSheet.CreateRow(r+1);object?[] v={handRows[r].AssetId,handRows[r].HandoverAt,handRows[r].PreviousResponsibleEmployeeCode,handRows[r].NewResponsibleEmployeeCode,handRows[r].PreviousApproverEmployeeCode,handRows[r].NewApproverEmployeeCode,handRows[r].Reason,handRows[r].HandoverByUserId};for(var i=0;i<v.Length;i++)if(v[i] is DateTime dt)h.CreateCell(i).SetCellValue(dt);else if(v[i] is int n)h.CreateCell(i).SetCellValue(n);else h.CreateCell(i).SetCellValue(v[i]?.ToString()??"");}
+        using var ms=new MemoryStream(); wb.Write(ms); return ServiceResult<byte[]>.Ok(ms.ToArray(),"Đã tạo báo cáo thiết bị.");
+    }
+
     public async Task<ServiceResult<EquipmentAssetDto>> ScanAsync(
         string qrToken,
         CancellationToken ct = default)
@@ -337,9 +632,9 @@ public sealed class EquipmentService : IEquipmentService
                 return ServiceResult<EquipmentAssetDto>.Fail(
                     "QR chưa có hiệu lực hoặc thiết bị không tồn tại.");
 
-            await EnsureScopeAsync(
-                user, SecurityFunctionCodes.EquipmentQR,
-                null, asset.DeptCode, ct);
+            if (!string.Equals(asset.ResponsibleEmployeeCode, user.EmployeeCode, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(asset.OperatingResponsibleEmployeeCode, user.EmployeeCode, StringComparison.OrdinalIgnoreCase))
+                await EnsureScopeAsync(user, SecurityFunctionCodes.EquipmentQR, null, asset.DeptCode, ct);
 
             return ServiceResult<EquipmentAssetDto>.Ok(
                 await MapAssetAsync(asset, ct));
@@ -397,7 +692,9 @@ public sealed class EquipmentService : IEquipmentService
             .FirstOrDefaultAsync(x => x.Id == id && x.IsActive == true && x.IsQrActive, ct)
             ?? throw new KeyNotFoundException("Thiết bị không tồn tại hoặc QR chưa có hiệu lực.");
 
-        await EnsureScopeAsync(user, SecurityFunctionCodes.EquipmentRepair, user.EmployeeCode, asset.DeptCode, ct);
+        if (!string.Equals(asset.ResponsibleEmployeeCode, user.EmployeeCode, StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(asset.OperatingResponsibleEmployeeCode, user.EmployeeCode, StringComparison.OrdinalIgnoreCase))
+            await EnsureScopeAsync(user, SecurityFunctionCodes.EquipmentRepair, user.EmployeeCode, asset.DeptCode, ct);
         return asset;
     }
     private async Task EnsureScopeAsync(UserIdentityDto user, int functionCode, string? employeeCode, string? deptCode, CancellationToken ct)
@@ -417,6 +714,241 @@ public sealed class EquipmentService : IEquipmentService
     private UserIdentityDto RequireModuleUser() => RequireUser();
     private static void ValidateRegistration(CreateEquipmentRegistrationDto x) { if (string.IsNullOrWhiteSpace(x.EquipmentName)) throw new ArgumentException("Tên thiết bị là bắt buộc."); if (x.PurchaseDate > DateTime.Today) throw new ArgumentException("Ngày mua không được lớn hơn ngày hiện tại."); if (x.ExpectedDepreciationDate < x.PurchaseDate) throw new ArgumentException("Ngày khấu hao dự kiến phải sau ngày mua."); if (x.PurchasePrice < 0) throw new ArgumentException("Giá thành không hợp lệ."); }
     private async Task<EquipmentRequestDto> MapRequestAsync(F03EquipmentRequest x, CancellationToken ct) { var name = await _uow.Repository<F03Employee>().Query().AsNoTracking().Where(e => e.EmployeeCode == x.EmployeeCode).Select(e => e.EmployeeName).FirstOrDefaultAsync(ct); return MapRequest(x, name); }
-    private static EquipmentRequestDto MapRequest(F03EquipmentRequest x, string? employeeName = null) => new() { Id = x.Id, RequestKind = x.RequestKind, RequestStatus = x.RequestStatus, AssetId = x.AssetId, EmployeeCode = x.EmployeeCode, EmployeeName = employeeName, DeptCode = x.DeptCode ?? string.Empty, EquipmentName = x.EquipmentName, AssetCode = x.AssetCode, PurchasePrice = x.PurchasePrice, PurchaseDate = x.PurchaseDate, ExpectedDepreciationDate = x.ExpectedDepreciationDate, RepairDate = x.RepairDate, RepairContent = x.RepairContent, RepairCost = x.RepairCost, QrToken = x.QrToken, QrUrl = $"/equipment/scan/{x.QrToken}", SelectedApproverCode = x.SelectedApproverCode };
-    private async Task<EquipmentAssetDto> MapAssetAsync(F03EquipmentAsset x, CancellationToken ct) { var history = await _uow.Repository<F03EquipmentRepairHistory>().Query().AsNoTracking().Where(h => h.AssetId == x.Id && h.IsApproved).OrderByDescending(h => h.RepairDate).ToListAsync(ct); return new EquipmentAssetDto { Id = x.Id, EquipmentCode = x.EquipmentCode, EquipmentName = x.EquipmentName, Specification = x.Specification, SerialNumber = x.SerialNumber, AssetCode = x.AssetCode, PurchasePrice = x.PurchasePrice, PurchaseDate = x.PurchaseDate, ExpectedDepreciationDate = x.ExpectedDepreciationDate, DeptCode = x.DeptCode, Location = x.Location, QrToken = x.QrToken, QrUrl = $"/equipment/scan/{x.QrToken}", IsQrActive = x.IsQrActive, Note = x.Note, RepairHistory = history.Select(h => new EquipmentRepairHistoryDto { Id = h.Id, RepairDate = h.RepairDate, OperatorUserId = h.OperatorUserId, RepairCost = h.RepairCost, RepairContent = h.RepairContent, RepairVendor = h.RepairVendor, RepairResult = h.RepairResult, Note = h.Note }).ToList() }; }
+    private static EquipmentRequestDto MapRequest(F03EquipmentRequest x, string? employeeName = null) => new() { Id = x.Id, RequestKind = x.RequestKind, ResponsibleEmployeeCode = x.ResponsibleEmployeeCode, RequestStatus = x.RequestStatus, AssetId = x.AssetId, EmployeeCode = x.EmployeeCode, EmployeeName = employeeName, DeptCode = x.DeptCode ?? string.Empty, EquipmentName = x.EquipmentName, AssetCode = x.AssetCode, PurchasePrice = x.PurchasePrice, PurchaseDate = x.PurchaseDate, ExpectedDepreciationDate = x.ExpectedDepreciationDate, RepairDate = x.RepairDate, RepairContent = x.RepairContent, RepairCost = x.RepairCost, QrToken = x.QrToken, QrUrl = $"/equipment/scan/{x.QrToken}", SelectedApproverCode = x.SelectedApproverCode, RepairResponsibleDeptCode = x.RepairResponsibleDeptCode, RepairAssigneeEmployeeCode = x.RepairAssigneeEmployeeCode, RepairFeedback = x.RepairFeedback, RepairCompletedAt = x.RepairCompletedAt };
+    public async Task<ServiceResult<List<EquipmentHandoverEmployeeOptionDto>>> GetHandoverEmployeesAsync(string? deptCode = null, CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireModuleUser();
+            await EnsureScopeAsync(user, SecurityFunctionCodes.EquipmentTransfer, user.EmployeeCode, deptCode, ct);
+            var q = _uow.Repository<F03Employee>().Query().AsNoTracking()
+                .Where(e => e.IsActive == true && e.EndWorkingDate == null);
+            if (!string.IsNullOrWhiteSpace(deptCode)) q = q.Where(e => e.DeptCode == deptCode);
+            var rows = await q.OrderBy(e => e.DeptCode).ThenBy(e => e.EmployeeName)
+                .Select(e => new EquipmentHandoverEmployeeOptionDto { EmployeeCode = e.EmployeeCode, EmployeeName = e.EmployeeName, DeptCode = e.DeptCode, PositionCode = e.PositionCode })
+                .ToListAsync(ct);
+            return ServiceResult<List<EquipmentHandoverEmployeeOptionDto>>.Ok(rows);
+        }
+        catch (UnauthorizedAccessException ex) { return ServiceResult<List<EquipmentHandoverEmployeeOptionDto>>.Fail(ex.Message); }
+    }
+
+    public async Task<ServiceResult<List<EquipmentHandoverCandidateDto>>> GetHandoverCandidatesAsync(string oldEmployeeCode, string? deptCode = null, CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireModuleUser();
+            oldEmployeeCode = oldEmployeeCode?.Trim() ?? string.Empty;
+            if (string.IsNullOrWhiteSpace(oldEmployeeCode))
+                return ServiceResult<List<EquipmentHandoverCandidateDto>>.Fail("Mã nhân viên cũ là bắt buộc.");
+
+            var canTransfer = await _authorization.CanAccessAsync(
+                user, SecurityFunctionCodes.EquipmentTransfer, user.EmployeeCode, deptCode, ct);
+            var canCreateAccessChange = await _authorization.CanAccessAsync(
+                user, SecurityFunctionCodes.SecurityAccessChangeCreate, user.EmployeeCode, deptCode, ct);
+            if (!canTransfer && !canCreateAccessChange)
+                throw new UnauthorizedAccessException("Bạn không có quyền xem tài sản phục vụ bàn giao.");
+
+            var assets = await _uow.Repository<F03EquipmentAsset>().Query()
+                .AsNoTracking()
+                .Where(x => x.IsActive == true &&
+                    (x.ResponsibleEmployeeCode == oldEmployeeCode ||
+                     x.ResponsibleApproverEmployeeCode == oldEmployeeCode) &&
+                    (string.IsNullOrWhiteSpace(deptCode) || x.DeptCode == deptCode))
+                .OrderBy(x => x.DeptCode).ThenBy(x => x.EquipmentCode)
+                .ToListAsync(ct);
+
+            var codes = assets.SelectMany(x => new[] { x.ResponsibleEmployeeCode, x.ResponsibleApproverEmployeeCode })
+                .Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var employees = await _uow.Repository<F03Employee>().Query().AsNoTracking()
+                .Where(e => codes.Contains(e.EmployeeCode))
+                .Select(e => new { e.EmployeeCode, e.EmployeeName })
+                .ToListAsync(ct);
+            var names = employees.ToDictionary(x => x.EmployeeCode, x => x.EmployeeName, StringComparer.OrdinalIgnoreCase);
+
+            return ServiceResult<List<EquipmentHandoverCandidateDto>>.Ok(assets.Select(x => new EquipmentHandoverCandidateDto
+            {
+                AssetId = x.Id, EquipmentCode = x.EquipmentCode, EquipmentName = x.EquipmentName,
+                DeptCode = x.DeptCode, Location = x.Location,
+                ResponsibleEmployeeCode = x.ResponsibleEmployeeCode,
+                ResponsibleEmployeeName = x.ResponsibleEmployeeCode != null && names.TryGetValue(x.ResponsibleEmployeeCode, out var rn) ? rn : null,
+                ApproverEmployeeCode = x.ResponsibleApproverEmployeeCode,
+                ApproverEmployeeName = x.ResponsibleApproverEmployeeCode != null && names.TryGetValue(x.ResponsibleApproverEmployeeCode, out var an) ? an : null
+            }).ToList());
+        }
+        catch (UnauthorizedAccessException ex) { return ServiceResult<List<EquipmentHandoverCandidateDto>>.Fail(ex.Message); }
+    }
+
+    public async Task<ServiceResult<EquipmentHandoverResultDto>> HandoverAsync(EquipmentHandoverRequest request, CancellationToken ct = default)
+    {
+        try
+        {
+            var user = RequireModuleUser();
+            var oldResponsible = request.OldResponsibleEmployeeCode?.Trim();
+            var newResponsible = request.NewResponsibleEmployeeCode?.Trim();
+            var oldApprover = request.OldApproverEmployeeCode?.Trim();
+            var newApprover = request.NewApproverEmployeeCode?.Trim();
+            var deptCode = request.DeptCode?.Trim();
+            var reason = request.Reason?.Trim();
+
+            if (string.IsNullOrWhiteSpace(newResponsible))
+                return ServiceResult<EquipmentHandoverResultDto>.Fail("Người phụ trách mới là bắt buộc.");
+            if (string.IsNullOrWhiteSpace(reason))
+                return ServiceResult<EquipmentHandoverResultDto>.Fail("Lý do bàn giao là bắt buộc.");
+            if (string.IsNullOrWhiteSpace(oldResponsible) && string.IsNullOrWhiteSpace(oldApprover))
+                return ServiceResult<EquipmentHandoverResultDto>.Fail("Phải xác định ít nhất người phụ trách hoặc approver cũ.");
+            if (string.Equals(oldResponsible, newResponsible, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(oldApprover, newApprover, StringComparison.OrdinalIgnoreCase))
+                return ServiceResult<EquipmentHandoverResultDto>.Fail("Người cũ và người mới không được trùng nhau.");
+
+            await EnsureScopeAsync(user, SecurityFunctionCodes.EquipmentTransfer, user.EmployeeCode, deptCode, ct);
+
+            var activeEmployees = await _uow.Repository<F03Employee>().Query().AsNoTracking()
+                .Where(e => e.IsActive == true && e.EndWorkingDate == null)
+                .Select(e => new { e.EmployeeCode, e.EmployeeName, e.DeptCode })
+                .ToListAsync(ct);
+            var empByCode = activeEmployees.ToDictionary(x => x.EmployeeCode, StringComparer.OrdinalIgnoreCase);
+
+            if (!empByCode.ContainsKey(newResponsible))
+                return ServiceResult<EquipmentHandoverResultDto>.Fail("Người phụ trách mới không còn hiệu lực hoặc không tồn tại.");
+            if (!string.IsNullOrWhiteSpace(newApprover) && !empByCode.ContainsKey(newApprover))
+                return ServiceResult<EquipmentHandoverResultDto>.Fail("Approver mới không còn hiệu lực hoặc không tồn tại.");
+
+            IQueryable<F03EquipmentAsset> q = _uow.Repository<F03EquipmentAsset>().Query()
+                .Where(x => x.IsActive == true);
+            if (request.AssetIds.Count > 0)
+                q = q.Where(x => request.AssetIds.Contains(x.Id));
+            else
+                q = q.Where(x =>
+                    (!string.IsNullOrWhiteSpace(oldResponsible) && x.ResponsibleEmployeeCode == oldResponsible) ||
+                    (!string.IsNullOrWhiteSpace(oldApprover) && x.ResponsibleApproverEmployeeCode == oldApprover));
+
+            if (!string.IsNullOrWhiteSpace(deptCode)) q = q.Where(x => x.DeptCode == deptCode);
+            var assets = await q.ToListAsync(ct);
+            if (assets.Count == 0)
+                return ServiceResult<EquipmentHandoverResultDto>.Fail("Không tìm thấy thiết bị phù hợp để bàn giao.");
+
+            var now = DateTime.UtcNow;
+            var histories = new List<F03EquipmentAssignmentHistory>();
+            foreach (var asset in assets)
+            {
+                if (!string.IsNullOrWhiteSpace(oldResponsible) &&
+                    string.Equals(asset.ResponsibleEmployeeCode, oldResponsible, StringComparison.OrdinalIgnoreCase))
+                {
+                    if (!string.Equals(empByCode[newResponsible].DeptCode, asset.DeptCode, StringComparison.OrdinalIgnoreCase))
+                        return ServiceResult<EquipmentHandoverResultDto>.Fail($"Người phụ trách mới phải thuộc bộ phận {asset.DeptCode}: {asset.EquipmentCode}.");
+                    asset.ResponsibleEmployeeCode = newResponsible;
+                    asset.ResponsibleAssignedAt = now;
+                }
+
+                var previousApprover = asset.ResponsibleApproverEmployeeCode;
+                if (!string.IsNullOrWhiteSpace(oldApprover) &&
+                    string.Equals(previousApprover, oldApprover, StringComparison.OrdinalIgnoreCase))
+                    asset.ResponsibleApproverEmployeeCode = newApprover;
+
+                histories.Add(new F03EquipmentAssignmentHistory
+                {
+                    AssetId = asset.Id,
+                    PreviousResponsibleEmployeeCode = oldResponsible,
+                    NewResponsibleEmployeeCode = asset.ResponsibleEmployeeCode,
+                    PreviousApproverEmployeeCode = previousApprover,
+                    NewApproverEmployeeCode = asset.ResponsibleApproverEmployeeCode,
+                    Reason = reason,
+                    HandoverAt = now,
+                    HandoverByUserId = user.UserId,
+                    CreatedBy = user.UserId,
+                    CreatedAt = now
+                });
+            }
+
+            foreach (var history in histories)
+                await _uow.Repository<F03EquipmentAssignmentHistory>().AddAsync(history, ct);
+
+            var assetIds = assets.Select(x => x.Id).ToList();
+            var assignments = await _uow.Repository<F03EquipmentInspectionAssignment>().Query()
+                .Where(x => x.IsActive == true && assetIds.Contains(x.EquipmentId)).ToListAsync(ct);
+            var tasks = await _uow.Repository<F03EquipmentInspectionTask>().Query()
+                .Where(x => x.IsActive == true && assetIds.Contains(x.EquipmentId) && x.Status != "Approved" && x.Status != "Cancelled")
+                .ToListAsync(ct);
+
+            foreach (var a in assignments)
+            {
+                if (!string.IsNullOrWhiteSpace(oldResponsible) && string.Equals(a.InspectorEmployeeCode, oldResponsible, StringComparison.OrdinalIgnoreCase))
+                    a.InspectorEmployeeCode = newResponsible;
+                if (!string.IsNullOrWhiteSpace(oldApprover) && string.Equals(a.ApproverEmployeeCode, oldApprover, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrWhiteSpace(newApprover))
+                    a.ApproverEmployeeCode = newApprover;
+            }
+
+            var oldCodes = new[] { oldResponsible, oldApprover }.Where(x => !string.IsNullOrWhiteSpace(x)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            var oldEmployeeIds = await _uow.Repository<F03Employee>().Query().AsNoTracking()
+                .Where(e => oldCodes.Contains(e.EmployeeCode)).Select(e => new { e.Id, e.EmployeeCode }).ToListAsync(ct);
+
+            var actionRoleMap = tasks
+                .SelectMany(t => new[]
+                {
+                    new { Id = t.ActionId, TargetCode = (!string.IsNullOrWhiteSpace(oldResponsible) && (t.Status == "Scheduled" || t.Status == "InProgress" || t.Status == "Rejected" || t.Status == "Overdue")) ? newResponsible : null, OldCode = oldResponsible },
+                    new { Id = t.ApprovalActionId, TargetCode = (!string.IsNullOrWhiteSpace(oldApprover) && !string.IsNullOrWhiteSpace(newApprover) && (t.Status == "Submitted" || t.Status == "WaitingApproval")) ? newApprover : null, OldCode = oldApprover }
+                })
+                .Where(x => x.Id.HasValue && !string.IsNullOrWhiteSpace(x.TargetCode) && !string.IsNullOrWhiteSpace(x.OldCode))
+                .ToList();
+
+            if (actionRoleMap.Count > 0)
+            {
+                var actionIds = actionRoleMap.Select(x => x.Id!.Value).Distinct().ToList();
+                var actionItems = await _uow.Repository<F03ActionItem>().Query()
+                    .Where(a => actionIds.Contains(a.ActionId)).ToListAsync(ct);
+
+                var targetCodes = actionRoleMap.Select(x => x.TargetCode!).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                var targetEmployees = await _uow.Repository<F03Employee>().Query().AsNoTracking()
+                    .Where(e => targetCodes.Contains(e.EmployeeCode))
+                    .Select(e => new { e.Id, e.EmployeeCode }).ToListAsync(ct);
+                var targetByCode = targetEmployees.ToDictionary(x => x.EmployeeCode, StringComparer.OrdinalIgnoreCase);
+                var targetUsers = await _uow.Repository<F03User>().Query().AsNoTracking()
+                    .Where(u => targetCodes.Contains(u.EmployeeCode) && u.LockoutEndDate == null)
+                    .Select(u => new { u.Id, u.EmployeeCode }).ToListAsync(ct);
+                var userByCode = targetUsers.ToDictionary(x => x.EmployeeCode, StringComparer.OrdinalIgnoreCase);
+
+                foreach (var action in actionItems)
+                {
+                    var role = actionRoleMap.FirstOrDefault(x => x.Id == action.ActionId && x.OldCode != null && x.TargetCode != null &&
+                        action.AssignedToEmployeeId == oldEmployeeIds.FirstOrDefault(e => string.Equals(e.EmployeeCode, x.OldCode, StringComparison.OrdinalIgnoreCase))?.Id);
+                    if (role?.TargetCode == null || !targetByCode.TryGetValue(role.TargetCode, out var employee)) continue;
+                    action.AssignedToEmployeeId = employee.Id;
+                    action.AssignedToUserId = userByCode.TryGetValue(role.TargetCode, out var targetUser) ? targetUser.Id : null;
+                }
+            }
+
+            foreach (var task in tasks)
+            {
+                if (!string.IsNullOrWhiteSpace(oldResponsible) &&
+                    (task.Status == "Scheduled" || task.Status == "InProgress" || task.Status == "Rejected" || task.Status == "Overdue") &&
+                    string.Equals(task.InspectorEmployeeCode, oldResponsible, StringComparison.OrdinalIgnoreCase))
+                    task.InspectorEmployeeCode = newResponsible;
+
+                if (!string.IsNullOrWhiteSpace(oldApprover) && !string.IsNullOrWhiteSpace(newApprover) &&
+                    (task.Status == "Submitted" || task.Status == "WaitingApproval") &&
+                    string.Equals(task.ApproverEmployeeCode, oldApprover, StringComparison.OrdinalIgnoreCase))
+                    task.ApproverEmployeeCode = newApprover;
+            }
+
+            await _uow.SaveChangesAsync(ct);
+
+            return ServiceResult<EquipmentHandoverResultDto>.Ok(new EquipmentHandoverResultDto
+            {
+                AssetCount = assets.Count,
+                InspectionAssignmentCount = assignments.Count,
+                InspectionTaskCount = tasks.Count,
+                Assets = assets.Select(x => new EquipmentHandoverCandidateDto
+                {
+                    AssetId = x.Id, EquipmentCode = x.EquipmentCode, EquipmentName = x.EquipmentName,
+                    DeptCode = x.DeptCode, Location = x.Location,
+                    ResponsibleEmployeeCode = x.ResponsibleEmployeeCode,
+                    ApproverEmployeeCode = x.ResponsibleApproverEmployeeCode
+                }).ToList()
+            }, $"Đã bàn giao {assets.Count} thiết bị; cập nhật {assignments.Count} phân công checklist và {tasks.Count} task chưa khóa.");
+        }
+        catch (UnauthorizedAccessException ex) { return ServiceResult<EquipmentHandoverResultDto>.Fail(ex.Message); }
+        catch (KeyNotFoundException ex) { return ServiceResult<EquipmentHandoverResultDto>.Fail(ex.Message); }
+    }
+
+    private async Task<EquipmentAssetDto> MapAssetAsync(F03EquipmentAsset x, CancellationToken ct) { var history = await _uow.Repository<F03EquipmentRepairHistory>().Query().AsNoTracking().Where(h => h.AssetId == x.Id && h.IsApproved).OrderByDescending(h => h.RepairDate).ToListAsync(ct); var handovers = await _uow.Repository<F03EquipmentAssignmentHistory>().Query().AsNoTracking().Where(h => h.AssetId == x.Id).OrderByDescending(h => h.HandoverAt).ToListAsync(ct); var codes = new[] { x.ResponsibleEmployeeCode, x.ResponsibleApproverEmployeeCode, x.OperatingResponsibleEmployeeCode }.Where(v => !string.IsNullOrWhiteSpace(v)).Distinct(StringComparer.OrdinalIgnoreCase).ToList(); var names = await _uow.Repository<F03Employee>().Query().AsNoTracking().Where(e => codes.Contains(e.EmployeeCode)).ToDictionaryAsync(e => e.EmployeeCode, e => e.EmployeeName, StringComparer.OrdinalIgnoreCase, ct); var deptName = await _uow.Repository<F03Department>().Query().AsNoTracking().Where(d => d.DeptCode == x.OperatingResponsibleDeptCode).Select(d => d.DeptName).FirstOrDefaultAsync(ct); return new EquipmentAssetDto { Id = x.Id, EquipmentCode = x.EquipmentCode, EquipmentName = x.EquipmentName, Specification = x.Specification, SerialNumber = x.SerialNumber, AssetCode = x.AssetCode, PurchasePrice = x.PurchasePrice, PurchaseDate = x.PurchaseDate, ExpectedDepreciationDate = x.ExpectedDepreciationDate, DeptCode = x.DeptCode, Location = x.Location, QrToken = x.QrToken, QrUrl = $"/equipment/scan/{x.QrToken}", IsQrActive = x.IsQrActive, Note = x.Note, ResponsibleEmployeeCode = x.ResponsibleEmployeeCode, ResponsibleEmployeeName = x.ResponsibleEmployeeCode != null && names.TryGetValue(x.ResponsibleEmployeeCode, out var rn) ? rn : null, ResponsibleApproverEmployeeCode = x.ResponsibleApproverEmployeeCode, ResponsibleApproverEmployeeName = x.ResponsibleApproverEmployeeCode != null && names.TryGetValue(x.ResponsibleApproverEmployeeCode, out var an) ? an : null, ResponsibleAssignedAt = x.ResponsibleAssignedAt, OperatingResponsibleDeptCode = x.OperatingResponsibleDeptCode, OperatingResponsibleDeptName = deptName, OperatingResponsibleEmployeeCode = x.OperatingResponsibleEmployeeCode, OperatingResponsibleEmployeeName = x.OperatingResponsibleEmployeeCode != null && names.TryGetValue(x.OperatingResponsibleEmployeeCode, out var oe) ? oe : null, OperatingResponsibleAssignedAt = x.OperatingResponsibleAssignedAt, RepairHistory = history.Select(h => new EquipmentRepairHistoryDto { Id = h.Id, RepairDate = h.RepairDate, OperatorUserId = h.OperatorUserId, RepairCost = h.RepairCost, RepairContent = h.RepairContent, RepairVendor = h.RepairVendor, RepairResult = h.RepairResult, Note = h.Note, ResponsibleDeptCode = h.ResponsibleDeptCode, RepairerEmployeeCode = h.RepairerEmployeeCode, RepairFeedback = h.RepairFeedback, CompletedAt = h.CompletedAt }).ToList(), HandoverHistory = handovers.Select(h => new EquipmentHandoverHistoryDto { Id = h.Id, HandoverAt = h.HandoverAt, PreviousResponsibleEmployeeCode = h.PreviousResponsibleEmployeeCode, NewResponsibleEmployeeCode = h.NewResponsibleEmployeeCode, PreviousApproverEmployeeCode = h.PreviousApproverEmployeeCode, NewApproverEmployeeCode = h.NewApproverEmployeeCode, Reason = h.Reason, HandoverByUserId = h.HandoverByUserId }).ToList() }; }
 }

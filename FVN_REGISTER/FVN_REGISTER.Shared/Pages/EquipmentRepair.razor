@@ -1,0 +1,64 @@
+@page "/equipment/repair/{RequestId:int}"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Equipment
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject IEquipmentClientService Equipment
+@inject ISnackbar Snackbar
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.Medium" Class="py-5">
+    @if (_loading) { <MudProgressCircular Indeterminate="true" /> }
+    else if (_request == null) { <MudAlert Severity="Severity.Warning">Không tìm thấy yêu cầu sửa chữa hoặc bạn không có quyền xử lý.</MudAlert> }
+    else
+    {
+        <MudText Typo="Typo.h5">Xử lý sửa chữa thiết bị</MudText>
+        <MudPaper Outlined="true" Class="pa-4 my-4">
+            <MudText><b>Yêu cầu:</b> #@_request.Id</MudText>
+            <MudText><b>Thiết bị:</b> @_request.EquipmentName</MudText>
+            <MudText><b>Mã tài sản:</b> @_request.AssetCode</MudText>
+            <MudText><b>Nội dung:</b> @_request.RepairContent</MudText>
+            <MudText><b>Bộ phận chịu trách nhiệm:</b> @_request.RepairResponsibleDeptCode</MudText>
+            <MudText><b>Nhân viên được giao:</b> @_request.RepairAssigneeEmployeeCode</MudText>
+        </MudPaper>
+        @if (_request.RepairCompletedAt.HasValue)
+        {
+            <MudAlert Severity="Severity.Success">Đã hoàn thành lúc @(_request.RepairCompletedAt.Value.ToString("dd/MM/yyyy HH:mm")). Kết quả: @(_request.RepairFeedback)</MudAlert>
+        }
+        else
+        {
+            <MudTextField @bind-Value="_feedback" Label="Kết quả / hiện trạng sau sửa chữa" Lines="5" Required="true" Variant="Variant.Outlined" />
+            <MudButton Class="mt-4" Variant="Variant.Filled" Color="Color.Success" OnClick="CompleteAsync" Disabled="_busy">Hoàn thành sửa chữa & phản hồi</MudButton>
+        }
+    }
+</MudContainer>
+
+@code {
+    [Parameter] public int RequestId { get; set; }
+    private bool _loading = true;
+    private bool _busy;
+    private string _feedback = string.Empty;
+    private EquipmentRequestDto? _request;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var actions = await Equipment.GetActionsAsync();
+        if (!actions.IsSuccess || actions.Data?.Repair != true) { _loading = false; return; }
+        var mine = await Equipment.GetMineAsync();
+        if (mine.IsSuccess) _request = mine.Data?.FirstOrDefault(x => x.Id == RequestId && x.RequestKind == FVN_REGISTER.Core.Enums.EquipmentRequestKind.Repair);
+        _loading = false;
+    }
+
+    private async Task CompleteAsync()
+    {
+        if (_request == null || string.IsNullOrWhiteSpace(_feedback)) { Snackbar.Add("Vui lòng nhập kết quả sửa chữa.", Severity.Warning); return; }
+        _busy = true;
+        try
+        {
+            var result = await Equipment.CompleteRepairAsync(RequestId, _feedback.Trim());
+            Snackbar.Add(result.IsSuccess ? "Đã hoàn thành và gửi phản hồi cho người yêu cầu cùng các cấp phê duyệt." : result.Message ?? "Không thể hoàn thành.", result.IsSuccess ? Severity.Success : Severity.Error);
+            if (result.IsSuccess) Navigation.NavigateTo("/equipment");
+        }
+        finally { _busy = false; }
+    }
+}
