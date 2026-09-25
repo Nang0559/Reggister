@@ -8,11 +8,27 @@ size: 16:9
 # FVN REGISTER
 ## Nhìn 5 giây: **TRƯỚC → SAU → THAY ĐỔI → HIỆU QUẢ**
 
-### 🔴 TRƯỚC — LƯU TRÌNH THỦ CÔNG
-👤✍️ Người làm → 📄 Phiếu → ✉️ Email / ký → 📊 Excel → 🔎 Tìm & đối chiếu
+### 🔴 TRƯỚC ↔ 🟢 SAU
 
-### 🟢 SAU — LƯU TRÌNH ĐIỆN TỬ
-💻 Đăng ký số → ✅ Phê duyệt → 🔄 Đồng bộ → ⚠️ Đối soát → 🔔 Việc cần xử lý
+```mermaid
+flowchart LR
+    subgraph BEFORE["🔴 TRƯỚC"]
+        direction TB
+        A1["👤 Người làm"] --> A2["📄 Phiếu"]
+        A2 --> A3["✉️ Email / ký"]
+        A3 --> A4["📊 Excel"]
+        A4 --> A5["🔎 Tìm & đối chiếu"]
+    end
+    subgraph AFTER["🟢 SAU"]
+        direction TB
+        B1["👤 Người làm"] --> B2["💻 Đăng ký số"]
+        B2 --> B3["🔐 Kiểm tra"]
+        B3 --> B4["✅ Phê duyệt"]
+        B4 --> B5["🔄 Đồng bộ"]
+        B5 --> B6["⚠️ Đối soát"]
+        B6 --> B7["🔔 Việc cần xử lý"]
+    end
+```
 
 | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
 |---|---|
@@ -24,11 +40,25 @@ size: 16:9
 
 # 01 — MỘT VIỆC, HAI CÁCH VẬN HÀNH
 
-### 🔴 TRƯỚC — nhiều bước thủ công
-✍️ Ghi phiếu → 📄 Ký giấy → ✉️ Gửi email → ⌨️ Nhập Excel → 🔎 Đối chiếu
+### 🔴 TRƯỚC ↔ 🟢 SAU
 
-### 🟢 SAU — một luồng điện tử
-💻 Đăng ký → 🔐 Kiểm tra → ✅ Phê duyệt → 🔄 Thực tế → ⚠️ Ngoại lệ
+```mermaid
+flowchart LR
+    subgraph BEFORE["🔴 TRƯỚC — nhiều bước thủ công"]
+        direction TB
+        A1["✍️ Ghi phiếu"] --> A2["📄 Ký giấy"]
+        A2 --> A3["✉️ Gửi email"]
+        A3 --> A4["⌨️ Nhập Excel"]
+        A4 --> A5["🔎 Đối chiếu"]
+    end
+    subgraph AFTER["🟢 SAU — một luồng điện tử"]
+        direction TB
+        B1["💻 Đăng ký"] --> B2["🔐 Kiểm tra"]
+        B2 --> B3["✅ Phê duyệt"]
+        B3 --> B4["🔄 Thực tế"]
+        B4 --> B5["⚠️ Ngoại lệ"]
+    end
+```
 
 | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
 |---|---|
@@ -60,20 +90,39 @@ size: 16:9
 
 
 ---
-# 02 — MỘT QUY TRÌNH, HAI CÁCH VẬN HÀNH
+# 03 — MỘT QUY TRÌNH, HAI CÁCH VẬN HÀNH
 
-### 🔴 TRƯỚC — nhiều vòng lặp
-👤 **Nhân viên** → 📄 **Phiếu / Excel / email** → 👔 **Quản lý ký** → 🧑‍💼 **Nhân sự nhận** → ⌨️ **Nhập / tổng hợp** → 🔎 **Đối chiếu** → ↺ **Hỏi lại / sửa**
+### 🔴 TRƯỚC ↔ 🟢 SAU
 
-### 🟢 SAU — một luồng có kiểm soát
-💻 **Đăng ký số** → 🔐 **Kiểm tra** → ✅ **Phê duyệt** → 📅 **Kế hoạch** + 🕐 **Thực tế HRM** → ⚠️ **Đối soát** → 🔔 **Việc cần xử lý**
+```mermaid
+flowchart LR
+    subgraph BEFORE["🔴 TRƯỚC — nhiều vòng lặp"]
+        direction TB
+        A1["👤 Nhân viên"] --> A2["📄 Phiếu / Excel / email"]
+        A2 --> A3["👔 Quản lý ký"]
+        A3 --> A4["🧑‍💼 Nhân sự nhận"]
+        A4 --> A5["⌨️ Nhập / tổng hợp"]
+        A5 --> A6["🔎 Đối chiếu"]
+        A6 --> A7["↺ Hỏi lại / sửa"]
+        A7 --> A6
+    end
+    subgraph AFTER["🟢 SAU — một luồng có kiểm soát"]
+        direction TB
+        B1["💻 Đăng ký số"] --> B2["🔐 Kiểm tra"]
+        B2 --> B3["✅ Phê duyệt"]
+        B3 --> B4["📅 Kế hoạch"]
+        B4 --> B5["🕐 Thực tế HRM"]
+        B5 --> B6["⚠️ Đối soát"]
+        B6 --> B7["🔔 Việc cần xử lý"]
+    end
+```
 
 ### Điểm thay đổi lớn
 **Không cố gắng tự động hóa mọi quyết định — tự động hóa phần lặp lại để con người xử lý đúng chỗ.**
 
 ---
 
-# 03 — CHẤM CÔNG • PHÉP • OT • CÔNG TÁC
+# 04 — CHẤM CÔNG • PHÉP • OT • CÔNG TÁC
 
 | 🔴 TRƯỚC | 🟢 SAU | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
 |---|---|---|---|
@@ -81,13 +130,32 @@ size: 16:9
 | Sai lệch phải gọi / email hỏi lại | Sai lệch xuất hiện trên lịch và danh sách xử lý | **Sai lệch trở thành một việc cụ thể** | Xử lý sớm hơn |
 | Kiểm tra dồn vào cuối kỳ | Có thể phát hiện trong quá trình vận hành | **Từ kiểm tra muộn → kiểm tra liên tục** | Giảm dồn việc cuối kỳ |
 
-**🟢 SAU**  
-Đăng ký → Phê duyệt → Kế hoạch → HRM thực tế → Đối soát → Hoàn tất / Xử lý ngoại lệ
+```mermaid
+flowchart LR
+    subgraph BEFORE["🔴 TRƯỚC"]
+        direction TB
+        A1["📄 Phiếu"] --> A2["✍️ Ký giấy"]
+        A2 --> A3["🗂️ Lưu"]
+        A3 --> A4["⌨️ Nhập bảng"]
+        A4 --> A5["📋 Nhận bảng công"]
+        A5 --> A6["🔎 Đối chiếu"]
+        A6 --> A7["❓ Hỏi lại / sửa"]
+    end
+    subgraph AFTER["🟢 SAU"]
+        direction TB
+        B1["💻 Đăng ký"] --> B2["✅ Phê duyệt"]
+        B2 --> B3["📅 Kế hoạch"]
+        B3 --> B4["🕐 HRM thực tế"]
+        B4 --> B5["⚠️ Đối soát"]
+        B5 --> B6["🔔 Việc cần xử lý"]
+        B6 --> B7["✅ Hoàn tất"]
+    end
+```
 
 
 ---
 
-# 04 — CÁC SAI LỆCH ĐƯỢC NHÌN THẤY TRƯỚC KHI CHỐT
+# 05 — CÁC SAI LỆCH ĐƯỢC NHÌN THẤY TRƯỚC KHI CHỐT
 
 | Tình huống | Hệ thống làm gì | Việc còn lại của con người |
 |---|---|---|
@@ -101,7 +169,7 @@ size: 16:9
 
 ---
 
-# 05 — LỊCH LÀM VIỆC: MỘT MÀN HÌNH THAY CHO NHIỀU NƠI TÌM KIẾM
+# 06 — LỊCH LÀM VIỆC: MỘT MÀN HÌNH THAY CHO NHIỀU NƠI TÌM KIẾM
 
 | 🔴 TRƯỚC | 🟢 SAU | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
 |---|---|---|---|
@@ -109,13 +177,29 @@ size: 16:9
 | Muốn biết “hôm đó có gì?” phải tra nhiều nguồn | Một ngày hiển thị **ca + vào/ra + phép + OT + công tác + cảnh báo** | **Một ngày = một bức tranh hoàn chỉnh** | Nhìn nhanh hơn |
 | Sai lệch nằm trong dữ liệu chi tiết | Dấu **?** ngay tại ngày | Đưa vấn đề đến đúng vị trí | Phát hiện sớm |
 
-**🟢 SAU**  
-Ca + Chấm công + Phép + OT + Công tác + Sai lệch → Lịch của tôi
+```mermaid
+flowchart LR
+    subgraph BEFORE["🔴 TRƯỚC"]
+        direction TB
+        A1["📅 Tìm ca"] --> A2["🕐 Tìm chấm công"]
+        A2 --> A3["🏖️ Tìm phép / OT"]
+        A3 --> A4["🧳 Tìm công tác"]
+        A4 --> A5["🔎 Ghép dữ liệu"]
+    end
+    subgraph AFTER["🟢 SAU"]
+        direction TB
+        B1["📅 Lịch của tôi"] --> B2["🏢 Ca"]
+        B2 --> B3["🕐 Vào / ra"]
+        B3 --> B4["🏖️ Phép / OT"]
+        B4 --> B5["🧳 Công tác"]
+        B5 --> B6["⚠️ Sai lệch"]
+    end
+```
 
 
 ---
 
-# 06 — DẤU “?” = VIỆC CẦN XỬ LÝ, KHÔNG PHẢI BIỂU TƯỢNG TRANG TRÍ
+# 07 — DẤU “?” = VIỆC CẦN XỬ LÝ, KHÔNG PHẢI BIỂU TƯỢNG TRANG TRÍ
 
 | 🔴 CÁCH CŨ | 🟢 CÁCH MỚI |
 |---|---|
@@ -124,13 +208,29 @@ Ca + Chấm công + Phép + OT + Công tác + Sai lệch → Lịch của tôi
 | Tự hỏi ai xử lý | Có **người / đơn vị phụ trách** |
 | Tự nhớ phải làm gì | Có **việc cần xử lý + hạn** |
 
-**🟢 SAU**  
-? → Nguyên nhân → Hồ sơ nguồn → Người xử lý → Việc cần làm → Hoàn tất
+```mermaid
+flowchart LR
+    subgraph BEFORE["🔴 TRƯỚC"]
+        direction TB
+        A1["⚠️ Có vấn đề"] --> A2["🔎 Tự tìm nguyên nhân"]
+        A2 --> A3["📂 Tìm hồ sơ nguồn"]
+        A3 --> A4["❓ Hỏi ai xử lý"]
+        A4 --> A5["🧠 Tự nhớ việc"]
+    end
+    subgraph AFTER["🟢 SAU"]
+        direction TB
+        B1["❓ Dấu cảnh báo"] --> B2["🔎 Nguyên nhân"]
+        B2 --> B3["📂 Hồ sơ nguồn"]
+        B3 --> B4["👤 Người xử lý"]
+        B4 --> B5["📋 Việc cần làm"]
+        B5 --> B6["✅ Hoàn tất"]
+    end
+```
 
 
 ---
 
-# 07 — QUẢN LÝ THIẾT BỊ: TỪ SỔ THEO DÕI → QR + LỊCH SỬ
+# 08 — QUẢN LÝ THIẾT BỊ: TỪ SỔ THEO DÕI → QR + LỊCH SỬ
 
 | 🔴 TRƯỚC | 🟢 SAU | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
 |---|---|---|---|
@@ -138,13 +238,28 @@ Ca + Chấm công + Phép + OT + Công tác + Sai lệch → Lịch của tôi
 | Tìm phiếu kiểm tra cũ | QR → thông tin → lịch sử | Hồ sơ gắn với thiết bị | Dễ truy vết |
 | Nhớ lịch kiểm tra | Hệ thống sinh nhiệm vụ | Theo dõi theo lịch | Giảm bỏ sót |
 
-**🟢 SAU**  
-QR → Thiết bị → Thông tin → Phiếu → Bằng chứng → Phê duyệt → Lịch sử
+```mermaid
+flowchart LR
+    subgraph BEFORE["🔴 TRƯỚC"]
+        direction TB
+        A1["📖 Sổ / Excel"] --> A2["🔎 Tìm thiết bị"]
+        A2 --> A3["📂 Tìm phiếu cũ"]
+        A3 --> A4["🧠 Nhớ lịch kiểm tra"]
+    end
+    subgraph AFTER["🟢 SAU"]
+        direction TB
+        B1["📷 Quét QR"] --> B2["🖥️ Thiết bị"]
+        B2 --> B3["📋 Phiếu"]
+        B3 --> B4["📸 Bằng chứng"]
+        B4 --> B5["✅ Phê duyệt"]
+        B5 --> B6["🕘 Lịch sử"]
+    end
+```
 
 
 ---
 
-# 08 — PHIẾU KIỂM TRA: TỪ “NHỚ THÌ LÀM” → “HỆ THỐNG GIAO VIỆC”
+# 09 — PHIẾU KIỂM TRA: TỪ “NHỚ THÌ LÀM” → “HỆ THỐNG GIAO VIỆC”
 
 | 🔴 TRƯỚC | 🟢 SAU | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
 |---|---|---|---|
@@ -155,7 +270,7 @@ QR → Thiết bị → Thông tin → Phiếu → Bằng chứng → Phê duy�
 
 ---
 
-# 09 — PHẦN MỀM CHỦ ĐỘNG THỰC HIỆN CÔNG VIỆC LẶP LẠI
+# 10 — PHẦN MỀM CHỦ ĐỘNG THỰC HIỆN CÔNG VIỆC LẶP LẠI
 
 | 🔴 TRƯỚC | 🟢 SAU |
 |---|---|
@@ -176,20 +291,35 @@ Các chu kỳ trên là cấu hình vận hành hiện tại, không phải cam 
 
 ---
 
-# 10 — TỪ “AI NHỚ THÌ LÀM” → “HỆ THỐNG QUẢN LÝ HẠN”
+# 11 — TỪ “AI NHỚ THÌ LÀM” → “HỆ THỐNG QUẢN LÝ HẠN”
 
-### 🔴 CÁCH CŨ
-📋 **Việc cần làm** → 🧠 **Con người phải nhớ** → ❌ **Quên** → ⏰ **Quá hạn** → 🔎 **Phát hiện muộn**
+### 🔴 CÁCH CŨ ↔ 🟢 CÁCH MỚI
 
-### 🟢 CÁCH MỚI
-📅 **Lịch / sự kiện** → ⚙️ **Tạo việc** → ⏰ **Hạn xử lý** → 🔔 **Thông báo** → 👤 **Người phụ trách** → 🕘 **Lưu lịch sử**
+```mermaid
+flowchart LR
+    subgraph BEFORE["🔴 CÁCH CŨ"]
+        direction TB
+        A1["📋 Việc cần làm"] --> A2["🧠 Con người phải nhớ"]
+        A2 --> A3["❌ Quên"]
+        A3 --> A4["⏰ Quá hạn"]
+        A4 --> A5["🔎 Phát hiện muộn"]
+    end
+    subgraph AFTER["🟢 CÁCH MỚI"]
+        direction TB
+        B1["📅 Lịch / sự kiện"] --> B2["⚙️ Tạo việc"]
+        B2 --> B3["⏰ Hạn xử lý"]
+        B3 --> B4["🔔 Thông báo"]
+        B4 --> B5["👤 Người phụ trách"]
+        B5 --> B6["🕘 Lưu lịch sử"]
+    end
+```
 
 ### Giá trị
 **Đúng người • đúng việc • đúng hạn • có truy vết**
 
 ---
 
-# 11 — KIỂM SOÁT TRƯỚC KHI CHỐT BẢNG LƯƠNG
+# 12 — KIỂM SOÁT TRƯỚC KHI CHỐT BẢNG LƯƠNG
 
 | 🔴 TRƯỚC | 🟢 SAU | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
 |---|---|---|---|
@@ -197,26 +327,56 @@ Các chu kỳ trên là cấu hình vận hành hiện tại, không phải cam 
 | Sai lệch nằm rải rác | Có danh sách ngoại lệ | **Tập trung việc cần xử lý** | Giảm thời gian rà |
 | Điều chỉnh khó truy vết | Có dữ liệu và lịch sử xử lý | **Có dấu vết** | Tăng kiểm soát |
 
-**🟢 SAU**  
-Chấm công + Phép / OT / công tác + Điều chỉnh → Đối soát → Xử lý ngoại lệ → Khóa / xuất kỳ
+```mermaid
+flowchart LR
+    subgraph BEFORE["🔴 TRƯỚC"]
+        direction TB
+        A1["📊 Tổng hợp nhiều nguồn"] --> A2["🔎 Rà thủ công"]
+        A2 --> A3["⚠️ Phát hiện muộn"]
+        A3 --> A4["✍️ Sửa sau chốt"]
+    end
+    subgraph AFTER["🟢 SAU"]
+        direction TB
+        B1["🕐 Chấm công"] --> B2["🏖️ Phép / OT / công tác"]
+        B2 --> B3["🔄 Đối soát"]
+        B3 --> B4["⚠️ Ngoại lệ"]
+        B4 --> B5["👤 Xử lý"]
+        B5 --> B6["🔒 Khóa / xuất kỳ"]
+    end
+```
 
 
 ---
 
-# 12 — BÁO CÁO: TỪ NHIỀU TỆP → MỘT NGUỒN DỮ LIỆU
+# 13 — BÁO CÁO: TỪ NHIỀU TỆP → MỘT NGUỒN DỮ LIỆU
 
-### 🔴 TRƯỚC
-📄 **Tệp phép** + 📄 **Tệp OT** + 📄 **Tệp công tác** + 📄 **Tệp thiết bị** + 📄 **Tệp chấm công** → 🧑‍💼 **Nhân sự tổng hợp** → 📊 **Báo cáo**
+### 🔴 TRƯỚC ↔ 🟢 SAU
 
-### 🟢 SAU
-🗄️ **Dữ liệu nghiệp vụ** → 📊 **Bảng điều hành** + 📈 **Báo cáo** + 🔐 **Xuất dữ liệu theo quyền**
+```mermaid
+flowchart LR
+    subgraph BEFORE["🔴 TRƯỚC"]
+        direction TB
+        A1["📄 Tệp phép"] --> A2["📄 Tệp OT"]
+        A2 --> A3["📄 Tệp công tác"]
+        A3 --> A4["📄 Tệp thiết bị"]
+        A4 --> A5["📄 Tệp chấm công"]
+        A5 --> A6["🧑‍💼 Nhân sự tổng hợp"]
+        A6 --> A7["📊 Báo cáo"]
+    end
+    subgraph AFTER["🟢 SAU"]
+        direction TB
+        B1["🗄️ Dữ liệu nghiệp vụ"] --> B2["📊 Bảng điều hành"]
+        B2 --> B3["📈 Báo cáo"]
+        B3 --> B4["🔐 Xuất dữ liệu theo quyền"]
+    end
+```
 
 ### Thay đổi
 **Từ “gom dữ liệu để làm báo cáo” → “báo cáo lấy từ dữ liệu đã quản lý”.**
 
 ---
 
-# 13 — HIỆU QUẢ ĐẾN TỪ 4 NHÓM
+# 14 — HIỆU QUẢ ĐẾN TỪ 4 NHÓM
 
 | 🔴 CHI PHÍ / LÃNG PHÍ | 🟢 CƠ CHẾ GIẢM |
 |---|---|
@@ -230,7 +390,7 @@ Chấm công + Phép / OT / công tác + Điều chỉnh → Đối soát → X�
 
 ---
 
-# 14 — CÁCH CHUYỂN HIỆU QUẢ THÀNH TIỀN
+# 15 — CÁCH CHUYỂN HIỆU QUẢ THÀNH TIỀN
 
 | Bước | Cách tính |
 |---|---|
@@ -246,7 +406,7 @@ Chấm công + Phép / OT / công tác + Điều chỉnh → Đối soát → X�
 
 ---
 
-# 15 — VÍ DỤ MINH HỌA: CÁCH TRÌNH BÀY, KHÔNG PHẢI KẾT QUẢ THỰC TẾ
+# 16 — VÍ DỤ MINH HỌA: CÁCH TRÌNH BÀY, KHÔNG PHẢI KẾT QUẢ THỰC TẾ
 
 > ⚠️ **Số liệu dưới đây chỉ để minh họa phương pháp tính.**
 
@@ -263,7 +423,7 @@ Chấm công + Phép / OT / công tác + Điều chỉnh → Đối soát → X�
 
 ---
 
-# 16 — “GIẢI PHÓNG NĂNG LỰC” KHÁC VỚI “GIẢM NGƯỜI”
+# 17 — “GIẢI PHÓNG NĂNG LỰC” KHÁC VỚI “GIẢM NGƯỜI”
 
 | Giá trị | Có thể chuyển thành |
 |---|---|
@@ -278,10 +438,16 @@ Chấm công + Phép / OT / công tác + Điều chỉnh → Đối soát → X�
 
 ---
 
-# 17 — ĐO HIỆU QUẢ THỰC TẾ
+# 18 — ĐO HIỆU QUẢ THỰC TẾ
 
-**🟢 SAU**  
-Đo hiện trạng 2–4 tuần → Thử nghiệm 1–2 phòng ban → Đo lại → So sánh trước / sau → Tính lợi ích → Quyết định mở rộng
+```mermaid
+flowchart TD
+    A["📏 Đo hiện trạng 2–4 tuần"] --> B["🧪 Thử nghiệm 1–2 phòng ban"]
+    B --> C["📏 Đo lại"]
+    C --> D["🔎 So sánh trước / sau"]
+    D --> E["💰 Tính lợi ích"]
+    E --> F["🚀 Quyết định mở rộng"]
+```
 
 
 | Chỉ số | Cách nhìn |
@@ -297,24 +463,39 @@ Chấm công + Phép / OT / công tác + Điều chỉnh → Đối soát → X�
 
 ---
 
-# 18 — TỪ PHẦN MỀM ĐĂNG KÝ → NỀN TẢNG VẬN HÀNH
+# 19 — TỪ PHẦN MỀM ĐĂNG KÝ → NỀN TẢNG VẬN HÀNH
 
 | 🔴 CÁCH NHÌN CŨ | 🟢 CÁCH NHÌN MỚI |
 |---|---|
 | **Đăng ký** là điểm kết thúc của một chức năng | **Đăng ký** là điểm bắt đầu của một vòng đời |
 
-### 🔴 TRƯỚC
-Đăng ký → Phê duyệt → Lưu hồ sơ
+### 🔴 TRƯỚC ↔ 🟢 SAU
 
-### 🟢 SAU
-Đăng ký → Phê duyệt → Thực tế → Đối soát → Việc cần xử lý → Giải quyết → Báo cáo → Quản trị
+```mermaid
+flowchart LR
+    subgraph BEFORE["🔴 TRƯỚC"]
+        direction TB
+        A1["📝 Đăng ký"] --> A2["✅ Phê duyệt"]
+        A2 --> A3["🗂️ Lưu hồ sơ"]
+    end
+    subgraph AFTER["🟢 SAU"]
+        direction TB
+        B1["📝 Đăng ký"] --> B2["✅ Phê duyệt"]
+        B2 --> B3["🕐 Thực tế"]
+        B3 --> B4["⚠️ Đối soát"]
+        B4 --> B5["🔔 Việc cần xử lý"]
+        B5 --> B6["🛠️ Giải quyết"]
+        B6 --> B7["📊 Báo cáo"]
+        B7 --> B8["⚙️ Quản trị"]
+    end
+```
 
 ### Giá trị cốt lõi
 **Hệ thống không chỉ lưu thông tin — hệ thống theo dõi vòng đời công việc.**
 
 ---
 
-# 19 — MỘT HỆ THỐNG, NHIỀU GÓC NHÌN
+# 20 — MỘT HỆ THỐNG, NHIỀU GÓC NHÌN
 
 | Người dùng | Giá trị nhận được |
 |---|---|
@@ -326,7 +507,7 @@ Chấm công + Phép / OT / công tác + Điều chỉnh → Đối soát → X�
 
 ---
 
-# 20 — KẾT LUẬN TRONG 5 GIÂY
+# 21 — KẾT LUẬN TRONG 5 GIÂY
 
 | 🔴 TRƯỚC | 🟢 FVN REGISTER |
 |---|---|
