@@ -1,4 +1,5 @@
 using FVN_REGISTER.Application.Interfaces.Security;
+using FvnAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Depts;
 using FVN_REGISTER.Contract.Dtos.EquipmentImport;
@@ -18,9 +19,9 @@ public sealed class EquipmentSchemaController : ControllerBase
 {
     private readonly FVNWEBAPPContext _db;
     private readonly ICurrentUserService _currentUser;
-    private readonly IAuthorizationService _authorization;
+    private readonly FvnAuthorizationService _authorization;
 
-    public EquipmentSchemaController(FVNWEBAPPContext db, ICurrentUserService currentUser, IAuthorizationService authorization)
+    public EquipmentSchemaController(FVNWEBAPPContext db, ICurrentUserService currentUser, FvnAuthorizationService authorization)
     {
         _db = db; _currentUser = currentUser; _authorization = authorization;
     }
