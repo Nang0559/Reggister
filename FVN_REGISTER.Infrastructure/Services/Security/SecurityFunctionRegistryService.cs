@@ -15,6 +15,20 @@ public sealed class SecurityFunctionRegistryService
     private readonly FVNWEBAPPContext _db;
     public SecurityFunctionRegistryService(FVNWEBAPPContext db) => _db = db;
 
+    public async Task<bool> CanBootstrapRegistryAsync(int userId, CancellationToken ct = default)
+    {
+        if (userId <= 0) return false;
+        var isSuperAdmin = await _db.Users.AsNoTracking().AnyAsync(
+            x => x.Id == userId && x.IsActive == true && x.PermissionCode == 1, ct);
+        if (isSuperAdmin) return true;
+
+        return await (
+            from ur in _db.UserRoles.AsNoTracking()
+            join r in _db.Roles.AsNoTracking() on ur.IdRole equals r.Id
+            where ur.IdUser == userId && r.IsActive == true && r.RoleCode == 1
+            select ur.Id).AnyAsync(ct);
+    }
+
     public async Task<SecurityFunctionDiscoverySummaryDto> ReconcileAsync(CancellationToken ct = default)
     {
         var now = DateTime.Now;
