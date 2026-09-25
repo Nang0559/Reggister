@@ -2,7 +2,10 @@ using FVN_REGISTER.Contract.Dtos.Authentication;
 
 namespace FVN_REGISTER.Application.Interfaces.Users;
 
-public interface ICurrentUserService : FVN_REGISTER.Application.Interfaces.Security.ICurrentUserService
+/// <summary>
+/// Canonical current-user abstraction used across Application, Infrastructure and API.
+/// </summary>
+public interface ICurrentUserService
 {
     UserIdentityDto? GetCurrentUser();
     bool IsLoggedIn { get; }
