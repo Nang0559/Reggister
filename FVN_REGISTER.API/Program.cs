@@ -230,7 +230,7 @@ builder.Services.AddScoped<IApprovalProvider<EquipmentRequestSubject>>(sp => sp.
 builder.Services.AddScoped<IApprovalEngine<LeaveRequestSubject>, ApprovalEngine<LeaveRequestSubject>>();
 builder.Services.AddScoped<IApprovalEngine<OTRequestSubject>, ApprovalEngine<OTRequestSubject>>();
 builder.Services.AddScoped<IApprovalEngine<TripRequestSubject>, ApprovalEngine<TripRequestSubject>>();
-builder.Services.AddScoped<IApprovalEngine<EquipmentRequestSubject>, ApprovalEngine<EquipmentApprovalEngine<EquipmentRequestSubject>>>();
+builder.Services.AddScoped<IApprovalEngine<EquipmentRequestSubject>, ApprovalEngine<EquipmentRequestSubject>>();
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<LeaveRequestSubject>, ApprovalWorkflowOrchestrator<LeaveRequestSubject>>();
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<OTRequestSubject>, ApprovalWorkflowOrchestrator<OTRequestSubject>>();
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<TripRequestSubject>, ApprovalWorkflowOrchestrator<TripRequestSubject>>();
