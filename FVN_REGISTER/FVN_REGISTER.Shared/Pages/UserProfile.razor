@@ -89,7 +89,7 @@ else
         _isSaving = true;
         try
         {
-            var result = await AuthService.UpdateProfileAsync(_model.Email.Trim(), _avatarUrl);
+            var result = await AuthService.UpdateProfileAsync((_model.Email ?? string.Empty).Trim(), _avatarUrl);
             if (!result.IsSuccess)
             {
                 Snackbar.Add(result.Message ?? "Không thể cập nhật hồ sơ.", Severity.Error);
