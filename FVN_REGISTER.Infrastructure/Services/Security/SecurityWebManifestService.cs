@@ -8,7 +8,7 @@ namespace FVN_REGISTER.Infrastructure.Services.Security;
 
 /// <summary>
 /// Nhận manifest chức năng từ Web/UI và lưu trạng thái phát hiện.
-/// Manifest chỉ tạo/ cập nhật candidate; không tự cấp quyền và không tự tạo F03Functions.
+/// Manifest chỉ tạo/cập nhật candidate; không tự cấp quyền và không tự tạo F03Functions.
 /// </summary>
 public sealed class SecurityWebManifestService
 {
@@ -30,9 +30,12 @@ public sealed class SecurityWebManifestService
 
         var keys = candidates.Select(x => x.FunctionKey.Trim()).ToHashSet(StringComparer.OrdinalIgnoreCase);
         var existing = await _db.SecurityFunctionRegistry
-            .Where(x => keys.Contains(x.FunctionKey))
+            .Where(x => x.SourceType == "WebManifest")
             .ToListAsync(ct);
-        var byKey = existing.ToDictionary(x => x.FunctionKey, StringComparer.OrdinalIgnoreCase);
+        var existingByKey = existing.ToDictionary(x => x.FunctionKey, StringComparer.OrdinalIgnoreCase);
+        var currentByKey = existing.Where(x => keys.Contains(x.FunctionKey))
+            .ToDictionary(x => x.FunctionKey, StringComparer.OrdinalIgnoreCase);
+
         var registered = await _db.Functions
             .Where(x => keys.Contains(x.FunctionKey))
             .Select(x => new { x.FunctionKey, x.FunctionCode, x.LifecycleStatus })
@@ -54,7 +57,7 @@ public sealed class SecurityWebManifestService
                 ? "Active"
                 : "PendingReview";
 
-            if (!byKey.TryGetValue(key, out var item))
+            if (!currentByKey.TryGetValue(key, out var item))
             {
                 item = new F03SecurityFunctionRegistryItem
                 {
@@ -73,7 +76,8 @@ public sealed class SecurityWebManifestService
                     IsIgnored = false
                 };
                 _db.SecurityFunctionRegistry.Add(item);
-                byKey[key] = item;
+                currentByKey[key] = item;
+                existingByKey[key] = item;
                 added++;
             }
             else
@@ -97,7 +101,7 @@ public sealed class SecurityWebManifestService
                     item.ResolvedAt ??= now;
                     active++;
                 }
-                else if (item.LifecycleStatus is "Retired" or "Replaced")
+                else if (item.LifecycleStatus is "Retired" or "Replaced" or "PendingRetirement")
                 {
                     item.LifecycleStatus = "PendingReview";
                     item.ReplacementFunctionKey = null;
@@ -111,6 +115,17 @@ public sealed class SecurityWebManifestService
                     updated++;
                 }
             }
+        }
+
+        // A Web candidate that disappeared from the next manifest becomes a retirement candidate.
+        // We never deactivate/delete F03Functions here; the SuperAdmin must explicitly retire or replace it.
+        foreach (var item in existing)
+        {
+            if (keys.Contains(item.FunctionKey) || item.IsIgnored || item.LifecycleStatus is "Retired" or "Replaced")
+                continue;
+
+            item.LifecycleStatus = "PendingRetirement";
+            item.ResolvedAt = null;
         }
 
         await _db.SaveChangesAsync(ct);
