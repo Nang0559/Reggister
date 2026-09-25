@@ -61,11 +61,15 @@ public static class SecurityFunctionCatalog
             ["InspectionApprove"] = "Phê duyệt kiểm kê",
             ["InspectionReport"] = "Báo cáo kiểm kê",
             ["Manage"] = "Quản lý",
+            ["ManageRoles"] = "Quản lý vai trò",
+            ["ManageFunctions"] = "Quản lý chức năng",
+            ["Audit"] = "Kiểm tra nhật ký",
             ["ResetPassword"] = "Yêu cầu cấp lại mật khẩu",
             ["Lock"] = "Khóa tài khoản",
             ["AssignPermission"] = "Gán quyền",
             ["ManageTwoFactor"] = "Quản lý xác thực hai bước",
             ["ViewStatus"] = "Xem trạng thái",
+            ["SubmissionView"] = "Xem phiếu gửi",
             ["Sync"] = "Đồng bộ",
             ["Review"] = "Rà soát",
             ["Retry"] = "Thử lại",
@@ -78,23 +82,29 @@ public static class SecurityFunctionCatalog
             ["ImportExcel"] = "Nhập Excel"
         };
 
-    public static string GetDisplayName(string functionKey)
+    public static string GetDisplayName(string functionKey) => GetDisplayName(functionKey, "vi-VN");
+
+    public static string GetDisplayName(string functionKey, string languageCode)
     {
+        if (!string.Equals(languageCode, "vi-VN", StringComparison.OrdinalIgnoreCase))
+            throw new NotSupportedException($"Ngôn ngữ chức năng '{languageCode}' chưa được đăng ký.");
         if (string.IsNullOrWhiteSpace(functionKey)) return "Chức năng chưa xác định";
         var parts = functionKey.Split('.', 2, StringSplitOptions.RemoveEmptyEntries);
         var module = parts.Length > 0 && ModuleNames.TryGetValue(parts[0], out var moduleName)
             ? moduleName
-            : parts.ElementAtOrDefault(0) ?? "Chức năng";
+            : "Chức năng chưa được đặt tên";
         if (parts.Length == 1) return module;
         var action = ActionNames.TryGetValue(parts[1], out var actionName)
             ? actionName
-            : parts[1];
+            : "Thao tác chưa được đặt tên";
         return $"{action} {module.ToLowerInvariant()}";
     }
 
-    public static string GetDescription(string functionKey)
+    public static string GetDescription(string functionKey) => GetDescription(functionKey, "vi-VN");
+
+    public static string GetDescription(string functionKey, string languageCode)
     {
-        var name = GetDisplayName(functionKey);
+        var name = GetDisplayName(functionKey, languageCode);
         return $"Cho phép người dùng {name.ToLowerInvariant()} theo quyền và phạm vi dữ liệu được cấp.";
     }
 }
