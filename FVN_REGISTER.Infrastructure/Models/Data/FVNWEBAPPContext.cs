@@ -25,6 +25,7 @@ public class FVNWEBAPPContext : DbContext
     public DbSet<F03User> Users { get; set; }
     public DbSet<F03PasswordResetRequest> PasswordResetRequests { get; set; }
     public DbSet<F03Function> Functions { get; set; }
+    public DbSet<F03SecurityFunctionRegistryItem> SecurityFunctionRegistry { get; set; }
     public DbSet<F03Permission> Permissions { get; set; }
     public DbSet<F03UserFunction> UserFunctions { get; set; }
     public DbSet<F03UserSession> UserSessions { get; set; }
@@ -85,8 +86,22 @@ public class FVNWEBAPPContext : DbContext
         modelBuilder.Entity<F03RoleFunction>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.IdRole, x.IdFunction }).IsUnique(); entity.HasOne(x => x.Role).WithMany(x => x.RoleFunctions).HasForeignKey(x => x.IdRole).OnDelete(DeleteBehavior.Cascade); entity.HasOne(x => x.Function).WithMany(x => x.RoleFunctions).HasForeignKey(x => x.IdFunction).OnDelete(DeleteBehavior.Cascade); });
         modelBuilder.Entity<F03UserRole>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.IdUser, x.IdRole }).IsUnique(); entity.HasOne(x => x.User).WithMany(x => x.UserRoles).HasForeignKey(x => x.IdUser).OnDelete(DeleteBehavior.Cascade); entity.HasOne(x => x.Role).WithMany(x => x.UserRoles).HasForeignKey(x => x.IdRole).OnDelete(DeleteBehavior.Cascade); });
         modelBuilder.Entity<F03Role>(entity => entity.HasIndex(x => x.RoleCode).IsUnique());
-        modelBuilder.Entity<F03FeatureOperatorAssignment>(entity => { entity.HasKey(x => x.Id); entity.Property(x => x.EmployeeCode).HasMaxLength(50).IsRequired(); entity.Property(x => x.ResourceType).HasMaxLength(50).IsRequired(); entity.HasIndex(x => new { x.FunctionCode, x.ResourceType, x.ResourceId, x.EmployeeCode }).IsUnique(); entity.HasIndex(x => new { x.FunctionCode, x.ResourceType, x.ResourceId, x.IsActive }); });
+        modelBuilder.Entity<F03FeatureOperatorAssignment>(entity => { entity.HasKey(x => x.Id); entity.Property(x => x.EmployeeCode).HasMaxLength(50).IsRequired(); entity.Property(x => x.ResourceType).HasMaxLength(50).IsRequired(); entity.HasIndex(x => new { x.FunctionCode, x.ResourceType, x.ResourceId, x.EmployeeCode }).IsUnique(); entity.HasIndex(x => new { x.FunctionCode, x.ResourceType, x.ResourceId, x.IsActive });
+        });
         modelBuilder.Entity<F03EmailDispatchPolicy>(entity => { entity.HasKey(x => x.Id); entity.HasIndex(x => new { x.TemplateCode, x.Priority }).IsUnique(); entity.Property(x => x.DispatchMode).HasConversion<string>().HasMaxLength(30); });
+        modelBuilder.Entity<F03SecurityFunctionRegistryItem>(entity =>
+        {
+            entity.HasKey(x => x.Id);
+            entity.HasIndex(x => x.FunctionKey).IsUnique();
+            entity.Property(x => x.FunctionKey).IsRequired().HasMaxLength(150);
+            entity.Property(x => x.LifecycleStatus).IsRequired().HasMaxLength(30);
+            entity.Property(x => x.SourceType).IsRequired().HasMaxLength(30);
+            entity.Property(x => x.DefinitionHash).IsRequired().HasMaxLength(128);
+        });
+        modelBuilder.Entity<F03Function>(entity =>
+        {
+            entity.HasIndex(x => x.FunctionKey).IsUnique();
+        });
     }
 
     public override int SaveChanges() { ApplyAuditInfo(); return base.SaveChanges(); }
