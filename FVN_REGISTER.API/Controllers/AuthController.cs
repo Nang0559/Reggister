@@ -65,7 +65,7 @@ namespace FVN_REGISTER.API.Controllers
         {
             if (!ModelState.IsValid) return BadRequest(ApiResponse<object>.Fail("Mã xác thực không hợp lệ."));
             var enabled = await _twoFactorService.ConfirmSetupFromChallengeAsync(request.ChallengeToken, request.Code, ct);
-            if (!enabled.IsSuccess || enabled.Data == null) return HandleResult(enabled);
+            if (!enabled.IsSuccess) return HandleResult(enabled);
             var login = await _authService.CompleteTwoFactorLoginAsync(
                 request.ChallengeToken, request.Code, request.RememberMe,
                 HttpContext.Connection.RemoteIpAddress?.ToString(), Request.Headers.UserAgent.ToString(), ct);
