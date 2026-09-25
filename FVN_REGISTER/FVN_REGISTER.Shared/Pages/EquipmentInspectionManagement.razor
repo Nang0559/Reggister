@@ -85,8 +85,8 @@
                         {
                             <MudPaper Class="pa-3 my-3" Outlined="true">
                                 <MudGrid>
-                                    <MudItem xs="12" sm="2"><MudTextField @bind-Value="item.ItemCode" Label="Code" Dense="true" /></MudItem>
-                                    <MudItem xs="12" sm="4"><MudTextField @bind-Value="item.ItemLabel" Label="Hạng mục" Dense="true" /></MudItem>
+                                    <MudItem xs="12" sm="2"><MudTextField @bind-Value="item.ItemCode" Label="Code" /></MudItem>
+                                    <MudItem xs="12" sm="4"><MudTextField @bind-Value="item.ItemLabel" Label="Hạng mục" /></MudItem>
                                     <MudItem xs="12" sm="3">
                                         <MudSelect T="string" @bind-Value="item.InputType" Label="Kiểu" Dense="true">
                                             <MudSelectItem Value="@("PassFail")">Đạt / Không đạt</MudSelectItem>
@@ -96,25 +96,25 @@
                                             <MudSelectItem Value="@("Select")">Danh sách</MudSelectItem>
                                         </MudSelect>
                                     </MudItem>
-                                    <MudItem xs="12" sm="1"><MudNumericField T="int" @bind-Value="item.DisplayOrder" Label="STT" Dense="true" /></MudItem>
+                                    <MudItem xs="12" sm="1"><MudNumericField T="int" @bind-Value="item.DisplayOrder" Label="STT" /></MudItem>
                                     <MudItem xs="12" sm="2">
                                         <MudCheckBox @bind-Value="item.IsRequired" Label="Required" Dense="true" />
                                         <MudCheckBox @bind-Value="item.RequireImage" Label="Ảnh" Dense="true" />
                                     </MudItem>
                                     @if (item.InputType == "Number")
                                     {
-                                        <MudItem xs="12" sm="3"><MudNumericField T="decimal?" @bind-Value="item.MinValue" Label="Min" Dense="true" /></MudItem>
-                                        <MudItem xs="12" sm="3"><MudNumericField T="decimal?" @bind-Value="item.MaxValue" Label="Max" Dense="true" /></MudItem>
-                                        <MudItem xs="12" sm="2"><MudTextField @bind-Value="item.Unit" Label="Đơn vị" Dense="true" /></MudItem>
+                                        <MudItem xs="12" sm="3"><MudNumericField T="decimal?" @bind-Value="item.MinValue" Label="Min" /></MudItem>
+                                        <MudItem xs="12" sm="3"><MudNumericField T="decimal?" @bind-Value="item.MaxValue" Label="Max" /></MudItem>
+                                        <MudItem xs="12" sm="2"><MudTextField @bind-Value="item.Unit" Label="Đơn vị" /></MudItem>
                                     }
                                     @if (item.RequireImage)
                                     {
-                                        <MudItem xs="12" sm="4"><MudNumericField T="int" @bind-Value="item.MinImages" Label="Ảnh tối thiểu" Dense="true" Min="1" /></MudItem>
-                                        <MudItem xs="12" sm="4"><MudNumericField T="int" @bind-Value="item.MaxImages" Label="Ảnh tối đa" Dense="true" Min="1" /></MudItem>
+                                        <MudItem xs="12" sm="4"><MudNumericField T="int" @bind-Value="item.MinImages" Label="Ảnh tối thiểu" Min="1" /></MudItem>
+                                        <MudItem xs="12" sm="4"><MudNumericField T="int" @bind-Value="item.MaxImages" Label="Ảnh tối đa" Min="1" /></MudItem>
                                     }
                                     @if (item.InputType == "Select")
                                     {
-                                        <MudItem xs="12"><MudTextField @bind-Value="item.OptionsJson" Label="Options JSON" Dense="true" HelperText='Ví dụ: ["OK","NG","N/A"]' /></MudItem>
+                                        <MudItem xs="12"><MudTextField @bind-Value="item.OptionsJson" Label="Options JSON" HelperText='Ví dụ: ["OK","NG","N/A"]' /></MudItem>
                                     }
                                     <MudItem xs="12"><MudButton Color="Color.Error" Variant="Variant.Text" OnClick="@(() => RemoveItem(item))">Xóa hạng mục</MudButton></MudItem>
                                 </MudGrid>
@@ -217,9 +217,6 @@
         if (result.IsSuccess) { _importResult = result.Data; await LoadAllAsync(); Snackbar.Add(result.Message ?? "Đã import checklist.", Severity.Success); }
         else Snackbar.Add(result.Message ?? "Import checklist thất bại.", Severity.Error);
     }
-
-
-    private bool _loading;
     private EquipmentInspectionTemplateImportResultDto? _importResult;
     private string _deptCode = "";
     private List<DepartmentDto> _departments = new();
@@ -236,9 +233,7 @@
 
     protected override async Task OnInitializedAsync()
     {
-        _loading = true;
-        try
-        {
+
             var d = await EquipmentClient.GetEquipmentDepartmentsAsync(); if (d.IsSuccess) _departments = d.Data ?? new();
             if (_departments.Count > 0) _deptCode = _departments[0].DeptCode;
             var e = await EmployeeClient.GetTreeAsync(); if (e.IsSuccess) _employees = (e.Data ?? new()).SelectMany(x => x.Employees).Where(x => x.IsActive).OrderBy(x => x.EmployeeCode).ToList();
