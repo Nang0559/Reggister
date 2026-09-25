@@ -5,17 +5,13 @@ using FVN_REGISTER.Application.Interfaces.Actions;
 using FVN_REGISTER.Application.Interfaces.Notifications;
 using FVN_REGISTER.Application.Models.Actions;
 using FVN_REGISTER.Contract.Dtos.Notifications;
-using FVN_REGISTER.Core.Enums;
-using FVN_REGISTER.Core.Entities.Security;
-using FVN_REGISTER.Core.Entities.HR;
 using FVN_REGISTER.Contract.Dtos.Equipment;
-using FVN_REGISTER.Contract.Utils;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Core.Entities.Equipment;
-using FVN_REGISTER.Infrastructure;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Hosting;
 using NPOI.SS.UserModel;
+using FVN_REGISTER.Application.Interfaces.Users;
 
 namespace FVN_REGISTER.Infrastructure.Services.Equipment;
 
