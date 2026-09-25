@@ -77,6 +77,7 @@ Run from the repository SQL directory with SSMS Query -> SQLCMD Mode enabled.
 :r "$(RepoRoot)\47_Verify_SecurityFunctionRegistry.sql"
 :r "$(RepoRoot)\48_SecurityTwoFactorSuperAdminCompatibility.sql"
 :r "$(RepoRoot)\49_Verify_SecurityTwoFactorSuperAdmin.sql"
+:r "$(RepoRoot)\50_EquipmentManageCapability.sql"
 
 :r "$(RepoRoot)\99_Verify.sql"
 
