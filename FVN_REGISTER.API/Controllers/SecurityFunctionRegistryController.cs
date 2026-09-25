@@ -17,10 +17,12 @@ namespace FVN_REGISTER.API.Controllers;
 public sealed class SecurityFunctionRegistryController : BaseApiController
 {
     private readonly SecurityFunctionRegistryService _registry;
+    private readonly SecurityWebManifestService _webManifest;
     private readonly IAuthorizationService _authorization;
 
     public SecurityFunctionRegistryController(
         SecurityFunctionRegistryService registry,
+        SecurityWebManifestService webManifest,
         IAuthorizationService authorization,
         ICurrentUserService currentUser,
         IUserLogService userLog,
@@ -29,6 +31,7 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         : base(currentUser, userLog, logger, options)
     {
         _registry = registry;
+        _webManifest = webManifest;
         _authorization = authorization;
     }
 
@@ -37,6 +40,20 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
     {
         if (!await CanManageAsync(SecurityFunctionCodes.SecurityManageFunctions, ct)) return Forbid();
         return Ok(ApiResponse<SecurityFunctionDiscoverySummaryDto>.Ok(await _registry.ReconcileAsync(ct)));
+    }
+
+    [HttpPost("web-manifest")]
+    public async Task<IActionResult> PublishWebManifest([FromBody] WebSecurityManifestRequest request, CancellationToken ct)
+    {
+        if (!await CanManageAsync(SecurityFunctionCodes.SecurityManageFunctions, ct)) return Forbid();
+        if (request.Entries is null) return BadRequest(ApiResponse<object>.Fail("Danh sách chức năng giao diện không được để trống."));
+        try
+        {
+            var result = await _webManifest.PublishAsync(request.Entries, ct);
+            await LogActionAsync($"Cập nhật danh mục phát hiện chức năng giao diện: {result.Received} mục");
+            return Ok(ApiResponse<WebSecurityManifestSummaryDto>.Ok(result));
+        }
+        catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
     }
 
     [HttpGet("functions")]
