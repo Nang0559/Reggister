@@ -1,5 +1,6 @@
 global using FVN_REGISTER.Core.Entities.Approvers;
 global using FVN_REGISTER.Core.Entities.Common;
+global using FVN_REGISTER.Core.Entities.Equipment;
 global using FVN_REGISTER.Core.Entities.HR;
 global using FVN_REGISTER.Core.Entities.HRM;
 global using FVN_REGISTER.Core.Entities.Leaves;
