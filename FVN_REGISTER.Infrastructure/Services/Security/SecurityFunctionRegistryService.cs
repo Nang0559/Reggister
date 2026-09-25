@@ -9,7 +9,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace FVN_REGISTER.Infrastructure.Services.Security;
 
-/// <summary>Discovers application security capabilities and reconciles them with the persistent catalog without changing access grants.</summary>
+/// <summary>Phát hiện chức năng và đối chiếu với danh mục bảo mật mà không tự cấp hoặc thu hồi quyền.</summary>
 public sealed class SecurityFunctionRegistryService
 {
     private readonly FVNWEBAPPContext _db;
@@ -87,15 +87,20 @@ public sealed class SecurityFunctionRegistryService
 
     public async Task RegisterAsync(string functionKey, RegisterDiscoveredFunctionRequest request, int actorUserId, CancellationToken ct = default)
     {
-        var item = await _db.SecurityFunctionRegistry.SingleOrDefaultAsync(x => x.FunctionKey == functionKey, ct) ?? throw new InvalidOperationException($"Không tìm thấy chức năng '{functionKey}' trong Function Registry.");
-        if (item.LifecycleStatus == "Conflict") throw new InvalidOperationException($"Chức năng '{functionKey}' đang ở trạng thái Conflict và phải xử lý mã FunctionCode trước.");
-        if (await _db.Functions.AnyAsync(x => x.FunctionKey == functionKey, ct)) throw new InvalidOperationException($"FunctionKey '{functionKey}' đã được đăng ký.");
-        if (item.FunctionCode <= 0) throw new InvalidOperationException($"Chức năng '{functionKey}' chưa có FunctionCode hợp lệ.");
-        if (await _db.Functions.AnyAsync(x => x.FunctionCode == item.FunctionCode, ct)) throw new InvalidOperationException($"FunctionCode {item.FunctionCode} đã tồn tại trong F03Functions.");
+        var item = await _db.SecurityFunctionRegistry.SingleOrDefaultAsync(x => x.FunctionKey == functionKey, ct) ?? throw new InvalidOperationException($"Không tìm thấy chức năng '{functionKey}' trong danh mục chức năng.");
+        if (item.LifecycleStatus == "Conflict") throw new InvalidOperationException($"Chức năng '{functionKey}' đang có xung đột mã chức năng và phải được xử lý trước.");
+        if (await _db.Functions.AnyAsync(x => x.FunctionKey == functionKey, ct)) throw new InvalidOperationException($"Chức năng '{functionKey}' đã được đăng ký.");
+        if (item.FunctionCode <= 0) throw new InvalidOperationException($"Chức năng '{functionKey}' chưa có mã chức năng hợp lệ.");
+        if (await _db.Functions.AnyAsync(x => x.FunctionCode == item.FunctionCode, ct)) throw new InvalidOperationException($"Mã chức năng {item.FunctionCode} đã tồn tại trong danh mục.");
+        var functionName = string.IsNullOrWhiteSpace(request.FunctionName) ? item.DefinitionName : request.FunctionName.Trim();
+        var detail = string.IsNullOrWhiteSpace(request.Detail) ? SecurityFunctionCatalog.GetDescription(item.FunctionKey) : request.Detail.Trim();
+        var moduleCode = string.IsNullOrWhiteSpace(request.ModuleCode) ? item.ModuleCode : request.ModuleCode.Trim();
+        var actionCode = string.IsNullOrWhiteSpace(request.ActionCode) ? item.ActionCode : request.ActionCode.Trim();
+        var scopeCode = string.IsNullOrWhiteSpace(request.ScopeCode) || string.Equals(request.ScopeCode, "None", StringComparison.OrdinalIgnoreCase) ? item.ScopeCode : request.ScopeCode.Trim();
         var f = new F03Function
         {
-            FunctionCode = item.FunctionCode, FunctionKey = item.FunctionKey, FunctionName = request.FunctionName.Trim(), Detail = request.Detail?.Trim() ?? string.Empty,
-            ModuleCode = request.ModuleCode?.Trim(), ActionCode = request.ActionCode?.Trim(), ScopeCode = NormalizeScope(request.ScopeCode), LifecycleStatus = "Active",
+            FunctionCode = item.FunctionCode, FunctionKey = item.FunctionKey, FunctionName = functionName,
+            Detail = detail, ModuleCode = moduleCode, ActionCode = actionCode, ScopeCode = NormalizeScope(scopeCode), LifecycleStatus = "Active",
             SourceType = item.SourceType, LastSeenAt = item.LastSeenAt, DisplayOrder = item.FunctionCode, CreatedBy = actorUserId, IsActive = true
         };
         _db.Functions.Add(f); item.LifecycleStatus = "Active"; item.IsIgnored = false; item.ResolvedAt = DateTime.Now; await _db.SaveChangesAsync(ct);
@@ -114,7 +119,7 @@ public sealed class SecurityFunctionRegistryService
         if (string.Equals(functionKey, request.ReplacementFunctionKey, StringComparison.OrdinalIgnoreCase)) throw new InvalidOperationException("Không thể thay thế chức năng bằng chính nó.");
         var old = await _db.Functions.SingleOrDefaultAsync(x => x.FunctionKey == functionKey, ct) ?? throw new InvalidOperationException($"Không tìm thấy chức năng '{functionKey}'.");
         var replacement = await _db.Functions.SingleOrDefaultAsync(x => x.FunctionKey == request.ReplacementFunctionKey, ct) ?? throw new InvalidOperationException($"Không tìm thấy chức năng thay thế '{request.ReplacementFunctionKey}'.");
-        if (!replacement.IsActive || replacement.LifecycleStatus != "Active") throw new InvalidOperationException("Chức năng thay thế phải đang Active.");
+        if (!replacement.IsActive || replacement.LifecycleStatus != "Active") throw new InvalidOperationException("Chức năng thay thế phải đang hoạt động.");
         old.LifecycleStatus = "Replaced"; old.ReplacementFunctionKey = replacement.FunctionKey; old.IsActive = false; old.ModifiedBy = actorUserId; old.ModifiedAt = DateTime.Now;
         var item = await _db.SecurityFunctionRegistry.SingleOrDefaultAsync(x => x.FunctionKey == functionKey, ct); if (item != null) { item.LifecycleStatus = "Replaced"; item.ReplacementFunctionKey = replacement.FunctionKey; item.ResolvedAt = DateTime.Now; }
         await _db.SaveChangesAsync(ct);
@@ -128,14 +133,16 @@ public sealed class SecurityFunctionRegistryService
 
     public async Task UpsertFunctionAsync(SecurityFunctionUpsertRequest request, int actorUserId, CancellationToken ct = default)
     {
-        var key = request.FunctionKey?.Trim(); if (string.IsNullOrWhiteSpace(key)) throw new InvalidOperationException("FunctionKey không được để trống.");
-        if (request.FunctionCode <= 0) throw new InvalidOperationException("FunctionCode phải lớn hơn 0.");
+        var key = request.FunctionKey?.Trim(); if (string.IsNullOrWhiteSpace(key)) throw new InvalidOperationException("Mã định danh chức năng không được để trống.");
+        if (request.FunctionCode <= 0) throw new InvalidOperationException("Mã chức năng phải lớn hơn 0.");
         var byKey = await _db.Functions.SingleOrDefaultAsync(x => x.FunctionKey == key, ct);
         var byCode = await _db.Functions.SingleOrDefaultAsync(x => x.FunctionCode == request.FunctionCode, ct);
-        if (byKey != null && byCode != null && byKey.Id != byCode.Id) throw new InvalidOperationException("FunctionKey và FunctionCode đang thuộc hai Function khác nhau.");
+        if (byKey != null && byCode != null && byKey.Id != byCode.Id) throw new InvalidOperationException("Mã định danh và mã chức năng đang thuộc hai chức năng khác nhau.");
         var entity = byKey ?? byCode;
         if (entity == null) { entity = new F03Function { FunctionCode = request.FunctionCode, CreatedBy = actorUserId }; _db.Functions.Add(entity); }
-        entity.FunctionCode = request.FunctionCode; entity.FunctionKey = key; entity.FunctionName = request.FunctionName.Trim(); entity.Detail = request.Detail?.Trim() ?? string.Empty;
+        entity.FunctionCode = request.FunctionCode; entity.FunctionKey = key;
+        entity.FunctionName = string.IsNullOrWhiteSpace(request.FunctionName) ? SecurityFunctionCatalog.GetDisplayName(key) : request.FunctionName.Trim();
+        entity.Detail = string.IsNullOrWhiteSpace(request.Detail) ? SecurityFunctionCatalog.GetDescription(key) : request.Detail.Trim();
         entity.ModuleCode = request.ModuleCode?.Trim(); entity.ActionCode = request.ActionCode?.Trim(); entity.ScopeCode = NormalizeScope(request.ScopeCode); entity.DisplayOrder = request.DisplayOrder == 0 ? request.FunctionCode : request.DisplayOrder;
         entity.LifecycleStatus = "Active"; entity.SourceType = "Manual"; entity.IsActive = true; entity.ModifiedBy = actorUserId; entity.ModifiedAt = DateTime.Now; await _db.SaveChangesAsync(ct);
     }
@@ -149,17 +156,17 @@ public sealed class SecurityFunctionRegistryService
 
     public async Task UpsertRoleAsync(SecurityRoleUpsertRequest request, int actorUserId, CancellationToken ct = default)
     {
-        if (request.RoleCode <= 0) throw new InvalidOperationException("RoleCode phải lớn hơn 0.");
-        if (string.IsNullOrWhiteSpace(request.RoleName)) throw new InvalidOperationException("RoleName không được để trống.");
+        if (request.RoleCode <= 0) throw new InvalidOperationException("Mã vai trò phải lớn hơn 0.");
+        if (string.IsNullOrWhiteSpace(request.RoleName)) throw new InvalidOperationException("Tên vai trò không được để trống.");
         var role = await _db.Roles.SingleOrDefaultAsync(x => x.RoleCode == request.RoleCode, ct);
         if (role == null) { role = new F03Role { RoleCode = request.RoleCode, CreatedBy = actorUserId }; _db.Roles.Add(role); }
-        if (role.IsSystem && !request.IsSystem) throw new InvalidOperationException("Không được hạ System Role thành Role thường.");
+        if (role.IsSystem && !request.IsSystem) throw new InvalidOperationException("Không được hạ vai trò hệ thống thành vai trò thường.");
         role.RoleName = request.RoleName.Trim(); role.Detail = request.Detail?.Trim(); role.IsSystem = role.IsSystem || request.IsSystem; role.IsActive = true; role.ModifiedBy = actorUserId; role.ModifiedAt = DateTime.Now; await _db.SaveChangesAsync(ct);
     }
 
     public async Task DeleteRoleAsync(int id, int actorUserId, CancellationToken ct = default)
     {
-        var role = await _db.Roles.Include(x => x.RoleFunctions).Include(x => x.UserRoles).SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new InvalidOperationException("Không tìm thấy Role.");
+        var role = await _db.Roles.Include(x => x.RoleFunctions).Include(x => x.UserRoles).SingleOrDefaultAsync(x => x.Id == id, ct) ?? throw new InvalidOperationException("Không tìm thấy vai trò.");
         if (role.IsSystem || role.RoleFunctions.Count > 0 || role.UserRoles.Count > 0) { role.IsActive = false; role.ModifiedBy = actorUserId; role.ModifiedAt = DateTime.Now; } else _db.Roles.Remove(role);
         await _db.SaveChangesAsync(ct);
     }
@@ -171,7 +178,8 @@ public sealed class SecurityFunctionRegistryService
         foreach (var field in constants.GetFields(BindingFlags.Public | BindingFlags.Static))
         {
             if (field.FieldType != typeof(int)) continue; var code = (int)(field.GetValue(null) ?? 0); if (code <= 0) continue;
-            var attr = field.GetCustomAttribute<SecurityFunctionDefinitionAttribute>(); var key = attr?.FunctionKey ?? ToFunctionKey(field.Name); var name = attr?.DisplayName ?? field.Name;
+            var attr = field.GetCustomAttribute<SecurityFunctionDefinitionAttribute>(); var key = attr?.FunctionKey ?? ToFunctionKey(field.Name);
+            var name = attr?.DisplayName ?? SecurityFunctionCatalog.GetDisplayName(key);
             var module = attr?.ModuleCode ?? GetModule(key); var action = attr?.ActionCode ?? GetAction(key); var scope = attr?.ScopeCode;
             result[key] = new DiscoveredDefinition(key, code, name, module, action, scope, "SecurityFunctionCodes", constants.Assembly.GetName().Name, constants.FullName, Hash($"{key}|{code}|{name}|{module}|{action}|{scope}"));
         }
@@ -182,7 +190,7 @@ public sealed class SecurityFunctionRegistryService
             {
                 var attr = member.GetCustomAttribute<SecurityFunctionDefinitionAttribute>(); if (attr == null || string.IsNullOrWhiteSpace(attr.FunctionKey)) continue;
                 var code = member is FieldInfo fi && fi.FieldType == typeof(int) ? (int)(fi.GetValue(null) ?? 0) : result.GetValueOrDefault(attr.FunctionKey)?.FunctionCode ?? 0;
-                var name = attr.DisplayName ?? member.Name; var module = attr.ModuleCode ?? GetModule(attr.FunctionKey); var action = attr.ActionCode ?? GetAction(attr.FunctionKey);
+                var name = attr.DisplayName ?? SecurityFunctionCatalog.GetDisplayName(attr.FunctionKey); var module = attr.ModuleCode ?? GetModule(attr.FunctionKey); var action = attr.ActionCode ?? GetAction(attr.FunctionKey);
                 result[attr.FunctionKey] = new DiscoveredDefinition(attr.FunctionKey, code, name, module, action, attr.ScopeCode, "Attribute", assembly.GetName().Name, type.FullName, Hash($"{attr.FunctionKey}|{code}|{name}|{module}|{action}|{attr.ScopeCode}"));
             }
         }
