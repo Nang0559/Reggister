@@ -13,13 +13,10 @@
     <MudStack Row="true" AlignItems="AlignItems.Center">
         <div>
             <MudText Typo="Typo.h4" Style="font-weight:800">Function Registry</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">
-                Đồng bộ danh sách chức năng trong code với F03Functions mà không tự động cấp hoặc thu hồi quyền.
-            </MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Đồng bộ danh sách chức năng trong code với F03Functions mà không tự động cấp hoặc thu hồi quyền.</MudText>
         </div>
         <MudSpacer />
-        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Sync"
-                   OnClick="ScanAsync" Disabled="_busy">Quét chức năng</MudButton>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Sync" OnClick="ScanAsync" Disabled="_busy">Quét chức năng</MudButton>
     </MudStack>
 
     @if (_summary != null)
@@ -36,18 +33,13 @@
     <MudTabs Rounded="true" Elevation="0">
         <MudTabPanel Text="Chờ đăng ký" Icon="@Icons.Material.Filled.NewReleases">
             <MudTable T="SecurityFunctionRegistryItemDto" Items="PendingRegistration" Dense="true" Hover="true" Bordered="true" Loading="_busy">
-                <HeaderContent>
-                    <MudTh>FunctionKey</MudTh><MudTh>Code</MudTh><MudTh>Module</MudTh><MudTh>Action</MudTh><MudTh>Source</MudTh><MudTh>Thao tác</MudTh>
-                </HeaderContent>
+                <HeaderContent><MudTh>FunctionKey</MudTh><MudTh>Code</MudTh><MudTh>Module</MudTh><MudTh>Action</MudTh><MudTh>Source</MudTh><MudTh>Thao tác</MudTh></HeaderContent>
                 <RowTemplate>
                     <MudTd><b>@context.FunctionKey</b><br /><MudText Typo="Typo.caption">@context.DefinitionName</MudText></MudTd>
-                    <MudTd>@context.FunctionCode</MudTd>
-                    <MudTd>@context.ModuleCode</MudTd>
-                    <MudTd>@context.ActionCode</MudTd>
-                    <MudTd>@context.SourceType</MudTd>
+                    <MudTd>@context.FunctionCode</MudTd><MudTd>@context.ModuleCode</MudTd><MudTd>@context.ActionCode</MudTd><MudTd>@context.SourceType</MudTd>
                     <MudTd>
                         <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SelectForRegistration(context))">Đăng ký</MudButton>
-                        <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Default" OnClick="@(() => IgnoreAsync(context))">Bỏ qua</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="@(() => IgnoreAsync(context))">Bỏ qua</MudButton>
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -58,8 +50,7 @@
                 <HeaderContent><MudTh>FunctionKey</MudTh><MudTh>Code</MudTh><MudTh>Last seen</MudTh><MudTh>Thay thế</MudTh><MudTh>Thao tác</MudTh></HeaderContent>
                 <RowTemplate>
                     <MudTd><b>@context.FunctionKey</b><br /><MudText Typo="Typo.caption">@context.DefinitionName</MudText></MudTd>
-                    <MudTd>@context.FunctionCode</MudTd>
-                    <MudTd>@context.LastSeenAt.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                    <MudTd>@context.FunctionCode</MudTd><MudTd>@context.LastSeenAt.ToString("dd/MM/yyyy HH:mm")</MudTd>
                     <MudTd>
                         <MudSelect T="string" Value="@_replacementByFunction.GetValueOrDefault(context.FunctionKey)" ValueChanged="@(v => SetReplacement(context.FunctionKey, v))" Dense="true" Variant="Variant.Outlined">
                             <MudSelectItem Value="@string.Empty">-- Chọn --</MudSelectItem>
@@ -71,7 +62,7 @@
                     </MudTd>
                     <MudTd>
                         <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Error" OnClick="@(() => RetireAsync(context))">Ngừng</MudButton>
-                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" OnClick="@(() => ReplaceAsync(context))" Disabled="@(!HasReplacement(context.FunctionKey)">Thay thế</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" OnClick="@(() => ReplaceAsync(context))" Disabled="@(!HasReplacement(context.FunctionKey))">Thay thế</MudButton>
                     </MudTd>
                 </RowTemplate>
             </MudTable>
@@ -81,11 +72,7 @@
             <MudTable T="SecurityFunctionRegistryItemDto" Items="_items" Dense="true" Hover="true" Bordered="true">
                 <HeaderContent><MudTh>Key</MudTh><MudTh>Status</MudTh><MudTh>Code</MudTh><MudTh>Registered</MudTh><MudTh>Last seen</MudTh></HeaderContent>
                 <RowTemplate>
-                    <MudTd><b>@context.FunctionKey</b></MudTd>
-                    <MudTd><MudChip T="string" Size="Size.Small">@context.LifecycleStatus</MudChip></MudTd>
-                    <MudTd>@context.FunctionCode</MudTd>
-                    <MudTd>@(context.Registered ? "Yes" : "No")</MudTd>
-                    <MudTd>@context.LastSeenAt.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                    <MudTd><b>@context.FunctionKey</b></MudTd><MudTd><MudChip T="string" Size="Size.Small">@context.LifecycleStatus</MudChip></MudTd><MudTd>@context.FunctionCode</MudTd><MudTd>@(context.Registered ? "Yes" : "No")</MudTd><MudTd>@context.LastSeenAt.ToString("dd/MM/yyyy HH:mm")</MudTd>
                 </RowTemplate>
             </MudTable>
         </MudTabPanel>
@@ -107,7 +94,7 @@
                     <HeaderContent><MudTh>Code</MudTh><MudTh>Module</MudTh><MudTh>Action</MudTh><MudTh>Detail</MudTh><MudTh /></HeaderContent>
                     <RowTemplate>
                         <MudTd>@context.FunctionCode</MudTd><MudTd>@context.ModuleCode</MudTd><MudTd>@context.ActionCode</MudTd><MudTd>@context.Detail</MudTd>
-                        <MudTd><MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => DeleteFunctionAsync(context.FunctionCode)")">Xóa/Ngừng</MudButton></MudTd>
+                        <MudTd><MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => DeleteFunctionAsync(context.FunctionCode))">Xóa/Ngừng</MudButton></MudTd>
                     </RowTemplate>
                 </MudTable>
             </MudPaper>
@@ -141,7 +128,6 @@
     private SecurityFunctionDiscoverySummaryDto? _summary;
     private bool _busy;
     private string? _selectedKey;
-    private string _replacement = string.Empty;
     private readonly Dictionary<string, string> _replacementByFunction = new(StringComparer.OrdinalIgnoreCase);
     private int _functionCode;
     private string _functionKey = string.Empty;
@@ -156,19 +142,14 @@
 
     private IEnumerable<SecurityFunctionRegistryItemDto> PendingRegistration => _items.Where(x => x.LifecycleStatus == "PendingRegistration" && !x.IsIgnored);
     private IEnumerable<SecurityFunctionRegistryItemDto> PendingRetirement => _items.Where(x => x.LifecycleStatus == "PendingRetirement");
-    private IEnumerable<SecurityFunctionRegistryItemDto> ActiveRegistry => _items.Where(x => x.Registered && x.LifecycleStatus == "Active");
-    private IEnumerable<SecurityFunctionRegistryItemDto> ActiveFunctions => ActiveRegistry;
+    private IEnumerable<SecurityFunctionRegistryItemDto> ActiveFunctions => _items.Where(x => x.Registered && x.LifecycleStatus == "Active");
 
     protected override async Task OnInitializedAsync() => await ReloadAsync();
 
     private async Task ReloadAsync()
     {
         _busy = true;
-        try
-        {
-            await ScanAsync(false);
-            await LoadCatalogsAsync();
-        }
+        try { await ScanAsync(false); await LoadCatalogsAsync(); }
         finally { _busy = false; }
     }
 
@@ -209,44 +190,37 @@
         var request = new SecurityFunctionUpsertRequest(_functionCode, _functionKey, _functionName, _functionDetail, _moduleCode, _actionCode, _scopeCode);
         var result = await SecurityService.UpsertSecurityFunctionAsync(request);
         if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể lưu Function.", Severity.Error); return; }
-        Snackbar.Add("Đã lưu Function.", Severity.Success);
-        await ReloadAsync();
+        Snackbar.Add("Đã lưu Function.", Severity.Success); await ReloadAsync();
     }
 
     private async Task DeleteFunctionAsync(int code)
     {
-        var function = _functions.FirstOrDefault(x => x.FunctionCode == code);
-        if (function == null) return;
         var item = _items.FirstOrDefault(x => x.FunctionCode == code);
         if (item == null) return;
         var result = await SecurityService.DeleteSecurityFunctionAsync(item.Id);
         if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể xóa/ngừng Function.", Severity.Error); return; }
-        Snackbar.Add("Function đã được xóa hoặc chuyển sang Retired theo trạng thái sử dụng.", Severity.Success);
-        await ReloadAsync();
+        Snackbar.Add("Function đã được xóa hoặc chuyển sang Retired theo trạng thái sử dụng.", Severity.Success); await ReloadAsync();
     }
 
     private async Task SaveRoleAsync()
     {
         var result = await SecurityService.UpsertSecurityRoleAsync(new SecurityRoleUpsertRequest(_roleCode, _roleName, _roleDetail));
         if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể lưu Role.", Severity.Error); return; }
-        Snackbar.Add("Đã lưu Role.", Severity.Success);
-        await ReloadAsync();
+        Snackbar.Add("Đã lưu Role.", Severity.Success); await ReloadAsync();
     }
 
     private async Task DeleteRoleAsync(int id)
     {
         var result = await SecurityService.DeleteSecurityRoleAsync(id);
         if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể xóa/ngừng Role.", Severity.Error); return; }
-        Snackbar.Add("Role đã được xóa hoặc ngừng theo trạng thái sử dụng.", Severity.Success);
-        await ReloadAsync();
+        Snackbar.Add("Role đã được xóa hoặc ngừng theo trạng thái sử dụng.", Severity.Success); await ReloadAsync();
     }
 
     private async Task IgnoreAsync(SecurityFunctionRegistryItemDto item)
     {
         var result = await SecurityService.IgnoreSecurityFunctionAsync(item.FunctionKey);
         if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể bỏ qua.", Severity.Error); return; }
-        Snackbar.Add($"Đã bỏ qua {item.FunctionKey}.", Severity.Info);
-        await ReloadAsync();
+        Snackbar.Add($"Đã bỏ qua {item.FunctionKey}.", Severity.Info); await ReloadAsync();
     }
 
     private void SetReplacement(string key, string value) => _replacementByFunction[key] = value;
@@ -256,8 +230,7 @@
     {
         var result = await SecurityService.RetireSecurityFunctionAsync(item.FunctionKey);
         if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể ngừng Function.", Severity.Error); return; }
-        Snackbar.Add($"Đã ngừng {item.FunctionKey}.", Severity.Success);
-        await ReloadAsync();
+        Snackbar.Add($"Đã ngừng {item.FunctionKey}.", Severity.Success); await ReloadAsync();
     }
 
     private async Task ReplaceAsync(SecurityFunctionRegistryItemDto item)
@@ -265,7 +238,6 @@
         if (!HasReplacement(item.FunctionKey)) return;
         var result = await SecurityService.ReplaceSecurityFunctionAsync(item.FunctionKey, new ReplaceFunctionRequest(_replacementByFunction[item.FunctionKey]));
         if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể thay thế Function.", Severity.Error); return; }
-        Snackbar.Add($"Đã đánh dấu {item.FunctionKey} được thay thế.", Severity.Success);
-        await ReloadAsync();
+        Snackbar.Add($"Đã đánh dấu {item.FunctionKey} được thay thế.", Severity.Success); await ReloadAsync();
     }
 }
