@@ -151,7 +151,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                     .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
                 if (scope == AuthorizationScopeCodes.Own || scope == AuthorizationScopeCodes.Employee)
-                    query = query.Where(x => x.EmployeeCode == user.EmployeeCode || managedEmployeeCodes.Contains(x.EmployeeCode));
+                    query = query.Where(x => x.EmployeeCode == user.EmployeeCode || managedEmployeeCodes.Contains(x.EmployeeCode ?? ""));
                 else if (scope == AuthorizationScopeCodes.Department)
                     query = query.Where(x => x.DeptCode == user.DeptCode || managedDeptCodes.Contains(x.DeptCode));
                 else
