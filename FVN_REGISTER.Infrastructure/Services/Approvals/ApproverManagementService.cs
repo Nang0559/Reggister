@@ -200,13 +200,13 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
             if (exists)
                 return ServiceResult.Fail("Approver này đã tồn tại ở cấp duyệt và phòng ban tương ứng.");
 
-            var empInfo = await GetEmployeeWithPositionAsync(model.ApproverCode, ct);
-            if (empInfo == null)
+            var employee = await GetEmployeeWithPositionAsync(model.ApproverCode, ct);
+            if (employee == null)
                 return ServiceResult.Fail("Nhân viên approver không tồn tại hoặc đã nghỉ việc.");
 
-            if (string.IsNullOrWhiteSpace(empInfo.PositionCode) ||
+            if (string.IsNullOrWhiteSpace(employee.PositionCode) ||
                 !await _uow.Repository<F03Position>().Query().AnyAsync(
-                    x => x.IsActive == true && x.PositionCode == empInfo.PositionCode, ct))
+                    x => x.IsActive == true && x.PositionCode == employee.PositionCode, ct))
                 return ServiceResult.Fail("Chức vụ HRM của approver không tồn tại hoặc đã inactive.");
 
             if (model.ApproveForDeptCode != ApproveForDept.All &&
@@ -214,27 +214,27 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                     x => x.IsActive == true && x.DeptCode == model.ApproveForDeptCode, ct))
                 return ServiceResult.Fail("Phòng ban áp dụng phê duyệt không tồn tại hoặc đã inactive.");
 
-            model.PositionCode = empInfo.PositionCode;
+            model.PositionCode = employee.PositionCode;
 
-            if (empInfo != null && !CvCodeRules.IsApprover(
-                    empInfo.PositionCode, empInfo.IsApprove ? 1 : 0, empInfo.IsAllowApprove ? 1 : 0))
+            if (employee != null && !CvCodeRules.IsApprover(
+                    employee.PositionCode, employee.IsApprove ? 1 : 0, employee.IsAllowApprove ? 1 : 0))
             {
                 Logger.LogWarnIf(Debug,
                     "[APPROVER-MGT] PositionCode {Pos} không phải approver — vẫn tạo theo yêu cầu admin",
-                    empInfo.PositionCode);
+                    employee.PositionCode);
             }
 
-            int resolvedLevel = model.Level > 0 ? model.Level : CvCodeRules.ResolveLevel(null, empInfo?.PositionCode);
+            int resolvedLevel = model.Level > 0 ? model.Level : CvCodeRules.ResolveLevel(null, employee?.PositionCode);
             if (resolvedLevel == 0)
                 return ServiceResult.Fail("Không xác định được cấp duyệt. Vui lòng chọn thủ công.");
 
             model.Level = resolvedLevel;
             model.RoleName = RoleNameFromLevel(resolvedLevel, model.RequestType);
             model.ApproveForDeptName = await GetDeptNameAsync(model.ApproveForDeptCode ?? "", ct);
-            model.DeptCode = empInfo?.DeptCode ?? "";
-            model.DeptName = empInfo?.DeptName ?? "";
-            model.ApproverName = empInfo.EmployeeName ?? "";
-            model.ApproverEmail = empInfo.EmailAddress ?? "";
+            model.DeptCode = employee?.DeptCode ?? "";
+            model.DeptName = employee?.DeptName ?? "";
+            model.ApproverName = employee.EmployeeName ?? "";
+            model.ApproverEmail = employee.EmailAddress ?? "";
             if (string.IsNullOrWhiteSpace(model.ApproverEmail))
                 return ServiceResult.Fail("Nhân viên approver chưa có EmailAddress trong HRM.");
 
@@ -274,13 +274,13 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
             if (duplicate)
                 return ServiceResult.Fail("Đã tồn tại approver này ở cấp duyệt và phòng ban tương ứng.");
 
-            var empInfo = await GetEmployeeWithPositionAsync(model.ApproverCode, ct);
-            if (empInfo == null)
+            var employee = await GetEmployeeWithPositionAsync(model.ApproverCode, ct);
+            if (employee == null)
                 return ServiceResult.Fail("Nhân viên approver không tồn tại hoặc đã nghỉ việc.");
 
-            if (string.IsNullOrWhiteSpace(empInfo.PositionCode) ||
+            if (string.IsNullOrWhiteSpace(employee.PositionCode) ||
                 !await _uow.Repository<F03Position>().Query().AnyAsync(
-                    x => x.IsActive == true && x.PositionCode == empInfo.PositionCode, ct))
+                    x => x.IsActive == true && x.PositionCode == employee.PositionCode, ct))
                 return ServiceResult.Fail("Chức vụ HRM của approver không tồn tại hoặc đã inactive.");
 
             if (model.ApproveForDeptCode != ApproveForDept.All &&
@@ -288,24 +288,24 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                     x => x.IsActive == true && x.DeptCode == model.ApproveForDeptCode, ct))
                 return ServiceResult.Fail("Phòng ban áp dụng phê duyệt không tồn tại hoặc đã inactive.");
 
-            model.PositionCode = empInfo.PositionCode;
+            model.PositionCode = employee.PositionCode;
 
-            int resolvedLevel = model.Level > 0 ? model.Level : CvCodeRules.ResolveLevel(null, empInfo.PositionCode);
+            int resolvedLevel = model.Level > 0 ? model.Level : CvCodeRules.ResolveLevel(null, employee.PositionCode);
             model.Level = resolvedLevel;
             model.RoleName = RoleNameFromLevel(resolvedLevel, model.RequestType);
             model.ApproveForDeptName = await GetDeptNameAsync(model.ApproveForDeptCode ?? "", ct);
-            model.DeptCode = empInfo?.DeptCode ?? entity.ApproverDeptCode;
-            model.DeptName = empInfo?.DeptName ?? entity.ApproverDeptName;
-            model.ApproverName = empInfo.EmployeeName ?? entity.ApproverName;
-            model.ApproverEmail = empInfo.EmailAddress ?? entity.ApproverEmail;
+            model.DeptCode = employee?.DeptCode ?? entity.ApproverDeptCode;
+            model.DeptName = employee?.DeptName ?? entity.ApproverDeptName;
+            model.ApproverName = employee.EmployeeName ?? entity.ApproverName;
+            model.ApproverEmail = employee.EmailAddress ?? entity.ApproverEmail;
             if (string.IsNullOrWhiteSpace(model.ApproverEmail))
                 return ServiceResult.Fail("Nhân viên approver chưa có EmailAddress trong HRM.");
 
             ApproverMapper.ApplyUpdate(entity, model, currentUserId);
-            if (empInfo != null)
+            if (employee != null)
             {
-                entity.ApproverDeptCode = empInfo.DeptCode ?? entity.ApproverDeptCode;
-                entity.ApproverDeptName = empInfo.DeptName ?? entity.ApproverDeptName;
+                entity.ApproverDeptCode = employee.DeptCode ?? entity.ApproverDeptCode;
+                entity.ApproverDeptName = employee.DeptName ?? entity.ApproverDeptName;
             }
 
             repo.Update(entity);
