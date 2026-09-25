@@ -859,7 +859,7 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
         };
     }
 
-    private FVN_REGISTER.Contract.Dtos.Authentication.CurrentUser RequireUser() =>
+    private FVN_REGISTER.Contract.Dtos.Authentication.UserIdentityDto RequireUser() =>
         _currentUser.GetCurrentUser() ?? throw new UnauthorizedAccessException("Phiên đăng nhập hết hạn.");
 
     private static EquipmentInspectionTemplateDto MapTemplate(F03EquipmentInspectionTemplate x) => new()
