@@ -1,0 +1,37 @@
+@using FVN_REGISTER.Core.Constants
+@using FVN_REGISTER.Shared.Services.Security
+@using FVN_REGISTER.Web.Security
+@inject ISecurityClientService SecurityClient
+@inject AuthenticationStateProvider AuthenticationState
+
+@code {
+    private bool _published;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender || _published)
+            return;
+
+        _published = true;
+        try
+        {
+            var state = await AuthenticationState.GetAuthenticationStateAsync();
+            if (state.User.Identity?.IsAuthenticated != true)
+                return;
+
+            var permissions = await SecurityClient.GetMyPermissionsAsync();
+            if (permissions.Data?.Has(SecurityFunctionCodes.SecurityManageFunctions) != true)
+                return;
+
+            var entries = SecurityDiscoveryManifestBuilder.Discover(new[] { typeof(SecurityManifestPublisher).Assembly });
+            if (entries.Count == 0)
+                return;
+
+            await SecurityClient.PublishWebSecurityManifestAsync(entries);
+        }
+        catch
+        {
+            // Discovery is advisory. A failure must never prevent the Web application from starting.
+        }
+    }
+}
