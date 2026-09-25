@@ -15,7 +15,17 @@ section {
 section h1 { font-size: 39px; color: #123b6d; margin: 0 0 12px; }
 section h2 { font-size: 27px; color: #1769aa; margin: 8px 0; }
 section h3 { color: #315b7d; }
-section table { width: 100%; font-size: 18px; border-collapse: separate; border-spacing: 8px; }
+section table { width: 100%; font-size: 17px; border-collapse: separate; border-spacing: 8px; }
+.flowrow { display:flex; align-items:center; justify-content:center; gap:7px; margin:10px 0 14px; }
+.flowstep { min-width:105px; padding:10px 8px; border-radius:12px; text-align:center; font-size:16px; font-weight:700; line-height:1.15; box-shadow:0 4px 12px rgba(20,40,70,.12); }
+.flowstep small { display:block; font-size:11px; font-weight:500; margin-top:4px; }
+.manualStep { background:#fff1ee; border:2px solid #dc7668; color:#8d392f; }
+.digitalStep { background:#eaf8f4; border:2px solid #37a38e; color:#086858; }
+.flowArrow { font-size:23px; font-weight:800; color:#708090; }
+.flowTitle { font-size:13px; font-weight:800; letter-spacing:.08em; margin:5px 0 2px; }
+.flowPanel { background:#fff; border-radius:13px; padding:7px 10px; margin:7px 0; box-shadow:0 4px 14px rgba(20,40,70,.08); }
+.flowPanel.before { border-left:7px solid #dc7668; }
+.flowPanel.after { border-left:7px solid #37a38e; }
 section th { background: #123b6d; color: white; padding: 10px; border-radius: 8px; }
 section td { background: white; padding: 11px 13px; vertical-align: top; border-radius: 9px; }
 section strong { color: #075f88; }
@@ -56,20 +66,36 @@ section strong { color: #075f88; }
 
 ---
 
-# 01 — VẤN ĐỀ KHÔNG PHẢI LÀ TỜ GIẤY
+# 01 — MỘT VIỆC, HAI CÁCH VẬN HÀNH
 
-| 🔴 TRƯỚC | 🟢 SAU | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
-|---|---|---|---|
-| Một việc đi qua **phiếu → email → Excel → bảng tổng hợp** | Một hồ sơ đi qua **đăng ký → duyệt → thực tế → đối soát** | **Một luồng dữ liệu thống nhất** | Giảm nhập lại và giảm tìm kiếm |
-| Người phụ trách phải nhớ hạn | Hệ thống sinh **việc cần xử lý + hạn + thông báo** | **Tự động hóa việc lặp** | Giảm bỏ sót |
-| Kiểm tra thủ công từng trường hợp | Hệ thống phát hiện **sai lệch / ngoại lệ** | **Con người tập trung vào ngoại lệ** | Giảm thời gian kiểm tra |
-
-<div class="callout">
-
-### Chi phí ẩn được nhắm tới
-**Giờ công + giấy tờ + tìm kiếm + nhập lại + đối chiếu + sửa sai + bỏ sót.**
-
+<div class="flowPanel before">
+<div class="flowTitle">🔴 BEFORE</div>
+<div class="flowrow">
+<div class="flowstep manualStep">✍️<small>Ghi phiếu</small></div><div class="flowArrow">→</div>
+<div class="flowstep manualStep">📄<small>Ký giấy</small></div><div class="flowArrow">→</div>
+<div class="flowstep manualStep">✉️<small>Gửi email</small></div><div class="flowArrow">→</div>
+<div class="flowstep manualStep">⌨️<small>Nhập Excel</small></div><div class="flowArrow">→</div>
+<div class="flowstep manualStep">🔎<small>Đối chiếu</small></div>
 </div>
+</div>
+
+<div class="flowPanel after">
+<div class="flowTitle">🟢 AFTER</div>
+<div class="flowrow">
+<div class="flowstep digitalStep">💻<small>Đăng ký</small></div><div class="flowArrow">→</div>
+<div class="flowstep digitalStep">🔐<small>Kiểm tra</small></div><div class="flowArrow">→</div>
+<div class="flowstep digitalStep">✅<small>Phê duyệt</small></div><div class="flowArrow">→</div>
+<div class="flowstep digitalStep">🔄<small>Thực tế</small></div><div class="flowArrow">→</div>
+<div class="flowstep digitalStep">⚠️<small>Ngoại lệ</small></div>
+</div>
+</div>
+
+| 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
+|---|---|
+| **Một hồ sơ – một luồng dữ liệu** | Giảm nhập lại và giảm tìm kiếm |
+| Phần lặp lại do hệ thống xử lý | Con người tập trung vào quyết định / ngoại lệ |
+
+**Nguyên tắc:** sơ đồ cho thấy **cách làm**, bảng phía dưới giải thích **vì sao hiệu quả**.
 
 ---
 
