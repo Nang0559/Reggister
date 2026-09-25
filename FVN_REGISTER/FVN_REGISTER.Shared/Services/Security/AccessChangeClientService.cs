@@ -17,7 +17,10 @@ public sealed class AccessChangeClientService : IAccessChangeClientService
         _logger = logger;
     }
 
-    public Task<ApiResponse<List<AccessChangeEmployeeOptionDto>>> GetEmployeesAsync(CancellationToken ct = default)\n        => Get<List<AccessChangeEmployeeOptionDto>>("api/security/access-change/employees", "employees", ct);\n\n    public Task<ApiResponse<List<AccessChangeFunctionOptionDto>>> GetFunctionOptionsAsync(RequestModule module, string oldEmployeeCode, CancellationToken ct = default)
+    public Task<ApiResponse<List<AccessChangeEmployeeOptionDto>>> GetEmployeesAsync(CancellationToken ct = default)
+        => Get<List<AccessChangeEmployeeOptionDto>>("api/security/access-change/employees", "employees", ct);
+
+    public Task<ApiResponse<List<AccessChangeFunctionOptionDto>>> GetFunctionOptionsAsync(RequestModule module, string oldEmployeeCode, CancellationToken ct = default)
         => Get<List<AccessChangeFunctionOptionDto>>($"api/security/access-change/functions?businessModule={module}&oldEmployeeCode={Uri.EscapeDataString(oldEmployeeCode)}", "functions", ct);
 
     public Task<ApiResponse<List<FVN_REGISTER.Contract.Dtos.Equipment.EquipmentHandoverCandidateDto>>> GetEquipmentCandidatesAsync(string oldEmployeeCode, CancellationToken ct = default)
@@ -27,7 +30,10 @@ public sealed class AccessChangeClientService : IAccessChangeClientService
     public Task<ApiResponse<AccessChangeRequestDto>> CreateAsync(AccessChangeRequestCreateDto request, CancellationToken ct = default)
         => Post<AccessChangeRequestDto>("api/security/access-change", request, "create", ct);
 
-    public Task<ApiResponse<List<AccessChangeRequestDto>>> GetPendingAsync(CancellationToken ct = default)\n        => Get<List<AccessChangeRequestDto>>("api/security/access-change/pending", "pending", ct);\n\n    public Task<ApiResponse<List<AccessChangeRequestDto>>> GetMineAsync(CancellationToken ct = default)
+    public Task<ApiResponse<List<AccessChangeRequestDto>>> GetPendingAsync(CancellationToken ct = default)
+        => Get<List<AccessChangeRequestDto>>("api/security/access-change/pending", "pending", ct);
+
+    public Task<ApiResponse<List<AccessChangeRequestDto>>> GetMineAsync(CancellationToken ct = default)
         => Get<List<AccessChangeRequestDto>>("api/security/access-change/mine", "mine", ct);
 
     public Task<ApiResponse<AccessChangeRequestDto>> GetAsync(int id, CancellationToken ct = default)
