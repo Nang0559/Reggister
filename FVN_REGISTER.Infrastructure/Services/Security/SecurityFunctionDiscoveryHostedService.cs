@@ -17,10 +17,10 @@ public sealed class SecurityFunctionDiscoveryHostedService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Give the API time to finish startup and database connectivity checks.
         try { await Task.Delay(TimeSpan.FromSeconds(15), stoppingToken); }
         catch (OperationCanceledException) { return; }
 
+        var interval = TimeSpan.FromHours(6);
         while (!stoppingToken.IsCancellationRequested)
         {
             try
@@ -31,14 +31,16 @@ public sealed class SecurityFunctionDiscoveryHostedService : BackgroundService
                 _logger.LogInformation(
                     "Security function discovery completed: Discovered={Discovered}, Matched={Matched}, New={New}, Retirement={Retirement}, Conflict={Conflict}",
                     result.Discovered, result.Matched, result.PendingRegistration, result.PendingRetirement, result.Conflict);
+                interval = TimeSpan.FromHours(6);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Security function discovery failed. Existing permissions were not changed by the discovery process.");
+                interval = TimeSpan.FromMinutes(5);
+                _logger.LogError(ex, "Security function discovery failed. Existing permissions were not changed by the discovery process. Retrying in 5 minutes.");
             }
 
-            try { await Task.Delay(TimeSpan.FromHours(6), stoppingToken); }
+            try { await Task.Delay(interval, stoppingToken); }
             catch (OperationCanceledException) { return; }
         }
     }
