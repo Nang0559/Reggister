@@ -9,585 +9,364 @@ size: 16:9
 section {
   font-family: "Aptos", "Segoe UI", Arial, sans-serif;
   color: #172033;
-  background: linear-gradient(135deg, #f7f9fc 0%, #ffffff 100%);
-  padding: 42px 58px;
+  background: #f7f9fc;
+  padding: 34px 46px;
 }
-section h1 {
-  font-size: 42px;
-  color: #123b6d;
-  margin-bottom: 16px;
-}
-section h2 {
-  font-size: 30px;
-  color: #1769aa;
-}
-section h3 {
-  color: #315b7d;
-}
-section strong {
-  color: #0f5b8d;
-}
-section table {
-  font-size: 20px;
-}
-section blockquote {
-  border-left: 7px solid #0f7a8a;
-  background: #eef8f9;
-  padding: 14px 22px;
-  color: #164653;
-}
-.hero {
-  background: linear-gradient(135deg, #0d2f57 0%, #145a83 55%, #0b7a78 100%);
-  color: white;
-}
-.hero h1, .hero h2, .hero h3, .hero strong {
-  color: white;
-}
-.hero p, .hero li {
-  color: #eef7ff;
-}
-.dark {
-  background: linear-gradient(135deg, #172033 0%, #253a54 100%);
-  color: white;
-}
-.dark h1, .dark h2, .dark h3, .dark strong {
-  color: #ffffff;
-}
-.big {
-  font-size: 30px;
-  line-height: 1.45;
-}
-.kpi {
-  display: flex;
-  gap: 18px;
-  margin-top: 24px;
-}
-.card {
-  flex: 1;
-  background: white;
-  border-radius: 18px;
-  padding: 18px 20px;
-  box-shadow: 0 8px 24px rgba(20,40,70,.10);
-}
-.metric {
-  font-size: 34px;
-  font-weight: 700;
-  color: #0c7b6f;
-}
-.small {
-  font-size: 18px;
-}
-.center {
-  text-align: center;
-}
+section h1 { font-size: 39px; color: #123b6d; margin: 0 0 12px; }
+section h2 { font-size: 27px; color: #1769aa; margin: 8px 0; }
+section h3 { color: #315b7d; }
+section table { width: 100%; font-size: 18px; border-collapse: separate; border-spacing: 8px; }
+section th { background: #123b6d; color: white; padding: 10px; border-radius: 8px; }
+section td { background: white; padding: 11px 13px; vertical-align: top; border-radius: 9px; }
+section strong { color: #075f88; }
+.hero { background: linear-gradient(135deg,#0b2f57,#126b83); color: white; }
+.hero h1,.hero h2,.hero strong { color: white; }
+.hero td { background: rgba(255,255,255,.95); color: #172033; }
+.dark { background: #172033; color: white; }
+.dark h1,.dark h2,.dark strong { color: white; }
+.big { font-size: 27px; line-height: 1.35; }
+.center { text-align:center; }
+.kpi { display:flex; gap:14px; }
+.card { flex:1; background:white; border-radius:14px; padding:15px; box-shadow:0 5px 18px rgba(20,40,70,.10); }
+.metric { font-size:30px; font-weight:700; color:#087a6e; }
+.flow { font-size:17px; line-height:1.55; text-align:center; }
+.flow b { display:inline-block; padding:6px 9px; margin:2px; border-radius:7px; background:#eaf2f8; }
+.before b { background:#fff0ed; color:#9b3d2f; }
+.after b { background:#e8f7f3; color:#08705f; }
+.arrow { color:#718096; font-weight:bold; }
+.callout { background:#e9f6f4; border-left:6px solid #0b8274; padding:12px 16px; border-radius:8px; }
 </style>
 
 <!-- _class: hero -->
 
 # FVN REGISTER
-## Số hóa công việc — giảm chi phí vận hành
+## Nhìn 5 giây: **trước → sau → thay đổi → hiệu quả**
 
-### Từ **giấy • bảng tính • ký • tìm • đối chiếu • nhắc việc**
-### thành **một quy trình số hóa thống nhất**
+| 🔴 TRƯỚC | 🟢 SAU | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
+|---|---|---|---|
+| **Phiếu / Excel / email**<br>→ ký → nhập lại → tìm hồ sơ → đối chiếu | **Đăng ký số**<br>→ phê duyệt → đồng bộ → đối soát → xử lý | Một dữ liệu được dùng xuyên suốt thay vì nhập lại nhiều lần | **Ít thao tác lặp**<br>**Ít tìm kiếm**<br>**Phát hiện sớm** |
+| **Con người phải nhớ việc** | **Hệ thống tạo việc + nhắc việc** | Từ nhớ thủ công → quản lý theo hạn | **Giảm bỏ sót / quá hạn** |
+| **Cuối kỳ mới phát hiện sai** | **Sai lệch xuất hiện ngay trên lịch / việc cần xử lý** | Từ kiểm tra sau → xử lý ngoại lệ sớm | **Giảm sửa lại** |
 
-<div class="big">
+<div class="big center">
 
-**Đăng ký → Phê duyệt → Thực tế → Đối soát → Xử lý → Báo cáo**
+**Từ “làm hồ sơ” → “quản lý toàn bộ vòng đời công việc”.**
 
 </div>
 
-> **Không chỉ bỏ giấy. Quan trọng hơn là giảm công việc lặp lại phía sau tờ giấy.**
+---
+
+# 01 — VẤN ĐỀ KHÔNG PHẢI LÀ TỜ GIẤY
+
+| 🔴 TRƯỚC | 🟢 SAU | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
+|---|---|---|---|
+| Một việc đi qua **phiếu → email → Excel → bảng tổng hợp** | Một hồ sơ đi qua **đăng ký → duyệt → thực tế → đối soát** | **Một luồng dữ liệu thống nhất** | Giảm nhập lại và giảm tìm kiếm |
+| Người phụ trách phải nhớ hạn | Hệ thống sinh **việc cần xử lý + hạn + thông báo** | **Tự động hóa việc lặp** | Giảm bỏ sót |
+| Kiểm tra thủ công từng trường hợp | Hệ thống phát hiện **sai lệch / ngoại lệ** | **Con người tập trung vào ngoại lệ** | Giảm thời gian kiểm tra |
+
+<div class="callout">
+
+### Chi phí ẩn được nhắm tới
+**Giờ công + giấy tờ + tìm kiếm + nhập lại + đối chiếu + sửa sai + bỏ sót.**
+
+</div>
 
 ---
 
-# 01 — Vấn đề thật sự không phải là tờ giấy
+# 02 — MỘT QUY TRÌNH, HAI CÁCH VẬN HÀNH
+
+| 🔴 TRƯỚC — nhiều vòng lặp | 🟢 SAU — một luồng có kiểm soát |
+|---|---|
+| <div class="flow before"><b>Nhân viên</b><span class="arrow"> → </span><b>Phiếu / Excel / email</b><br><span class="arrow">↓</span><br><b>Quản lý ký</b><span class="arrow"> → </span><b>Nhân sự nhận</b><br><span class="arrow">↓</span><br><b>Nhập / tổng hợp</b><span class="arrow"> → </span><b>Đối chiếu</b><br><span class="arrow">↺ hỏi lại / sửa / kiểm tra lại</span></div> | <div class="flow after"><b>Đăng ký số</b><span class="arrow"> → </span><b>Kiểm tra</b><span class="arrow"> → </span><b>Phê duyệt</b><br><span class="arrow">↓</span><br><b>Kế hoạch</b><span class="arrow"> + </span><b>Thực tế HRM</b><span class="arrow"> → </span><b>Đối soát</b><br><span class="arrow">↓</span><br><b>Hoàn tất</b> <span class="arrow">|</span> <b>Chỉ xử lý ngoại lệ</b></div> |
+
+### Điểm thay đổi lớn
+**Không cố gắng tự động hóa mọi quyết định — tự động hóa phần lặp lại để con người xử lý đúng chỗ.**
+
+---
+
+# 03 — CHẤM CÔNG • PHÉP • OT • CÔNG TÁC
+
+| 🔴 TRƯỚC | 🟢 SAU | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
+|---|---|---|---|
+| Phiếu → ký → lưu → nhập bảng → nhận bảng công → đối chiếu từng người | Đăng ký → duyệt → kế hoạch → HRM → đối soát | **Kế hoạch và thực tế được nối trực tiếp** | Giảm đối chiếu thủ công |
+| Sai lệch phải gọi / email hỏi lại | Sai lệch xuất hiện trên lịch và danh sách xử lý | **Sai lệch trở thành một việc cụ thể** | Xử lý sớm hơn |
+| Kiểm tra dồn vào cuối kỳ | Có thể phát hiện trong quá trình vận hành | **Từ kiểm tra muộn → kiểm tra liên tục** | Giảm dồn việc cuối kỳ |
+
+<div class="flow after">
+<b>Đăng ký</b> → <b>Phê duyệt</b> → <b>Kế hoạch</b> → <b>HRM thực tế</b> → <b>Đối soát</b> → <b>Hoàn tất / Xử lý ngoại lệ</b>
+</div>
+
+---
+
+# 04 — CÁC SAI LỆCH ĐƯỢC NHÌN THẤY TRƯỚC KHI CHỐT
+
+| Tình huống | Hệ thống làm gì | Việc còn lại của con người |
+|---|---|---|
+| **OT thực tế nhưng chưa đăng ký** | Đánh dấu sai lệch | Xác nhận / bổ sung hồ sơ |
+| **OT đã duyệt nhưng không có thực tế** | Đưa vào xử lý | Xác nhận tình trạng |
+| **Đã duyệt nghỉ nhưng vẫn có chấm công** | Hiển thị cảnh báo | Nhân sự kiểm tra |
+| **Giờ thực tế khác giờ yêu cầu** | Đưa vào danh sách ngoại lệ | Xác nhận / điều chỉnh |
+
+<div class="callout">
+
+**Thay đổi quan trọng:** từ **“tìm lỗi trong dữ liệu”** → **“hệ thống chỉ ra trường hợp cần xử lý”.**
+
+</div>
+
+---
+
+# 05 — LỊCH LÀM VIỆC: MỘT MÀN HÌNH THAY CHO NHIỀU NƠI TÌM KIẾM
+
+| 🔴 TRƯỚC | 🟢 SAU | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
+|---|---|---|---|
+| Tìm ca ở một nơi, chấm công ở nơi khác, phép/OT ở hồ sơ khác | **Một lịch theo ngày** | Gom dữ liệu theo **ngữ cảnh thời gian** | Ít chuyển màn hình |
+| Muốn biết “hôm đó có gì?” phải tra nhiều nguồn | Một ngày hiển thị **ca + vào/ra + phép + OT + công tác + cảnh báo** | **Một ngày = một bức tranh hoàn chỉnh** | Nhìn nhanh hơn |
+| Sai lệch nằm trong dữ liệu chi tiết | Dấu **?** ngay tại ngày | Đưa vấn đề đến đúng vị trí | Phát hiện sớm |
+
+<div class="flow after">
+<b>Ca</b> + <b>Chấm công</b> + <b>Phép</b> + <b>OT</b> + <b>Công tác</b> + <b>Sai lệch</b> → <b>Lịch của tôi</b>
+</div>
+
+---
+
+# 06 — DẤU “?” = VIỆC CẦN XỬ LÝ, KHÔNG PHẢI BIỂU TƯỢNG TRANG TRÍ
+
+| 🔴 CÁCH CŨ | 🟢 CÁCH MỚI |
+|---|---|
+| **Có vấn đề** → phải tự tìm nguyên nhân | **?** → xem nguyên nhân ngay |
+| Tìm hồ sơ nguồn | Có liên kết tới **hồ sơ / dữ liệu nguồn** |
+| Tự hỏi ai xử lý | Có **người / đơn vị phụ trách** |
+| Tự nhớ phải làm gì | Có **việc cần xử lý + hạn** |
+
+<div class="flow after">
+<b>?</b> → <b>Nguyên nhân</b> → <b>Hồ sơ nguồn</b> → <b>Người xử lý</b> → <b>Việc cần làm</b> → <b>Hoàn tất</b>
+</div>
+
+---
+
+# 07 — QUẢN LÝ THIẾT BỊ: TỪ SỔ THEO DÕI → QR + LỊCH SỬ
+
+| 🔴 TRƯỚC | 🟢 SAU | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
+|---|---|---|---|
+| Tìm thiết bị trong sổ / Excel | **Quét QR** | Nhận diện trực tiếp thiết bị | Giảm thời gian tìm |
+| Tìm phiếu kiểm tra cũ | QR → thông tin → lịch sử | Hồ sơ gắn với thiết bị | Dễ truy vết |
+| Nhớ lịch kiểm tra | Hệ thống sinh nhiệm vụ | Theo dõi theo lịch | Giảm bỏ sót |
+
+<div class="flow after">
+<b>QR</b> → <b>Thiết bị</b> → <b>Thông tin</b> → <b>Phiếu</b> → <b>Bằng chứng</b> → <b>Phê duyệt</b> → <b>Lịch sử</b>
+</div>
+
+---
+
+# 08 — PHIẾU KIỂM TRA: TỪ “NHỚ THÌ LÀM” → “HỆ THỐNG GIAO VIỆC”
+
+| 🔴 TRƯỚC | 🟢 SAU | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
+|---|---|---|---|
+| Có lịch nhưng người phụ trách phải tự nhớ | Tự sinh nhiệm vụ theo lịch | **Lịch → nhiệm vụ** | Giảm bỏ sót |
+| Không rõ việc nào quá hạn | Có hạn xử lý + nhắc việc | **Theo dõi trạng thái** | Giảm quá hạn |
+| Ảnh / giấy tờ rời khỏi hồ sơ | Bằng chứng gắn với phiếu | **Một hồ sơ có đủ bằng chứng** | Dễ kiểm tra |
+| Khó biết lịch sử | Lưu lịch sử kiểm tra / sửa chữa | **Có truy vết** | Tăng khả năng kiểm soát |
+
+---
+
+# 09 — PHẦN MỀM CHỦ ĐỘNG THỰC HIỆN CÔNG VIỆC LẶP LẠI
+
+| 🔴 TRƯỚC | 🟢 SAU |
+|---|---|
+| Nhân sự phải nhớ thời điểm đồng bộ | **Đồng bộ HRM theo chu kỳ** |
+| Người dùng phải nhớ gửi thông báo | **Hàng đợi gửi thông báo** |
+| Phải kiểm tra thủ công nhiệm vụ thiết bị | **Tự sinh nhiệm vụ / nhắc việc** |
+| Đợi cuối kỳ mới rà sai lệch | **Đối soát định kỳ** |
+| Quá hạn mới đi tìm | **Nhắc trước / chuyển cấp theo quy trình** |
 
 <div class="kpi">
-<div class="card"><div class="metric">⌨</div><b>Nhập lại</b><br><span class="small">Một thông tin phải đi qua nhiều tệp, phiếu và bảng tổng hợp.</span></div>
-<div class="card"><div class="metric">🔎</div><b>Tìm kiếm</b><br><span class="small">Mất thời gian tìm hồ sơ, trạng thái và lịch sử.</span></div>
-<div class="card"><div class="metric">✓</div><b>Đối chiếu</b><br><span class="small">Nhân sự phải kiểm tra kế hoạch và thực tế thủ công.</span></div>
-<div class="card"><div class="metric">⏰</div><b>Nhắc việc</b><br><span class="small">Phụ thuộc vào việc con người nhớ đúng lúc.</span></div>
+<div class="card"><div class="metric">5'</div><b>Đồng bộ HRM</b></div>
+<div class="card"><div class="metric">5'</div><b>Hàng đợi thông báo</b></div>
+<div class="card"><div class="metric">10'</div><b>Kiểm tra thiết bị</b></div>
+<div class="card"><div class="metric">30'</div><b>Đối soát</b></div>
 </div>
 
-### Chi phí ẩn
-
-**Giờ công + giấy tờ + tìm kiếm + sửa sai + xử lý chậm + nguy cơ bỏ sót**
+<p class="small">Các chu kỳ trên là cấu hình vận hành hiện tại, không phải cam kết hiệu năng.</p>
 
 ---
 
-# 02 — QUY TRÌNH HIỆN TẠI
+# 10 — TỪ “AI NHỚ THÌ LÀM” → “HỆ THỐNG QUẢN LÝ HẠN”
 
-```mermaid
-flowchart LR
-    A[Nhân viên] --> B[Phiếu / bảng tính / thư điện tử]
-    B --> C[Quản lý ký]
-    C --> D[Nhân sự tiếp nhận]
-    D --> E[Nhập lại / tổng hợp]
-    E --> F[Kiểm tra chấm công]
-    F --> G[Hỏi lại / sửa]
-    G --> F
-    F --> H[Chốt]
-```
-
-### Mỗi vòng lặp đều tiêu tốn thời gian
-
-**Ghi → gửi → ký → nhập → kiểm tra → hỏi → sửa → kiểm tra lại**
-
-> Khi số lượng nhân viên tăng, khối lượng kiểm tra tăng gần như theo số giao dịch.
-
----
-
-# 03 — FVN REGISTER THAY ĐỔI ĐIỀU GÌ?
-
-```mermaid
-flowchart LR
-    A[Đăng ký điện tử] --> B[Kiểm tra dữ liệu]
-    B --> C[Phê duyệt]
-    C --> D[Lưu vết]
-    D --> E[Kế hoạch đã duyệt]
-    H[Chấm công HRM] --> F[Thực tế]
-    E --> G[Đối soát]
-    F --> G
-    G --> I{Có sai lệch?}
-    I -->|Không| J[Hoàn tất]
-    I -->|Có| K[Việc cần xử lý]
-    K --> L[Thông báo]
-    K --> M[Bằng chứng / xác nhận]
-    M --> N[Nhân sự xử lý]
-    N --> J
-```
-
-### Ý nghĩa kinh tế
-
-**Hệ thống làm phần việc lặp lại → con người tập trung vào trường hợp ngoại lệ.**
-
----
-
-# 04 — CHẤM CÔNG • PHÉP • OT • CÔNG TÁC
-
-## Trước
-
-```mermaid
-flowchart TD
-    A[Phiếu phép / OT / công tác] --> B[Ký]
-    B --> C[Nhân sự lưu]
-    C --> D[Nhập bảng tính]
-    D --> E[Nhận bảng công]
-    E --> F[Đối chiếu từng người / từng ngày]
-    F --> G{Sai?}
-    G -->|Có| H[Điện thoại / thư điện tử]
-    H --> I[Sửa hồ sơ]
-    I --> F
-    G -->|Không| J[Chốt bảng công]
-```
-
-## Sau
-
-```mermaid
-flowchart TD
-    A[Đăng ký điện tử] --> B[Kiểm tra tự động]
-    B --> C[Phê duyệt]
-    C --> D[Kế hoạch đã duyệt]
-    H[Chấm công HRM] --> E[Thực tế]
-    D --> F[Đối soát]
-    E --> F
-    F --> G{Sai lệch?}
-    G -->|Không| H1[Hoàn tất]
-    G -->|Có| I[Hiển thị dấu ?]
-    I --> J[Việc cần xử lý]
-    J --> K[Nhân sự xác nhận]
-    K --> L[Hoàn tất]
-```
-
-### Một số lỗi hệ thống có thể phát hiện
-
-- **OT thực tế nhưng chưa có đăng ký.**
-- **OT đã duyệt nhưng không có OT thực tế.**
-- **Nghỉ phép/công tác đã duyệt nhưng vẫn có chấm công.**
-- **Chênh lệch giờ thực tế và giờ yêu cầu.**
-
-> Không cần chờ đến cuối kỳ mới bắt đầu tìm lỗi.
-
----
-
-# 05 — LỊCH LÀM VIỆC CỦA TÔI
-
-## Từ nhiều nơi → một màn hình theo ngày
-
-```mermaid
-flowchart TB
-    A[Ca làm việc] --> G[Lịch của tôi]
-    B[Chấm công] --> G
-    C[Phép] --> G
-    D[OT] --> G
-    E[Công tác] --> G
-    F[Việc cần xử lý] --> G
-```
-
-### Người dùng nhìn thấy ngay
-
-**Ca • Vào/Ra • Giờ thực tế • Giờ yêu cầu • Phép • OT • Công tác • Dấu ?**
+| 🔴 CÁCH CŨ | 🟢 CÁCH MỚI |
+|---|---|
+| <div class="flow before"><b>Việc cần làm</b> → <b>Con người phải nhớ</b> → <b>Quên</b> → <b>Quá hạn</b> → <b>Phát hiện muộn</b></div> | <div class="flow after"><b>Lịch / sự kiện</b> → <b>Tạo việc</b> → <b>Hạn xử lý</b> → <b>Thông báo</b> → <b>Người phụ trách</b> → <b>Lưu lịch sử</b></div> |
 
 ### Giá trị
-
-**Ít tìm kiếm hơn • ít đối chiếu hơn • phát hiện vấn đề sớm hơn**
-
----
-
-# 06 — DẤU “?” KHÔNG PHẢI TRANG TRÍ
-
-### Mỗi dấu “?” là một vấn đề có ngữ cảnh
-
-```mermaid
-flowchart LR
-    A[?] --> B[Biết nguyên nhân]
-    B --> C[Biết hồ sơ nguồn]
-    C --> D[Biết người xử lý]
-    D --> E[Biết việc cần làm]
-```
-
-### Ví dụ
-
-🟡 **Chênh lệch giờ:** kiểm tra lại hoặc đăng ký OT.
-
-🔴 **OT đã duyệt nhưng không có thực tế:** xác nhận / xử lý hủy theo quy trình.
-
-🔴 **Đã duyệt nghỉ nhưng có chấm công:** gửi xử lý cho nhân sự.
-
-> **Từ “có lỗi” → “biết phải làm gì”.**
-
----
-
-# 07 — QUẢN LÝ THIẾT BỊ: TỪ SỔ GIẤY ĐẾN QR
-
-## Trước
-
-**Phiếu → Sổ → Tìm → Phiếu kiểm tra giấy → Ký → Lưu**
-
-## Sau
-
-```mermaid
-flowchart LR
-    A[Thiết bị] --> B[Mã QR]
-    B --> C[Thông tin tài sản]
-    C --> D[Lịch sử]
-    C --> E[Phiếu kiểm tra]
-    E --> F[Người phụ trách]
-    E --> G[Hạn kiểm tra]
-    E --> H[Bằng chứng]
-    H --> I[Phê duyệt]
-```
-
-### Một lần quét QR
-
-**→ đúng thiết bị  
-→ đúng bộ phận  
-→ đúng phiếu kiểm tra  
-→ đúng lịch sử**
-
----
-
-# 08 — PHIẾU KIỂM TRA KHÔNG CÒN LÀ “NHỚ THÌ LÀM”
-
-```mermaid
-flowchart LR
-    A[Lịch định kỳ] --> B[Tự sinh nhiệm vụ]
-    B --> C[Người phụ trách]
-    C --> D[Hạn xử lý]
-    D --> E[Nhắc việc]
-    E --> F[Kiểm tra]
-    F --> G[Ảnh / bằng chứng]
-    G --> H[Phê duyệt]
-    H --> I[Lịch sử]
-```
-
-### Hiện hệ thống đã có
-
-- Phiếu kiểm tra theo ngày / tuần / tháng / quý / năm.
-- Tự sinh nhiệm vụ kiểm tra theo lịch.
-- Nhắc trước hạn.
-- Việc cần xử lý trên hệ thống.
-- Bằng chứng hình ảnh.
-- Phiên bản phiếu kiểm tra.
-- Lịch sử kiểm tra/sửa chữa.
-
----
-
-# 09 — PHẦN MỀM CHỦ ĐỘNG LÀM VIỆC
-
-<div class="kpi">
-<div class="card"><div class="metric">5'</div><b>Đồng bộ HRM</b><br><span class="small">Theo chu kỳ hiện tại</span></div>
-<div class="card"><div class="metric">5'</div><b>Hàng đợi thư điện tử</b><br><span class="small">Tách gửi thông báo khỏi nghiệp vụ</span></div>
-<div class="card"><div class="metric">10'</div><b>Kiểm tra thiết bị</b><br><span class="small">Sinh nhiệm vụ và nhắc việc</span></div>
-<div class="card"><div class="metric">30'</div><b>Đối soát</b><br><span class="small">Quét sai lệch gần nhất</span></div>
-</div>
-
-### Ngoài ra
-
-**Tính công tự động hằng ngày • Nhắc phê duyệt • Chuyển cấp khi quá hạn**
-
-> Mục tiêu là **không bắt nhân sự phải nhớ mọi việc**.
-
----
-
-# 10 — TỪ “AI NHỚ THÌ LÀM” → “HỆ THỐNG NHẮC VIỆC”
-
-## Cách cũ
-
-```mermaid
-flowchart LR
-    A[Việc cần làm] --> B[Con người phải nhớ]
-    B -->|Quên| C[Quá hạn]
-    C --> D[Phát hiện muộn]
-    D --> E[Khắc phục]
-```
-
-## Cách mới
-
-```mermaid
-flowchart LR
-    A[Lịch / sự kiện] --> B[Việc cần xử lý]
-    B --> C[Hạn xử lý]
-    C --> D[Thông báo]
-    D --> E[Người phụ trách]
-    E --> F[Lưu lịch sử]
-```
-
-### Lợi ích
-
 **Đúng người • đúng việc • đúng hạn • có truy vết**
 
 ---
 
 # 11 — KIỂM SOÁT TRƯỚC KHI CHỐT BẢNG LƯƠNG
 
-```mermaid
-flowchart LR
-    A[Chấm công] --> D[Đối soát]
-    B[Phép / OT / công tác] --> D
-    C[Điều chỉnh] --> D
-    D --> E{Còn sai lệch?}
-    E -->|Có| F[Xử lý tiếp]
-    E -->|Không| G[Chụp dữ liệu kỳ]
-    G --> H[Khóa / xuất]
-```
+| 🔴 TRƯỚC | 🟢 SAU | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
+|---|---|---|---|
+| Tổng hợp nhiều nguồn rồi mới phát hiện vấn đề | Chấm công + phép + OT + công tác được đối soát | **Kiểm tra trước khi khóa** | Giảm sửa sau chốt |
+| Sai lệch nằm rải rác | Có danh sách ngoại lệ | **Tập trung việc cần xử lý** | Giảm thời gian rà |
+| Điều chỉnh khó truy vết | Có dữ liệu và lịch sử xử lý | **Có dấu vết** | Tăng kiểm soát |
 
-### Điểm quan trọng
-
-**Phát hiện trước khi chốt tốt hơn phát hiện sau khi đã chốt.**
-
-Hệ thống có cơ chế kiểm tra sai lệch và điều chỉnh còn tồn trước khi khóa/xuất kỳ lương.
-
----
-
-# 12 — BÁO CÁO KHÔNG CÒN PHỤ THUỘC VÀO NHIỀU tệp
-
-## Trước
-
-```mermaid
-flowchart LR
-    A[tệp phép] --> H[Nhân sự tổng hợp]
-    B[tệp OT] --> H
-    C[tệp công tác] --> H
-    D[tệp thiết bị] --> H
-    E[tệp chấm công] --> H
-    H --> F[Báo cáo]
-```
-
-## Sau
-
-```mermaid
-flowchart LR
-    A[Dữ liệu nghiệp vụ] --> B[Bảng điều hành]
-    A --> C[Báo cáo]
-    C --> D[Xuất dữ liệu theo quyền]
-```
-
-### Giá trị
-
-**Một nguồn dữ liệu → nhiều góc nhìn quản trị**
-
----
-
-# 13 — 4 NGUỒN TẠO RA HIỆU QUẢ NGÂN SÁCH
-
-<div class="kpi">
-<div class="card"><div class="metric">①</div><b>Giờ công</b><br><span class="small">Giảm nhập lại, tìm kiếm, tổng hợp, đối chiếu</span></div>
-<div class="card"><div class="metric">②</div><b>Giấy tờ</b><br><span class="small">Giảm in, quét, lưu trữ, luân chuyển</span></div>
-<div class="card"><div class="metric">③</div><b>Sai sót</b><br><span class="small">Giảm sửa lại và kiểm tra lặp</span></div>
-<div class="card"><div class="metric">④</div><b>Rủi ro</b><br><span class="small">Giảm bỏ sót, quá hạn, thiếu lịch sử</span></div>
+<div class="flow after">
+<b>Chấm công</b> + <b>Phép / OT / công tác</b> + <b>Điều chỉnh</b> → <b>Đối soát</b> → <b>Xử lý ngoại lệ</b> → <b>Khóa / xuất kỳ</b>
 </div>
 
-> Đây là **cơ chế tạo lợi ích**. Mức tiết kiệm thực tế phải đo bằng số liệu trước/sau triển khai.
+---
+
+# 12 — BÁO CÁO: TỪ NHIỀU TỆP → MỘT NGUỒN DỮ LIỆU
+
+| 🔴 TRƯỚC | 🟢 SAU |
+|---|---|
+| <div class="flow before"><b>Tệp phép</b> + <b>Tệp OT</b> + <b>Tệp công tác</b> + <b>Tệp thiết bị</b> + <b>Tệp chấm công</b><br>↓<br><b>Nhân sự tổng hợp</b> → <b>Báo cáo</b></div> | <div class="flow after"><b>Dữ liệu nghiệp vụ</b><br>↓<br><b>Bảng điều hành</b> + <b>Báo cáo</b> + <b>Xuất dữ liệu theo quyền</b></div> |
+
+### Thay đổi
+**Từ “gom dữ liệu để làm báo cáo” → “báo cáo lấy từ dữ liệu đã quản lý”.**
 
 ---
 
-# 14 — CÁCH TÍNH TIỀN
+# 13 — HIỆU QUẢ ĐẾN TỪ 4 NHÓM
 
-### 1. Giờ công giải phóng
+| 🔴 CHI PHÍ / LÃNG PHÍ | 🟢 CƠ CHẾ GIẢM |
+|---|---|
+| **Giờ công** | Giảm nhập lại, tìm kiếm, tổng hợp, đối chiếu |
+| **Giấy tờ** | Giảm in, ký, quét, lưu, luân chuyển |
+| **Sai sót** | Kiểm tra tự động + phát hiện ngoại lệ |
+| **Rủi ro** | Nhắc việc + hạn xử lý + lịch sử + truy vết |
 
-**Giờ tiết kiệm = số giao dịch × phút tiết kiệm / 60**
+<div class="callout">
 
-### 2. Giá trị nhân công
+**Đây là cơ chế tạo lợi ích. Không nên biến số liệu minh họa thành “kết quả đã đạt được”.**
 
-**Giá trị = giờ tiết kiệm × chi phí nhân công quy đổi/giờ**
-
-### 3. Lợi ích năm
-
-**Lợi ích năm = nhân công + giấy tờ + giảm sửa sai + tránh tổn thất**
-
-### 4. Hiệu quả đầu tư
-
-**Hiệu quả đầu tư = lợi ích ròng / tổng mức đầu tư**
-
-### 5. Thời gian hoàn vốn
-
-**Thời gian hoàn vốn = vốn đầu tư ban đầu / lợi ích ròng mỗi tháng**
-
----
-
-# 15 — VÍ DỤ MINH HỌA
-
-> ⚠️ **Đây là số liệu minh họa, không phải số liệu thực tế của FCC Việt Nam.**
-
-<div class="kpi">
-<div class="card"><div class="metric">1.500</div><b>giao dịch/tháng</b></div>
-<div class="card"><div class="metric">16'</div><b>tiết kiệm/giao dịch</b></div>
-<div class="card"><div class="metric">120h</div><b>giảm tổng hợp báo cáo/tháng</b></div>
-<div class="card"><div class="metric">75.000đ</div><b>chi phí/giờ</b></div>
 </div>
 
-### Mô hình tính
+---
 
-**≈ 520 giờ được giải phóng/tháng**
+# 14 — CÁCH CHUYỂN HIỆU QUẢ THÀNH TIỀN
 
-**≈ 39 triệu đồng/tháng**
+| Bước | Cách tính |
+|---|---|
+| **01. Đo thời gian** | Số giao dịch × phút tiết kiệm / giao dịch |
+| **02. Quy đổi giờ** | Tổng phút / 60 |
+| **03. Quy đổi tiền** | Giờ tiết kiệm × chi phí nhân công quy đổi / giờ |
+| **04. Cộng lợi ích khác** | Giấy tờ + giảm sửa sai + giảm tổn thất có thể đo |
+| **05. Tính hiệu quả đầu tư** | Lợi ích ròng / tổng mức đầu tư |
+| **06. Tính hoàn vốn** | Vốn đầu tư ban đầu / lợi ích ròng mỗi tháng |
 
-**≈ 468 triệu đồng/năm**
-
-> Con số chính thức phải được thay bằng **số liệu hiện trạng thực tế + kết quả thử nghiệm**.
+### Nguyên tắc
+**Đo trước → triển khai → đo sau → mới kết luận.**
 
 ---
 
-# 16 — KHÔNG ĐỒNG NGHĨA “GIẢM NGƯỜI”
+# 15 — VÍ DỤ MINH HỌA: CÁCH TRÌNH BÀY, KHÔNG PHẢI KẾT QUẢ THỰC TẾ
 
-## 1 giờ công được giải phóng có thể dùng để:
+> ⚠️ **Số liệu dưới đây chỉ để minh họa phương pháp tính.**
 
-- giảm làm thêm;
-- giảm thuê ngoài;
-- xử lý được nhiều hồ sơ hơn với cùng đội ngũ;
-- chuyển nhân sự sang kiểm soát và phân tích;
-- đáp ứng tăng trưởng mà chưa phải bổ sung nhân sự tương ứng.
+| Chỉ số | Ví dụ |
+|---|---:|
+| Giao dịch / tháng | 1.500 |
+| Thời gian tiết kiệm / giao dịch | 16 phút |
+| Giảm tổng hợp báo cáo | 120 giờ / tháng |
+| Chi phí nhân công quy đổi | 75.000 đ / giờ |
 
-### Vì vậy nên trình 3 lớp
+**Mô hình minh họa:** khoảng **520 giờ/tháng** được giải phóng → khoảng **39 triệu đồng/tháng** → khoảng **468 triệu đồng/năm**.
 
-**Tiết kiệm tiền mặt**
+> Số chính thức phải thay bằng **số liệu hiện trạng + kết quả đo sau triển khai**.
 
-**Giải phóng năng lực**
+---
 
-**Giảm rủi ro**
+# 16 — “GIẢI PHÓNG NĂNG LỰC” KHÁC VỚI “GIẢM NGƯỜI”
+
+| Giá trị | Có thể chuyển thành |
+|---|---|
+| Giờ nhập liệu giảm | Xử lý hồ sơ khác |
+| Giờ tìm kiếm giảm | Kiểm soát / phân tích |
+| Giờ đối chiếu giảm | Phòng ngừa sai lệch |
+| Giờ làm báo cáo giảm | Phân tích dữ liệu |
+| Ít việc lặp lại | Có thêm năng lực đáp ứng tăng trưởng |
+
+<div class="callout">
+
+**Mục tiêu của số hóa là giảm công việc lặp lại, không mặc định đồng nghĩa với giảm nhân sự.**
+
+</div>
 
 ---
 
 # 17 — ĐO HIỆU QUẢ THỰC TẾ
 
-```mermaid
-flowchart LR
-    A[Đo hiện trạng 2–4 tuần] --> B[Thử nghiệm 1–2 phòng ban]
-    B --> C[Đo lại]
-    C --> D[So sánh trước / sau]
-    D --> E[Tính lợi ích]
-    E --> F[Quyết định mở rộng]
-```
+<div class="flow after">
+<b>Đo hiện trạng 2–4 tuần</b> → <b>Thử nghiệm 1–2 phòng ban</b> → <b>Đo lại</b> → <b>So sánh trước / sau</b> → <b>Tính lợi ích</b> → <b>Quyết định mở rộng</b>
+</div>
 
-### 8 chỉ số nên đo
-
-| Chỉ số | Mục tiêu |
+| Chỉ số | Cách nhìn |
 |---|---|
-| Phút xử lý / hồ sơ | Giảm |
-| Số lần nhập lại / hồ sơ | Giảm |
-| Thời gian đối chiếu | Giảm |
-| Thời gian lập báo cáo | Giảm |
-| Tỷ lệ phiếu kiểm tra đúng hạn | Tăng |
-| Tỷ lệ sửa lại | Giảm |
-| Tỷ lệ thiếu lịch sử | Giảm |
-| Số sai lệch phát hiện trước chốt lương | Tăng khả năng phát hiện sớm |
+| Phút xử lý / hồ sơ | ↓ |
+| Số lần nhập lại / hồ sơ | ↓ |
+| Thời gian đối chiếu | ↓ |
+| Thời gian lập báo cáo | ↓ |
+| Tỷ lệ phiếu kiểm tra đúng hạn | ↑ |
+| Tỷ lệ sửa lại | ↓ |
+| Tỷ lệ thiếu lịch sử | ↓ |
+| Sai lệch phát hiện trước chốt | ↑ |
 
 ---
 
 # 18 — TỪ PHẦN MỀM ĐĂNG KÝ → NỀN TẢNG VẬN HÀNH
 
-```mermaid
-flowchart LR
-    A[Đăng ký] --> B[Phê duyệt]
-    B --> C[Thực tế]
-    C --> D[Đối soát]
-    D --> E[Việc cần xử lý]
-    E --> F[Nhân sự giải quyết]
-    F --> G[Báo cáo]
-    G --> H[Quản trị]
-```
+| 🔴 CÁCH NHÌN CŨ | 🟢 CÁCH NHÌN MỚI |
+|---|---|
+| **Đăng ký** là điểm kết thúc của một chức năng | **Đăng ký** là điểm bắt đầu của một vòng đời |
+| <div class="flow before"><b>Đăng ký</b> → <b>Phê duyệt</b> → <b>Lưu hồ sơ</b></div> | <div class="flow after"><b>Đăng ký</b> → <b>Phê duyệt</b> → <b>Thực tế</b> → <b>Đối soát</b> → <b>Việc cần xử lý</b> → <b>Giải quyết</b> → <b>Báo cáo</b> → <b>Quản trị</b></div> |
 
-### Đây là giá trị khác biệt
+### Giá trị cốt lõi
+**Hệ thống không chỉ lưu thông tin — hệ thống theo dõi vòng đời công việc.**
 
-**Không chỉ lưu thông tin.**
+---
 
-**Hệ thống theo dõi toàn bộ vòng đời công việc.**
+# 19 — MỘT HỆ THỐNG, NHIỀU GÓC NHÌN
+
+| Người dùng | Giá trị nhận được |
+|---|---|
+| 👤 **Nhân viên** | Đăng ký • Theo dõi • Xem lịch • Nhận thông báo |
+| 👔 **Người phê duyệt** | Duyệt • Từ chối • Theo dõi việc quá hạn |
+| 🧑‍💼 **Nhân sự** | Đối soát • Xử lý sai lệch • Kiểm soát kỳ lương |
+| 🖥 **Quản trị** | Phân quyền • Cấu hình • Theo dõi |
+| 🏢 **Quản lý** | Số liệu • Chi phí • Rủi ro • Hiệu quả |
 
 ---
 
 <!-- _class: dark -->
 
-# 19 — MỘT HỆ THỐNG, NHIỀU BÀI TOÁN
+# 20 — KẾT LUẬN TRONG 5 GIÂY
 
-<div class="center big">
+| 🔴 TRƯỚC | 🟢 FVN REGISTER |
+|---|---|
+| **Con người nhớ việc** | **Hệ thống quản lý việc** |
+| Tìm hồ sơ | Hồ sơ tập trung |
+| Nhập lại | Dùng lại dữ liệu |
+| Đối chiếu thủ công | Đối soát tự động |
+| Phát hiện muộn | Phát hiện sớm |
+| Tự nhắc nhau | Hệ thống nhắc việc |
+| Sửa sau khi sai | Xử lý ngoại lệ theo quy trình |
 
-### 👤 Nhân viên
-Đăng ký • Theo dõi • Nhận thông báo
+<div class="big center">
 
-### 👔 Người phê duyệt
-Duyệt • Từ chối • Theo dõi quá hạn
+## **Từ “quản lý hồ sơ” → “quản lý công việc”.**
 
-### 🧑‍💼 Nhân sự
-Đối soát • Xử lý sai lệch • Kiểm soát chốt lương
-
-### 🖥 Quản trị
-Phân quyền • Cấu hình • Theo dõi
-
-### 🏢 Ban lãnh đạo
-Số liệu • Chi phí • Rủi ro • Hiệu quả
-
-</div>
-
----
-
-<!-- _class: hero -->
-
-# 20 — THÔNG ĐIỆP CUỐI CÙNG
-
-<div class="big">
-
-## Trước đây
-
-**Con người nhớ việc → tìm hồ sơ → nhập lại → đối chiếu → nhắc → sửa**
-
-## Với FVN REGISTER
-
-**Hệ thống lưu → tự kiểm tra → tự phát hiện → tự nhắc → con người xử lý ngoại lệ**
+### FVN REGISTER
+**Số hóa để giảm thao tác lặp, tăng khả năng kiểm soát và đo được hiệu quả.**
 
 </div>
-
-### **FVN REGISTER**
-## Số hóa công việc để giảm chi phí vận hành và tăng khả năng kiểm soát.
 
 ---
 
 <!--
-Gợi ý trình bày:
-1. Nói về chi phí ẩn trước, không nói về công nghệ trước.
-2. Cho xem một tình huống chấm công + OT + phép.
-3. Chuyển sang lịch làm việc và dấu ?.
-4. Cho xem thiết bị + QR + phiếu kiểm tra.
-5. Kết thúc bằng công thức tiền và phương án thử nghiệm 1–2 phòng ban.
-6. Không dùng số minh họa như kết quả đã đạt được.
+NGUYÊN TẮC TRÌNH BÀY:
+1. Slide 1 phải trả lời ngay: TRƯỚC LÀ GÌ? SAU LÀ GÌ? THAY ĐỔI GÌ? HIỆU QUẢ GÌ?
+2. Các slide sau luôn ưu tiên bố cục 4 cột: Before | After | Thay đổi | Hiệu quả.
+3. Không dùng số minh họa như thành tích thực tế.
+4. Sơ đồ dùng HTML/CSS đơn giản để preview Marp ổn định, không phụ thuộc bộ render Mermaid.
+5. Khi thuyết trình: nói “cơ chế tạo hiệu quả” trước, sau đó mới đưa số liệu đo thực tế.
 -->
