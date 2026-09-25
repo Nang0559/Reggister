@@ -46,7 +46,13 @@
                 return;
 
             var permissions = await SecurityClient.GetMyPermissionsAsync();
-            if (permissions.Data?.Has(SecurityFunctionCodes.SecurityManageFunctions) != true)
+            var snapshot = permissions.Data;
+            if (snapshot is null)
+                return;
+
+            // Keep the recovery path alive when F03Functions has been cleared:
+            // SuperAdmin RoleCode=1 is allowed to access the registry bootstrap surface.
+            if (!snapshot.Has(SecurityFunctionCodes.SecurityManageFunctions) && !snapshot.RoleCodes.Contains(1))
                 return;
 
             var entries = SecurityDiscoveryManifestBuilder.Discover(new[] { typeof(SecurityManifestPublisher).Assembly });
