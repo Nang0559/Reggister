@@ -1,4 +1,5 @@
 using FVN_REGISTER.Contract.Dtos.Authentication;
+using FVN_REGISTER.Contract.Requests.Auths;
 using FVN_REGISTER.Contract.Responses;
 
 namespace FVN_REGISTER.Shared.Services.Users
