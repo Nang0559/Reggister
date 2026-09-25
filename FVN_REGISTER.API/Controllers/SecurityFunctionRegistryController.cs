@@ -52,7 +52,7 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         if (!await CanManageAsync(SecurityFunctionCodes.SecurityManageFunctions, ct)) return Forbid();
         var item = await _registry.GetAsync(functionKey, ct);
         return item == null
-            ? NotFound(ApiResponse<object>.Fail("Không tìm thấy Security Function."))
+            ? NotFound(ApiResponse<object>.Fail("Không tìm thấy chức năng bảo mật."))
             : Ok(ApiResponse<SecurityFunctionRegistryItemDto>.Ok(item));
     }
 
@@ -64,7 +64,7 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         try
         {
             await _registry.RegisterAsync(functionKey, request, UserInfo.UserId, ct);
-            await LogActionAsync($"Đăng ký Security Function {functionKey}");
+            await LogActionAsync($"Đăng ký chức năng bảo mật {functionKey}");
             return Ok(ApiResponse<object>.Ok(new { functionKey }));
         }
         catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
@@ -78,7 +78,7 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         try
         {
             await _registry.RetireAsync(functionKey, UserInfo.UserId, ct);
-            await LogActionAsync($"Ngừng Security Function {functionKey}");
+            await LogActionAsync($"Ngừng chức năng bảo mật {functionKey}");
             return Ok(ApiResponse<object>.Ok(new { functionKey }));
         }
         catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
@@ -92,7 +92,7 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         try
         {
             await _registry.ReplaceAsync(functionKey, request, UserInfo.UserId, ct);
-            await LogActionAsync($"Thay thế Security Function {functionKey} -> {request.ReplacementFunctionKey}");
+            await LogActionAsync($"Thay thế chức năng bảo mật {functionKey} -> {request.ReplacementFunctionKey}");
             return Ok(ApiResponse<object>.Ok(new { functionKey, request.ReplacementFunctionKey }));
         }
         catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
@@ -106,7 +106,7 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         try
         {
             await _registry.IgnoreAsync(functionKey, UserInfo.UserId, ct);
-            await LogActionAsync($"Bỏ qua Security Function {functionKey}");
+            await LogActionAsync($"Bỏ qua chức năng bảo mật {functionKey}");
             return Ok(ApiResponse<object>.Ok(new { functionKey }));
         }
         catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
@@ -120,7 +120,7 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         try
         {
             await _registry.UpsertFunctionAsync(request, UserInfo.UserId, ct);
-            await LogActionAsync($"Thêm/Sửa Security Function {request.FunctionKey}");
+            await LogActionAsync($"Thêm/Sửa chức năng bảo mật {request.FunctionKey}");
             return Ok(ApiResponse<object>.Ok(new { request.FunctionKey }));
         }
         catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
@@ -134,7 +134,7 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         try
         {
             await _registry.DeleteFunctionAsync(id, UserInfo.UserId, ct);
-            await LogActionAsync($"Xóa/Ngừng Security Function Id={id}");
+            await LogActionAsync($"Xóa/Ngừng chức năng bảo mật Id={id}");
             return Ok(ApiResponse<object>.Ok(new { id }));
         }
         catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
@@ -148,7 +148,7 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         try
         {
             await _registry.UpsertRoleAsync(request, UserInfo.UserId, ct);
-            await LogActionAsync($"Thêm/Sửa Security Role {request.RoleCode}");
+            await LogActionAsync($"Thêm/Sửa vai trò bảo mật {request.RoleCode}");
             return Ok(ApiResponse<object>.Ok(new { request.RoleCode }));
         }
         catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
@@ -162,12 +162,20 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         try
         {
             await _registry.DeleteRoleAsync(id, UserInfo.UserId, ct);
-            await LogActionAsync($"Xóa/Ngừng Security Role Id={id}");
+            await LogActionAsync($"Xóa/Ngừng vai trò bảo mật Id={id}");
             return Ok(ApiResponse<object>.Ok(new { id }));
         }
         catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
     }
 
     private async Task<bool> CanManageAsync(int functionCode, CancellationToken ct)
-        => UserInfo != null && await _authorization.HasAsync(UserInfo, functionCode, ct);
+    {
+        if (UserInfo == null) return false;
+        if (await _authorization.HasAsync(UserInfo, functionCode, ct)) return true;
+
+        // Bootstrap path only protects the registry management surface.
+        // It does not grant any business capability and is available only to SuperAdmin RoleCode/PermissionCode = 1.
+        return functionCode is SecurityFunctionCodes.SecurityManageFunctions or SecurityFunctionCodes.SecurityManageRoles
+            && await _registry.CanBootstrapRegistryAsync(UserInfo.UserId, ct);
+    }
 }
