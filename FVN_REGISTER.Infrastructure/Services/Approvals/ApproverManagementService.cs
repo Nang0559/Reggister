@@ -216,7 +216,7 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
 
             model.PositionCode = employee.PositionCode;
 
-            if (employee != null && !CvCodeRules.IsApprover(
+            if (!CvCodeRules.IsApprover(
                     employee.PositionCode, employee.IsApprove ? 1 : 0, employee.IsAllowApprove ? 1 : 0))
             {
                 Logger.LogWarnIf(Debug,
@@ -224,15 +224,15 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
                     employee.PositionCode);
             }
 
-            int resolvedLevel = model.Level > 0 ? model.Level : CvCodeRules.ResolveLevel(null, employee?.PositionCode);
+            int resolvedLevel = model.Level > 0 ? model.Level : CvCodeRules.ResolveLevel(null, employee.PositionCode);
             if (resolvedLevel == 0)
                 return ServiceResult.Fail("Không xác định được cấp duyệt. Vui lòng chọn thủ công.");
 
             model.Level = resolvedLevel;
             model.RoleName = RoleNameFromLevel(resolvedLevel, model.RequestType);
             model.ApproveForDeptName = await GetDeptNameAsync(model.ApproveForDeptCode ?? "", ct);
-            model.DeptCode = employee?.DeptCode ?? "";
-            model.DeptName = employee?.DeptName ?? "";
+            model.DeptCode = employee.DeptCode ?? "";
+            model.DeptName = employee.DeptName ?? "";
             model.ApproverName = employee.EmployeeName ?? "";
             model.ApproverEmail = employee.EmailAddress ?? "";
             if (string.IsNullOrWhiteSpace(model.ApproverEmail))
@@ -294,19 +294,16 @@ public class ApproverManagementService : BaseService<ApproverManagementService>,
             model.Level = resolvedLevel;
             model.RoleName = RoleNameFromLevel(resolvedLevel, model.RequestType);
             model.ApproveForDeptName = await GetDeptNameAsync(model.ApproveForDeptCode ?? "", ct);
-            model.DeptCode = employee?.DeptCode ?? entity.ApproverDeptCode;
-            model.DeptName = employee?.DeptName ?? entity.ApproverDeptName;
+            model.DeptCode = employee.DeptCode ?? entity.ApproverDeptCode;
+            model.DeptName = employee.DeptName ?? entity.ApproverDeptName;
             model.ApproverName = employee.EmployeeName ?? entity.ApproverName;
             model.ApproverEmail = employee.EmailAddress ?? entity.ApproverEmail;
             if (string.IsNullOrWhiteSpace(model.ApproverEmail))
                 return ServiceResult.Fail("Nhân viên approver chưa có EmailAddress trong HRM.");
 
             ApproverMapper.ApplyUpdate(entity, model, currentUserId);
-            if (employee != null)
-            {
-                entity.ApproverDeptCode = employee.DeptCode ?? entity.ApproverDeptCode;
-                entity.ApproverDeptName = employee.DeptName ?? entity.ApproverDeptName;
-            }
+            entity.ApproverDeptCode = employee.DeptCode ?? entity.ApproverDeptCode;
+            entity.ApproverDeptName = employee.DeptName ?? entity.ApproverDeptName;
 
             repo.Update(entity);
             await _uow.SaveChangesAsync(ct);
