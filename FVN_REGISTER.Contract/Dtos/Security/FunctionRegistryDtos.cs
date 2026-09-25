@@ -28,11 +28,11 @@ public sealed record SecurityFunctionDiscoverySummaryDto(
     int Conflict);
 
 public sealed record RegisterDiscoveredFunctionRequest(
-    string FunctionName,
-    string Detail,
-    string? ModuleCode,
-    string? ActionCode,
-    string ScopeCode = "None");
+    string? FunctionName = null,
+    string? Detail = null,
+    string? ModuleCode = null,
+    string? ActionCode = null,
+    string? ScopeCode = null);
 
 public sealed record ReplaceFunctionRequest(string ReplacementFunctionKey);
 
