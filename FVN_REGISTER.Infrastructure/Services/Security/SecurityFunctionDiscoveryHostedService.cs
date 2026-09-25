@@ -1,3 +1,5 @@
+using FVN_REGISTER.Core.Entities.Security;
+using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -28,9 +30,15 @@ public sealed class SecurityFunctionDiscoveryHostedService : BackgroundService
                 using var scope = _scopeFactory.CreateScope();
                 var registry = scope.ServiceProvider.GetRequiredService<SecurityFunctionRegistryService>();
                 var result = await registry.ReconcileAsync(stoppingToken);
+
+                var db = scope.ServiceProvider.GetRequiredService<FVNWEBAPPContext>();
+                var endpointSources = scope.ServiceProvider.GetServices<EndpointDataSource>();
+                var candidateDiscovery = new SecurityCandidateDiscovery(db, endpointSources);
+                var candidates = await candidateDiscovery.ScanAsync(stoppingToken);
+
                 _logger.LogInformation(
-                    "Security function discovery completed: Discovered={Discovered}, Matched={Matched}, New={New}, Retirement={Retirement}, Conflict={Conflict}",
-                    result.Discovered, result.Matched, result.PendingRegistration, result.PendingRetirement, result.Conflict);
+                    "Security function discovery completed: Discovered={Discovered}, Matched={Matched}, New={New}, Retirement={Retirement}, Conflict={Conflict}, Candidates={Candidates}",
+                    result.Discovered, result.Matched, result.PendingRegistration, result.PendingRetirement, result.Conflict, candidates);
                 interval = TimeSpan.FromHours(6);
             }
             catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested) { return; }
