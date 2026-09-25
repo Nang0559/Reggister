@@ -75,6 +75,7 @@ CREATE TABLE dbo.F03PublicFormAnswers(
 ); END;
 /* BaseAuditEntity compatibility for databases where these tables were created by an older version of this script. */
 DECLARE @PublicFormAuditTable sysname;
+DECLARE @Sql nvarchar(max);
 DECLARE PublicFormAuditCursor CURSOR LOCAL FAST_FORWARD FOR
 SELECT v.TableName
 FROM (VALUES
