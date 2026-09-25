@@ -1,5 +1,6 @@
 using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Interfaces.Security;
+using FvnAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Security;
 using FVN_REGISTER.Core.Constants;
@@ -14,12 +15,12 @@ namespace FVN_REGISTER.API.Controllers;
 public sealed class FeatureOperatorAssignmentsController : ControllerBase
 {
     private readonly IFeatureOperatorAssignmentService _service;
-    private readonly IAuthorizationService _authorization;
+    private readonly FvnAuthorizationService _authorization;
     private readonly ICurrentUserService _currentUser;
 
     public FeatureOperatorAssignmentsController(
         IFeatureOperatorAssignmentService service,
-        IAuthorizationService authorization,
+        FvnAuthorizationService authorization,
         ICurrentUserService currentUser)
     {
         _service = service;
