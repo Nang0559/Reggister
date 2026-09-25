@@ -267,7 +267,7 @@
     }
     private async Task CloneTemplateAsync()
     {
-        var r = await EquipmentClient.CloneInspectionTemplateAsync(_template.Id, _template.TemplateName + " - Draft");
+        var r = await EquipmentClient.CloneInspectionTemplateAsync(_template.Id ?? 0, _template.TemplateName + " - Draft");
         Snackbar.Add(r.IsSuccess ? "Đã nhân bản checklist." : (r.Message ?? "Không thể nhân bản."), r.IsSuccess ? Severity.Success : Severity.Error);
         if (r.IsSuccess) await LoadAllAsync();
     }
