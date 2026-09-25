@@ -214,7 +214,7 @@
         if (file == null) return;
         _importResult = null;
         var result = await EquipmentClient.ImportInspectionTemplateExcelAsync(file);
-        if (result.IsSuccess) { _importResult = result.Data; await LoadAsync(); Snackbar.Add(result.Message ?? "Đã import checklist.", Severity.Success); }
+        if (result.IsSuccess) { _importResult = result.Data; await LoadAllAsync(); Snackbar.Add(result.Message ?? "Đã import checklist.", Severity.Success); }
         else Snackbar.Add(result.Message ?? "Import checklist thất bại.", Severity.Error);
     }
 
