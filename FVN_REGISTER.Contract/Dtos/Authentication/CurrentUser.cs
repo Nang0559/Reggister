@@ -21,4 +21,16 @@ public sealed class CurrentUser
                 DeptCode = user.DeptCode,
                 PositionCode = user.PositionCode
             };
+
+    public static implicit operator UserIdentityDto?(CurrentUser? user)
+        => user == null
+            ? null
+            : new UserIdentityDto
+            {
+                UserId = user.UserId,
+                EmployeeCode = user.EmployeeCode,
+                DeptCode = user.DeptCode,
+                PositionCode = user.PositionCode,
+                IsLoggedIn = true
+            };
 }
