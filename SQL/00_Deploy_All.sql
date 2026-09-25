@@ -72,6 +72,7 @@ Run from the repository SQL directory with SSMS Query -> SQLCMD Mode enabled.
 :r "$(RepoRoot)\43_EquipmentHandover.sql"
 :r "$(RepoRoot)\44_SecurityAccessChange.sql"
 :r "$(RepoRoot)\45_EquipmentResponsibilityAndRepair.sql"
+:r "$(RepoRoot)\46_SecurityFunctionRegistry.sql"
 
 :r "$(RepoRoot)\99_Verify.sql"
 
