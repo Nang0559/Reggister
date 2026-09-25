@@ -206,7 +206,7 @@ namespace FVN_REGISTER.Infrastructure.Services.OT
                     && x.DeptCode == deptCode
                     && (scope == AuthorizationScopeCodes.All
                         || scope == AuthorizationScopeCodes.Department
-                        || managedEmployeeCodes.Contains(x.EmployeeCode)
+                        || managedEmployeeCodes.Contains(x.EmployeeCode ?? "")
                         || x.EmployeeCode == user.EmployeeCode)
                     && x.OTDate.Date == date.Date
                     && x.RequestStatus != ApprovalStatus.Cancelled
