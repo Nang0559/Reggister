@@ -6,10 +6,12 @@ namespace FVN_REGISTER.Core.Entities.Security;
 [Table("F03Functions")]
 public partial class F03Function : BaseAuditEntity
 {
-    // PK duy nhất kế thừa trực tiếp từ BaseAuditEntity.Id.
-
+    // FunctionCode remains the legacy numeric identity for backward compatibility.
     [Required]
     public int FunctionCode { get; set; }
+
+    [Required, StringLength(150)]
+    public string FunctionKey { get; set; } = string.Empty;
 
     [Required, StringLength(100)]
     public string FunctionName { get; set; } = string.Empty;
@@ -25,6 +27,17 @@ public partial class F03Function : BaseAuditEntity
 
     [StringLength(30)]
     public string? ScopeCode { get; set; }
+
+    [StringLength(30)]
+    public string LifecycleStatus { get; set; } = "Active";
+
+    [StringLength(30)]
+    public string SourceType { get; set; } = "Legacy";
+
+    public DateTime? LastSeenAt { get; set; }
+
+    [StringLength(150)]
+    public string? ReplacementFunctionKey { get; set; }
 
     public int DisplayOrder { get; set; }
 
