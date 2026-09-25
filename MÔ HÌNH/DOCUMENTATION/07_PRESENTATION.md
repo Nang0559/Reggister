@@ -50,55 +50,68 @@ section strong { color: #075f88; }
 <!-- _class: hero -->
 
 # FVN REGISTER
-## Nhìn 5 giây: **trước → sau → thay đổi → hiệu quả**
+## Nhìn 5 giây: **TRƯỚC → SAU → THAY ĐỔI → HIỆU QUẢ**
 
-| 🔴 TRƯỚC | 🟢 SAU | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
-|---|---|---|---|
-| **Phiếu / Excel / email**<br>→ ký → nhập lại → tìm hồ sơ → đối chiếu | **Đăng ký số**<br>→ phê duyệt → đồng bộ → đối soát → xử lý | Một dữ liệu được dùng xuyên suốt thay vì nhập lại nhiều lần | **Ít thao tác lặp**<br>**Ít tìm kiếm**<br>**Phát hiện sớm** |
-| **Con người phải nhớ việc** | **Hệ thống tạo việc + nhắc việc** | Từ nhớ thủ công → quản lý theo hạn | **Giảm bỏ sót / quá hạn** |
-| **Cuối kỳ mới phát hiện sai** | **Sai lệch xuất hiện ngay trên lịch / việc cần xử lý** | Từ kiểm tra sau → xử lý ngoại lệ sớm | **Giảm sửa lại** |
+### 🔴 TRƯỚC — LƯU TRÌNH THỦ CÔNG
+| 👤✍️ Người làm | → | 📄 Phiếu | → | ✉️ Email / ký | → | 📊 Excel | → | 🔎 Tìm & đối chiếu |
+|---|---|---|---|---|---|---|---|---|
 
-<div class="big center">
+### 🟢 SAU — LƯU TRÌNH ĐIỆN TỬ
+| 💻 Đăng ký số | → | ✅ Phê duyệt | → | 🔄 Đồng bộ | → | ⚠️ Đối soát | → | 🔔 Việc cần xử lý |
+|---|---|---|---|---|---|---|---|---|
 
-**Từ “làm hồ sơ” → “quản lý toàn bộ vòng đời công việc”.**
+| 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
+|---|---|
+| Từ **nhập → chuyển → tìm → đối chiếu** sang **một luồng dữ liệu xuyên suốt** | Ít thao tác lặp • ít tìm kiếm • phát hiện sớm • giảm bỏ sót |
 
-</div>
+<div class="big center">**Từ “làm hồ sơ” → “quản lý toàn bộ vòng đời công việc”.**</div>
 
 ---
 
 # 01 — MỘT VIỆC, HAI CÁCH VẬN HÀNH
 
-<div class="flowPanel before">
-<div class="flowTitle">🔴 BEFORE</div>
-<div class="flowrow">
-<div class="flowstep manualStep">✍️<small>Ghi phiếu</small></div><div class="flowArrow">→</div>
-<div class="flowstep manualStep">📄<small>Ký giấy</small></div><div class="flowArrow">→</div>
-<div class="flowstep manualStep">✉️<small>Gửi email</small></div><div class="flowArrow">→</div>
-<div class="flowstep manualStep">⌨️<small>Nhập Excel</small></div><div class="flowArrow">→</div>
-<div class="flowstep manualStep">🔎<small>Đối chiếu</small></div>
-</div>
-</div>
+### 🔴 BEFORE — nhiều bước thủ công
+| ✍️ Ghi phiếu | → | 📄 Ký giấy | → | ✉️ Gửi email | → | ⌨️ Nhập Excel | → | 🔎 Đối chiếu |
+|---|---|---|---|---|---|---|---|---|
 
-<div class="flowPanel after">
-<div class="flowTitle">🟢 AFTER</div>
-<div class="flowrow">
-<div class="flowstep digitalStep">💻<small>Đăng ký</small></div><div class="flowArrow">→</div>
-<div class="flowstep digitalStep">🔐<small>Kiểm tra</small></div><div class="flowArrow">→</div>
-<div class="flowstep digitalStep">✅<small>Phê duyệt</small></div><div class="flowArrow">→</div>
-<div class="flowstep digitalStep">🔄<small>Thực tế</small></div><div class="flowArrow">→</div>
-<div class="flowstep digitalStep">⚠️<small>Ngoại lệ</small></div>
-</div>
-</div>
+### 🟢 AFTER — một luồng điện tử
+| 💻 Đăng ký | → | 🔐 Kiểm tra | → | ✅ Phê duyệt | → | 🔄 Thực tế | → | ⚠️ Ngoại lệ |
+|---|---|---|---|---|---|---|---|---|
 
 | 🔄 THAY ĐỔI | 📈 HIỆU QUẢ |
 |---|---|
 | **Một hồ sơ – một luồng dữ liệu** | Giảm nhập lại và giảm tìm kiếm |
 | Phần lặp lại do hệ thống xử lý | Con người tập trung vào quyết định / ngoại lệ |
 
-**Nguyên tắc:** sơ đồ cho thấy **cách làm**, bảng phía dưới giải thích **vì sao hiệu quả**.
+**Nguyên tắc:** sơ đồ cho thấy **cách làm**, phần dưới giải thích **vì sao hiệu quả**.
 
 ---
 
+# 02 — 5 LƯU TRÌNH NHÌN LÀ HIỂU
+
+### 📋 Đăng ký / phê duyệt
+| 👤 Đăng ký | → | 🔐 Kiểm tra | → | 👔 Phê duyệt | → | 🔔 Thông báo |
+|---|---|---|---|---|---|---|
+
+### 🕐 Kế hoạch / thực tế
+| 📅 Kế hoạch | → | 🕐 Chấm công | → | 🔄 Đồng bộ HRM | → | ⚠️ Đối soát |
+|---|---|---|---|---|---|---|
+
+### 🏖️ Phép / OT / công tác
+| 📝 Đăng ký | → | ✅ Duyệt | → | 📅 Lịch | → | 🕐 Thực tế | → | ⚠️ Ngoại lệ |
+|---|---|---|---|---|---|---|---|---|
+
+### 🖥️ Thiết bị / QR
+| 📷 Quét QR | → | 🖥️ Thiết bị | → | 📋 Phiếu | → | 📸 Bằng chứng | → | 🕘 Lịch sử |
+|---|---|---|---|---|---|---|---|---|
+
+### 🔔 Việc / hạn xử lý
+| 📅 Sự kiện | → | ⚙️ Tạo việc | → | ⏰ Hạn | → | 🔔 Nhắc | → | 👤 Xử lý | → | ✅ Hoàn tất |
+|---|---|---|---|---|---|---|---|---|---|---|
+
+<div class="callout"><strong>Quy ước:</strong> 🔴/✍️/📄 = thao tác thủ công &nbsp;&nbsp; 🟢/💻/🔄/🔔 = thao tác điện tử.</div>
+
+---
 # 02 — MỘT QUY TRÌNH, HAI CÁCH VẬN HÀNH
 
 | 🔴 TRƯỚC — nhiều vòng lặp | 🟢 SAU — một luồng có kiểm soát |
