@@ -376,9 +376,14 @@ public sealed class EquipmentInspectionService : IEquipmentInspectionService
             !await _authorization.HasAsync(user, SecurityFunctionCodes.EquipmentInspectionReport, ct))
             return ServiceResult<List<EquipmentInspectionAssignmentDto>>.Fail("Bạn không có quyền xem phân công checklist.");
 
-        var q = _db.Set<F03EquipmentInspectionAssignment>().AsNoTracking().Where(x => x.IsActive != false)
-            .Include(x => x.Equipment).Include(x => x.Template);
+        IQueryable<F03EquipmentInspectionAssignment> q = _db.Set<F03EquipmentInspectionAssignment>()
+            .AsNoTracking()
+            .Where(x => x.IsActive != false)
+            .Include(x => x.Equipment)
+            .Include(x => x.Template);
+
         if (equipmentId.HasValue) q = q.Where(x => x.EquipmentId == equipmentId.Value);
+
         var rows = await q.OrderBy(x => x.Equipment!.EquipmentCode).ThenBy(x => x.DueTime).ToListAsync(ct);
         return ServiceResult<List<EquipmentInspectionAssignmentDto>>.Ok(rows.Select(x => MapAssignment(x, x.Equipment!, x.Template!)).ToList());
     }
