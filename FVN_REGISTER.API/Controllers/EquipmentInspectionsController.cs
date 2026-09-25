@@ -4,6 +4,7 @@ using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Interfaces.Security;
+using FvnAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,9 +17,9 @@ public sealed class EquipmentInspectionsController : ControllerBase
 {
     private readonly IEquipmentInspectionService _service;
     private readonly ICurrentUserService _currentUser;
-    private readonly IAuthorizationService _authorization;
+    private readonly FvnAuthorizationService _authorization;
 
-    public EquipmentInspectionsController(IEquipmentInspectionService service, ICurrentUserService currentUser, IAuthorizationService authorization)
+    public EquipmentInspectionsController(IEquipmentInspectionService service, ICurrentUserService currentUser, FvnAuthorizationService authorization)
     {
         _service = service; _currentUser = currentUser; _authorization = authorization;
     }
