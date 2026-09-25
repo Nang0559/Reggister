@@ -26,8 +26,8 @@
                                 <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
                                     <MudIcon Icon="@Icons.Material.Filled.Devices" />
                                     <MudText><b>@asset.EquipmentCode</b> — @asset.EquipmentName</MudText>
-                                    <MudChip Size="Size.Small" Variant="Variant.Outlined">@asset.DeptCode</MudChip>
-                                    <MudChip Size="Size.Small" Color="@(asset.IsQrActive ? Color.Success : Color.Default)">
+                                    <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@asset.DeptCode</MudChip>
+                                    <MudChip T="string" Size="Size.Small" Color="@(asset.IsQrActive ? Color.Success : Color.Default)">
                                         @(asset.IsQrActive ? "QR hoạt động" : "QR chưa hoạt động")
                                     </MudChip>
                                 </MudStack>
@@ -58,10 +58,10 @@
                                                         </div>
                                                     </MudStack>
                                                     <MudStack Row="true" Spacing="1">
-                                                        <MudChip Size="Size.Small" Color="@StatusColor(check.Status)">@StatusText(check.Status)</MudChip>
+                                                        <MudChip T="string" Size="Size.Small" Color="@StatusColor(check.Status)">@StatusText(check.Status)</MudChip>
                                                         @if (!string.IsNullOrWhiteSpace(check.Result))
                                                         {
-                                                            <MudChip Size="Size.Small" Variant="Variant.Outlined">@check.Result</MudChip>
+                                                            <MudChip T="string" Size="Size.Small" Variant="Variant.Outlined">@check.Result</MudChip>
                                                         }
                                                     </MudStack>
                                                 </MudStack>
