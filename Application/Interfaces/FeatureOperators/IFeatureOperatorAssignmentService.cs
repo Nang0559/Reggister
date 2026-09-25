@@ -1,5 +1,6 @@
 using FVN_REGISTER.Contract.Dtos.Security;
 using FVN_REGISTER.Contract.Responses;
+using FVN_REGISTER.Contract.Utils;
 
 namespace FVN_REGISTER.Application.Interfaces.FeatureOperators;
 

@@ -1,6 +1,7 @@
 
 using FVN_REGISTER.Application.Interfaces.Auths;
 u
+using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Contract.Dtos.Security;
 using FVN_REGISTER.Core.Entities.PublicForms;
 using FVN_REGISTER.Core.Repositories;
