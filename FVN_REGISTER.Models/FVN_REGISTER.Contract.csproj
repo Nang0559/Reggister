@@ -8,11 +8,15 @@
     <ProjectReference Include="..\FVN_REGISTER.Core\FVN_REGISTER.Core.csproj" />
   </ItemGroup>
 
-  <!-- Execution contract DTOs live in a shared repository folder outside this project root. -->
+  <!-- Shared contract DTOs live in FVN_REGISTER.Contract; this project is the canonical Contract assembly consumed by Application/Infrastructure. -->
   <ItemGroup>
-    <Compile Include="..\FVN_REGISTER.Contract\Dtos\Execution\*.cs"
-             LinkBase="Dtos\Execution" />
-    <Compile Include="..\FVN_REGISTER.Contract\Dtos\Payroll\*.cs"
-             LinkBase="Dtos\Payroll" />
+    <Compile Include="..\FVN_REGISTER.Contract\Dtos\**\*.cs"
+             LinkBase="Dtos" />
+    <Compile Include="..\FVN_REGISTER.Contract\Requests\**\*.cs"
+             LinkBase="Requests" />
+    <Compile Include="..\FVN_REGISTER.Contract\Responses\**\*.cs"
+             LinkBase="Responses" />
+    <Compile Include="..\FVN_REGISTER.Contract\Utils\**\*.cs"
+             LinkBase="Utils" />
   </ItemGroup>
 </Project>
