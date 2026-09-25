@@ -42,8 +42,7 @@
                         </MudSelect>
                     </MudItem>
                     <MudItem xs="12" md="8">
-                        <MudSelect T="AccessChangeEmployeeOptionDto" Value="_oldEmployee" ValueChanged="OnOldChanged"
-                                   Label="Nhân sự cũ" Variant="Variant.Outlined" ToStringFunc="EmployeeLabel">
+                        <MudSelect T="AccessChangeEmployeeOptionDto" Value="_oldEmployee" ValueChanged="OnOldChanged" Label="Nhân sự cũ" Variant="Variant.Outlined" ToStringFunc="EmployeeLabel">
                             @foreach (var e in _employees.Where(x => !string.Equals(x.EmployeeCode, CurrentUser.User?.EmployeeCode, StringComparison.OrdinalIgnoreCase)))
                             {
                                 <MudSelectItem T="AccessChangeEmployeeOptionDto" Value="@e">@EmployeeLabel(e)</MudSelectItem>
@@ -54,8 +53,7 @@
                     @if (_module == RequestModule.Equipment)
                     {
                         <MudItem xs="12" md="6">
-                            <MudCheckBox Value="_transferResponsible" ValueChanged="OnTransferResponsibleChanged"
-                                         Label="Bàn giao thiết bị người cũ đang phụ trách" />
+                            <MudCheckBox Value="_transferResponsible" ValueChanged="OnTransferResponsibleChanged" Label="Bàn giao thiết bị người cũ đang phụ trách" />
                         </MudItem>
                         <MudItem xs="12" md="6">
                             <MudCheckBox @bind-Value="_transferApprover" Label="Bàn giao vai trò approver thiết bị" />
@@ -63,9 +61,7 @@
                         @if (_transferResponsible || _transferApprover)
                         {
                             <MudItem xs="12">
-                                <MudAlert Severity="Severity.Info">
-                                    Chọn đúng các tài sản cần bàn giao. Server sẽ kiểm tra lại quan hệ người cũ/tài sản khi lập phiếu.
-                                </MudAlert>
+                                <MudAlert Severity="Severity.Info">Chọn đúng các tài sản cần bàn giao. Server sẽ kiểm tra lại quan hệ người cũ/tài sản khi lập phiếu.</MudAlert>
                                 @if (_loadingAssets)
                                 {
                                     <MudProgressLinear Indeterminate="true" />
@@ -82,11 +78,7 @@
                                             <MudTh>Phụ trách</MudTh><MudTh>Approver</MudTh><MudTh>Vị trí</MudTh>
                                         </HeaderContent>
                                         <RowTemplate>
-                                            <MudTd>
-                                                <MudCheckBox T="bool"
-                                                             Value="@_selectedAssetIds.Contains(context.AssetId)"
-                                                             ValueChanged="@(v => ToggleAsset(context.AssetId, v))" />
-                                            </MudTd>
+                                            <MudTd><MudCheckBox T="bool" Value="@_selectedAssetIds.Contains(context.AssetId)" ValueChanged="@(v => ToggleAsset(context.AssetId, v))" /></MudTd>
                                             <MudTd>@context.EquipmentCode</MudTd>
                                             <MudTd>@context.EquipmentName</MudTd>
                                             <MudTd>@context.DeptCode</MudTd>
@@ -101,9 +93,7 @@
                         @if (_transferApprover)
                         {
                             <MudItem xs="12" md="6">
-                                <MudSelect T="AccessChangeEmployeeOptionDto" @bind-Value="_oldEquipmentApprover"
-                                           Label="Approver thiết bị cũ (nếu khác người phụ trách)" Variant="Variant.Outlined"
-                                           ToStringFunc="EmployeeLabel">
+                                <MudSelect T="AccessChangeEmployeeOptionDto" @bind-Value="_oldEquipmentApprover" Label="Approver thiết bị cũ (nếu khác người phụ trách)" Variant="Variant.Outlined" ToStringFunc="EmployeeLabel">
                                     @foreach (var e in _employees)
                                     {
                                         <MudSelectItem T="AccessChangeEmployeeOptionDto" Value="@e">@EmployeeLabel(e)</MudSelectItem>
@@ -129,10 +119,7 @@
                                 @foreach (var f in _functions)
                                 {
                                     <MudItem xs="12" md="6" lg="4">
-                                        <MudCheckBox T="bool"
-                                                     Value="@_selectedFunctions.Contains(f.FunctionCode)"
-                                                     ValueChanged="@(v => ToggleFunction(f.FunctionCode, v))"
-                                                     Label="@($"{f.FunctionCode} - {f.FunctionName}")" />
+                                        <MudCheckBox T="bool" Value="@_selectedFunctions.Contains(f.FunctionCode)" ValueChanged="@(v => ToggleFunction(f.FunctionCode, v))" Label="@($"{f.FunctionCode} - {f.FunctionName}")" />
                                     </MudItem>
                                 }
                             </MudGrid>
@@ -142,11 +129,8 @@
                     <MudItem xs="12">
                         <MudTextField @bind-Value="_reason" Label="Lý do" Lines="3" Variant="Variant.Outlined" Required="true" />
                     </MudItem>
-
                     <MudItem xs="12">
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_busy" OnClick="SubmitAsync">
-                            Gửi phiếu phê duyệt
-                        </MudButton>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@_busy" OnClick="SubmitAsync">Gửi phiếu phê duyệt</MudButton>
                     </MudItem>
                 </MudGrid>
             </MudPaper>
@@ -156,12 +140,13 @@
             <MudTable Items="_mine" Dense="true" Hover="true" Class="pa-4">
                 <HeaderContent><MudTh>ID</MudTh><MudTh>Nghiệp vụ</MudTh><MudTh>Người cũ</MudTh><MudTh>Người nhận</MudTh><MudTh>Trạng thái</MudTh><MudTh>Thông tin trước bàn giao</MudTh></HeaderContent>
                 <RowTemplate>
-                    <MudTd>@context.Id</MudTd>
-                    <MudTd>@context.BusinessModuleName</MudTd>
-                    <MudTd>@context.OldEmployeeCode</MudTd>
-                    <MudTd>@context.NewEmployeeCode</MudTd>
-                    <MudTd>@context.Status</MudTd>
-                    <MudTd>@if (!string.IsNullOrWhiteSpace(context.PreChangeSnapshotJson)) { <MudExpansionPanels><MudExpansionPanel Text="Thông tin trước bàn giao"><MudText Typo="Typo.caption" Style="white-space:pre-wrap">@context.PreChangeSnapshotJson</MudText></MudExpansionPanel></MudExpansionPanels> }</MudTd>
+                    <MudTd>@context.Id</MudTd><MudTd>@context.BusinessModuleName</MudTd><MudTd>@context.OldEmployeeCode</MudTd><MudTd>@context.NewEmployeeCode</MudTd><MudTd>@context.Status</MudTd>
+                    <MudTd>
+                        @if (!string.IsNullOrWhiteSpace(context.PreChangeSnapshotJson))
+                        {
+                            <MudExpansionPanels><MudExpansionPanel Text="Thông tin trước bàn giao"><MudText Typo="Typo.caption" Style="white-space:pre-wrap">@context.PreChangeSnapshotJson</MudText></MudExpansionPanel></MudExpansionPanels>
+                        }
+                    </MudTd>
                 </RowTemplate>
             </MudTable>
         </MudTabPanel>
@@ -170,10 +155,7 @@
             <MudTable Items="_pending" Dense="true" Hover="true" Class="pa-4">
                 <HeaderContent><MudTh>ID</MudTh><MudTh>Nghiệp vụ</MudTh><MudTh>Thay đổi</MudTh><MudTh>Trạng thái</MudTh><MudTh>Thông tin trước bàn giao</MudTh><MudTh></MudTh></HeaderContent>
                 <RowTemplate>
-                    <MudTd>@context.Id</MudTd>
-                    <MudTd>@context.BusinessModuleName</MudTd>
-                    <MudTd>@context.OldEmployeeCode → @context.NewEmployeeCode</MudTd>
-                    <MudTd>@context.Status</MudTd>
+                    <MudTd>@context.Id</MudTd><MudTd>@context.BusinessModuleName</MudTd><MudTd>@context.OldEmployeeCode → @context.NewEmployeeCode</MudTd><MudTd>@context.Status</MudTd>
                     <MudTd>
                         @{
                             var step = context.ApprovalSteps.FirstOrDefault(x => x.Decision == "Pending");
@@ -192,11 +174,7 @@
             <MudTable Items="_itQueue" Dense="true" Hover="true" Class="pa-4">
                 <HeaderContent><MudTh>ID</MudTh><MudTh>Nghiệp vụ</MudTh><MudTh>Người cũ</MudTh><MudTh>Người nhận</MudTh><MudTh>Function</MudTh><MudTh></MudTh></HeaderContent>
                 <RowTemplate>
-                    <MudTd>@context.Id</MudTd>
-                    <MudTd>@context.BusinessModuleName</MudTd>
-                    <MudTd>@context.OldEmployeeCode</MudTd>
-                    <MudTd>@context.NewEmployeeCode - @context.NewEmployeeName</MudTd>
-                    <MudTd>@string.Join(", ", context.FunctionCodes)</MudTd>
+                    <MudTd>@context.Id</MudTd><MudTd>@context.BusinessModuleName</MudTd><MudTd>@context.OldEmployeeCode</MudTd><MudTd>@context.NewEmployeeCode - @context.NewEmployeeName</MudTd><MudTd>@string.Join(", ", context.FunctionCodes)</MudTd>
                     <MudTd><MudButton Size="Size.Small" Color="Color.Primary" OnClick="@(() => ExecuteItAsync(context.Id))">Thiết lập</MudButton></MudTd>
                 </RowTemplate>
             </MudTable>
@@ -235,8 +213,7 @@
     private async Task OnModuleChanged(RequestModule value)
     {
         _module = value;
-        if (_oldEmployee != null)
-            await OnOldChanged(_oldEmployee);
+        if (_oldEmployee != null) await OnOldChanged(_oldEmployee);
     }
 
     private async Task OnOldChanged(AccessChangeEmployeeOptionDto? value)
@@ -262,15 +239,13 @@
         }
         finally { _loadingFunctions = false; }
 
-        if (_module == RequestModule.Equipment)
-            await LoadEquipmentCandidatesAsync();
+        if (_module == RequestModule.Equipment) await LoadEquipmentCandidatesAsync();
     }
 
     private async Task OnTransferResponsibleChanged(bool value)
     {
         _transferResponsible = value;
-        if (_module == RequestModule.Equipment && _oldEmployee != null)
-            await LoadEquipmentCandidatesAsync();
+        if (_module == RequestModule.Equipment && _oldEmployee != null) await LoadEquipmentCandidatesAsync();
     }
 
     private async Task LoadEquipmentCandidatesAsync()
@@ -283,8 +258,7 @@
             if (result.IsSuccess)
             {
                 _equipmentCandidates = result.Data ?? new();
-                if (!_transferResponsible && !_transferApprover)
-                    _selectedAssetIds.Clear();
+                if (!_transferResponsible && !_transferApprover) _selectedAssetIds.Clear();
             }
             else
             {
@@ -301,7 +275,7 @@
         else _selectedAssetIds.Remove(assetId);
     }
 
-    private async Task SubmitAsync
+    private async Task SubmitAsync()
     {
         if (_oldEmployee == null || string.IsNullOrWhiteSpace(_reason))
         {
@@ -326,15 +300,13 @@
                 TransferEquipmentResponsible = _module == RequestModule.Equipment && _transferResponsible,
                 TransferEquipmentApprover = _module == RequestModule.Equipment && _transferApprover,
                 OldEquipmentApproverCode = _module == RequestModule.Equipment && _transferApprover ? _oldEquipmentApprover?.EmployeeCode : null,
-                EquipmentAssetIds = _module == RequestModule.Equipment && (_transferResponsible || _transferApprover)
-                    ? _selectedAssetIds.ToList()
-                    : new List<int>()
+                EquipmentAssetIds = _module == RequestModule.Equipment && (_transferResponsible || _transferApprover) ? _selectedAssetIds.ToList() : new List<int>()
             });
 
             if (result.IsSuccess)
             {
                 Snackbar.Add(result.Message ?? "Đã gửi phiếu.", Severity.Success);
-                _mine.Insert(0, result.Data!);
+                if (result.Data != null) _mine.Insert(0, result.Data);
             }
             else Snackbar.Add(result.Message ?? "Không thể gửi phiếu.", Severity.Error);
         }
@@ -351,10 +323,8 @@
     {
         var mine = await AccessChangeClient.GetMineAsync();
         if (mine.IsSuccess) _mine = mine.Data ?? new();
-
         var pending = await AccessChangeClient.GetPendingAsync();
         if (pending.IsSuccess) _pending = pending.Data ?? new();
-
         var it = await AccessChangeClient.GetItQueueAsync();
         if (it.IsSuccess) _itQueue = it.Data ?? new();
     }
