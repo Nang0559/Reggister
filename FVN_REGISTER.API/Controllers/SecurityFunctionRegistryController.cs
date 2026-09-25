@@ -22,7 +22,7 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
 
     public SecurityFunctionRegistryController(
         SecurityFunctionRegistryService registry,
-        SecurityWebManifestService webManifest,
+        FVNWEBAPPContext db,
         IAuthorizationService authorization,
         ICurrentUserService currentUser,
         IUserLogService userLog,
@@ -31,7 +31,7 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         : base(currentUser, userLog, logger, options)
     {
         _registry = registry;
-        _webManifest = webManifest;
+        _webManifest = new SecurityWebManifestService(db);
         _authorization = authorization;
     }
 
