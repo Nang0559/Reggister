@@ -83,7 +83,7 @@ public static class SecurityDiscoveryManifestBuilder
         }
 
         return result
-            .GroupBy(x => new { x.FunctionKey, x.Source, x.Component }, StringComparer.OrdinalIgnoreCase)
+            .GroupBy(x => new { x.FunctionKey, x.Source, x.Component })
             .Select(g => g.First())
             .OrderBy(x => x.FunctionKey, StringComparer.OrdinalIgnoreCase)
             .ToArray();
