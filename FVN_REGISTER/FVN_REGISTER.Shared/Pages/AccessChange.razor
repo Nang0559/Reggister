@@ -53,7 +53,7 @@
                     @if (_module == RequestModule.Equipment)
                     {
                         <MudItem xs="12" md="6">
-                            <MudCheckBox Value="_transferResponsible" ValueChanged="OnTransferResponsibleChanged" Label="Bàn giao thiết bị người cũ đang phụ trách" />
+                            <MudCheckBox Value="_transferResponsible" ValueChanged="@OnTransferResponsibleChanged" Label="Bàn giao thiết bị người cũ đang phụ trách" />
                         </MudItem>
                         <MudItem xs="12" md="6">
                             <MudCheckBox @bind-Value="_transferApprover" Label="Bàn giao vai trò approver thiết bị" />
