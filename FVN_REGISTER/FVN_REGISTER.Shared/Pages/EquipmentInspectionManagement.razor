@@ -233,13 +233,23 @@
 
     protected override async Task OnInitializedAsync()
     {
+        var d = await EquipmentClient.GetEquipmentDepartmentsAsync();
+        if (d.IsSuccess) _departments = d.Data ?? new();
 
-            var d = await EquipmentClient.GetEquipmentDepartmentsAsync(); if (d.IsSuccess) _departments = d.Data ?? new();
-            if (_departments.Count > 0) _deptCode = _departments[0].DeptCode;
-            var e = await EmployeeClient.GetTreeAsync(); if (e.IsSuccess) _employees = (e.Data ?? new()).SelectMany(x => x.Employees).Where(x => x.IsActive).OrderBy(x => x.EmployeeCode).ToList();
-            await LoadAllAsync();
+        if (_departments.Count > 0)
+            _deptCode = _departments[0].DeptCode;
+
+        var e = await EmployeeClient.GetTreeAsync();
+        if (e.IsSuccess)
+        {
+            _employees = (e.Data ?? new())
+                .SelectMany(x => x.Employees)
+                .Where(x => x.IsActive)
+                .OrderBy(x => x.EmployeeCode)
+                .ToList();
         }
-        finally { _loading = false; }
+
+        await LoadAllAsync();
     }
 
     private async Task LoadAllAsync()
