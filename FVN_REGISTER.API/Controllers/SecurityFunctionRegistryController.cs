@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Interfaces.Auths;
 using FVN_REGISTER.Application.Interfaces.Security;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Security;
+using FVN_REGISTER.Contract.Responses;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Infrastructure.Services.Security;
 using Microsoft.AspNetCore.Authorization;
@@ -35,14 +36,14 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
     public async Task<IActionResult> Scan(CancellationToken ct)
     {
         if (!await CanManageAsync(SecurityFunctionCodes.SecurityManageFunctions, ct)) return Forbid();
-        return Ok(await _registry.ReconcileAsync(ct));
+        return Ok(ApiResponse<SecurityFunctionDiscoverySummaryDto>.Ok(await _registry.ReconcileAsync(ct)));
     }
 
     [HttpGet("functions")]
     public async Task<IActionResult> GetFunctions([FromQuery] string? status, CancellationToken ct)
     {
         if (!await CanManageAsync(SecurityFunctionCodes.SecurityManageFunctions, ct)) return Forbid();
-        return Ok(await _registry.GetRegistryAsync(status, ct));
+        return Ok(ApiResponse<IReadOnlyList<SecurityFunctionRegistryItemDto>>.Ok(await _registry.GetRegistryAsync(status, ct)));
     }
 
     [HttpGet("functions/{functionKey}")]
@@ -50,7 +51,9 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
     {
         if (!await CanManageAsync(SecurityFunctionCodes.SecurityManageFunctions, ct)) return Forbid();
         var item = await _registry.GetAsync(functionKey, ct);
-        return item == null ? NotFound() : Ok(item);
+        return item == null
+            ? NotFound(ApiResponse<object>.Fail("Không tìm thấy Security Function."))
+            : Ok(ApiResponse<SecurityFunctionRegistryItemDto>.Ok(item));
     }
 
     [HttpPost("functions/{functionKey}/register")]
@@ -62,9 +65,9 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         {
             await _registry.RegisterAsync(functionKey, request, UserInfo.UserId, ct);
             await LogActionAsync($"Đăng ký Security Function {functionKey}");
-            return Ok();
+            return Ok(ApiResponse<object>.Ok(new { functionKey }));
         }
-        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
     }
 
     [HttpPost("functions/{functionKey}/retire")]
@@ -76,9 +79,9 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         {
             await _registry.RetireAsync(functionKey, UserInfo.UserId, ct);
             await LogActionAsync($"Ngừng Security Function {functionKey}");
-            return Ok();
+            return Ok(ApiResponse<object>.Ok(new { functionKey }));
         }
-        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
     }
 
     [HttpPost("functions/{functionKey}/replace")]
@@ -90,9 +93,9 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         {
             await _registry.ReplaceAsync(functionKey, request, UserInfo.UserId, ct);
             await LogActionAsync($"Thay thế Security Function {functionKey} -> {request.ReplacementFunctionKey}");
-            return Ok();
+            return Ok(ApiResponse<object>.Ok(new { functionKey, request.ReplacementFunctionKey }));
         }
-        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
     }
 
     [HttpPost("functions/{functionKey}/ignore")]
@@ -104,9 +107,9 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         {
             await _registry.IgnoreAsync(functionKey, UserInfo.UserId, ct);
             await LogActionAsync($"Bỏ qua Security Function {functionKey}");
-            return Ok();
+            return Ok(ApiResponse<object>.Ok(new { functionKey }));
         }
-        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
     }
 
     [HttpPost("functions")]
@@ -118,9 +121,9 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         {
             await _registry.UpsertFunctionAsync(request, UserInfo.UserId, ct);
             await LogActionAsync($"Thêm/Sửa Security Function {request.FunctionKey}");
-            return Ok();
+            return Ok(ApiResponse<object>.Ok(new { request.FunctionKey }));
         }
-        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
     }
 
     [HttpDelete("functions/{id:int}")]
@@ -132,9 +135,9 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         {
             await _registry.DeleteFunctionAsync(id, UserInfo.UserId, ct);
             await LogActionAsync($"Xóa/Ngừng Security Function Id={id}");
-            return Ok();
+            return Ok(ApiResponse<object>.Ok(new { id }));
         }
-        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
     }
 
     [HttpPost("roles")]
@@ -146,9 +149,9 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         {
             await _registry.UpsertRoleAsync(request, UserInfo.UserId, ct);
             await LogActionAsync($"Thêm/Sửa Security Role {request.RoleCode}");
-            return Ok();
+            return Ok(ApiResponse<object>.Ok(new { request.RoleCode }));
         }
-        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
     }
 
     [HttpDelete("roles/{id:int}")]
@@ -160,9 +163,9 @@ public sealed class SecurityFunctionRegistryController : BaseApiController
         {
             await _registry.DeleteRoleAsync(id, UserInfo.UserId, ct);
             await LogActionAsync($"Xóa/Ngừng Security Role Id={id}");
-            return Ok();
+            return Ok(ApiResponse<object>.Ok(new { id }));
         }
-        catch (InvalidOperationException ex) { return BadRequest(new { message = ex.Message }); }
+        catch (InvalidOperationException ex) { return BadRequest(ApiResponse<object>.Fail(ex.Message)); }
     }
 
     private async Task<bool> CanManageAsync(int functionCode, CancellationToken ct)
