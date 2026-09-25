@@ -70,7 +70,6 @@ public static class SecurityFunctionCatalog
             ["Review"] = "Rà soát",
             ["Retry"] = "Thử lại",
             ["Prepare"] = "Chuẩn bị",
-            ["Lock"] = "Khóa",
             ["Calculate"] = "Tính toán",
             ["Feedback"] = "Phản hồi",
             ["Execute"] = "Thực hiện",
