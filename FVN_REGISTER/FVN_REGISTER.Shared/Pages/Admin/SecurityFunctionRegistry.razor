@@ -1,0 +1,271 @@
+@page "/admin/security/function-registry"
+@attribute [Authorize]
+@using FVN_REGISTER.Contract.Dtos.Security
+@using FVN_REGISTER.Shared.Services.Security
+@using Microsoft.AspNetCore.Authorization
+@inherits AppComponentBase
+@inject ISecurityClientService SecurityService
+@inject ISnackbar Snackbar
+
+<PageTitle>Security Function Registry</PageTitle>
+
+<MudStack Spacing="3">
+    <MudStack Row="true" AlignItems="AlignItems.Center">
+        <div>
+            <MudText Typo="Typo.h4" Style="font-weight:800">Function Registry</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">
+                Đồng bộ danh sách chức năng trong code với F03Functions mà không tự động cấp hoặc thu hồi quyền.
+            </MudText>
+        </div>
+        <MudSpacer />
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Sync"
+                   OnClick="ScanAsync" Disabled="_busy">Quét chức năng</MudButton>
+    </MudStack>
+
+    @if (_summary != null)
+    {
+        <MudGrid>
+            <MudItem xs="6" md="2"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Discovered</MudText><MudText Typo="Typo.h6">@_summary.Discovered</MudText></MudPaper></MudItem>
+            <MudItem xs="6" md="2"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Matched</MudText><MudText Typo="Typo.h6">@_summary.Matched</MudText></MudPaper></MudItem>
+            <MudItem xs="6" md="2"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Chờ đăng ký</MudText><MudText Typo="Typo.h6">@_summary.PendingRegistration</MudText></MudPaper></MudItem>
+            <MudItem xs="6" md="2"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Chờ ngừng</MudText><MudText Typo="Typo.h6">@_summary.PendingRetirement</MudText></MudPaper></MudItem>
+            <MudItem xs="6" md="2"><MudPaper Class="pa-3"><MudText Typo="Typo.caption">Conflict</MudText><MudText Typo="Typo.h6">@_summary.Conflict</MudText></MudPaper></MudItem>
+        </MudGrid>
+    }
+
+    <MudTabs Rounded="true" Elevation="0">
+        <MudTabPanel Text="Chờ đăng ký" Icon="@Icons.Material.Filled.NewReleases">
+            <MudTable T="SecurityFunctionRegistryItemDto" Items="PendingRegistration" Dense="true" Hover="true" Bordered="true" Loading="_busy">
+                <HeaderContent>
+                    <MudTh>FunctionKey</MudTh><MudTh>Code</MudTh><MudTh>Module</MudTh><MudTh>Action</MudTh><MudTh>Source</MudTh><MudTh>Thao tác</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd><b>@context.FunctionKey</b><br /><MudText Typo="Typo.caption">@context.DefinitionName</MudText></MudTd>
+                    <MudTd>@context.FunctionCode</MudTd>
+                    <MudTd>@context.ModuleCode</MudTd>
+                    <MudTd>@context.ActionCode</MudTd>
+                    <MudTd>@context.SourceType</MudTd>
+                    <MudTd>
+                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Primary" OnClick="@(() => SelectForRegistration(context))">Đăng ký</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Default" OnClick="@(() => IgnoreAsync(context))">Bỏ qua</MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Chờ ngừng / thay thế" Icon="@Icons.Material.Filled.WarningAmber">
+            <MudTable T="SecurityFunctionRegistryItemDto" Items="PendingRetirement" Dense="true" Hover="true" Bordered="true">
+                <HeaderContent><MudTh>FunctionKey</MudTh><MudTh>Code</MudTh><MudTh>Last seen</MudTh><MudTh>Thay thế</MudTh><MudTh>Thao tác</MudTh></HeaderContent>
+                <RowTemplate>
+                    <MudTd><b>@context.FunctionKey</b><br /><MudText Typo="Typo.caption">@context.DefinitionName</MudText></MudTd>
+                    <MudTd>@context.FunctionCode</MudTd>
+                    <MudTd>@context.LastSeenAt.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                    <MudTd>
+                        <MudSelect T="string" Value="@_replacementByFunction.GetValueOrDefault(context.FunctionKey)" ValueChanged="@(v => SetReplacement(context.FunctionKey, v))" Dense="true" Variant="Variant.Outlined">
+                            <MudSelectItem Value="@string.Empty">-- Chọn --</MudSelectItem>
+                            @foreach (var target in ActiveFunctions)
+                            {
+                                <MudSelectItem Value="@target.FunctionKey">@target.FunctionKey</MudSelectItem>
+                            }
+                        </MudSelect>
+                    </MudTd>
+                    <MudTd>
+                        <MudButton Size="Size.Small" Variant="Variant.Filled" Color="Color.Error" OnClick="@(() => RetireAsync(context))">Ngừng</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Outlined" Color="Color.Warning" OnClick="@(() => ReplaceAsync(context))" Disabled="@(!HasReplacement(context.FunctionKey)">Thay thế</MudButton>
+                    </MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Conflict / tất cả" Icon="@Icons.Material.Filled.Rule">
+            <MudTable T="SecurityFunctionRegistryItemDto" Items="_items" Dense="true" Hover="true" Bordered="true">
+                <HeaderContent><MudTh>Key</MudTh><MudTh>Status</MudTh><MudTh>Code</MudTh><MudTh>Registered</MudTh><MudTh>Last seen</MudTh></HeaderContent>
+                <RowTemplate>
+                    <MudTd><b>@context.FunctionKey</b></MudTd>
+                    <MudTd><MudChip T="string" Size="Size.Small">@context.LifecycleStatus</MudChip></MudTd>
+                    <MudTd>@context.FunctionCode</MudTd>
+                    <MudTd>@(context.Registered ? "Yes" : "No")</MudTd>
+                    <MudTd>@context.LastSeenAt.ToString("dd/MM/yyyy HH:mm")</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudTabPanel>
+
+        <MudTabPanel Text="CRUD Function" Icon="@Icons.Material.Filled.Edit">
+            <MudPaper Class="pa-4" Outlined="true">
+                <MudGrid>
+                    <MudItem xs="12" md="2"><MudNumericField T="int" Label="FunctionCode" @bind-Value="_functionCode" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" md="4"><MudTextField Label="FunctionKey" @bind-Value="_functionKey" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" md="3"><MudTextField Label="FunctionName" @bind-Value="_functionName" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" md="3"><MudTextField Label="Detail" @bind-Value="_functionDetail" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" md="3"><MudTextField Label="ModuleCode" @bind-Value="_moduleCode" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" md="3"><MudTextField Label="ActionCode" @bind-Value="_actionCode" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" md="3"><MudSelect T="string" Label="ScopeCode" @bind-Value="_scopeCode" Variant="Variant.Outlined"><MudSelectItem Value="@("None")">None</MudSelectItem><MudSelectItem Value="@("Own")">Own</MudSelectItem><MudSelectItem Value="@("Employee")">Employee</MudSelectItem><MudSelectItem Value="@("Department")">Department</MudSelectItem><MudSelectItem Value="@("All")">All</MudSelectItem></MudSelect></MudItem>
+                    <MudItem xs="12" md="3"><MudButton Class="mt-2" Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveFunctionAsync">Lưu Function</MudButton></MudItem>
+                </MudGrid>
+                <MudDivider Class="my-4" />
+                <MudTable T="SecurityFunctionDto" Items="_functions" Dense="true" Hover="true">
+                    <HeaderContent><MudTh>Code</MudTh><MudTh>Module</MudTh><MudTh>Action</MudTh><MudTh>Detail</MudTh><MudTh /></HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.FunctionCode</MudTd><MudTd>@context.ModuleCode</MudTd><MudTd>@context.ActionCode</MudTd><MudTd>@context.Detail</MudTd>
+                        <MudTd><MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => DeleteFunctionAsync(context.FunctionCode)")">Xóa/Ngừng</MudButton></MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudTabPanel>
+
+        <MudTabPanel Text="CRUD Role" Icon="@Icons.Material.Filled.Group">
+            <MudPaper Class="pa-4" Outlined="true">
+                <MudGrid>
+                    <MudItem xs="12" md="2"><MudNumericField T="int" Label="RoleCode" @bind-Value="_roleCode" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" md="4"><MudTextField Label="RoleName" @bind-Value="_roleName" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" md="4"><MudTextField Label="Detail" @bind-Value="_roleDetail" Variant="Variant.Outlined" /></MudItem>
+                    <MudItem xs="12" md="2"><MudButton Class="mt-2" Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveRoleAsync">Lưu Role</MudButton></MudItem>
+                </MudGrid>
+                <MudDivider Class="my-4" />
+                <MudTable T="SecurityRoleDto" Items="_roles" Dense="true" Hover="true">
+                    <HeaderContent><MudTh>Code</MudTh><MudTh>Role</MudTh><MudTh>Detail</MudTh><MudTh>System</MudTh><MudTh /></HeaderContent>
+                    <RowTemplate>
+                        <MudTd>@context.RoleCode</MudTd><MudTd>@context.RoleName</MudTd><MudTd>@context.Detail</MudTd><MudTd>@(context.IsSystem ? "Yes" : "No")</MudTd>
+                        <MudTd><MudButton Size="Size.Small" Color="Color.Error" Variant="Variant.Text" OnClick="@(() => DeleteRoleAsync(context.Id))">Xóa/Ngừng</MudButton></MudTd>
+                    </RowTemplate>
+                </MudTable>
+            </MudPaper>
+        </MudTabPanel>
+    </MudTabs>
+</MudStack>
+
+@code {
+    private List<SecurityFunctionRegistryItemDto> _items = new();
+    private List<SecurityFunctionDto> _functions = new();
+    private List<SecurityRoleDto> _roles = new();
+    private SecurityFunctionDiscoverySummaryDto? _summary;
+    private bool _busy;
+    private string? _selectedKey;
+    private string _replacement = string.Empty;
+    private readonly Dictionary<string, string> _replacementByFunction = new(StringComparer.OrdinalIgnoreCase);
+    private int _functionCode;
+    private string _functionKey = string.Empty;
+    private string _functionName = string.Empty;
+    private string _functionDetail = string.Empty;
+    private string? _moduleCode;
+    private string? _actionCode;
+    private string _scopeCode = "None";
+    private int _roleCode;
+    private string _roleName = string.Empty;
+    private string? _roleDetail;
+
+    private IEnumerable<SecurityFunctionRegistryItemDto> PendingRegistration => _items.Where(x => x.LifecycleStatus == "PendingRegistration" && !x.IsIgnored);
+    private IEnumerable<SecurityFunctionRegistryItemDto> PendingRetirement => _items.Where(x => x.LifecycleStatus == "PendingRetirement");
+    private IEnumerable<SecurityFunctionRegistryItemDto> ActiveRegistry => _items.Where(x => x.Registered && x.LifecycleStatus == "Active");
+    private IEnumerable<SecurityFunctionRegistryItemDto> ActiveFunctions => ActiveRegistry;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task ReloadAsync()
+    {
+        _busy = true;
+        try
+        {
+            await ScanAsync(false);
+            await LoadCatalogsAsync();
+        }
+        finally { _busy = false; }
+    }
+
+    private async Task ScanAsync() => await ScanAsync(true);
+    private async Task ScanAsync(bool showMessage)
+    {
+        var result = await SecurityService.ScanSecurityFunctionsAsync();
+        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể quét chức năng.", Severity.Error); return; }
+        _summary = result.Data;
+        await LoadCatalogsAsync();
+        if (showMessage) Snackbar.Add("Đã quét và đối chiếu Function Registry.", Severity.Success);
+    }
+
+    private async Task LoadCatalogsAsync()
+    {
+        var registry = await SecurityService.GetSecurityFunctionRegistryAsync();
+        if (registry.IsSuccess) _items = registry.Data?.ToList() ?? new();
+        var functions = await SecurityService.GetFunctionsAsync();
+        if (functions.IsSuccess) _functions = functions.Data ?? new();
+        var roles = await SecurityService.GetRolesAsync();
+        if (roles.IsSuccess) _roles = roles.Data ?? new();
+    }
+
+    private void SelectForRegistration(SecurityFunctionRegistryItemDto item)
+    {
+        _selectedKey = item.FunctionKey;
+        _functionCode = item.FunctionCode;
+        _functionKey = item.FunctionKey;
+        _functionName = item.DefinitionName;
+        _functionDetail = $"Security capability {item.FunctionKey}";
+        _moduleCode = item.ModuleCode;
+        _actionCode = item.ActionCode;
+        _scopeCode = item.ScopeCode ?? "None";
+    }
+
+    private async Task SaveFunctionAsync()
+    {
+        var request = new SecurityFunctionUpsertRequest(_functionCode, _functionKey, _functionName, _functionDetail, _moduleCode, _actionCode, _scopeCode);
+        var result = await SecurityService.UpsertSecurityFunctionAsync(request);
+        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể lưu Function.", Severity.Error); return; }
+        Snackbar.Add("Đã lưu Function.", Severity.Success);
+        await ReloadAsync();
+    }
+
+    private async Task DeleteFunctionAsync(int code)
+    {
+        var function = _functions.FirstOrDefault(x => x.FunctionCode == code);
+        if (function == null) return;
+        var item = _items.FirstOrDefault(x => x.FunctionCode == code);
+        if (item == null) return;
+        var result = await SecurityService.DeleteSecurityFunctionAsync(item.Id);
+        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể xóa/ngừng Function.", Severity.Error); return; }
+        Snackbar.Add("Function đã được xóa hoặc chuyển sang Retired theo trạng thái sử dụng.", Severity.Success);
+        await ReloadAsync();
+    }
+
+    private async Task SaveRoleAsync()
+    {
+        var result = await SecurityService.UpsertSecurityRoleAsync(new SecurityRoleUpsertRequest(_roleCode, _roleName, _roleDetail));
+        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể lưu Role.", Severity.Error); return; }
+        Snackbar.Add("Đã lưu Role.", Severity.Success);
+        await ReloadAsync();
+    }
+
+    private async Task DeleteRoleAsync(int id)
+    {
+        var result = await SecurityService.DeleteSecurityRoleAsync(id);
+        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể xóa/ngừng Role.", Severity.Error); return; }
+        Snackbar.Add("Role đã được xóa hoặc ngừng theo trạng thái sử dụng.", Severity.Success);
+        await ReloadAsync();
+    }
+
+    private async Task IgnoreAsync(SecurityFunctionRegistryItemDto item)
+    {
+        var result = await SecurityService.IgnoreSecurityFunctionAsync(item.FunctionKey);
+        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể bỏ qua.", Severity.Error); return; }
+        Snackbar.Add($"Đã bỏ qua {item.FunctionKey}.", Severity.Info);
+        await ReloadAsync();
+    }
+
+    private void SetReplacement(string key, string value) => _replacementByFunction[key] = value;
+    private bool HasReplacement(string key) => _replacementByFunction.TryGetValue(key, out var value) && !string.IsNullOrWhiteSpace(value);
+
+    private async Task RetireAsync(SecurityFunctionRegistryItemDto item)
+    {
+        var result = await SecurityService.RetireSecurityFunctionAsync(item.FunctionKey);
+        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể ngừng Function.", Severity.Error); return; }
+        Snackbar.Add($"Đã ngừng {item.FunctionKey}.", Severity.Success);
+        await ReloadAsync();
+    }
+
+    private async Task ReplaceAsync(SecurityFunctionRegistryItemDto item)
+    {
+        if (!HasReplacement(item.FunctionKey)) return;
+        var result = await SecurityService.ReplaceSecurityFunctionAsync(item.FunctionKey, new ReplaceFunctionRequest(_replacementByFunction[item.FunctionKey]));
+        if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể thay thế Function.", Severity.Error); return; }
+        Snackbar.Add($"Đã đánh dấu {item.FunctionKey} được thay thế.", Severity.Success);
+        await ReloadAsync();
+    }
+}
