@@ -29,6 +29,7 @@ public interface ISecurityClientService
     Task<ApiResponse<List<SecurityAuditEntryDto>>> GetSecurityAuditAsync(DateTime? from = null, DateTime? to = null, string? search = null, CancellationToken ct = default);
     Task<ApiResponse<SecurityFunctionDiscoverySummaryDto>> ScanSecurityFunctionsAsync(CancellationToken ct = default);
     Task<ApiResponse<IReadOnlyList<SecurityFunctionRegistryItemDto>>> GetSecurityFunctionRegistryAsync(string? status = null, CancellationToken ct = default);
+    Task<ApiResponse<WebSecurityManifestSummaryDto>> PublishWebSecurityManifestAsync(IReadOnlyList<WebSecurityFunctionCandidateDto> entries, CancellationToken ct = default);
     Task<ApiResponse<object>> RegisterSecurityFunctionAsync(string functionKey, RegisterDiscoveredFunctionRequest request, CancellationToken ct = default);
     Task<ApiResponse<object>> RetireSecurityFunctionAsync(string functionKey, CancellationToken ct = default);
     Task<ApiResponse<object>> ReplaceSecurityFunctionAsync(string functionKey, ReplaceFunctionRequest request, CancellationToken ct = default);
