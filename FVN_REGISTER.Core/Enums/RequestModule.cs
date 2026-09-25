@@ -6,6 +6,7 @@ namespace FVN_REGISTER.Core.Enums
         Overtime,
         Trip,
         Equipment,
-        Attendance
+        Attendance,
+        AccessChange
     }
 }
