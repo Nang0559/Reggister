@@ -63,7 +63,7 @@ public class UserManagementController : BaseApiController
                 UserName = request.EmployeeCode,
                 DepartmentCode = employee.DeptCode
             }, ct);
-            if (!emailResult.IsSuccess) Logger.LogWarning("[USER_MGT] Account created but welcome email was not queued for {EmployeeCode}: {Message}", request.EmployeeCode, emailResult.Message);
+            if (!emailResult.IsSuccess) _logger.LogWarning("[USER_MGT] Account created but welcome email was not queued for {EmployeeCode}: {Message}", request.EmployeeCode, emailResult.Message);
         }
         else Logger.LogWarning("[USER_MGT] Account created but employee email is missing for {EmployeeCode}", request.EmployeeCode);
 
