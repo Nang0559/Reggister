@@ -107,14 +107,14 @@
                         @foreach (var field in _schema.Fields.OrderBy(x => x.DisplayOrder))
                         {
                             <MudGrid Class="py-2" Spacing="1">
-                                <MudItem xs="12" sm="2"><MudTextField @bind-Value="field.FieldKey" Label="Key" Dense="true" /></MudItem>
-                                <MudItem xs="12" sm="2"><MudTextField @bind-Value="field.FieldLabel" Label="Tên" Dense="true" /></MudItem>
+                                <MudItem xs="12" sm="2"><MudTextField @bind-Value="field.FieldKey" Label="Key" /></MudItem>
+                                <MudItem xs="12" sm="2"><MudTextField @bind-Value="field.FieldLabel" Label="Tên" /></MudItem>
                                 <MudItem xs="6" sm="1"><MudSelect T="string" @bind-Value="field.DataType" Label="Type" Dense="true"><MudSelectItem Value="@("Text")">Text</MudSelectItem><MudSelectItem Value="@("Number")">Number</MudSelectItem><MudSelectItem Value="@("Date")">Date</MudSelectItem><MudSelectItem Value="@("Boolean")">Boolean</MudSelectItem><MudSelectItem Value="@("Choice")">Choice</MudSelectItem></MudSelect></MudItem>
-                                <MudItem xs="6" sm="1"><MudNumericField @bind-Value="field.MaxLength" Label="Max" Dense="true" /></MudItem>
-                                <MudItem xs="12" sm="2"><MudTextField @bind-Value="field.DefaultValue" Label="Default" Dense="true" /></MudItem>
+                                <MudItem xs="6" sm="1"><MudNumericField @bind-Value="field.MaxLength" Label="Max" /></MudItem>
+                                <MudItem xs="12" sm="2"><MudTextField @bind-Value="field.DefaultValue" Label="Default" /></MudItem>
                                 <MudItem xs="6" sm="1"><MudCheckBox @bind-Value="field.IsRequired">Req</MudCheckBox></MudItem>
                                 <MudItem xs="6" sm="1"><MudCheckBox @bind-Value="field.IsImportable">Import</MudCheckBox></MudItem>
-                                <MudItem xs="6" sm="1"><MudNumericField @bind-Value="field.DisplayOrder" Label="Order" Dense="true" /></MudItem>
+                                <MudItem xs="6" sm="1"><MudNumericField @bind-Value="field.DisplayOrder" Label="Order" /></MudItem>
                                 <MudItem xs="6" sm="1"><MudButton Size="Size.Small" Color="Color.Primary" OnClick="@(() => SaveFieldAsync(field))">Lưu</MudButton></MudItem>
                                 <MudItem xs="6" sm="1"><MudButton Size="Size.Small" Color="Color.Error" OnClick="@(() => DeactivateFieldAsync(field))">Xóa</MudButton></MudItem>
                             </MudGrid>
