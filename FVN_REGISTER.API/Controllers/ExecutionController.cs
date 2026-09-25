@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Execution;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Application.Interfaces.Security;
+using FvnAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Contract.Dtos.Execution;
 using FVN_REGISTER.Contract.Responses;
@@ -17,7 +18,7 @@ namespace FVN_REGISTER.API.Controllers;
 public sealed class ExecutionController : BaseApiController
 {
     private readonly IExecutionReconciliationService _execution;
-    private readonly IAuthorizationService _authorization;
+    private readonly FvnAuthorizationService _authorization;
 
     public ExecutionController(
         ICurrentUserService currentUser,
@@ -25,7 +26,7 @@ public sealed class ExecutionController : BaseApiController
         ILogger<ExecutionController> logger,
         IOptionsMonitor<AuthDebugOptions> options,
         IExecutionReconciliationService execution,
-        IAuthorizationService authorization)
+        FvnAuthorizationService authorization)
         : base(currentUser, userLog, logger, options)
     {
         _execution = execution;
