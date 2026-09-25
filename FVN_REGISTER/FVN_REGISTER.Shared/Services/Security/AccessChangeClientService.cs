@@ -40,7 +40,7 @@ public sealed class AccessChangeClientService : IAccessChangeClientService
         => Get<AccessChangeRequestDto>($"api/security/access-change/{id}", "detail", ct);
 
     public Task<ApiResponse<AccessChangeRequestDto>> ApproveAsync(int id, int level, string? comment, CancellationToken ct = default)
-        => Post<AccessChangeRequestDto>($"api/security/access-change/{id}/approve?level={level}", comment, "approve", ct);
+        => Post<AccessChangeRequestDto>($"api/security/access-change/{id}/approve?level={level}", comment ?? string.Empty, "approve", ct);
 
     public Task<ApiResponse<AccessChangeRequestDto>> RejectAsync(int id, int level, string comment, CancellationToken ct = default)
         => Post<AccessChangeRequestDto>($"api/security/access-change/{id}/reject?level={level}", comment, "reject", ct);
