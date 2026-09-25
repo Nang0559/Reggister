@@ -2,6 +2,7 @@ using FVN_REGISTER.Application.Configuration;
 using FVN_REGISTER.Application.Interfaces.Execution;
 using FVN_REGISTER.Application.Interfaces.FeatureOperators;
 using FVN_REGISTER.Application.Interfaces.Security;
+using FvnAuthorizationService = FVN_REGISTER.Application.Interfaces.Security.IAuthorizationService;
 using FVN_REGISTER.Core.Constants;
 using FVN_REGISTER.Application.Interfaces.Users;
 using FVN_REGISTER.Contract.Dtos.Execution;
@@ -20,7 +21,7 @@ public sealed class ExecutionHrReviewController : BaseApiController
 {
     private readonly IExecutionHrResolutionService _service;
     private readonly IFeatureOperatorAssignmentService _operators;
-    private readonly IAuthorizationService _authorization;
+    private readonly FvnAuthorizationService _authorization;
 
     public ExecutionHrReviewController(
         ICurrentUserService currentUser,
@@ -29,7 +30,7 @@ public sealed class ExecutionHrReviewController : BaseApiController
         IOptionsMonitor<AuthDebugOptions> options,
         IExecutionHrResolutionService service,
         IFeatureOperatorAssignmentService operators,
-        IAuthorizationService authorization)
+        FvnAuthorizationService authorization)
         : base(currentUser, userLog, logger, options)
     {
         _service = service;
