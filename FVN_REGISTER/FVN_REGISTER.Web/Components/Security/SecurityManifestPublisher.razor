@@ -2,18 +2,43 @@
 @using FVN_REGISTER.Shared.Services.Security
 @using FVN_REGISTER.Web.Security
 @using Microsoft.AspNetCore.Components.Authorization
+@implements IDisposable
 @inject ISecurityClientService SecurityClient
 @inject AuthenticationStateProvider AuthenticationState
 
 @code {
     private bool _published;
+    private bool _publishing;
+
+    protected override void OnInitialized()
+    {
+        AuthenticationState.AuthenticationStateChanged += OnAuthenticationStateChanged;
+    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (!firstRender || _published)
+        if (!firstRender)
             return;
 
-        _published = true;
+        await PublishIfAuthorizedAsync();
+    }
+
+    private void OnAuthenticationStateChanged(Task<AuthenticationState> _)
+    {
+        _published = false;
+        _ = InvokeAsync(async () =>
+        {
+            await PublishIfAuthorizedAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task PublishIfAuthorizedAsync()
+    {
+        if (_published || _publishing)
+            return;
+
+        _publishing = true;
         try
         {
             var state = await AuthenticationState.GetAuthenticationStateAsync();
@@ -29,10 +54,20 @@
                 return;
 
             await SecurityClient.PublishWebSecurityManifestAsync(entries);
+            _published = true;
         }
         catch
         {
             // Discovery is advisory. A failure must never prevent the Web application from starting.
         }
+        finally
+        {
+            _publishing = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        AuthenticationState.AuthenticationStateChanged -= OnAuthenticationStateChanged;
     }
 }
