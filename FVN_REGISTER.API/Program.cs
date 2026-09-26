@@ -46,6 +46,7 @@ using FVN_REGISTER.Infrastructure.Services.Common;
 using FVN_REGISTER.Infrastructure.Services.Emails;
 using FVN_REGISTER.Infrastructure.Services.Employees;
 using FVN_REGISTER.Infrastructure.Services.Equipment;
+using FVN_REGISTER.Infrastructure.Services.FeatureOperators;
 using FVN_REGISTER.Infrastructure.Services.Histories;
 using FVN_REGISTER.Infrastructure.Services.HrmSync;
 using FVN_REGISTER.Infrastructure.Services.HrmSync.ManualSync.Importers;
@@ -93,49 +94,21 @@ builder.Services.AddCors(options => options.AddPolicy("FccCorsPolicy", policy =>
     .WithOrigins(allowedOrigins).AllowAnyMethod().AllowAnyHeader().AllowCredentials()));
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<BackgroundWorkerHealthRegistry>();
-builder.Services.AddHealthChecks()
-    .AddCheck<BackgroundWorkerHealthCheck>("background-workers");
+builder.Services.AddHealthChecks().AddCheck<BackgroundWorkerHealthCheck>("background-workers");
 builder.Services.Configure<AuthDebugOptions>(builder.Configuration.GetSection("AuthDebug"));
 builder.Services.Configure<AppOptions>(opts => opts.SiteUrl = builder.Configuration["SiteUrl"] ?? "https://localhost:7264");
 
-var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
-    ?? throw new InvalidOperationException("Jwt configuration is missing.");
-
-if (string.IsNullOrWhiteSpace(jwtOptions.SecretKey) ||
-    Encoding.UTF8.GetByteCount(jwtOptions.SecretKey) < 32)
-{
-    throw new InvalidOperationException(
-        "Jwt:SecretKey is required and must be at least 32 bytes. " +
-        "For Development, use .NET User Secrets or Jwt__SecretKey. " +
-        "For Production, use Jwt__SecretKey.");
-}
-
-if (string.IsNullOrWhiteSpace(jwtOptions.Issuer))
-    throw new InvalidOperationException("Jwt:Issuer is required.");
-
-if (string.IsNullOrWhiteSpace(jwtOptions.Audience))
-    throw new InvalidOperationException("Jwt:Audience is required.");
-
-if (jwtOptions.AccessTokenHours <= 0)
-    throw new InvalidOperationException("Jwt:AccessTokenHours must be greater than zero.");
-
-if (jwtOptions.RememberMeDays <= 0)
-    throw new InvalidOperationException("Jwt:RememberMeDays must be greater than zero.");
-
+var jwtOptions = builder.Configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>() ?? throw new InvalidOperationException("Jwt configuration is missing.");
+if (string.IsNullOrWhiteSpace(jwtOptions.SecretKey) || Encoding.UTF8.GetByteCount(jwtOptions.SecretKey) < 32) throw new InvalidOperationException("Jwt:SecretKey is required and must be at least 32 bytes. For Development, use .NET User Secrets or Jwt__SecretKey. For Production, use Jwt__SecretKey.");
+if (string.IsNullOrWhiteSpace(jwtOptions.Issuer)) throw new InvalidOperationException("Jwt:Issuer is required.");
+if (string.IsNullOrWhiteSpace(jwtOptions.Audience)) throw new InvalidOperationException("Jwt:Audience is required.");
+if (jwtOptions.AccessTokenHours <= 0) throw new InvalidOperationException("Jwt:AccessTokenHours must be greater than zero.");
+if (jwtOptions.RememberMeDays <= 0) throw new InvalidOperationException("Jwt:RememberMeDays must be greater than zero.");
 builder.Services.AddSingleton(Microsoft.Extensions.Options.Options.Create(jwtOptions));
 
 var connectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-
-if (string.IsNullOrWhiteSpace(connectionString))
-{
-    throw new InvalidOperationException(
-        "ConnectionStrings:DefaultConnection is required. " +
-        "For Development, set it with .NET User Secrets or the ConnectionStrings__DefaultConnection environment variable. " +
-        "For Production, use ConnectionStrings__DefaultConnection.");
-}
-
-builder.Services.AddDbContext<FVNWEBAPPContext>(options =>
-    options.UseSqlServer(connectionString));
+if (string.IsNullOrWhiteSpace(connectionString)) throw new InvalidOperationException("ConnectionStrings:DefaultConnection is required. For Development, set it with .NET User Secrets or the ConnectionStrings__DefaultConnection environment variable. For Production, use ConnectionStrings__DefaultConnection.");
+builder.Services.AddDbContext<FVNWEBAPPContext>(options => options.UseSqlServer(connectionString));
 builder.Services.AddScoped<DbContext>(sp => sp.GetRequiredService<FVNWEBAPPContext>());
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped(typeof(IBaseRepository<>), typeof(BaseRepository<>));
@@ -157,12 +130,9 @@ builder.Services.AddScoped<ICalendarDayRule, LeaveAttendanceConflictRule>();
 builder.Services.AddScoped<ICalendarDayRule, TripAttendanceConflictRule>();
 builder.Services.AddScoped<ICalendarDayRule, OtActualWithoutRequestRule>();
 builder.Services.AddScoped<ICalendarModuleRegistry, CalendarModuleRegistry>();
-builder.Services.AddScoped<ICalendarModuleProvider>(sp =>
-    new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "OT"));
-builder.Services.AddScoped<ICalendarModuleProvider>(sp =>
-    new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "LEAVE"));
-builder.Services.AddScoped<ICalendarModuleProvider>(sp =>
-    new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "TRIP"));
+builder.Services.AddScoped<ICalendarModuleProvider>(sp => new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "OT"));
+builder.Services.AddScoped<ICalendarModuleProvider>(sp => new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "LEAVE"));
+builder.Services.AddScoped<ICalendarModuleProvider>(sp => new ProjectionCalendarModuleProvider(sp.GetRequiredService<FVNWEBAPPContext>(), "TRIP"));
 builder.Services.AddScoped<ICalendarModuleProvider, AttendanceCalendarModuleProvider>();
 builder.Services.AddScoped<IActionItemService, ActionItemService>();
 builder.Services.AddScoped<IActionItemWriter, ActionItemWriter>();
@@ -226,6 +196,8 @@ builder.Services.AddScoped<IUserManagementService, UserManagementService>();
 builder.Services.AddScoped<IAuthorizationService, AuthorizationService>();
 builder.Services.AddScoped<IAccessChangeService, AccessChangeService>();
 builder.Services.AddScoped<IFeatureOperatorAssignmentService, FeatureOperatorAssignmentService>();
+builder.Services.AddScoped<SecurityFunctionRegistryService>();
+builder.Services.AddHostedService<SecurityFunctionDiscoveryHostedService>();
 builder.Services.AddScoped<IPublicInformationService, PublicInformationService>();
 builder.Services.AddScoped<IPublicFormService, PublicFormService>();
 builder.Services.AddScoped<IApproverManagementService, ApproverManagementService>();
@@ -266,7 +238,6 @@ builder.Services.AddScoped<IApprovalWorkflowOrchestrator<TripRequestSubject>, Ap
 builder.Services.AddScoped<IApprovalWorkflowOrchestrator<EquipmentRequestSubject>, ApprovalWorkflowOrchestrator<EquipmentRequestSubject>>();
 builder.Services.AddScoped<IApprovalEngineResolver, ApprovalEngineResolver>();
 builder.Services.AddScoped<IApprovalGroupingPolicy, ApprovalGroupingPolicy>();
-// Unified approval inbox: pending items are resolved through the approval workflow/engine path.
 builder.Services.AddScoped<IApprovalInboxService, ApprovalInboxService>();
 
 // HRM Sync
@@ -317,75 +288,31 @@ builder.Services.AddAuthentication(options =>
             var qs = context.Request.Query["access_token"].ToString();
             if (!string.IsNullOrEmpty(qs)) { context.Token = qs; return Task.CompletedTask; }
             var header = context.Request.Headers["Authorization"].ToString();
-            if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) context.Token = header["Bearer ".Length..].Trim();
-            return Task.CompletedTask;
-        },
-        OnAuthenticationFailed = context =>
-        {
-            var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
-            logger.LogError(context.Exception, "[JWT] AuthenticationFailed");
+            if (header.StartsWith("Bearer ", StringComparison.OrdinalIgnoreCase)) context.Token = header["Bearer ".Length..];
             return Task.CompletedTask;
         }
     };
 });
 
-builder.Services.AddScoped<FVN_REGISTER.Application.Interfaces.Execution.IExecutionHrResolutionService, FVN_REGISTER.Infrastructure.Services.Execution.ExecutionHrResolutionService>();
-
-builder.Services.AddControllers();
-builder.Services.AddOpenApi();
-builder.Services.AddHostedService<EmailBackgroundWorker>();
-builder.Services.AddHostedService<EquipmentInspectionBackgroundWorker>();
-builder.Services.AddHostedService<EscalationBackgroundWorker>();
-builder.Services.AddHostedService<HrmSyncBackgroundWorker>();
-builder.Services.AddHostedService<HrmAttendanceCalculationWorker>();
-builder.Services.AddScoped<IExecutionReconciliationModuleProvider, OtExecutionReconciliationProvider>();
-builder.Services.AddScoped<IExecutionReconciliationModuleProvider, LeaveExecutionReconciliationProvider>();
-builder.Services.AddScoped<IExecutionReconciliationModuleProvider, TripExecutionReconciliationProvider>();
-builder.Services.AddScoped<IExecutionReconciliationModuleProvider, AttendanceExecutionReconciliationProvider>();
-builder.Services.AddHostedService<ExecutionReconciliationBackgroundWorker>();
-builder.Services.AddHostedService<ActionItemLifecycleBackgroundWorker>();
+builder.Services.AddAuthorization();
+builder.Services.AddControllers().AddJsonOptions(options => options.JsonSerializerOptions.PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase);
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
 
 var app = builder.Build();
-
-app.UseExceptionHandler(errorApp =>
+app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
 {
-    errorApp.Run(async context =>
-    {
-        var exception = context.Features.Get<IExceptionHandlerFeature>()?.Error;
-
-        var (statusCode, message) = exception switch
-        {
-            ForbiddenAccessException ex => (StatusCodes.Status403Forbidden, ex.Message),
-            UnauthorizedAccessException ex => (StatusCodes.Status401Unauthorized, ex.Message),
-            KeyNotFoundException ex => (StatusCodes.Status404NotFound, ex.Message),
-            ArgumentException ex => (StatusCodes.Status400BadRequest, ex.Message),
-            InvalidOperationException ex => (StatusCodes.Status400BadRequest, ex.Message),
-            _ => (StatusCodes.Status500InternalServerError,
-                "Đã xảy ra lỗi hệ thống. Vui lòng thử lại hoặc liên hệ quản trị viên.")
-        };
-
-        var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
-        if (statusCode >= 500)
-            logger.LogError(exception, "[API] Unhandled exception: {Path}", context.Request.Path);
-        else
-            logger.LogWarning(exception, "[API] Business exception: {Path}", context.Request.Path);
-
-        context.Response.StatusCode = statusCode;
-        context.Response.ContentType = "application/json; charset=utf-8";
-
-        await context.Response.WriteAsJsonAsync(
-            ApiResponse<object>.Fail(message, statusCode));
-    });
-});
-if (app.Environment.IsDevelopment()) app.MapOpenApi();
-app.UseCors("FccCorsPolicy");
+    var feature = context.Features.Get<IExceptionHandlerFeature>();
+    context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+    context.Response.ContentType = "application/json";
+    await context.Response.WriteAsJsonAsync(new { message = feature?.Error.Message ?? "Unexpected error." });
+}));
 app.UseHttpsRedirection();
+app.UseCors("FccCorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
-app.MapHub<NotificationHub>("/hubs/notification");
-app.MapHealthChecks("/health/workers", new HealthCheckOptions
-{
-    Predicate = check => check.Name == "background-workers"
-});
+app.MapHealthChecks("/health");
+app.MapHub<NotificationHub>("/hubs/notifications");
+
 app.Run();

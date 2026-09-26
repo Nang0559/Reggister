@@ -1,0 +1,79 @@
+@using FVN_REGISTER.Core.Constants
+@using FVN_REGISTER.Shared.Services.Security
+@using FVN_REGISTER.Web.Security
+@using Microsoft.AspNetCore.Components.Authorization
+@implements IDisposable
+@inject ISecurityClientService SecurityClient
+@inject AuthenticationStateProvider AuthenticationState
+
+@code {
+    private bool _published;
+    private bool _publishing;
+
+    protected override void OnInitialized()
+    {
+        AuthenticationState.AuthenticationStateChanged += OnAuthenticationStateChanged;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (!firstRender)
+            return;
+
+        await PublishIfAuthorizedAsync();
+    }
+
+    private void OnAuthenticationStateChanged(Task<AuthenticationState> _)
+    {
+        _published = false;
+        _ = InvokeAsync(async () =>
+        {
+            await PublishIfAuthorizedAsync();
+            StateHasChanged();
+        });
+    }
+
+    private async Task PublishIfAuthorizedAsync()
+    {
+        if (_published || _publishing)
+            return;
+
+        _publishing = true;
+        try
+        {
+            var state = await AuthenticationState.GetAuthenticationStateAsync();
+            if (state.User.Identity?.IsAuthenticated != true)
+                return;
+
+            var permissions = await SecurityClient.GetMyPermissionsAsync();
+            var snapshot = permissions.Data;
+            if (snapshot is null)
+                return;
+
+            // Keep the recovery path alive when F03Functions has been cleared:
+            // SuperAdmin RoleCode=1 is allowed to access the registry bootstrap surface.
+            if (!snapshot.Has(SecurityFunctionCodes.SecurityManageFunctions) && !snapshot.RoleCodes.Contains(1))
+                return;
+
+            var entries = SecurityDiscoveryManifestBuilder.Discover(new[] { typeof(SecurityManifestPublisher).Assembly });
+            if (entries.Count == 0)
+                return;
+
+            await SecurityClient.PublishWebSecurityManifestAsync(entries);
+            _published = true;
+        }
+        catch
+        {
+            // Discovery is advisory. A failure must never prevent the Web application from starting.
+        }
+        finally
+        {
+            _publishing = false;
+        }
+    }
+
+    public void Dispose()
+    {
+        AuthenticationState.AuthenticationStateChanged -= OnAuthenticationStateChanged;
+    }
+}

@@ -68,10 +68,18 @@ Run from the repository SQL directory with SSMS Query -> SQLCMD Mode enabled.
 :r "$(RepoRoot)\39_AuditBaseCompatibility.sql"
 :r "$(RepoRoot)\40_EmailCenter.sql"
 :r "$(RepoRoot)\41_EmailCenter_ProfileCompatibility.sql"
+:r "$(RepoRoot)\41_SecurityFunctionCleanup.sql"
 :r "$(RepoRoot)\42_EquipmentInspection.sql"
 :r "$(RepoRoot)\43_EquipmentHandover.sql"
 :r "$(RepoRoot)\44_SecurityAccessChange.sql"
 :r "$(RepoRoot)\45_EquipmentResponsibilityAndRepair.sql"
+:r "$(RepoRoot)\46_SecurityFunctionRegistry.sql"
+:r "$(RepoRoot)\47_Verify_SecurityFunctionRegistry.sql"
+:r "$(RepoRoot)\48_SecurityTwoFactorSuperAdminCompatibility.sql"
+:r "$(RepoRoot)\49_Verify_SecurityTwoFactorSuperAdmin.sql"
+:r "$(RepoRoot)\50_EquipmentManageCapability.sql"
+:r "$(RepoRoot)\51_SecurityFunctionRegistryRecovery.sql"
+:r "$(RepoRoot)\52_Verify_SecurityFunctionRecovery.sql"
 
 :r "$(RepoRoot)\99_Verify.sql"
 
