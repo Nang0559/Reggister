@@ -27,243 +27,59 @@ Backend tiếp tục trả message tiếng Việt như hiện tại để **khô
 
 Nếu một lỗi nghiệp vụ cần hiển thị đúng tiếng Nhật, API có thể bổ sung `Code` ổn định; UI dùng `Code` để tra catalog. `Message` tiếng Việt vẫn được giữ làm fallback.
 
-Ví dụ:
-
-```json
-{
-  "code": "SECURITY.FORBIDDEN",
-  "message": "Bạn không có quyền thực hiện thao tác này."
-}
-```
-
-UI:
-
-```text
-vi-VN -> Bạn không có quyền thực hiện thao tác này.
-ja-JP -> この操作を実行する権限がありません。
-```
-
-**Không đổi API hàng loạt chỉ để localization.**
-
 ## 3. Presentation/Web UI phải 100% localization
 
-Mọi text người dùng nhìn thấy phải thuộc một trong hai nhóm:
+Mọi text người dùng nhìn thấy phải thuộc một trong hai nhóm: localization key hoặc business/display data. Phải rà toàn bộ Pages, Components, Dialogs, Layout và `.cs` thuộc Shared có tạo text UI.
 
-1. **Localization key** → dịch VI/JA.
-2. **Business/display data** → dữ liệu thực tế, không dịch nếu không có quy tắc nghiệp vụ.
-
-Phải rà đủ:
-
-- Login;
-- Layout/Menu;
-- Dashboard;
-- Calendar;
-- Leave;
-- OT;
-- Trip;
-- Equipment;
-- HRM Sync;
-- Attendance Calculation;
-- Execution/Confirmation;
-- HR Review;
-- Notification;
-- Task/Action;
-- Approval;
-- Security Center;
-- User/Employee/Department/Position;
-- Reports;
-- Payroll;
-- Public Information;
-- dialog;
-- button;
-- tab;
-- table header;
-- label;
-- placeholder;
-- tooltip;
-- validation;
-- Snackbar/Alert;
-- loading/empty/error/success state;
-- confirmation dialog;
-- file/evidence UI;
-- import/export/print UI;
-- email UI/template nếu template được render tại Web.
+Phạm vi bắt buộc gồm Login, Dashboard, Calendar, Leave, OT, Trip, Equipment, HRM, Attendance, Execution/Confirmation, HR Review, Notification, Task/Action, Approval, Security, User/Employee/Department/Position, Reports, Payroll, Public Information, dialog, button, tab, table header, label, placeholder, tooltip, validation, Snackbar/Alert, loading/empty/error/success, confirmation, file/evidence, import/export/print.
 
 Không được coi việc dịch Menu là hoàn thành localization.
 
-## 4. Quy tắc viết UI
+## 4. Quy tắc UI
 
-Không được:
+Không viết text song ngữ trực tiếp. Dùng `@Language.T("...")` hoặc `Language.T("...", parameters)`.
 
-```razor
-<MudButton>Lưu / Save</MudButton>
-<MudText>Danh sách OT</MudText>
-<MudAlert>Load failed</MudAlert>
-```
+Một label chỉ hiển thị một ngôn ngữ tại một thời điểm.
 
-Phải dùng:
+## 5. Business code không localization
 
-```razor
-<MudButton>@Language.T("common.save")</MudButton>
-<MudText>@Language.T("overtime.list.title")</MudText>
-<MudAlert>@Language.T("common.loadFailed")</MudAlert>
-```
+Không dịch EmployeeCode, DepartmentCode, PositionCode, RequestId, FunctionCode, ModuleCode, enum/code, database status/code, SQL identifier, URL/route và audit values.
 
-Một label chỉ hiển thị **một ngôn ngữ tại một thời điểm**.
+## 6. Vocabulary
 
-## 5. Business code không được localization
+`LanguageCatalog` và các catalog module bổ sung là nguồn vocabulary UI. Không tự dịch lại một thuật ngữ đã có key chuẩn.
 
-Không dịch và không gửi bản dịch ngược về API/database:
-
-- EmployeeCode;
-- DepartmentCode;
-- PositionCode;
-- RequestId;
-- FunctionCode/SecurityFunctionCodes;
-- ModuleCode;
-- enum/code;
-- database status/code;
-- SQL identifier;
-- URL/route;
-- technical audit values.
-
-Ví dụ database vẫn lưu `Approved`, UI mới hiển thị `Đã phê duyệt` hoặc `承認済み`.
-
-## 6. Vocabulary trung tâm
-
-`LanguageCatalog` là **single source of truth** cho UI vocabulary. Module không tự dịch lại một thuật ngữ đã có key chuẩn.
-
-Nhóm key bắt buộc:
+Nhóm key chính:
 
 ```text
-common.*
-nav.*
-login.*
-validation.*
-message.*
-status.*
-leave.*
-overtime.*
-trip.*
-equipment.*
-attendance.*
-execution.*
-approval.*
-security.*
-hrm.*
-notification.*
-task.*
-payroll.*
-report.*
-publicInfo.*
+common.* nav.* login.* validation.* message.* status.*
+leave.* overtime.* trip.* equipment.* attendance.* execution.*
+approval.* security.* hrm.* notification.* task.* payroll.* report.* publicInfo.*
 ```
 
 ## 7. Thông báo và lỗi
 
-UI không được tạo thông báo song ngữ bằng cách nối chuỗi.
+UI ưu tiên `Code` từ API nếu có, sau đó tra catalog. Nếu chưa có key thì hiển thị `Message` tiếng Việt làm fallback. Không làm mất thông báo chỉ vì thiếu bản dịch.
 
-Ví dụ không dùng:
+## 8. Template có tham số
 
-```csharp
-$"Lưu thành công / Save successfully"
-```
-
-Dùng key:
-
-```text
-message.saveSuccess
-```
-
-Nếu thông báo đến từ API:
-
-1. ưu tiên `Code`;
-2. tra `LanguageCatalog`;
-3. nếu chưa có key thì hiển thị `Message` tiếng Việt làm fallback;
-4. không làm mất thông báo chỉ vì thiếu bản dịch.
-
-## 8. Tham số trong thông báo
-
-Không ghép câu tiếng Việt rồi cố dịch cả câu.
-
-Dùng template:
-
-```text
-employee.notFound = Không tìm thấy nhân viên {0}.
-```
-
-và:
-
-```text
-employee.notFound = 社員 {0} が見つかりません。
-```
-
-Placeholder/giá trị phải giữ nguyên.
+Không ghép câu tiếng Việt rồi dịch cả câu. Dùng template có placeholder và giữ nguyên giá trị tham số.
 
 ## 9. Notification / Task / Action
 
-Notification/Task/Action nghiệp vụ vẫn lưu code và dữ liệu tham số. UI dịch khi render.
-
-Ví dụ:
-
-```text
-EXECUTION.CONFIRM_REQUIRED
-WorkDate=2026-09-15
-```
-
-Không lưu trực tiếp câu tiếng Nhật vào dữ liệu nghiệp vụ.
+Dữ liệu nghiệp vụ lưu code + tham số. UI dịch khi render; không lưu câu tiếng Nhật vào dữ liệu nghiệp vụ.
 
 ## 10. Trạng thái
 
-Database/API giữ code:
-
-```text
-Pending
-Approved
-Rejected
-Resolved
-Mismatch
-AwaitingConfirmation
-Cancelled
-Expired
-```
-
-UI dịch:
-
-```text
-Pending       -> Chờ xử lý / 処理待ち
-Approved      -> Đã phê duyệt / 承認済み
-Rejected      -> Từ chối / 却下
-Resolved      -> Đã giải quyết / 解決済み
-Mismatch      -> Không khớp / 不一致
-```
+Database/API giữ code như `Pending`, `Approved`, `Rejected`, `Resolved`, `Mismatch`, `AwaitingConfirmation`, `Cancelled`, `Expired`; UI dịch theo catalog.
 
 ## 11. LanguageService
 
-Web dùng:
+Web dùng `ILanguageService`, `LanguageService`, `LanguageCatalog`, `LanguageCode`, `LanguageSelector`. Lựa chọn lưu tại `fvn.ui.language`, cập nhật `<html lang>`, mặc định `vi-VN`.
 
-```text
-ILanguageService
-LanguageService
-LanguageCatalog
-LanguageCode
-LanguageSelector
-```
+## 12. Source inventory bắt buộc
 
-Lựa chọn lưu tại browser:
-
-```text
-fvn.ui.language
-```
-
-và cập nhật `<html lang="...">`.
-
-Mặc định an toàn: `vi-VN`.
-
-## 12. Không được bỏ sót chức năng
-
-Rà localization phải dựa trên **source inventory**, không dựa trên danh sách màn hình bằng tay.
-
-Các thư mục Razor phải được kiểm tra định kỳ:
+Rà định kỳ:
 
 ```text
 FVN_REGISTER/FVN_REGISTER.Shared/Pages
@@ -272,26 +88,25 @@ FVN_REGISTER/FVN_REGISTER.Shared/Dialogs
 FVN_REGISTER/FVN_REGISTER.Shared/Layout
 ```
 
-Ngoài `.razor`, phải rà `.cs` thuộc Shared có tạo text UI, Snackbar, Dialog, Notification hoặc validation.
+và `.cs` thuộc Shared tạo text UI, Snackbar, Dialog, Notification hoặc validation.
 
-## 13. UI-language audit
+## 13. Automated UI audit
 
-Repository phải có script kiểm tra các dấu hiệu chưa localization:
+`scripts/audit-ui-localization.ps1` rà literal trong Razor/C# Presentation, gồm Button, Text, Alert, table header/cell, Tab, Tooltip, Label, Placeholder, Title, aria-label và `Snackbar.Add`. Audit không tự động thay chuỗi vì phải phân biệt UI text với business data/code.
 
-- literal text trong Razor;
-- button text;
-- MudText/MudAlert/MudTooltip;
-- label/placeholder/helper text;
-- dialog text;
-- validation text;
-- Snackbar/notification text;
-- title/page title;
-- table header;
-- các chuỗi tiếng Anh còn sót trong UI.
+Chạy:
 
-Audit **không được coi business data/code là UI literal**.
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\audit-ui-localization.ps1
+```
 
-CI có thể chạy audit và tạo danh sách file cần xử lý. Không tự động thay chuỗi bằng máy nếu có nguy cơ đổi nghiệp vụ.
+Chế độ bắt buộc:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\audit-ui-localization.ps1 -Strict
+```
+
+`-Strict` trả exit code `2` khi còn candidate cần rà.
 
 ## 14. Definition of Done
 
@@ -299,13 +114,14 @@ CI có thể chạy audit và tạo danh sách file cần xử lý. Không tự 
 
 - [x] `LanguageCode` VI/JA.
 - [x] `ILanguageService`/`LanguageService`.
-- [x] `LanguageCatalog` tập trung.
+- [x] Catalog tập trung + catalog module.
 - [x] Chọn ngôn ngữ tại Login.
 - [x] Lưu lựa chọn ở browser.
 - [x] Đổi ngôn ngữ sau Login.
-- [x] MainLayout/NavMenu dùng vocabulary chuẩn ở phần đã chuyển.
+- [x] Navigation dùng vocabulary chuẩn.
+- [x] Home, Equipment, LeaveCreate, NotificationBell, NotificationBadge đã được chuyển sang key trong các commit hiện tại.
 
-### Toàn bộ UI
+### Toàn bộ UI — chưa được đánh dấu hoàn thành cho đến khi audit sạch
 
 - [ ] Không còn UI literal Việt/Anh chưa được đánh giá.
 - [ ] Tất cả button/action được chuyển key.
@@ -321,20 +137,24 @@ CI có thể chạy audit và tạo danh sách file cần xử lý. Không tự 
 - [ ] Không còn text Anh lẫn trong giao diện VI.
 - [ ] Không có tiếng Nhật viết trực tiếp trong Razor/C# UI.
 - [ ] Mọi key đều có cả VI và JA.
-- [ ] Thiếu key phải fallback an toàn về tiếng Việt.
-- [ ] Có automated UI-language audit.
+- [ ] Thiếu key fallback an toàn về tiếng Việt.
+- [ ] Audit chạy Strict không còn candidate.
 - [ ] Build và test UI cho cả `vi-VN` và `ja-JP`.
 
 ## 15. Không thay đổi nghiệp vụ
 
-Localization chỉ thuộc Presentation/Web UI. Không thay đổi:
+Localization chỉ thuộc Presentation/Web UI. Không thay đổi approval engine, calculation engine, attendance, OT/Leave/Trip rules, execution reconciliation, payroll gate, security capability, SQL model hoặc API contract hiện hữu.
 
-- approval engine;
-- calculation engine;
-- attendance calculation;
-- OT/Leave/Trip rules;
-- execution reconciliation;
-- payroll gate;
-- security capability;
-- SQL data model;
-- API contract hiện hữu, trừ khi bổ sung error code không phá compatibility.
+## 16. Trạng thái triển khai hiện tại
+
+Đã triển khai và commit nền + một phần UI thực tế trên branch `feature/i18n-vi-ja`:
+
+- Login: VI/JA selector và toàn bộ text Login đã dùng key; lỗi kết nối không còn hard-code Việt/Anh.
+- Navigation/Layout: vocabulary chuẩn.
+- Home Dashboard: title, greeting, work center, cards, error/empty state dùng key.
+- Equipment: form, tabs, labels, action, warning/success/error dùng key.
+- LeaveCreate: title, action, load error và calendar description dùng key.
+- NotificationBell/Badge: title, read-all, empty/loading, session message và time-relative text dùng key.
+- Audit script đã mở rộng để rà thêm `MudTh`, `MudTd`, `MudTabPanel`, `aria-label` và `Snackbar.Add`.
+
+Các module còn lại **không được coi là hoàn thành** cho đến khi source audit xử lý hết candidate và `-Strict` sạch.
