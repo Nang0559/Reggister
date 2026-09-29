@@ -82,6 +82,12 @@ public static class LanguageSupplementalCatalog
             ["approval.noRejectableItems"] = ("Không có đơn có quyền từ chối.", "却下権限のある申請がありません。"),
             ["approval.rejectMany"] = ("Từ chối {0} đơn", "{0} 件を却下"),
             ["approval.rejectOne"] = ("Từ chối đơn", "申請を却下"),
+            ["approval.rejectConfirm"] = ("Bạn có chắc muốn từ chối đơn này?", "この申請を却下してもよろしいですか？"),
+            ["common.actions"] = ("Thao tác", "操作"),
+            ["common.details"] = ("Chi tiết", "詳細"),
+            ["overtime.approvalTitle"] = ("Phê duyệt đơn OT", "残業申請の承認"),
+            ["overtime.approvalDescription"] = ("Danh sách đơn OT đang chờ phê duyệt", "承認待ちの残業申請一覧"),
+            ["overtime.noPendingApprovals"] = ("Không có đơn OT nào chờ duyệt.", "承認待ちの残業申請はありません。"),
         };
 
     public static bool TryGet(string key, LanguageCode language, out string value)
