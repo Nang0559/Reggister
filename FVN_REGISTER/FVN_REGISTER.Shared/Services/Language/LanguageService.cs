@@ -10,7 +10,6 @@ public sealed class LanguageService : ILanguageService, IAsyncDisposable
     private bool _initialized;
 
     public LanguageService(IJSRuntime js) => _js = js;
-
     public LanguageCode Current => _current;
     public event EventHandler? LanguageChanged;
 
@@ -18,11 +17,11 @@ public sealed class LanguageService : ILanguageService, IAsyncDisposable
     {
         if (_initialized) return;
         _initialized = true;
-
         try
         {
             var stored = await _js.InvokeAsync<string?>("localStorage.getItem", StorageKey);
             _current = LanguageCodeExtensions.Parse(stored);
+            await _js.InvokeVoidAsync("document.documentElement.setAttribute", "lang", _current.ToCulture());
         }
         catch (JSException)
         {
@@ -32,9 +31,7 @@ public sealed class LanguageService : ILanguageService, IAsyncDisposable
 
     public async Task SetLanguageAsync(LanguageCode language)
     {
-        if (_current == language && _initialized)
-            return;
-
+        if (_current == language && _initialized) return;
         _current = language;
         _initialized = true;
         await _js.InvokeVoidAsync("localStorage.setItem", StorageKey, language == LanguageCode.Ja ? "ja-JP" : "vi-VN");
@@ -43,10 +40,5 @@ public sealed class LanguageService : ILanguageService, IAsyncDisposable
     }
 
     public string T(string key) => LanguageCatalog.Get(key, _current);
-
-    public ValueTask DisposeAsync()
-    {
-        LanguageChanged = null;
-        return ValueTask.CompletedTask;
-    }
+    public ValueTask DisposeAsync() { LanguageChanged = null; return ValueTask.CompletedTask; }
 }
