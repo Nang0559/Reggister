@@ -6,6 +6,8 @@
 @inject ISnackbar Snackbar
 @inject IDialogService DialogService
 
+@inherits AppComponentBase
+
 <MudStack>
     @if (IsLoading)
     {
@@ -15,7 +17,7 @@
     {
         <MudPaper Elevation="0" Class="pa-8 text-center">
             <MudIcon Icon="@Icons.Material.Filled.CheckCircleOutline" Color="Color.Success" Size="Size.Large" Class="mb-2" />
-            <MudText Color="Color.Secondary">Không có đơn OT nào chờ duyệt.</MudText>
+            <MudText Color="Color.Secondary">@Language.T("overtime.noPendingApprovals")</MudText>
         </MudPaper>
     }
     else
@@ -37,11 +39,11 @@
                         <MudItem xs="12" sm="3"><OTApprovalProgressBar Steps="@item.ApprovalSteps" /></MudItem>
                         <MudItem xs="12" sm="2" Class="d-flex justify-end">
                             <MudStack Row="true" Spacing="1">
-                                <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Visibility" OnClick="@(() => OnViewDetail.InvokeAsync(item.RequestId))">Chi tiết</MudButton>
+                                <MudButton Size="Size.Small" StartIcon="@Icons.Material.Filled.Visibility" OnClick="@(() => OnViewDetail.InvokeAsync(item.RequestId))">@Language.T("common.details")</MudButton>
                                 @if (item.CanApprove)
                                 {
-                                    <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" Disabled="_busy" OnClick="@(() => Approve(item))" />
-                                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" Disabled="_busy" OnClick="@(() => Reject(item))" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.CheckCircle" Color="Color.Success" Size="Size.Small" Disabled="_busy" OnClick="@(() => Approve(item))" AriaLabel="@Language.T("common.approve")" />
+                                    <MudIconButton Icon="@Icons.Material.Filled.Cancel" Color="Color.Error" Size="Size.Small" Disabled="_busy" OnClick="@(() => Reject(item))" AriaLabel="@Language.T("common.reject")" />
                                 }
                             </MudStack>
                         </MudItem>
@@ -83,7 +85,7 @@
                 new List<int> { item.RequestId }, item.Kind, level, null);
 
             Snackbar.Add(
-                result.IsSuccess ? "Đã duyệt thành công." : result.Message ?? "Duyệt thất bại.",
+                result.IsSuccess ? Language.T("message.approveSuccess") : result.Message ?? Language.T("message.approveFailed"),
                 result.IsSuccess ? Severity.Success : Severity.Error);
 
             if (result.IsSuccess)
@@ -98,10 +100,10 @@
     private async Task Reject(PendingApprovalItemDto item)
     {
         var confirmed = await DialogService.ShowMessageBoxAsync(
-            "Từ chối đơn",
-            "Bạn có chắc muốn từ chối đơn này?",
-            yesText: "Từ chối",
-            cancelText: "Hủy");
+            Language.T("approval.rejectOne"),
+            Language.T("approval.rejectConfirm"),
+            yesText: Language.T("common.reject"),
+            cancelText: Language.T("common.cancel"));
 
         if (confirmed != true)
             return;
@@ -115,7 +117,7 @@
                 "Từ chối từ danh sách OT");
 
             Snackbar.Add(
-                result.IsSuccess ? "Đã từ chối." : result.Message ?? "Từ chối thất bại.",
+                result.IsSuccess ? Language.T("message.rejectSuccess") : result.Message ?? Language.T("message.rejectFailed"),
                 result.IsSuccess ? Severity.Success : Severity.Error);
 
             if (result.IsSuccess)
