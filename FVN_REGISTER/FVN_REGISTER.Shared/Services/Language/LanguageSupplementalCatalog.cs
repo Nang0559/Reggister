@@ -50,6 +50,19 @@ public static class LanguageSupplementalCatalog
             ["hrm.review.loadFailed"] = ("Không tải được danh sách conflict HRM.", "HRM競合一覧を読み込めませんでした。"),
             ["hrm.review.resolveFailed"] = ("Không thể giải quyết flag.", "フラグを解決できませんでした。"),
             ["hrm.review.resolveSuccess"] = ("Đã đánh dấu conflict là đã xử lý.", "競合を処理済みにしました。"),
+            ["session.title"] = ("Thiết bị & phiên đăng nhập", "端末・ログインセッション"),
+            ["session.description"] = ("Xem và đăng xuất các thiết bị đang sử dụng tài khoản này.", "このアカウントで使用中の端末を確認し、ログアウトできます。"),
+            ["session.empty"] = ("Không có phiên đăng nhập đang hoạt động.", "有効なログインセッションはありません。"),
+            ["session.device"] = ("Thiết bị", "端末"),
+            ["session.type"] = ("Loại", "種類"),
+            ["session.loginAt"] = ("Đăng nhập", "ログイン日時"),
+            ["session.lastSeen"] = ("Hoạt động cuối", "最終アクティビティ"),
+            ["session.current"] = ("Thiết bị hiện tại", "現在の端末"),
+            ["session.active"] = ("Đang hoạt động", "有効"),
+            ["session.signOut"] = ("Đăng xuất", "ログアウト"),
+            ["session.loadFailed"] = ("Không tải được danh sách phiên đăng nhập.", "ログインセッション一覧を読み込めませんでした。"),
+            ["session.revokeFailed"] = ("Không thể đăng xuất thiết bị.", "端末をログアウトできませんでした。"),
+            ["session.revokeSuccess"] = ("Đã đăng xuất thiết bị {0}.", "端末 {0} をログアウトしました。"),
         };
 
     public static bool TryGet(string key, LanguageCode language, out string value)
