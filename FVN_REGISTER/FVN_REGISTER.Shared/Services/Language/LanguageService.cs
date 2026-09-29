@@ -40,5 +40,12 @@ public sealed class LanguageService : ILanguageService, IAsyncDisposable
     }
 
     public string T(string key) => LanguageCatalog.Get(key, _current);
+
+    public string T(string key, params object?[] args)
+    {
+        var template = T(key);
+        return args.Length == 0 ? template : string.Format(_current == LanguageCode.Ja ? System.Globalization.CultureInfo.GetCultureInfo("ja-JP") : System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), template, args);
+    }
+
     public ValueTask DisposeAsync() { LanguageChanged = null; return ValueTask.CompletedTask; }
 }
