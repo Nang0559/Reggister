@@ -20,7 +20,7 @@
         <div class="d-flex flex-column align-center mb-6">
             <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Color="Color.Primary" Size="Size.Large" />
             <MudText Typo="Typo.h5" Class="mt-2" Style="font-weight:bold; color:#1E88E5">@Language.T("app.name")</MudText>
-            <MudText Typo="Typo.caption" Color="Color.Secondary">FCC Việt Nam / FCCベトナム</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">FCC Việt Nam</MudText>
         </div>
 
         <LanguageSelector />
@@ -118,9 +118,7 @@
         catch (Exception ex)
         {
             Logger.LogError(ex, "[{Component}] Login failed", ComponentName);
-            Snackbar.Add(Language.Current == LanguageCode.Ja
-                ? "FCCサーバーに接続できません。"
-                : "Không thể kết nối đến máy chủ FCC", Severity.Error);
+            Snackbar.Add(Language.T("auth.serverConnectionFailed"), Severity.Error);
         }
         finally
         {
