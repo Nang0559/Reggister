@@ -1,6 +1,7 @@
 @using FVN_REGISTER.Contract.Dtos.Notifications
 @using FVN_REGISTER.Core.Enums
 @using FVN_REGISTER.Shared.Services.Notifications
+@using FVN_REGISTER.Shared.Services.Language
 @using FVN_REGISTER.Shared.Utils
 @using Microsoft.AspNetCore.SignalR.Client
 @using MudBlazor
@@ -8,13 +9,15 @@
 @inject ITokenStorage TokenStorage
 @inject NavigationManager Nav
 @inject IConfiguration Configuration
+@inject ILanguageService Language
+@implements IDisposable
 @implements IAsyncDisposable
 
 <div style="position: relative; display: inline-flex;">
     <MudIconButton Icon="@Icons.Material.Filled.Notifications"
                    Color="Color.Inherit"
                    OnClick="TogglePanel"
-                   aria-label="Thông báo" />
+                   aria-label="@Language.T("notification.title")" />
 
     @if (NotifyService.UnreadCount > 0)
     {
@@ -28,13 +31,13 @@
 {
     <MudPaper Elevation="8" Style="position:fixed; top:56px; right:16px; width:360px; max-height:480px; z-index:9999; display:flex; flex-direction:column; border-radius:12px; overflow:hidden;">
         <div style="display:flex; align-items:center; justify-content:space-between; padding:12px 16px; border-bottom:1px solid var(--mud-palette-divider);">
-            <MudText Typo="Typo.subtitle1"><b>Thông báo</b></MudText>
+            <MudText Typo="Typo.subtitle1"><b>@Language.T("notification.title")</b></MudText>
             <div style="display:flex; gap:4px;">
                 @if (NotifyService.UnreadCount > 0)
                 {
-                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" OnClick="MarkAllRead">Đọc tất cả</MudButton>
+                    <MudButton Size="Size.Small" Variant="Variant.Text" Color="Color.Primary" OnClick="MarkAllRead">@Language.T("notification.markAllRead")</MudButton>
                 }
-                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="TogglePanel" />
+                <MudIconButton Icon="@Icons.Material.Filled.Close" Size="Size.Small" OnClick="TogglePanel" aria-label="@Language.T("common.close")" />
             </div>
         </div>
 
@@ -47,7 +50,7 @@
             {
                 <div style="padding:32px; text-align:center;">
                     <MudIcon Icon="@Icons.Material.Outlined.NotificationsNone" Style="font-size:48px; opacity:0.3;" />
-                    <MudText Typo="Typo.body2" Style="opacity:0.5; margin-top:8px;">Chưa có thông báo</MudText>
+                    <MudText Typo="Typo.body2" Style="opacity:0.5; margin-top:8px;">@Language.T("notification.empty")</MudText>
                 </div>
             }
             else
@@ -87,9 +90,13 @@
     protected override async Task OnInitializedAsync()
     {
         NotifyService.OnChanged += OnNotifyChanged;
+        Language.LanguageChanged += OnLanguageChanged;
+        await Language.InitializeAsync();
         await NotifyService.InitializeAsync();
         await ConnectSignalRAsync();
     }
+
+    private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
 
     private async Task ConnectSignalRAsync()
     {
@@ -192,19 +199,24 @@
         _ => "info"
     };
 
-    private static string GetTimeAgo(DateTime createdAt)
+    private string GetTimeAgo(DateTime createdAt)
     {
         var elapsed = DateTime.Now - createdAt;
-        if (elapsed.TotalMinutes < 1) return "Vừa xong";
-        if (elapsed.TotalHours < 1) return $"{(int)elapsed.TotalMinutes} phút trước";
-        if (elapsed.TotalDays < 1) return $"{(int)elapsed.TotalHours} giờ trước";
-        if (elapsed.TotalDays < 30) return $"{(int)elapsed.TotalDays} ngày trước";
+        if (elapsed.TotalMinutes < 1) return Language.T("notification.justNow");
+        if (elapsed.TotalHours < 1) return Language.T("notification.minutesAgo", (int)elapsed.TotalMinutes);
+        if (elapsed.TotalDays < 1) return Language.T("notification.hoursAgo", (int)elapsed.TotalHours);
+        if (elapsed.TotalDays < 30) return Language.T("notification.daysAgo", (int)elapsed.TotalDays);
         return createdAt.ToString("dd/MM/yyyy HH:mm");
+    }
+
+    public void Dispose()
+    {
+        NotifyService.OnChanged -= OnNotifyChanged;
+        Language.LanguageChanged -= OnLanguageChanged;
     }
 
     public async ValueTask DisposeAsync()
     {
-        NotifyService.OnChanged -= OnNotifyChanged;
         if (_hubConnection != null)
             await _hubConnection.DisposeAsync();
     }
