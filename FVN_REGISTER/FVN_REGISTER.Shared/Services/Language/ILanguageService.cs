@@ -7,4 +7,5 @@ public interface ILanguageService
     Task InitializeAsync();
     Task SetLanguageAsync(LanguageCode language);
     string T(string key);
+    string T(string key, params object?[] args);
 }
