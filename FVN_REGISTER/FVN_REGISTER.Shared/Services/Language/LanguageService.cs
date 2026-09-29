@@ -39,13 +39,30 @@ public sealed class LanguageService : ILanguageService, IAsyncDisposable
         LanguageChanged?.Invoke(this, EventArgs.Empty);
     }
 
-    public string T(string key) => LanguageCatalog.Get(key, _current);
+    public string T(string key)
+    {
+        if (LanguageSupplementalCatalog.TryGet(key, _current, out var supplemental))
+            return supplemental;
+
+        return LanguageCatalog.Get(key, _current);
+    }
 
     public string T(string key, params object?[] args)
     {
         var template = T(key);
-        return args.Length == 0 ? template : string.Format(_current == LanguageCode.Ja ? System.Globalization.CultureInfo.GetCultureInfo("ja-JP") : System.Globalization.CultureInfo.GetCultureInfo("vi-VN"), template, args);
+        return args.Length == 0
+            ? template
+            : string.Format(
+                _current == LanguageCode.Ja
+                    ? System.Globalization.CultureInfo.GetCultureInfo("ja-JP")
+                    : System.Globalization.CultureInfo.GetCultureInfo("vi-VN"),
+                template,
+                args);
     }
 
-    public ValueTask DisposeAsync() { LanguageChanged = null; return ValueTask.CompletedTask; }
+    public ValueTask DisposeAsync()
+    {
+        LanguageChanged = null;
+        return ValueTask.CompletedTask;
+    }
 }
