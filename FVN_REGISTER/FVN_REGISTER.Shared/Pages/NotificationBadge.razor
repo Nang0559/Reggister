@@ -1,5 +1,6 @@
 @using FVN_REGISTER.Contract.Dtos.Notifications
 @using FVN_REGISTER.Shared.Services.Notifications
+@using FVN_REGISTER.Shared.Services.Language
 @using FVN_REGISTER.Shared.Utils
 @using Microsoft.AspNetCore.Components.Authorization
 @using Microsoft.AspNetCore.SignalR.Client
@@ -11,14 +12,17 @@
 @inject ISnackbar Snackbar
 @inject IConfiguration Configuration
 @inject ILogger<NotificationBadge> Logger
+@inject ILanguageService Language
 
+@implements IDisposable
 @implements IAsyncDisposable
 
 <MudBadge Content="@NotificationService.UnreadCount" Overlap="true" Color="Color.Error"
           Visible="@(NotificationService.UnreadCount > 0)" Max="99">
     <MudIconButton Icon="@Icons.Material.Filled.Notifications"
                    Color="Color.Inherit"
-                   OnClick="TogglePanel" />
+                   OnClick="TogglePanel"
+                   aria-label="@Language.T("notification.title")" />
 </MudBadge>
 
 @if (_showPanel)
@@ -29,10 +33,10 @@
         <MudList T="NotificationDto" Dense="true">
             <MudListItem>
                 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center">
-                    <MudText Typo="Typo.subtitle2">Thông báo</MudText>
+                    <MudText Typo="Typo.subtitle2">@Language.T("notification.title")</MudText>
                     @if (NotificationService.UnreadCount > 0)
                     {
-                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="MarkAllRead">Đọc tất cả</MudButton>
+                        <MudButton Size="Size.Small" Variant="Variant.Text" OnClick="MarkAllRead">@Language.T("notification.markAllRead")</MudButton>
                     }
                 </MudStack>
             </MudListItem>
@@ -43,14 +47,14 @@
                 <MudListItem>
                     <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="1">
                         <MudProgressCircular Size="Size.Small" Indeterminate="true" />
-                        <MudText Typo="Typo.caption" Color="Color.Secondary">Đang tải...</MudText>
+                        <MudText Typo="Typo.caption" Color="Color.Secondary">@Language.T("common.loading")</MudText>
                     </MudStack>
                 </MudListItem>
             }
             else if (!NotificationService.Notifications.Any())
             {
                 <MudListItem>
-                    <MudText Typo="Typo.body2" Color="Color.Secondary">Không có thông báo mới</MudText>
+                    <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("notification.empty")</MudText>
                 </MudListItem>
             }
             else
@@ -89,6 +93,7 @@
     protected override void OnInitialized()
     {
         NotificationService.OnChanged += OnNotificationsChanged;
+        Language.LanguageChanged += OnLanguageChanged;
     }
 
     protected override async Task OnParametersSetAsync()
@@ -97,8 +102,11 @@
             return;
 
         _lastDeviceId = DeviceId;
+        await Language.InitializeAsync();
         await InitializeAsync();
     }
+
+    private void OnLanguageChanged(object? sender, EventArgs e) => _ = InvokeAsync(StateHasChanged);
 
     private async Task InitializeAsync()
     {
@@ -136,10 +144,7 @@
                 var token = await TokenStorage.GetTokenAsync();
                 if (!string.IsNullOrWhiteSpace(token)) return token;
             }
-            catch
-            {
-                // JS/SecureStorage may not be ready yet.
-            }
+            catch { }
 
             await Task.Delay(300);
         }
@@ -161,38 +166,25 @@
                     var cleanToken = token.Trim().Trim('"');
                     options.AccessTokenProvider = () => Task.FromResult<string?>(cleanToken);
                 })
-                .WithAutomaticReconnect(new[]
-                {
-                    TimeSpan.Zero,
-                    TimeSpan.FromSeconds(5),
-                    TimeSpan.FromSeconds(10),
-                    TimeSpan.FromSeconds(30)
-                })
+                .WithAutomaticReconnect(new[] { TimeSpan.Zero, TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(30) })
                 .Build();
 
-            _hub.On<int>("BadgeUpdated", count =>
-            {
-                if (_disposed) return;
-                _ = InvokeAsync(StateHasChanged);
-            });
+            _hub.On<int>("BadgeUpdated", _ => { if (!_disposed) _ = InvokeAsync(StateHasChanged); });
 
             _hub.On<NotificationPushDto>("ReceiveNotification", push =>
             {
                 if (_disposed) return;
                 NotificationService.HandlePush(push);
                 _ = InvokeAsync(StateHasChanged);
-
                 if (push.Latest != null)
-                {
-                    Snackbar.Add(push.Latest.Title ?? "Có thông báo mới", Severity.Info,
+                    Snackbar.Add(push.Latest.Title ?? Language.T("notification.title"), Severity.Info,
                         config => config.VisibleStateDuration = 4000);
-                }
             });
 
             _hub.On<string>("ForceLogout", message =>
             {
                 if (_disposed) return;
-                Snackbar.Add(message ?? "Phiên đăng nhập đã kết thúc.", Severity.Warning);
+                Snackbar.Add(message ?? Language.T("auth.sessionExpired"), Severity.Warning);
                 _ = InvokeAsync(() => Nav.NavigateTo("/login", forceLoad: true));
             });
 
@@ -215,18 +207,14 @@
     private async Task TogglePanel()
     {
         _showPanel = !_showPanel;
-        if (_showPanel)
-            await NotificationService.LoadListAsync();
+        if (_showPanel) await NotificationService.LoadListAsync();
     }
 
     private async Task ClickItem(NotificationDto item)
     {
-        if (!item.IsRead)
-            await NotificationService.MarkReadAsync(item.Id);
-
+        if (!item.IsRead) await NotificationService.MarkReadAsync(item.Id);
         _showPanel = false;
-        if (!string.IsNullOrWhiteSpace(item.ActionUrl))
-            Nav.NavigateTo(item.ActionUrl);
+        if (!string.IsNullOrWhiteSpace(item.ActionUrl)) Nav.NavigateTo(item.ActionUrl);
     }
 
     private async Task MarkAllRead()
@@ -235,26 +223,22 @@
         _showPanel = false;
     }
 
-    private void OnNotificationsChanged()
-        => _ = InvokeAsync(StateHasChanged);
+    private void OnNotificationsChanged() => _ = InvokeAsync(StateHasChanged);
 
-    public async ValueTask DisposeAsync()
+    public void Dispose()
     {
         if (_disposed) return;
         _disposed = true;
         NotificationService.OnChanged -= OnNotificationsChanged;
+        Language.LanguageChanged -= OnLanguageChanged;
+    }
 
+    public async ValueTask DisposeAsync()
+    {
         if (_hub != null)
         {
-            try
-            {
-                await _hub.StopAsync();
-                await _hub.DisposeAsync();
-            }
-            catch (Exception ex)
-            {
-                Logger.LogDebug(ex, "[NOTIFY-BADGE] Error disposing SignalR connection");
-            }
+            try { await _hub.StopAsync(); await _hub.DisposeAsync(); }
+            catch (Exception ex) { Logger.LogDebug(ex, "[NOTIFY-BADGE] Error disposing SignalR connection"); }
         }
     }
 }
