@@ -1,0 +1,26 @@
+@implements IDisposable
+@inject ILanguageService Language
+
+<MudSelect T="LanguageCode" Value="Language.Current" ValueChanged="ChangeAsync"
+           Label="@Language.T("login.language")" Variant="Variant.Outlined" Margin="Margin.Dense"
+           Dense="true" Class="language-selector">
+    <MudSelectItem Value="LanguageCode.Vi">@Language.T("login.vietnamese")</MudSelectItem>
+    <MudSelectItem Value="LanguageCode.Ja">@Language.T("login.japanese")</MudSelectItem>
+</MudSelect>
+
+@code {
+    protected override async Task OnInitializedAsync()
+    {
+        Language.LanguageChanged += OnLanguageChanged;
+        await Language.InitializeAsync();
+    }
+
+    private async Task ChangeAsync(LanguageCode value)
+    {
+        await Language.SetLanguageAsync(value);
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e) => InvokeAsync(StateHasChanged);
+
+    public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
+}
