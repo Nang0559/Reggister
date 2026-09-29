@@ -1,4 +1,5 @@
 @page "/login"
+@implements IDisposable
 @using FVN_REGISTER.Contract.Requests.Auths
 @using FVN_REGISTER.Shared.Layout
 @using FVN_REGISTER.Shared.Services.Users
@@ -127,9 +128,5 @@
         }
     }
 
-    public override void Dispose()
-    {
-        Language.LanguageChanged -= OnLanguageChanged;
-        base.Dispose();
-    }
+    public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
 }
