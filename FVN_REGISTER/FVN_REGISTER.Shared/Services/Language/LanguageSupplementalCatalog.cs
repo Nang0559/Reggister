@@ -27,6 +27,16 @@ public static class LanguageSupplementalCatalog
             ["auth.sessionExpired"] = ("Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.", "ログインセッションの有効期限が切れました。再度ログインしてください。"),
             ["message.dashboardLoadFailed"] = ("Không thể tải Dashboard.", "ダッシュボードを読み込めませんでした。"),
             ["message.dashboardLoadFailedWithReason"] = ("Không thể tải Dashboard: {0}", "ダッシュボードを読み込めませんでした: {0}"),
+
+            ["password.title"] = ("Đổi mật khẩu", "パスワード変更"),
+            ["password.current"] = ("Mật khẩu hiện tại", "現在のパスワード"),
+            ["password.new"] = ("Mật khẩu mới", "新しいパスワード"),
+            ["password.confirm"] = ("Xác nhận mật khẩu mới", "新しいパスワードの確認"),
+            ["password.update"] = ("Cập nhật", "更新"),
+            ["password.confirmMismatch"] = ("Mật khẩu mới và xác nhận không khớp!", "新しいパスワードと確認用パスワードが一致しません。"),
+            ["password.success"] = ("Đổi mật khẩu thành công. Vui lòng đăng nhập lại!", "パスワードを変更しました。再度ログインしてください。"),
+            ["password.failed"] = ("Không thể đổi mật khẩu.", "パスワードを変更できませんでした。"),
+            ["password.systemError"] = ("Lỗi hệ thống khi đổi mật khẩu.", "パスワード変更中にシステムエラーが発生しました。"),
         };
 
     public static bool TryGet(string key, LanguageCode language, out string value)
