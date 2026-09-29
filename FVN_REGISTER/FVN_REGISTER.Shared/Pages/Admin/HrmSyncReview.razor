@@ -2,27 +2,29 @@
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.HrmSync
 @using FVN_REGISTER.Shared.Services.HrmSync
+@using FVN_REGISTER.Shared.Services.Language
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 
 @inject IHrmSyncReviewClientService ReviewService
 @inject ISnackbar Snackbar
 @inject NavigationManager Navigation
+@inject ILanguageService Language
 
-<PageTitle>HRM Sync Review</PageTitle>
+<PageTitle>@Language.T("hrm.review.title")</PageTitle>
 
 <MudStack Row="true" Justify="Justify.SpaceBetween" AlignItems="AlignItems.Center" Class="mb-4">
     <MudStack Spacing="0">
-        <MudText Typo="Typo.h5">HRM Sync — Xử lý xung đột</MudText>
-        <MudText Typo="Typo.body2" Color="Color.Secondary">Danh sách flag chưa xử lý từ quá trình đồng bộ HRM. Resolve chỉ đóng flag, không tự ghi đè dữ liệu nguồn.</MudText>
+        <MudText Typo="Typo.h5">@Language.T("hrm.review.heading")</MudText>
+        <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("hrm.review.description")</MudText>
     </MudStack>
     <MudStack Row="true" Spacing="2">
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Sync" OnClick="@(() => Navigation.NavigateTo("/admin/hrm-sync"))">Quản lý đồng bộ</MudButton>
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="@_loading">Làm mới</MudButton>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Sync" OnClick="@(() => Navigation.NavigateTo("/admin/hrm-sync"))">@Language.T("hrm.review.manageSync")</MudButton>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="@_loading">@Language.T("common.refresh")</MudButton>
     </MudStack>
 </MudStack>
 
-<MudAlert Severity="Severity.Info" Class="mb-4">Còn <b>@_count</b> conflict chưa resolve.</MudAlert>
+<MudAlert Severity="Severity.Info" Class="mb-4">@Language.T("hrm.review.pendingCount", _count)</MudAlert>
 
 @if (_loading)
 {
@@ -30,17 +32,17 @@
 }
 else if (!_items.Any())
 {
-    <MudAlert Severity="Severity.Success">Không có conflict HRM đang chờ xử lý.</MudAlert>
+    <MudAlert Severity="Severity.Success">@Language.T("hrm.review.empty")</MudAlert>
 }
 else
 {
     <MudTable Items="_items" Dense="true" Hover="true" Striped="true">
         <HeaderContent>
-            <MudTh>Entity</MudTh>
-            <MudTh>Key</MudTh>
-            <MudTh>Loại flag</MudTh>
-            <MudTh>Nội dung</MudTh>
-            <MudTh>Phát hiện</MudTh>
+            <MudTh>@Language.T("hrm.review.entity")</MudTh>
+            <MudTh>@Language.T("hrm.review.key")</MudTh>
+            <MudTh>@Language.T("hrm.review.flagType")</MudTh>
+            <MudTh>@Language.T("common.note")</MudTh>
+            <MudTh>@Language.T("hrm.review.detectedAt")</MudTh>
             <MudTh></MudTh>
         </HeaderContent>
         <RowTemplate>
@@ -50,7 +52,7 @@ else
             <MudTd>@context.Message</MudTd>
             <MudTd>@context.DetectedAt.ToString("dd/MM/yyyy HH:mm")</MudTd>
             <MudTd>
-                <MudButton Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" OnClick="@(() => ResolveAsync(context))">Đã xử lý</MudButton>
+                <MudButton Size="Size.Small" Color="Color.Primary" Variant="Variant.Outlined" OnClick="@(() => ResolveAsync(context))">@Language.T("hrm.review.resolve")</MudButton>
             </MudTd>
         </RowTemplate>
     </MudTable>
@@ -61,7 +63,14 @@ else
     private int _count;
     private bool _loading;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await Language.InitializeAsync();
+        Language.LanguageChanged += OnLanguageChanged;
+        await LoadAsync();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e) => InvokeAsync(StateHasChanged);
 
     private async Task LoadAsync()
     {
@@ -71,7 +80,7 @@ else
             var result = await ReviewService.GetUnresolvedAsync(ct: CancellationToken.None);
             if (!result.IsSuccess || result.Data == null)
             {
-                Snackbar.Add(result.Message ?? "Không tải được danh sách conflict HRM.", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("hrm.review.loadFailed"), Severity.Error);
                 return;
             }
             _items = result.Data;
@@ -87,12 +96,17 @@ else
         var result = await ReviewService.ResolveAsync(item.Id);
         if (!result.IsSuccess)
         {
-            Snackbar.Add(result.Message ?? "Không thể resolve flag.", Severity.Error);
+            Snackbar.Add(result.Message ?? Language.T("hrm.review.resolveFailed"), Severity.Error);
             return;
         }
 
         _items.Remove(item);
         _count = Math.Max(0, _count - 1);
-        Snackbar.Add("Đã đánh dấu conflict là đã xử lý.", Severity.Success);
+        Snackbar.Add(Language.T("hrm.review.resolveSuccess"), Severity.Success);
+    }
+
+    public void Dispose()
+    {
+        Language.LanguageChanged -= OnLanguageChanged;
     }
 }
