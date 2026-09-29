@@ -43,6 +43,8 @@ public sealed class LanguageService : ILanguageService, IAsyncDisposable
     {
         if (LanguageSupplementalCatalog.TryGet(key, _current, out var supplemental))
             return supplemental;
+        if (LanguageEquipmentCatalog.TryGet(key, _current, out var equipment))
+            return equipment;
 
         return LanguageCatalog.Get(key, _current);
     }
