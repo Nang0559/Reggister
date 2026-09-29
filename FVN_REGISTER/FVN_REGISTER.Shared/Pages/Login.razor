@@ -2,6 +2,7 @@
 @using FVN_REGISTER.Contract.Requests.Auths
 @using FVN_REGISTER.Shared.Layout
 @using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.Language
 @using FVN_REGISTER.Shared.Utils
 
 @layout EmptyLayout
@@ -11,27 +12,30 @@
 @inject IAuthClientService AuthService
 @inject NavigationManager Navigation
 @inject ISnackbar Snackbar
+@inject ILanguageService Language
 
 <MudContainer MaxWidth="MaxWidth.Small" Class="d-flex align-center justify-center" Style="height:100vh">
     <MudPaper Elevation="4" Class="pa-8" Width="100%" Style="max-width:400px; border-radius:12px">
         <div class="d-flex flex-column align-center mb-6">
             <MudIcon Icon="@Icons.Material.Filled.PrecisionManufacturing" Color="Color.Primary" Size="Size.Large" />
-            <MudText Typo="Typo.h5" Class="mt-2" Style="font-weight:bold; color:#1E88E5">e-Approval System</MudText>
-            <MudText Typo="Typo.caption" Color="Color.Secondary">Hệ thống FCC Việt Nam - Đăng nhập</MudText>
+            <MudText Typo="Typo.h5" Class="mt-2" Style="font-weight:bold; color:#1E88E5">@Language.T("app.name")</MudText>
+            <MudText Typo="Typo.caption" Color="Color.Secondary">FCC Việt Nam / FCCベトナム</MudText>
         </div>
 
-        <EditForm Model="@_model" OnValidSubmit="HandleLogin">
+        <LanguageSelector />
+
+        <EditForm Model="@_model" OnValidSubmit="HandleLogin" Class="mt-4">
             <DataAnnotationsValidator />
             <ValidationSummary />
 
-            <MudTextField T="string" Label="Mã nhân viên / UserName"
+            <MudTextField T="string" Label="@Language.T("login.employeeCode")"
                           @bind-Value="_model.UserName"
                           For="@(() => _model.UserName)"
                           Variant="Variant.Outlined" Margin="Margin.Dense"
                           Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Person"
                           Class="mb-4" />
 
-            <MudTextField T="string" Label="Mật khẩu"
+            <MudTextField T="string" Label="@Language.T("login.password")"
                           @bind-Value="_model.Password"
                           For="@(() => _model.Password)"
                           Variant="Variant.Outlined" Margin="Margin.Dense"
@@ -45,21 +49,21 @@
                 @if (_isProcessing)
                 {
                     <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
-                    <MudText Class="ms-2">Đang xác thực...</MudText>
+                    <MudText Class="ms-2">@Language.T("login.authenticating")</MudText>
                 }
                 else
                 {
-                    <MudText>ĐĂNG NHẬP</MudText>
+                    <MudText>@Language.T("login.submit")</MudText>
                 }
             </MudButton>
         </EditForm>
 
         <div class="mt-6 d-flex flex-column align-center gap-2">
-            <MudText Typo="Typo.caption" Class="mud-text-secondary">Quên mật khẩu? Liên hệ phòng IT FCC</MudText>
+            <MudText Typo="Typo.caption" Class="mud-text-secondary">@Language.T("login.forgotPassword")</MudText>
             <MudButton Variant="Variant.Text" Size="Size.Small"
                        StartIcon="@Icons.Material.Filled.Campaign"
                        Href="/thong-tin-cong-khai">
-                Thông báo &amp; quy định công khai
+                @Language.T("login.publicInfo")
             </MudButton>
         </div>
     </MudPaper>
@@ -71,6 +75,14 @@
     private bool _passwordVisibility;
     private InputType _passwordInput = InputType.Password;
     private string _passwordInputIcon = Icons.Material.Filled.VisibilityOff;
+
+    protected override async Task OnInitializedAsync()
+    {
+        Language.LanguageChanged += OnLanguageChanged;
+        await Language.InitializeAsync();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e) => InvokeAsync(StateHasChanged);
 
     private void TogglePasswordVisibility()
     {
@@ -94,22 +106,30 @@
                 if (AuthStateProvider is CustomAuthStateProvider provider)
                     provider.NotifyUserLogin(result.Data.Token);
 
-                Snackbar.Add("Xác thực thành công!", Severity.Success);
+                Snackbar.Add(Language.T("login.success"), Severity.Success);
                 Navigation.NavigateTo("/", forceLoad: false);
             }
             else
             {
-                Snackbar.Add(result.Message ?? "Mã nhân viên hoặc mật khẩu không đúng", Severity.Error);
+                Snackbar.Add(result.Message ?? Language.T("login.invalidCredentials"), Severity.Error);
             }
         }
         catch (Exception ex)
         {
             Logger.LogError(ex, "[{Component}] Login failed", ComponentName);
-            Snackbar.Add("Không thể kết nối đến máy chủ FCC", Severity.Error);
+            Snackbar.Add(Language.Current == LanguageCode.Ja
+                ? "FCCサーバーに接続できません。"
+                : "Không thể kết nối đến máy chủ FCC", Severity.Error);
         }
         finally
         {
             _isProcessing = false;
         }
+    }
+
+    public override void Dispose()
+    {
+        Language.LanguageChanged -= OnLanguageChanged;
+        base.Dispose();
     }
 }
