@@ -2,18 +2,19 @@
 @using FVN_REGISTER.Contract.Dtos.Approvals
 @using FVN_REGISTER.Contract.Requests.Approvals
 @using MudBlazor
+@inherits AppComponentBase
 
 @if (_route != null)
 {
     <MudCard Class="mt-3 pa-3" Elevation="1">
         <MudText Typo="Typo.subtitle1" Class="mb-2">
-            Người phê duyệt
+            @Language.T("approval.approver")
         </MudText>
 
         @if (_route.Levels.Count == 0)
         {
             <MudAlert Severity="Severity.Error" Dense="true">
-                Chưa cấu hình cấp phê duyệt cho chức vụ hiện tại. Không thể gửi đơn.
+                @Language.T("approval.noRoute")
             </MudAlert>
         }
 
@@ -21,13 +22,13 @@
         {
             <MudStack Class="mb-3">
                 <MudText Typo="Typo.body2">
-                    <b>Cấp @level.Level</b> — @level.LevelName
+                    <b>@Language.T("approval.level", level.Level)</b> — @level.LevelName
                 </MudText>
 
                 @if (level.Candidates.Count == 0)
                 {
                     <MudAlert Severity="Severity.Error" Dense="true">
-                        Chưa có người phê duyệt phù hợp cho cấp này.
+                        @Language.T("approval.noCandidate")
                     </MudAlert>
                 }
                 else if (level.Candidates.Count == 1)
@@ -45,7 +46,7 @@
                     <MudSelect T="string"
                                Value="@GetSelected(level)"
                                ValueChanged="@(value => SetSelected(level, value))"
-                               Label="Chọn người phê duyệt *"
+                               Label="@Language.T("approval.selectApprover")"
                                Variant="Variant.Outlined"
                                Dense="true">
                         @foreach (var candidate in level.Candidates)
