@@ -10,7 +10,9 @@ $excluded = '\\bin\\|\\obj\\|\\wwwroot\\|\\Services\\Language\\'
 $findings = [System.Collections.Generic.List[object]]::new()
 
 # Presentation literals only. API/Core/Application/Infrastructure are intentionally out of scope.
+# The audit is deliberately conservative: every candidate must be reviewed rather than silently ignored.
 $literalPatterns = @(
+    '<PageTitle>\s*([^<@][^<]*)<',
     '<MudButton[^>]*>\s*([^<@][^<]*)<',
     '<MudText[^>]*>\s*([^<@][^<]*)<',
     '<MudAlert[^>]*>\s*([^<@][^<]*)<',
@@ -18,13 +20,28 @@ $literalPatterns = @(
     '<MudTd[^>]*>\s*([^<@][^<]*)<',
     '<MudTabPanel[^>]*Text="([^"]+)"',
     '<MudTooltip[^>]*Text="([^"]+)"',
+    '<MudSelect[^>]*Label="([^"]+)"',
+    '<MudTextField[^>]*Label="([^"]+)"',
+    '<MudTextField[^>]*Placeholder="([^"]+)"',
+    '<MudNumericField[^>]*Label="([^"]+)"',
+    '<MudDatePicker[^>]*Label="([^"]+)"',
+    '<MudTimePicker[^>]*Label="([^"]+)"',
+    '<MudCheckBox[^>]*Label="([^"]+)"',
+    '<MudSwitch[^>]*Label="([^"]+)"',
+    '<MudRadio[^>]*Label="([^"]+)"',
+    'DataLabel="([A-Za-zÀ-ỹぁ-んァ-ヶ一-龯][^"]*)"',
     'Text="([A-Za-zÀ-ỹぁ-んァ-ヶ一-龯][^"]*)"',
     'Label="([A-Za-zÀ-ỹぁ-んァ-ヶ一-龯][^"]*)"',
     'Placeholder="([A-Za-zÀ-ỹぁ-んァ-ヶ一-龯][^"]*)"',
     'Title="([A-Za-zÀ-ỹぁ-んァ-ヶ一-龯][^"]*)"',
     'aria-label="([A-Za-zÀ-ỹぁ-んァ-ヶ一-龯][^"]*)"',
+    'alt="([A-Za-zÀ-ỹぁ-んァ-ヶ一-龯][^"]*)"',
     'Snackbar\.Add\(\s*"([^"]+)"',
-    'Snackbar\.Add\(\s*\$"([^"]+)"'
+    'Snackbar\.Add\(\s*\$"([^"]+)"',
+    'ShowAsync<[^>]+>\(\s*"([^"]+)"',
+    'ShowAsync<[^>]+>\(\s*\$"([^"]+)"',
+    'ShowMessageBoxAsync\(\s*"([^"]+)"',
+    'ShowMessageBoxAsync\(\s*\$"([^"]+)"'
 )
 
 $ignoreValues = @(
@@ -32,27 +49,33 @@ $ignoreValues = @(
     'Serial Number','Request','QR','OT','HRM','FCC','FVN REGISTER'
 )
 
+function Add-Finding([string]$file, [int]$lineNo, [string]$value, [string]$pattern) {
+    $value = $value.Trim()
+    if (-not $value -or $value -in $ignoreValues) { return }
+    if ($value -match '^(@|\{|\}|Icons\.|Color\.|Variant\.|Size\.|Typo\.|Mud|http|/|api/)') { return }
+    if ($value -match '^Language\.T\(') { return }
+    if ($value -match '^\d+(\.\d+)?$') { return }
+    $findings.Add([pscustomobject]@{
+        File = $file
+        Line = $lineNo
+        Text = $value
+        Pattern = $pattern
+    })
+}
+
+$rootPath = (Resolve-Path $Root).Path
 Get-ChildItem -Path $Root -Recurse -File -Include $extensions |
     Where-Object { $_.FullName -notmatch $excluded } |
     ForEach-Object {
         $file = $_
+        $relative = $file.FullName.Substring($rootPath.Length).TrimStart('\\')
         $lineNo = 0
         Get-Content -LiteralPath $file.FullName | ForEach-Object {
             $lineNo++
             $line = $_
             foreach ($pattern in $literalPatterns) {
                 if ($line -match $pattern) {
-                    $value = $Matches[1].Trim()
-                    if (-not $value -or $value -in $ignoreValues) { continue }
-                    if ($value -match '^(@|\{|\}|Icons\.|Color\.|Variant\.|Size\.|Typo\.|Mud|http|/|api/)') { continue }
-                    if ($value -match '^Language\.T\(') { continue }
-
-                    $findings.Add([pscustomobject]@{
-                        File = $file.FullName.Substring((Resolve-Path $Root).Path.Length).TrimStart('\\')
-                        Line = $lineNo
-                        Text = $value
-                        Pattern = $pattern
-                    })
+                    Add-Finding $relative $lineNo $Matches[1] $pattern
                 }
             }
         }
