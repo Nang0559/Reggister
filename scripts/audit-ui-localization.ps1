@@ -8,6 +8,7 @@ $ErrorActionPreference = 'Stop'
 $extensions = '*.razor','*.cs'
 $excluded = '\\bin\\|\\obj\\|\\wwwroot\\|\\Services\\Language\\'
 $findings = [System.Collections.Generic.List[object]]::new()
+$keyFindings = [System.Collections.Generic.List[object]]::new()
 
 # Presentation literals only. API/Core/Application/Infrastructure are intentionally out of scope.
 # The audit is deliberately conservative: every candidate must be reviewed rather than silently ignored.
@@ -64,32 +65,67 @@ function Add-Finding([string]$file, [int]$lineNo, [string]$value, [string]$patte
 }
 
 $rootPath = (Resolve-Path $Root).Path
-Get-ChildItem -Path $Root -Recurse -File -Include $extensions |
-    Where-Object { $_.FullName -notmatch $excluded } |
-    ForEach-Object {
-        $file = $_
-        $relative = $file.FullName.Substring($rootPath.Length).TrimStart('\\')
-        $lineNo = 0
-        Get-Content -LiteralPath $file.FullName | ForEach-Object {
-            $lineNo++
-            $line = $_
-            foreach ($pattern in $literalPatterns) {
-                if ($line -match $pattern) {
-                    Add-Finding $relative $lineNo $Matches[1] $pattern
-                }
+$allSourceFiles = Get-ChildItem -Path $Root -Recurse -File -Include $extensions |
+    Where-Object { $_.FullName -notmatch $excluded }
+
+foreach ($file in $allSourceFiles) {
+    $relative = $file.FullName.Substring($rootPath.Length).TrimStart('\\')
+    $lineNo = 0
+    foreach ($line in Get-Content -LiteralPath $file.FullName) {
+        $lineNo++
+        foreach ($pattern in $literalPatterns) {
+            if ($line -match $pattern) {
+                Add-Finding $relative $lineNo $Matches[1] $pattern
             }
         }
     }
+}
+
+# Verify every Language.T("key") reference has a catalog entry. Catalog files are intentionally excluded
+# from the literal scan above, then loaded here as the authoritative key set.
+$catalogFiles = Get-ChildItem -Path (Join-Path $Root 'Services\Language') -Recurse -File -Filter '*.cs' -ErrorAction SilentlyContinue
+$catalogText = ($catalogFiles | ForEach-Object { Get-Content -Raw -LiteralPath $_.FullName }) -join "`n"
+$catalogKeys = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+foreach ($match in [regex]::Matches($catalogText, '\["([^"]+)"\]\s*=\s*\(')) {
+    [void]$catalogKeys.Add($match.Groups[1].Value)
+}
+
+foreach ($file in $allSourceFiles) {
+    $relative = $file.FullName.Substring($rootPath.Length).TrimStart('\\')
+    $lineNo = 0
+    foreach ($line in Get-Content -LiteralPath $file.FullName) {
+        $lineNo++
+        foreach ($match in [regex]::Matches($line, 'Language\.T\(\s*"([^"]+)"')) {
+            $key = $match.Groups[1].Value
+            if (-not $catalogKeys.Contains($key)) {
+                $keyFindings.Add([pscustomobject]@{
+                    File = $relative
+                    Line = $lineNo
+                    Key = $key
+                })
+            }
+        }
+    }
+}
 
 $findings = $findings | Sort-Object File,Line,Text -Unique
+$keyFindings = $keyFindings | Sort-Object File,Line,Key -Unique
 
-if ($findings.Count -eq 0) {
-    Write-Host 'UI localization audit: no candidate literals found.' -ForegroundColor Green
+$totalProblems = @($findings).Count + @($keyFindings).Count
+if ($totalProblems -eq 0) {
+    Write-Host 'UI localization audit: no candidate literals or missing localization keys found.' -ForegroundColor Green
     exit 0
 }
 
-Write-Host "UI localization audit: $($findings.Count) candidate(s) require review." -ForegroundColor Yellow
-$findings | Format-Table -AutoSize
+if (@($findings).Count -gt 0) {
+    Write-Host "UI localization audit: $(@($findings).Count) candidate literal(s) require review." -ForegroundColor Yellow
+    $findings | Format-Table -AutoSize
+}
+
+if (@($keyFindings).Count -gt 0) {
+    Write-Host "UI localization audit: $(@($keyFindings).Count) missing localization key reference(s)." -ForegroundColor Red
+    $keyFindings | Format-Table -AutoSize
+}
 
 if ($Strict) { exit 2 }
 exit 1
