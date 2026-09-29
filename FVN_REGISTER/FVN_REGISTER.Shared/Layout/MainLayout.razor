@@ -1,6 +1,7 @@
 @* File: FVN_REGISTER.Shared/Layout/MainLayout.razor *@
 @using FVN_REGISTER.Core.Constants
 @using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.Language
 @using FVN_REGISTER.Shared.Utils
 @using FVN_REGISTER.Shared.Utils.Helpers
 @using FVN_REGISTER.Shared.Components
@@ -12,6 +13,7 @@
 @inject ICurrentUserClientService _user
 @inject NavigationManager _nav
 @inject CustomAuthStateProvider _authStateProvider
+@inject ILanguageService Language
 
 <MudLayout>
     @if (_isLoading)
@@ -24,20 +26,18 @@
     {
         <MudAppBar Elevation="1" Color="Color.Primary">
             <MudIconButton Icon="@Icons.Material.Filled.Menu" OnClick="DrawerToggle" Color="Color.Inherit" />
-            <MudText Typo="Typo.h6" Class="ml-1">FCC Smart Portal</MudText>
+            <MudText Typo="Typo.h6" Class="ml-1">@Language.T("app.name")</MudText>
             <MudSpacer />
+            <MudHidden Breakpoint="Breakpoint.Xs" Invert="true">
+                <div style="min-width:130px" class="mr-2"><LanguageSelector /></div>
+            </MudHidden>
             <NotificationBell />
             <FeatureHelp />
 
-            <MudMenu Label="@(_user.User?.FullName ?? "Nhân viên FCC")"
-                     Variant="Variant.Text"
-                     Color="Color.Inherit"
-                     StartIcon="@Icons.Material.Filled.AccountCircle"
-                     EndIcon="@Icons.Material.Filled.ArrowDropDown"
-                     AnchorOrigin="Origin.BottomRight"
-                     TransformOrigin="Origin.TopRight"
-                     Dense="true"
-                     Class="ml-auto">
+            <MudMenu Label="@(_user.User?.FullName ?? (Language.Current == LanguageCode.Ja ? "社員" : "Nhân viên"))"
+                     Variant="Variant.Text" Color="Color.Inherit" StartIcon="@Icons.Material.Filled.AccountCircle"
+                     EndIcon="@Icons.Material.Filled.ArrowDropDown" AnchorOrigin="Origin.BottomRight"
+                     TransformOrigin="Origin.TopRight" Dense="true" Class="ml-auto">
                 <ChildContent>
                     <div class="pa-4" style="min-width:220px;">
                         <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-2">
@@ -46,35 +46,30 @@
                             </MudAvatar>
                             <div>
                                 <MudText Typo="Typo.subtitle2">@(_user.User?.FullName ?? "N/A")</MudText>
-                                <MudText Typo="Typo.caption" Class="mud-text-secondary">Mã NV: @(_user.User?.EmployeeCode ?? "N/A")</MudText>
+                                <MudText Typo="Typo.caption" Class="mud-text-secondary">@(_user.User?.EmployeeCode ?? "N/A")</MudText>
                             </div>
                         </MudStack>
                     </div>
                     <MudDivider />
-                    <MudMenuItem Icon="@Icons.Material.Filled.PersonOutline" OnClick="@(() => _nav.NavigateTo("/profile"))">Hồ sơ của tôi</MudMenuItem>
-                    <MudMenuItem Icon="@Icons.Material.Filled.LockReset" OnClick="@(() => _nav.NavigateTo("/change-password"))">Đổi mật khẩu</MudMenuItem>
-                    <MudMenuItem Icon="@Icons.Material.Filled.Devices" OnClick="@(() => _nav.NavigateTo("/admin/sessions"))">Thiết bị & phiên đăng nhập</MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.PersonOutline" OnClick="@(() => _nav.NavigateTo("/profile"))">@Language.T("nav.home") - @(_user.User?.FullName ?? "")</MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.LockReset" OnClick="@(() => _nav.NavigateTo("/change-password"))">@("Đổi mật khẩu".Replace("Đổi mật khẩu", Language.Current == LanguageCode.Ja ? "パスワード変更" : "Đổi mật khẩu"))</MudMenuItem>
+                    <MudMenuItem Icon="@Icons.Material.Filled.Devices" OnClick="@(() => _nav.NavigateTo("/admin/sessions"))">@(Language.Current == LanguageCode.Ja ? "端末とログインセッション" : "Thiết bị & phiên đăng nhập")</MudMenuItem>
                     @if (_user.User?.PermissionCode.CanRequestLeave() == true)
                     {
                         <MudDivider />
-                        <MudMenuItem Icon="@Icons.Material.Filled.EventAvailable" OnClick="@(() => _nav.NavigateTo("/leave/create"))">Đăng ký nghỉ phép</MudMenuItem>
-                        <MudMenuItem Icon="@Icons.Material.Filled.History" OnClick="@(() => _nav.NavigateTo("/leave/history"))">Lịch sử đơn của tôi</MudMenuItem>
+                        <MudMenuItem Icon="@Icons.Material.Filled.EventAvailable" OnClick="@(() => _nav.NavigateTo("/leave/create"))">@Language.T("nav.leave")</MudMenuItem>
+                        <MudMenuItem Icon="@Icons.Material.Filled.History" OnClick="@(() => _nav.NavigateTo("/leave/history"))">@(Language.Current == LanguageCode.Ja ? "申請履歴" : "Lịch sử đơn của tôi")</MudMenuItem>
                     }
                     <MudDivider />
                     <MudMenuItem Icon="@Icons.Material.Filled.Logout" IconColor="Color.Error" OnClick="HandleLogout">
-                        <MudText Color="Color.Error">Đăng xuất</MudText>
+                        <MudText Color="Color.Error">@(Language.Current == LanguageCode.Ja ? "ログアウト" : "Đăng xuất")</MudText>
                     </MudMenuItem>
                 </ChildContent>
             </MudMenu>
         </MudAppBar>
 
-        <MudDrawer @bind-Open="_drawerOpen" Elevation="1">
-            <NavMenu />
-        </MudDrawer>
-
-        <MudMainContent>
-            <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">@Body</MudContainer>
-        </MudMainContent>
+        <MudDrawer @bind-Open="_drawerOpen" Elevation="1"><NavMenu /></MudDrawer>
+        <MudMainContent><MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4">@Body</MudContainer></MudMainContent>
     }
 </MudLayout>
 
@@ -83,40 +78,20 @@
     private bool _isLoading = true;
     protected override async Task OnInitializedAsync()
     {
+        Language.LanguageChanged += OnLanguageChanged;
+        await Language.InitializeAsync();
         try
         {
             _isLoading = true;
             var authState = await _authStateProvider.GetAuthenticationStateAsync();
-            if (authState.User.Identity is not { IsAuthenticated: true })
-            {
-                _nav.NavigateTo("/login");
-                return;
-            }
-
+            if (authState.User.Identity is not { IsAuthenticated: true }) { _nav.NavigateTo("/login"); return; }
             await _user.InitializeAsync();
-            Logger.LogInfoIf(
-                Debug,
-                "[{Component}] Init done. User={UserId}, PermissionCode={PermissionCode}",
-                ComponentName,
-                _user.User?.UserId,
-                _user.User?.PermissionCode);
         }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "[{Component}] Initialization failed", ComponentName);
-        }
-        finally
-        {
-            _isLoading = false;
-        }
+        catch (Exception ex) { Logger.LogError(ex, "[{Component}] Initialization failed", ComponentName); }
+        finally { _isLoading = false; }
     }
-
-    private async Task HandleLogout()
-    {
-        await _authService.Logout();
-        _nav.NavigateTo("/login", forceLoad: false);
-    }
-
+    private void OnLanguageChanged(object? sender, EventArgs e) => InvokeAsync(StateHasChanged);
+    private async Task HandleLogout() { await _authService.Logout(); _nav.NavigateTo("/login", forceLoad: false); }
     private void DrawerToggle() => _drawerOpen = !_drawerOpen;
-    public void Dispose() { }
+    public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
 }
