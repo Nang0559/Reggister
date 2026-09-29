@@ -2,34 +2,36 @@
 @attribute [Authorize]
 @using FVN_REGISTER.Contract.Dtos.Authentication
 @using FVN_REGISTER.Shared.Services.Users
+@using FVN_REGISTER.Shared.Services.Language
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 @inject IAuthClientService AuthService
 @inject ISnackbar Snackbar
+@inject ILanguageService Language
 
-<PageTitle>Thiết bị & phiên đăng nhập</PageTitle>
+<PageTitle>@Language.T("session.title")</PageTitle>
 
 <MudStack Spacing="3">
     <MudStack Row="true" AlignItems="AlignItems.Center">
         <div>
-            <MudText Typo="Typo.h4" Style="font-weight:800">Thiết bị & phiên đăng nhập</MudText>
-            <MudText Typo="Typo.body2" Color="Color.Secondary">Xem và đăng xuất các thiết bị đang sử dụng tài khoản này.</MudText>
+            <MudText Typo="Typo.h4" Style="font-weight:800">@Language.T("session.title")</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">@Language.T("session.description")</MudText>
         </div>
         <MudSpacer />
-        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="_loading">Làm mới</MudButton>
+        <MudButton Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Refresh" OnClick="LoadAsync" Disabled="_loading">@Language.T("common.refresh")</MudButton>
     </MudStack>
 
     @if (_error != null) { <MudAlert Severity="Severity.Error">@_error</MudAlert> }
 
     <MudPaper Class="pa-4" Elevation="1" Style="border-radius:16px">
         @if (_loading) { <MudProgressLinear Indeterminate="true" /> }
-        else if (_sessions.Count == 0) { <MudAlert Severity="Severity.Info">Không có phiên đăng nhập đang hoạt động.</MudAlert> }
+        else if (_sessions.Count == 0) { <MudAlert Severity="Severity.Info">@Language.T("session.empty")</MudAlert> }
         else
         {
             <MudTable Items="_sessions" Hover="true" Dense="true" Striped="true">
                 <HeaderContent>
-                    <MudTh>Thiết bị</MudTh><MudTh>Loại</MudTh><MudTh>Đăng nhập</MudTh>
-                    <MudTh>Hoạt động cuối</MudTh><MudTh>Trạng thái</MudTh><MudTh></MudTh>
+                    <MudTh>@Language.T("session.device")</MudTh><MudTh>@Language.T("session.type")</MudTh><MudTh>@Language.T("session.loginAt")</MudTh>
+                    <MudTh>@Language.T("session.lastSeen")</MudTh><MudTh>@Language.T("common.status")</MudTh><MudTh></MudTh>
                 </HeaderContent>
                 <RowTemplate>
                     <MudTd><b>@context.DeviceName</b></MudTd>
@@ -37,14 +39,14 @@
                     <MudTd>@context.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</MudTd>
                     <MudTd>@(context.LastSeenAt?.ToLocalTime().ToString("dd/MM/yyyy HH:mm") ?? "—")</MudTd>
                     <MudTd>
-                        @if (context.IsCurrent) { <MudChip T="string" Size="Size.Small" Color="Color.Success">Thiết bị hiện tại</MudChip> }
-                        else { <MudChip T="string" Size="Size.Small">Đang hoạt động</MudChip> }
+                        @if (context.IsCurrent) { <MudChip T="string" Size="Size.Small" Color="Color.Success">@Language.T("session.current")</MudChip> }
+                        else { <MudChip T="string" Size="Size.Small">@Language.T("session.active")</MudChip> }
                     </MudTd>
                     <MudTd>
                         <div class="d-flex justify-end">
                             <MudButton Variant="Variant.Outlined" Color="Color.Error" Size="Size.Small"
                                        Disabled="context.IsCurrent || _revokingId == context.Id"
-                                       OnClick="@(() => RevokeAsync(context))">Đăng xuất</MudButton>
+                                       OnClick="@(() => RevokeAsync(context))">@Language.T("session.signOut")</MudButton>
                         </div>
                     </MudTd>
                 </RowTemplate>
@@ -59,7 +61,14 @@
     private int? _revokingId;
     private string? _error;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        await Language.InitializeAsync();
+        Language.LanguageChanged += OnLanguageChanged;
+        await LoadAsync();
+    }
+
+    private void OnLanguageChanged(object? sender, EventArgs e) => InvokeAsync(StateHasChanged);
 
     private async Task LoadAsync()
     {
@@ -67,7 +76,7 @@
         try
         {
             var result = await AuthService.GetSessionsAsync();
-            if (!result.IsSuccess) { _error = result.Message ?? "Không tải được danh sách phiên đăng nhập."; return; }
+            if (!result.IsSuccess) { _error = result.Message ?? Language.T("session.loadFailed"); return; }
             _sessions = result.Data ?? new();
         }
         finally { _loading = false; }
@@ -79,10 +88,12 @@
         try
         {
             var result = await AuthService.RevokeSessionAsync(session.Id);
-            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? "Không thể đăng xuất thiết bị.", Severity.Error); return; }
+            if (!result.IsSuccess) { Snackbar.Add(result.Message ?? Language.T("session.revokeFailed"), Severity.Error); return; }
             _sessions.RemoveAll(x => x.Id == session.Id);
-            Snackbar.Add($"Đã đăng xuất thiết bị {session.DeviceName}.", Severity.Success);
+            Snackbar.Add(Language.T("session.revokeSuccess", session.DeviceName), Severity.Success);
         }
         finally { _revokingId = null; }
     }
+
+    public void Dispose() => Language.LanguageChanged -= OnLanguageChanged;
 }
