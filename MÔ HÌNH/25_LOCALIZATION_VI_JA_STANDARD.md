@@ -31,7 +31,7 @@ Nếu một lỗi nghiệp vụ cần hiển thị đúng tiếng Nhật, API c�
 
 Mọi text người dùng nhìn thấy phải thuộc một trong hai nhóm: localization key hoặc business/display data. Phải rà toàn bộ Pages, Components, Dialogs, Layout và `.cs` thuộc Shared có tạo text UI.
 
-Phạm vi bắt buộc gồm Login, Dashboard, Calendar, Leave, OT, Trip, Equipment, HRM, Attendance, Execution/Confirmation, HR Review, Notification, Task/Action, Approval, Security, User/Employee/Department/Position, Reports, Payroll, Public Information, dialog, button, tab, table header, label, placeholder, tooltip, validation, Snackbar/Alert, loading/empty/error/success, confirmation, file/evidence, import/export/print.
+Phạm vi bắt buộc gồm Login, Dashboard, Calendar, Leave, OT, Trip, Equipment, HRM, Attendance, Execution/Confirmation, HR Review, Notification, Task/Action, Approval, Security, User/Employee/Department/Position, Reports, Payroll, Public Information, dialog, button, tab, table header, table data label, label, placeholder, tooltip, page title, aria-label, validation, Snackbar/Alert, loading/empty/error/success, confirmation, file/evidence, import/export/print.
 
 Không được coi việc dịch Menu là hoàn thành localization.
 
@@ -92,7 +92,9 @@ và `.cs` thuộc Shared tạo text UI, Snackbar, Dialog, Notification hoặc va
 
 ## 13. Automated UI audit
 
-`scripts/audit-ui-localization.ps1` rà literal trong Razor/C# Presentation, gồm Button, Text, Alert, table header/cell, Tab, Tooltip, Label, Placeholder, Title, aria-label và `Snackbar.Add`. Audit không tự động thay chuỗi vì phải phân biệt UI text với business data/code.
+`scripts/audit-ui-localization.ps1` rà literal trong Razor/C# Presentation. Audit bao phủ PageTitle, Button, Text, Alert, table header/cell/DataLabel, Tab, Tooltip, Select/TextField/NumericField/DatePicker/TimePicker/CheckBox/Switch/Radio labels, Placeholder, Title, aria-label, alt, Snackbar, Dialog `ShowAsync` và message-box literals.
+
+Audit không tự động thay chuỗi vì phải phân biệt UI text với business data/code. Mọi candidate phải được rà và hoặc chuyển thành key, hoặc ghi nhận rõ là business/display data được phép giữ nguyên.
 
 Chạy:
 
@@ -119,13 +121,13 @@ powershell -ExecutionPolicy Bypass -File .\scripts\audit-ui-localization.ps1 -St
 - [x] Lưu lựa chọn ở browser.
 - [x] Đổi ngôn ngữ sau Login.
 - [x] Navigation dùng vocabulary chuẩn.
-- [x] Home, Equipment, LeaveCreate, NotificationBell, NotificationBadge đã được chuyển sang key trong các commit hiện tại.
+- [x] Home, Equipment, LeaveCreate, NotificationBell, NotificationBadge, ChangePassword, HRM Review, Session Management đã được chuyển sang key trong các commit hiện tại.
 
 ### Toàn bộ UI — chưa được đánh dấu hoàn thành cho đến khi audit sạch
 
 - [ ] Không còn UI literal Việt/Anh chưa được đánh giá.
 - [ ] Tất cả button/action được chuyển key.
-- [ ] Tất cả menu/tab/title/table header được chuyển key.
+- [ ] Tất cả menu/tab/title/table header/data label được chuyển key.
 - [ ] Tất cả dialog/confirm/tooltip/placeholder được chuyển key.
 - [ ] Tất cả validation được chuyển key.
 - [ ] Tất cả Snackbar/Alert/error/success/warning/loading/empty state được chuyển key.
@@ -138,7 +140,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\audit-ui-localization.ps1 -St
 - [ ] Không có tiếng Nhật viết trực tiếp trong Razor/C# UI.
 - [ ] Mọi key đều có cả VI và JA.
 - [ ] Thiếu key fallback an toàn về tiếng Việt.
-- [ ] Audit chạy Strict không còn candidate.
+- [ ] Audit chạy Strict không còn candidate chưa được xử lý.
 - [ ] Build và test UI cho cả `vi-VN` và `ja-JP`.
 
 ## 15. Không thay đổi nghiệp vụ
@@ -147,14 +149,6 @@ Localization chỉ thuộc Presentation/Web UI. Không thay đổi approval engi
 
 ## 16. Trạng thái triển khai hiện tại
 
-Đã triển khai và commit nền + một phần UI thực tế trên branch `feature/i18n-vi-ja`:
-
-- Login: VI/JA selector và toàn bộ text Login đã dùng key; lỗi kết nối không còn hard-code Việt/Anh.
-- Navigation/Layout: vocabulary chuẩn.
-- Home Dashboard: title, greeting, work center, cards, error/empty state dùng key.
-- Equipment: form, tabs, labels, action, warning/success/error dùng key.
-- LeaveCreate: title, action, load error và calendar description dùng key.
-- NotificationBell/Badge: title, read-all, empty/loading, session message và time-relative text dùng key.
-- Audit script đã mở rộng để rà thêm `MudTh`, `MudTd`, `MudTabPanel`, `aria-label` và `Snackbar.Add`.
+Đã triển khai nền + nhiều màn hình thực tế trên branch `feature/i18n-vi-ja`. Audit script đã được mở rộng để không bỏ sót các loại component và dialog phổ biến.
 
 Các module còn lại **không được coi là hoàn thành** cho đến khi source audit xử lý hết candidate và `-Strict` sạch.
