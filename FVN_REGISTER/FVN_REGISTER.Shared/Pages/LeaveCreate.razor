@@ -9,7 +9,7 @@
 @using Microsoft.AspNetCore.Authorization
 @inherits AppComponentBase
 
-<PageTitle>Đăng ký nghỉ phép</PageTitle>
+<PageTitle>@Language.T("leave.create.title")</PageTitle>
 
 @if (_isLoading)
 {
@@ -17,7 +17,7 @@
 }
 else if (_model == null)
 {
-    <MudAlert Severity="Severity.Warning" Class="mt-4">Không thể tải dữ liệu. Vui lòng thử lại.</MudAlert>
+    <MudAlert Severity="Severity.Warning" Class="mt-4">@Language.T("leave.create.loadFailed")</MudAlert>
 }
 else
 {
@@ -26,12 +26,12 @@ else
             <MudPaper Class="pa-2 mb-2 d-flex align-center justify-space-between" Elevation="0">
                 <MudText Typo="Typo.subtitle1">
                     <MudIcon Icon="@Icons.Material.Filled.EventAvailable" Size="Size.Small" Class="mr-1" />
-                    Đăng ký nghỉ phép
+                    @Language.T("leave.create.title")
                 </MudText>
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                            StartIcon="@Icons.Material.Filled.Add"
                            OnClick="@(() => OpenAddDialog(null, null))">
-                    Đăng ký nghỉ
+                    @Language.T("leave.create.action")
                 </MudButton>
             </MudPaper>
 
@@ -44,11 +44,10 @@ else
             <MudPaper Class="pa-2" Elevation="1">
                 <MudText Typo="Typo.subtitle1" Class="px-2 pt-2">
                     <MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" Class="mr-1" />
-                    Lịch làm việc chung
+                    @Language.T("calendar.sharedTitle")
                 </MudText>
                 <MudText Typo="Typo.caption" Color="Color.Secondary" Class="px-2">
-                    Lịch này dùng chung cho Nghỉ phép, OT và Công tác; ngày nghỉ công ty chỉ là thông tin lịch,
-                    quy tắc đăng ký cuối cùng do từng nghiệp vụ kiểm tra trên máy chủ.
+                    @Language.T("calendar.sharedDescription")
                 </MudText>
                 <WorkCalendar ModuleContext="LEAVE"
                               OnDateSelected="OnCalendarDateSelected"
